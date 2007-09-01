@@ -22,37 +22,38 @@
 use strict;
 
 use Mac::Growl;
+use Parse::IRC;
 
 my $app = 'Weechat (Curses)';
-my @messages_events = (
+my @messages = (
 	[ nick => 'Changed Nick', '$nick has changed nick to $text' ],
 	[ join => 'Joined Room', '$nick has joined $text' ],
-	[ part => 'Left Room', '$nick has left $channel($text)' ],
-	[ quit => 'Quit', '$nick has quit($text)' ],
+	[ part => 'Left Room', '$nick has left $channel ($text)' ],
+	[ quit => 'Quit', '$nick has quit ($text)' ],
 	[ topic => 'Set Topic', '$nick has set topic to \'$text\'' ],
 	[ weechat_highlight => 'Highlight Mentioned', '$text in $channel' ],
 	[ weechat_pv => 'Private Message', '$nick: $text' ],
 );
 my $notes;
-push @$notes, $_->[1] foreach @messages_events;
+push @$notes, $_->[1] foreach @messages;
 
 Mac::Growl::RegisterNotifications $app, $notes, $notes;
 
-my $version = '0.2';
+my $version = '0.3';
 weechat::register 'growl-notify', $version, '',
 	'Send Weechat notifications thru Mac::Growl';
 
-for my $message (@messages_events) {
+for my $message (@messages) {
 	no strict 'refs';	# access symbol table
 	my $subname = join '', __PACKAGE__, '::handler_', $message->[0];
 	*{$subname} = sub
 	{
-		my($server, $args) = @_;
-		# weechat::print $args;
-		my($mask, $nick, $channel, $text);
-		(undef, $channel, $text) = split /:/, $args, 3;
-		($mask, undef, $channel) = split / /, $channel;
-		($nick, undef) = split /!/, $mask;
+		my($ircmsg) = parse_irc $_[1];
+		my($nick, undef) = split /!/, $ircmsg->{prefix};
+		my($channel, $text);
+		$channel = shift @{$ircmsg->{params}}
+			if $message->[0] =~ /(part|highlight)/;
+		$text = shift @{$ircmsg->{params}};
 		Mac::Growl::PostNotification $app, $message->[1],
 			$message->[1], eval qq("$message->[2]"),
 			($message->[0] =~ /(pv|highlight)/ ? 1 : 0);
@@ -77,7 +78,7 @@ growl-notify.pl - Send Weechat notifications thru the Growl framework for Mac
 =head1 DESCRIPTION
 
 growl-notify is a script plugin for Weechat that sends notifications of common
-IRC events (such as joins, highlights, and private messages) to the Growl
+IRC messages (such as joins, highlights, and private messages) to the Growl
 notification framework for the Macintosh.  It uses the perl module L<Mac::Growl>
 to do its magic, even allowing the ncurses version of Weechat to generate
 graphical or audible event notifications.
