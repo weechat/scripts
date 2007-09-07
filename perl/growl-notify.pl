@@ -39,11 +39,11 @@ push @$notes, $_->[1] foreach @messages;
 
 Mac::Growl::RegisterNotifications $app, $notes, $notes;
 
-my $version = '0.3';
+my $version = '0.4';
 weechat::register 'growl-notify', $version, '',
 	'Send Weechat notifications thru Mac::Growl';
 
-for my $message (@messages) {
+for my $message (@messages){
 	no strict 'refs';	# access symbol table
 	my $subname = join '', __PACKAGE__, '::handler_', $message->[0];
 	*{$subname} = sub
@@ -52,7 +52,7 @@ for my $message (@messages) {
 		my($nick, undef) = split /!/, $ircmsg->{prefix};
 		my($channel, $text);
 		$channel = shift @{$ircmsg->{params}}
-			if $message->[0] =~ /(part|highlight)/;
+			if $message->[0] =~ /(part|pv|highlight)/;
 		$text = shift @{$ircmsg->{params}};
 		Mac::Growl::PostNotification $app, $message->[1],
 			$message->[1], eval qq("$message->[2]"),
