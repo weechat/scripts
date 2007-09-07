@@ -23,7 +23,7 @@ use strict;
 
 use Mac::Glue;
 
-my $version = '0.1';
+my $version = '0.2';
 weechat::register 'mac-update-status', $version, '',
 	'Update status messages in various Mac IM programs';
 weechat::add_modifier 'irc_user', 'privmsg', 'update';
@@ -55,7 +55,7 @@ $updater{Skype} = sub
 sub update
 {
 	my $message = $_[1];
-	(my $status = $message) =~ s#/me\s+##;
+	(my $status = $message) =~ s#^/me\s+##;
 	return $message if $status eq $message;
 
 	my $sysevent = new Mac::Glue 'System Events';
