@@ -1,11 +1,11 @@
 # =============================================================================
-#  wee-now-playing.rb (c) March 2006 by Tassilo Horn <heimdall@uni-koblenz.de>
+#  wee-now-playing.rb (c) 2006, 2007 Tassilo Horn <tassilo@member.fsf.org>
 #
-#  Licence     : GPL v2
-#  Description : Print what amaroK or moc is playing
+#  Licence     : GPLv3 or later
+#  Description : Print what Amarok or moc is playing
 #  Syntax      : /np
 #                => <nick> is listening to <Artist> - <Title>
-#  Precond     : needs Ruby (1.8) and amaroK or moc (Music on Console)
+#  Precond     : needs Ruby (1.8) and amaroK (<2.0) or moc (Music on Console)
 #
 # =============================================================================
 
@@ -40,6 +40,12 @@ def get_np_info
       end
     end
   end
+
+  # Fix vulnerability where names with \n or \r can execute IRC commands:
+  # See http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2007-4398
+  artist.gsub!(/[\n\r]/, ' ')
+  title.gsub!(/[\n\r]/, ' ')
+
   if !artist.empty? && !title.empty?
     "#{artist} - #{title}"
   else
@@ -60,7 +66,7 @@ def print_now_playing(server='', args='')
 end
 
 def weechat_init
-  Weechat.register("wee-now-playing", "0.1", "bye", "print now-playing infos")
+  Weechat.register("wee-now-playing", "0.2", "bye", "print now-playing infos")
   Weechat.add_command_handler("np", "print_now_playing")
   return Weechat::PLUGIN_RC_OK
 end
