@@ -20,6 +20,9 @@
 #
 # History:
 #
+# 2007-09-17, FlashCode <flashcode@flashtux.org>:
+#     version 0.5: fixed security problem with message parsing and execution
+#                  of system command
 # 2007-08-10, FlashCode <flashcode@flashtux.org>:
 #     version 0.4: upgraded licence to GPL 3
 # 2006-05-30, FlashCode <flashcode@flashtux.org>:
@@ -30,7 +33,7 @@
 
 use strict;
 
-my $version = "0.4";
+my $version = "0.5";
 my $command_suffix = " >/dev/null 2>&1 &";
 
 # default values in setup file (~/.weechat/plugins.rc)
@@ -56,7 +59,7 @@ sub sound
         my ($host, $msg) = ($1, $2);
 	if ($host ne "localhost")
 	{
-            if ($msg =~ /\001SOUND ([^ ]*)\001/)
+            if ($msg =~ /\001SOUND ([a-zA-Z0-9-_\.]*)\001/)
             {
                 my $filename = $1;
                 my $command = weechat::get_plugin_config("cmd_ctcp");
