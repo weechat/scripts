@@ -1,5 +1,5 @@
 #
-# UrlGrab, version 1.1, for weechat version 0.2.4
+# UrlGrab, version 1.2, for weechat version 0.2.4
 #
 #   Listens to all channels for URLs, collects them in a list, and launches
 #   them in your favourite web server on the local host or a remote server.
@@ -80,6 +80,7 @@
 #           added parsing of private messages
 #           added default command setting
 #           added parsing of scrollback buffers on load
+#    v1.2:  `historysize` was ignored
 #
 # Copyright (C) 2005 Jim Ramsay <i.am@jimramsay.com>
 #
@@ -105,7 +106,7 @@ import weechat
 import subprocess
 
 UC_NAME="UrlGrab"
-UC_VERSION="1.1"
+UC_VERSION="1.2"
 
 def urlGrabPrint(message):
     weechat.prnt("-[%s]- %s" % ( UC_NAME, message ) )
@@ -190,7 +191,13 @@ class UrlGrabSettings:
 
     def get(self, name):
         if self.has(name):
-            return weechat.get_plugin_config(name)
+            if name == 'historysize':
+                try:
+                    return int(weechat.get_plugin_config(name))
+                except:
+                    return int(self.settings[name].default)
+            else:
+                return weechat.get_plugin_config(name)
         else:
             raise KeyError( name )
 
