@@ -20,6 +20,8 @@
 #
 # History:
 #
+# 2007-10-02, GolemJ <golemj@gmail.com>:
+#     version 0.3, added possibility to reload layout by /layout command
 # 2007-08-10, FlashCode <flashcode@flashtux.org>:
 #     version 0.2, minor changes in script description
 # 2007-08-10, FlashCode <flashcode@flashtux.org>:
@@ -28,7 +30,7 @@
 
 use strict;
 
-my $version = "0.2";
+my $version = "0.3";
 
 # default values in setup file (~/.weechat/plugins.rc)
 my $default_auto_save = "on";
@@ -145,6 +147,58 @@ sub save_layout
     }
 }
 
+# restore layout from plugin option
+sub restore_layout
+{
+    my %config = get_hash_from_string(weechat::get_plugin_config("buffers"));
+    my @config2;
+    foreach my $itemKey (keys %config)
+    {
+        my $itemVal = $config{$itemKey};
+        @config2[$itemVal - 1] = $itemKey;
+    }
+
+    # restore buffers
+    my $i = 1;
+    foreach my $item (@config2)
+    {
+        my $server;
+        my $channel;
+        if (index($item, '/') eq -1)
+        {
+            $server = $item;
+        }
+        else
+        {
+            $server = substr($item, 0, index($item, '/'));
+            $channel = substr($item, index($item, '/') + 1);
+        }
+
+        # find current buffer
+        my $bf = weechat::get_buffer_info();
+        my $curBufno = -1;
+        while (my($bufno, $bufinfos) = each %$bf) {
+            my $curServer;
+            my $curChannel;
+            while (my($key, $value) = each %$bufinfos) {
+                if ($key eq 'server') { $curServer = $value; }
+                elsif ($key eq 'channel') { $curChannel = $value; }
+            }
+            if ($server eq $curServer and $channel eq $curChannel) {
+                $curBufno = $bufno;
+                last;
+            }
+        }
+
+        # move buffer to correct number
+        if ($curBufno > 0) {
+            weechat::command("/buffer $curBufno");
+            weechat::command("/buffer move $i");
+            $i++;
+        }
+    }
+}
+
 # the /layout command
 
 sub layout
@@ -152,6 +206,10 @@ sub layout
     if ($_[1] eq "save")
     {
         save_layout();
+    }
+    elsif (length($_[1]) eq 0)
+    {
+        restore_layout();
     }
     else
     {
