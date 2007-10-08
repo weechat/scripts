@@ -18,7 +18,7 @@ push @$notes, $_->[1] foreach @messages;
 
 Mac::Growl::RegisterNotifications $app, $notes, $notes;
 
-my $version = '0.4';
+my $version = '0.5';
 weechat::register 'growl-notify', $version, '',
 	'Send Weechat notifications thru Mac::Growl';
 
