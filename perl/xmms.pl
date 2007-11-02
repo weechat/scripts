@@ -32,7 +32,11 @@
 #                                                                   #
 #####################################################################
 
-weechat::register ("xmms", "1.1", "", "xmms info script (usage: /xmms)");
+# FlashCode <flashcode@flashtux.org>, 2007-11-02, version 1.2:
+#   Fix vulnerability where names with \n or \r can execute IRC commands:
+#   See http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2007-4398
+
+weechat::register ("xmms", "1.2", "", "xmms info script (usage: /xmms)");
 weechat::add_command_handler ("xmms", xmmsinfo);
 
 sub xmmsinfo {
@@ -49,12 +53,14 @@ sub xmmsinfo {
             push @db,$tmp;
         }
     }
+    $db[12] =~ s/[\n\r]/ /g;
     if (($db[7]!=-1) && ($db[7]!=0)) 
     {
         weechat::command("/me np: $db[12]");
     }
     else
     {
+        $db[13] =~ s/[\n\r]/ /g;
         weechat::command("/me np: $db[12] ($db[13])");
     }
     @db = ();
