@@ -19,6 +19,8 @@
 # Search for text in WeeChat disk log files.
 #
 # History:
+# 2007-11-09, darkk <leon at darkk dot net.ru>:
+#     version 0.3: regular expression is optonal now, bugfixes
 # 2007-08-10, FlashCode <flashcode@flashtux.org>:
 #     version 0.2: upgraded licence to GPL 3
 # 2006-04-17, FlashCode <flashcode@flashtux.org>:
@@ -27,7 +29,7 @@
 
 use strict;
 
-my $version = "0.2";
+my $version = "0.3";
 
 # default values in setup file (~/.weechat/plugins.rc)
 my $default_max          = "8";
@@ -35,7 +37,9 @@ my $default_server       = "off";
 my $default_grep_options = "-i";
 
 # init script
-weechat::register("logsearch", $version, "", "Search for text in WeeChat disk log files");
+if (not weechat::register("logsearch", $version, "", "Search for text in WeeChat disk log files")) {
+    die;
+}
 weechat::set_plugin_config("max", $default_max) if (weechat::get_plugin_config("max") eq "");
 weechat::set_plugin_config("server", $default_server) if (weechat::get_plugin_config("server") eq "");
 weechat::set_plugin_config("grep_options", $default_grep_options) if (weechat::get_plugin_config("grep_options") eq "");
@@ -43,7 +47,7 @@ weechat::set_plugin_config("grep_options", $default_grep_options) if (weechat::g
 # add command handler /logsearch
 weechat::add_command_handler("logsearch", "logsearch",
                              "search for text in WeeChat disk log files",
-                             "[-n#] text",
+                             "[-n#] [text]",
                              "-n#: max number or lines to display\n"
                              ."text: regular expression (used by grep)\n\n"
                              ."Plugins options (set with /setp):\n"
@@ -58,41 +62,52 @@ sub logsearch
 {
     my $server = shift;
     my $args = shift;
-    if ($args ne "")
+
+    # read settings
+    my $conf_max = weechat::get_plugin_config("max");
+    $conf_max = $default_max if ($conf_max eq "");
+    my $conf_server = weechat::get_plugin_config("server");
+    $conf_server = $default_server if ($conf_server eq "");
+    my $output_server = "";
+    $output_server = $server if (lc($conf_server) eq "on");
+    my $grep_options = weechat::get_plugin_config("grep_options");
+
+    # build log filename
+    my $buffer = weechat::get_info("channel", "");
+    $buffer = ".".$buffer if ($buffer ne "");
+    my $log_path = weechat::get_config("log_path");
+    my $wee_home = weechat::get_info("weechat_dir", "");
+    $log_path =~ s/%h/$wee_home/g;
+    my $file = $log_path.$server.$buffer.".weechatlog";
+
+    # parse log file
+    if ($args =~ s/^\s*-n([0-9]+)\s*//)
     {
-        # read settings
-        my $conf_max = weechat::get_plugin_config("max");
-        $conf_max = $default_max if ($conf_max eq "");
-        my $conf_server = weechat::get_plugin_config("server");
-        $conf_server = $default_server if ($conf_server eq "");
-        my $output_server = "";
-        $output_server = $server if (lc($conf_server) eq "on");
-        my $grep_options = weechat::get_plugin_config("grep_options");
-        
-        # build log filename
-        my $buffer = weechat::get_info("channel", "");
-        $buffer = ".".$buffer if ($buffer ne "");
-        my $log_path = weechat::get_config("log_path");
-        $log_path =~ s/%h/~\/.weechat/g;
-        my $file = $log_path.$server.$buffer.".weechatlog";
-        
-        # run grep in log file
-        if ($args =~ /-n([0-9]+) (.*)/)
-        {
-            $conf_max = $1;
-            $args = $2;
-        }
-        my $command = "grep ".$grep_options." '".$args."' ".$file." 2>/dev/null | tail -n".$conf_max;
-        my $result = `$command`;
-        
-        # display result
-        if ($result eq "")
-        {
-            weechat::print("Text not found in $file", "", $output_server);
-            return weechat::PLUGIN_RC_OK;
-        }
-        my @result_array = split(/\n/, $result);
-        weechat::print($_, "", $output_server) foreach(@result_array);
+        $conf_max = $1;
     }
+    foreach my $ref (\$args, \$file) {
+        # this seems to be enough for bash, don't know about other shells
+        ${$ref}  =~ s/(["\`\\\$])/\\\1/g;
+    }
+    my $command;
+    if ($args) 
+    {
+        $command = "grep $grep_options \"$args\" \"$file\" 2>/dev/null | tail -n$conf_max";
+    }
+    else
+    {
+        $command = "tail -n$conf_max \"$file\" 2>/dev/null";
+    }
+    my $result = `$command`;
+
+    # display result
+    if ($result eq "")
+    {
+        weechat::print("Text not found in $file", "", $output_server);
+        return weechat::PLUGIN_RC_OK;
+    }
+    my @result_array = split(/\n/, $result);
+    weechat::print($_, "", $output_server) foreach(@result_array);
+
     return weechat::PLUGIN_RC_OK;
 }
