@@ -179,7 +179,7 @@ def PMWLInterceptor(server, argList):
   myNick       = weechat.get_info("nick", server)
 
   if os.access(whiteListFileName(), os.F_OK) == False:
-    killPrivateMessage(bufferSender, bufferHome)
+    killPrivateMessage(bufferSender, bufferHome, myNick)
     return weechat.PLUGIN_RC_OK
 
   if (False == isOnList(nickSender)):
@@ -219,7 +219,7 @@ def PMWLCommandHandler(server, argList):
 
 # *** Script starts here ***
 
-weechat.register("PMWhiteList", "0.1", "end_PMWhiteList", "Private messages white list", "UTF-8");
+weechat.register("PMWhiteList", "0.2", "end_PMWhiteList", "Private messages white list", "UTF-8");
 weechat.set_charset("UTF-8");
 weechat.add_message_handler("weechat_pv", "PMWLInterceptor")
 weechat.add_command_handler("whitelist", "PMWLCommandHandler", "Private message white list", "add|del|view", "add nick, delete nick, or view white list", "add|del|view")
