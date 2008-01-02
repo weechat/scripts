@@ -61,6 +61,12 @@
 # Cheers!
 #
 # pr3d4t0r
+#
+# CHANGE LOG
+# ==========
+# 0.2 fixed:  ~/.weechat/white_list.dat not found error
+# 0.3 fixed:  No more endless looping if sender and recipient both have pmwhitelist.py
+#             installed, or if the recipient is a 'bot not in the white list.
 
 
 import        os
@@ -73,6 +79,11 @@ import        weechat
 FILE_NAME     = "white_list.dat"
 
 COMMANDS      = [ "add", "del", "view", "help" ]
+
+
+# *** Globals ***
+
+greyList      = []
 
 
 # *** Implementation and callback functions ***
@@ -148,6 +159,9 @@ def whiteListAdd(nick):
     whiteList.append(item+"\n")
 
   writeList(whiteList)
+
+  if (nick in greyList):
+    greyList.remove(nick)
 # whiteListAdd
 
 
@@ -183,7 +197,9 @@ def PMWLInterceptor(server, argList):
     return weechat.PLUGIN_RC_OK
 
   if (False == isOnList(nickSender)):
-    killPrivateMessage(bufferSender, bufferHome, myNick)
+    if (nickSender not in greyList):
+      killPrivateMessage(bufferSender, bufferHome, myNick)
+      greyList.append(nickSender)
 
   return weechat.PLUGIN_RC_OK
 # PMWLInterceptor
@@ -219,7 +235,7 @@ def PMWLCommandHandler(server, argList):
 
 # *** Script starts here ***
 
-weechat.register("PMWhiteList", "0.2", "end_PMWhiteList", "Private messages white list", "UTF-8");
+weechat.register("PMWhiteList", "0.3", "end_PMWhiteList", "Private messages white list", "UTF-8");
 weechat.set_charset("UTF-8");
 weechat.add_message_handler("weechat_pv", "PMWLInterceptor")
 weechat.add_command_handler("whitelist", "PMWLCommandHandler", "Private message white list", "add|del|view", "add nick, delete nick, or view white list", "add|del|view")
