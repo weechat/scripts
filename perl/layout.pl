@@ -20,6 +20,8 @@
 #
 # History:
 #
+# 2007-12-23, Eno_ <mgabilo, at, gmail <dot> com>:
+#     version 0.4, works with look_one_server_buffer = ON
 # 2007-10-02, GolemJ <golemj@gmail.com>:
 #     version 0.3, added possibility to reload layout by /layout command
 # 2007-08-10, FlashCode <flashcode@flashtux.org>:
@@ -30,7 +32,7 @@
 
 use strict;
 
-my $version = "0.3";
+my $version = "0.4";
 
 # default values in setup file (~/.weechat/plugins.rc)
 my $default_auto_save = "on";
@@ -184,7 +186,7 @@ sub restore_layout
                 if ($key eq 'server') { $curServer = $value; }
                 elsif ($key eq 'channel') { $curChannel = $value; }
             }
-            if ($server eq $curServer and $channel eq $curChannel) {
+            if ( ($server eq $curServer or $server eq '<servers>') and $channel eq $curChannel) {
                 $curBufno = $bufno;
                 last;
             }
