@@ -67,6 +67,10 @@
 # 0.2 fixed:  ~/.weechat/white_list.dat not found error
 # 0.3 fixed:  No more endless looping if sender and recipient both have pmwhitelist.py
 #             installed, or if the recipient is a 'bot not in the white list.
+# 0.4 added:  Notification to the current network server console that a user tried
+#             to send a private message, and who that user was.  Also, fixed the
+#             mechanism for clearing the '\n' at the end of each line read from the
+#             white list.
 
 
 import        os
@@ -120,8 +124,7 @@ def  readList():
   inputFile.close()
 
   for item in list:
-    item = item.replace('\n', '')
-    whiteList.append(item)
+    whiteList.append(item.rstrip('\n'))
 
   whiteList.sort()
   return whiteList
@@ -200,6 +203,7 @@ def PMWLInterceptor(server, argList):
     if (nickSender not in greyList):
       killPrivateMessage(bufferSender, bufferHome, myNick)
       greyList.append(nickSender)
+      weechat.print_server(nickSender+" tried to send a private message.")
 
   return weechat.PLUGIN_RC_OK
 # PMWLInterceptor
@@ -235,7 +239,7 @@ def PMWLCommandHandler(server, argList):
 
 # *** Script starts here ***
 
-weechat.register("PMWhiteList", "0.3", "end_PMWhiteList", "Private messages white list", "UTF-8");
+weechat.register("PMWhiteList", "0.4", "end_PMWhiteList", "Private messages white list", "UTF-8");
 weechat.set_charset("UTF-8");
 weechat.add_message_handler("weechat_pv", "PMWLInterceptor")
 weechat.add_command_handler("whitelist", "PMWLCommandHandler", "Private message white list", "add|del|view", "add nick, delete nick, or view white list", "add|del|view")
