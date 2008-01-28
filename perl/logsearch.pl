@@ -19,6 +19,9 @@
 # Search for text in WeeChat disk log files.
 #
 # History:
+# 2008-01-28, darkk <leon at darkk dot net.ru>:
+#     version 0.4: both -n123 and -123 are valid
+#                  "/logsearch -1234" does not hang weechat now
 # 2007-11-09, darkk <leon at darkk dot net.ru>:
 #     version 0.3: regular expression is optonal now, bugfixes
 # 2007-08-10, FlashCode <flashcode@flashtux.org>:
@@ -29,7 +32,7 @@
 
 use strict;
 
-my $version = "0.3";
+my $version = "0.4";
 
 # default values in setup file (~/.weechat/plugins.rc)
 my $default_max          = "8";
@@ -47,9 +50,9 @@ weechat::set_plugin_config("grep_options", $default_grep_options) if (weechat::g
 # add command handler /logsearch
 weechat::add_command_handler("logsearch", "logsearch",
                              "search for text in WeeChat disk log files",
-                             "[-n#] [text]",
-                             "-n#: max number or lines to display\n"
-                             ."text: regular expression (used by grep)\n\n"
+                             "[-n#|-#] [text]",
+                             "-n#|-#: max number or lines to display\n"
+                             ."text:   regular expression (used by grep)\n\n"
                              ."Plugins options (set with /setp):\n"
                              ."  - perl.logsearch.max: max number of lines displayed by default\n"
                              ."  - perl.logsearch.server: display result on server "
@@ -81,7 +84,7 @@ sub logsearch
     my $file = $log_path.$server.$buffer.".weechatlog";
 
     # parse log file
-    if ($args =~ s/^\s*-n([0-9]+)\s*//)
+    if ($args =~ s/^\s*-n?([0-9]+)\s*//)
     {
         $conf_max = $1;
     }
@@ -92,7 +95,7 @@ sub logsearch
     my $command;
     if ($args) 
     {
-        $command = "grep $grep_options \"$args\" \"$file\" 2>/dev/null | tail -n$conf_max";
+        $command = "grep $grep_options -e \"$args\" \"$file\" 2>/dev/null | tail -n$conf_max";
     }
     else
     {
