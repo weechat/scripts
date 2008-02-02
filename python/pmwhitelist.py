@@ -30,7 +30,6 @@
 # /whitelist add nick
 # /whitelist del nick
 # /whitelist view
-# /whitelist help
 #
 # The script can be loaded into WeeChat by executing:
 #
@@ -71,6 +70,10 @@
 #             to send a private message, and who that user was.  Also, fixed the
 #             mechanism for clearing the '\n' at the end of each line read from the
 #             white list.
+# 0.5 fixed:  Bug in auto-reply; the first time that a user sends a message, she gets the
+#             auto-reply; the second time she's able to send private messages.
+#
+#             Removed:  help command.
 
 
 import        os
@@ -82,7 +85,7 @@ import        weechat
 
 FILE_NAME     = "white_list.dat"
 
-COMMANDS      = [ "add", "del", "view", "help" ]
+COMMANDS      = [ "add", "del", "view" ]
 
 
 # *** Globals ***
@@ -99,9 +102,12 @@ def end_PMWhiteList():
 # end_PMWhiteList
 
 
-def killPrivateMessage(bufferSender, bufferHome, myNick):
+def killPrivateMessage(bufferSender, bufferHome, myNick, bAutoReply):
   weechat.command("/buffer "+bufferSender)
-  weechat.command("/say AUTOREPLY:  "+myNick+" does not accept unsolicited private messages.  Your message didn't reach the recipient.  Please ask for your nick to be white listed in-channel.  Thank you.")
+
+  if (True == bAutoReply):
+    weechat.command("/say AUTOREPLY:  "+myNick+" does not accept unsolicited private messages.  Your message didn't reach the recipient.  Please ask for your nick to be white listed in-channel.  Thank you.")
+    
   weechat.command("/close")
   weechat.command("/buffer "+bufferHome)
 # killPrivateMessage
@@ -196,14 +202,16 @@ def PMWLInterceptor(server, argList):
   myNick       = weechat.get_info("nick", server)
 
   if os.access(whiteListFileName(), os.F_OK) == False:
-    killPrivateMessage(bufferSender, bufferHome, myNick)
+    killPrivateMessage(bufferSender, bufferHome, myNick, True)
     return weechat.PLUGIN_RC_OK
 
   if (False == isOnList(nickSender)):
     if (nickSender not in greyList):
-      killPrivateMessage(bufferSender, bufferHome, myNick)
+      killPrivateMessage(bufferSender, bufferHome, myNick, True)
       greyList.append(nickSender)
       weechat.print_server(nickSender+" tried to send a private message.")
+    else:
+      killPrivateMessage(bufferSender, bufferHome, myNick, False)
 
   return weechat.PLUGIN_RC_OK
 # PMWLInterceptor
@@ -239,7 +247,7 @@ def PMWLCommandHandler(server, argList):
 
 # *** Script starts here ***
 
-weechat.register("PMWhiteList", "0.4", "end_PMWhiteList", "Private messages white list", "UTF-8");
+weechat.register("PMWhiteList", "0.5", "end_PMWhiteList", "Private messages white list", "UTF-8");
 weechat.set_charset("UTF-8");
 weechat.add_message_handler("weechat_pv", "PMWLInterceptor")
 weechat.add_command_handler("whitelist", "PMWLCommandHandler", "Private message white list", "add|del|view", "add nick, delete nick, or view white list", "add|del|view")
