@@ -1,9 +1,19 @@
 # Tray notifer plugin.
-# Version 0.2
+# Version 0.3
 # Released under GNU GPL v2
 # PhoeniX <leonid.phoenix@gmail.com>
-# 
-# TODO: konch script and communication
+#
+# Changelog
+# 0.3 - all message handlers are now optional (options handle_*)
+#     - fix: check konch presence
+#     - double click on tray icon raises konsole window (if weechat runs in konsole)
+# 0.2 - tray icon
+#     - tray icon tooltip
+#     - tray icon tooltip templates
+#     - tray icon reseting
+#     - fully configurable via config file
+# 0.1 - Initial version, was lost
+# This script requires Konch (http://konch.kdex.org/)
 # TODO: /tray help for help
 require 'strscan'
 require 'iconv'
@@ -55,15 +65,15 @@ EOS
 
 def weechat_init
   # registering
-  Weechat.register "tray", "0.2", "deinit", "Tray notifer plugin."
+  Weechat.register "tray", "0.3", "deinit", "Tray notifer plugin."
   # handlers 
   Weechat.add_command_handler "tray", "tray","","reset|toggle", "", "reset|toggle"
-  Weechat.add_message_handler "weechat_pv","on_query"
-  Weechat.add_message_handler "weechat_highlight","on_hl"
-  Weechat.add_message_handler "privmsg","on_privmsg"
-  Weechat.add_message_handler "part",   "on_part"
-  Weechat.add_message_handler "quit",   "on_quit"
-  Weechat.add_message_handler "join",   "on_join"
+  Weechat.add_message_handler "weechat_pv","on_query"     if handle_query("true")=="true"
+  Weechat.add_message_handler "weechat_highlight","on_hl" if handle_highlight("true")=="true"
+  Weechat.add_message_handler "privmsg","on_privmsg"      if handle_message("true")=="true"
+  Weechat.add_message_handler "part",   "on_part"         if handle_part("true")=="true"
+  Weechat.add_message_handler "quit",   "on_quit"         if handle_quit("true")=="true"
+  Weechat.add_message_handler "join",   "on_join"         if handle_join("true")=="true"
   Weechat.add_keyboard_handler "on_kbd"
   #config && defaults
   message_template("%channel% :: <font color='#0095FF'>%nick%</font>: %msg%")
@@ -84,6 +94,7 @@ def weechat_init
   $triggered=false
   
   # starting konch
+  return Weechat::PLUGIN_RC_KO if `which konch`.empty? # there's no konch
   $konch=`konch --icon #{default_icon} 2>/dev/null`
   $konch.chomp!
   
@@ -137,6 +148,7 @@ def parseargs args
   return hash
 end
 
+# checks, contains source defined in config highlights or not
 def highlight?(source)
   Weechat.get_config('irc_highlight').each(',') do |entry|
     return true if source.include?(entry.gsub('*',''))
@@ -144,8 +156,10 @@ def highlight?(source)
   return false
 end
 
+# handles regular channel messages
 def on_privmsg (server, args_src)
   $arg=parseargs args_src
+  #skipping unregular messages
   return Weechat::PLUGIN_RC_OK if ( \
     #it's a query
     ($arg['channel']==Weechat.get_info("nick")) || \
@@ -162,6 +176,7 @@ def on_privmsg (server, args_src)
   return Weechat::PLUGIN_RC_OK
 end
 
+# other handlers
 def on_query (server, args_src)
   $arg=parseargs args_src
   if $arg['action']
@@ -218,8 +233,8 @@ def do_notify(logline, command, options = {})
   $triggered=true
 end
 
+# reseting icon and tooltip log
 def reset(arg=[])
-  return Weechat::PLUGIN_RC_OK unless $triggered
   $log.delete "<hr>"
   # make log a list and pass it to konch
   tooltip="<p><ul>"+$log.map{|l| "<li>"+l+"</li>\n"}.join+"</ul></p>"
@@ -232,26 +247,30 @@ def reset(arg=[])
 end
 
 def on_kbd(a,b,c)
+  return Weechat::PLUGIN_RC_OK unless $triggered
   reset
   return Weechat::PLUGIN_RC_OK
 end
 
-def toggle
+# raises konsole window, if running inside it
+def toggle(arg=[])
   reset
+  return unless ENV['KONSOLE_DCOP'].nil?
   konsole=ENV['KONSOLE_DCOP'].scan(/\((.*),/)
   `dcop #{konsole} konsole-mainwindow#1 hide`
   `dcop #{konsole} konsole-mainwindow#1 restore`
 end
 
+# set/list internal variables/settings
 def set(argv)
   if argv.empty?
-    instance_variables.each{|var| var=var[1..-1]; Weechat.print_server var+" = "+ send(:"#{var}")}
+    instance_variables.sort.each{|var| var=var[1..-1]; Weechat.print_server var+" = "+ send(:"#{var}")}
   else
     instance_variable_set("@"+argv[0], argv.size<2 ? "" : argv[1]) 
   end
 end
 
-#calling a function, defined in this script, on /tray funcname
+# calling a function, defined in this script, on /tray funcname
 def tray(server,arg)
   arr=arg.split(' ')
   command=arr.shift
@@ -263,6 +282,7 @@ def tray(server,arg)
   return Weechat::PLUGIN_RC_OK
 end
 
+# saving/deinitializing
 def deinit
   instance_variables.each do |varname|
     Weechat.set_plugin_config(varname[1..-1], instance_variable_get(varname))
