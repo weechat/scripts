@@ -8,7 +8,7 @@
 import weechat,string 
 from os import popen
 
-weechat.register ('weenotify', '0.01', '', """Remember to replace ******** in plugins.rc with your nickname""")
+weechat.register ('weenotify', '0.02', '', """Remember to replace ******** in plugins.rc with your nickname""")
 weechat.add_message_handler("privmsg", "show_it_to_them")
 
 default = {
@@ -37,11 +37,12 @@ def show_it_to_them(server, args):
 	message_split = args.split(channel + ' :')
 	if message_split[0] != ' ':
 #		weechat.prnt('message' + message_split[1])
-		message = message_split[1]
+		message = message_split[1].replace('"',"'")
+#		message.replace('"','\ ')
 #		message = "a"
 #		weechat.prnt('message' + message)
 		if args.find(nick_check) != -1:
-			popen ('notify-send "' + sender + '@' + channel + '" "' + message +'"' +' -t '+time + ' -i ' +icon)	
+			popen ("notify-send " + sender + "@" + channel + ' "' + message +'" -t '+time + " -i " +icon)	
   	return 0
 
 
