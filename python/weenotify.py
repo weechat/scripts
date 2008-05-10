@@ -21,6 +21,8 @@
 0.3  - initial commit
 0.4  - notify-send requires escaping of «<» -> &lt; etc.
        at least that's valid for x11-misc/notification-daemon-0.3.7
+0.5  - better autodetection if X-server is running, one more weirdness added
+       every notify-send failure is reported
 """
 
 import weechat
@@ -28,7 +30,7 @@ import re
 import os
 import errno
 import xml.sax.saxutils as saxutils
-from itertools import ifilter
+from itertools import ifilter, chain
 from subprocess import Popen
 from locale import getlocale
 
@@ -88,16 +90,20 @@ class LinuxSupport(OsSupport):
             yield pid
 
 
+class NoNotificationDaemonError(LookupError):
+    pass
 
-def get_dbus_addr():
-    X = set()
+
+def get_env_ext():
+    X = []
     for pid in weeos.listpids():
         if weeos.get_exe_fname(pid) == 'X':
-            X.add(pid)
+            X.append(pid)
 
-    if not X:
-        return None
-
+    # I rely on the fact, that "X" is seldom child of "X"
+    # So X produces one and only one session, session starter
+    # is usually child or sister of "X", so I'm looking for
+    # dbus variables there
     init_children = set()
     for pid in X:
         init_children.add(weeos.get_parents(pid)[-2])
@@ -105,21 +111,37 @@ def get_dbus_addr():
     for pid in weeos.listpids():
         try:
             if weeos.get_parents(pid)[-2] in init_children:
-                return weeos.get_environment(pid)['DBUS_SESSION_BUS_ADDRESS']
+                renv = weeos.get_environment(pid)
+                # notification-daemon has DBUS_STARTER_ADDRESS
+                # variable that may be passed as DBUS_SESSION_BUS_ADDRESS
+                # But sometimes notification-daemon is not running, 
+                # that's why the ugly hack is used
+                return {
+                    'DBUS_SESSION_BUS_ADDRESS': renv['DBUS_SESSION_BUS_ADDRESS'],
+                    'DISPLAY':                  renv['DISPLAY'],
+                    }
         except:
             continue
-    return None
+    raise NoNotificationDaemonError
 
 
-dbus_addr = None
-def update_dbus_addr():
-    global dbus_addr
+env_ext = {}
+def update_env_ext():
     try:
-        dbus_addr = get_dbus_addr()
+        new_env = get_env_ext()
+        weechat.prnt("Dbus daemon found, environment: %s" % str(new_env), '', '')
+    except NoNotificationDaemonError:
+        new_env = {}
+        weechat.prnt("No dbus daemon found...", '', '')
     except NotImplementedError, e:
-        weechat.prnt('Dynamic DBUS_SESSION_BUS_ADDRESS detection is not supported on your OS: %s', str(e))
-        dbus_addr = os.getenv('DBUS_SESSION_BUS_ADDRESS')
-    weechat.prnt("We're running under X, dbus addrress is %s" % dbus_addr, '', '')
+        new_env = {}
+        weechat.prnt('Dynamic DBUS_SESSION_BUS_ADDRESS detection is not supported on your OS: %s' % str(e), '', '')
+    global env_ext
+    updated = (env_ext != new_env)
+    env_ext = new_env
+    return updated
+
+
 
 
 def run_notify(nick, chan, message):
@@ -133,13 +155,16 @@ def run_notify(nick, chan, message):
         args.extend(['-i', icon])
     args.extend([saxutils.escape(s) for s in ('--', u'%s wrote to %s' % (nick, chan), message)])
     args = [s.encode(local_charset) for s in args]
-    newenv = {'DBUS_SESSION_BUS_ADDRESS': dbus_addr}
     null = open(os.devnull)
+
+    newenv = dict(chain(os.environ.iteritems(), env_ext.iteritems()))
     p = Popen(args, env = newenv, stdout = null, stderr = null)
-    if p.wait() != 0:
-        update_dbus_addr()
-        p = Popen(args, env = newenv)
-        p.wait()
+    if p.wait() != 0 and update_env_ext():
+        # failed to use old environment, but environment changed
+        newenv = dict(chain(os.environ.iteritems(), env_ext.iteritems()))
+        p = Popen(args, env = newenv, stdout = null, stderr = null)
+        if p.wait() != 0:
+            weechat.prnt("notify-send error", '', '')
 
 
 def parse_privmsg(server, command):
@@ -178,9 +203,9 @@ def strip_irc_colors(message):
 # Say NO to duplications
 last_message = None
 def on_msg(server, args):
-    global last_message
     nick, buffer, message = [unicode(s, local_charset) for s in parse_privmsg(server, args)]
 
+    global last_message
     if message != last_message:
         last_message = message
 
@@ -205,7 +230,7 @@ def main():
             "icon": "/usr/share/pixmaps/gnome-irc.png"
             }
 
-    if weechat.register("weenotify", "0.4", "", "notify-send on highlight/private msg"):
+    if weechat.register("weenotify", "0.5", "", "notify-send on highlight/private msg"):
         for k, v in default.items():
             if not weechat.get_plugin_config(k):
                 weechat.set_plugin_config(k, v)
@@ -217,7 +242,7 @@ def main():
     else:
         weeos = OsSupport()
     
-    update_dbus_addr()
+    update_env_ext()
     weechat.add_message_handler("weechat_highlight", "on_msg")
     weechat.add_message_handler("weechat_pv", "on_msg")
 
