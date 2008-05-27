@@ -23,6 +23,7 @@
        at least that's valid for x11-misc/notification-daemon-0.3.7
 0.5  - better autodetection if X-server is running, one more weirdness added
        every notify-send failure is reported
+0.6  - better weechat.register error and IRC colors handling
 """
 
 import weechat
@@ -195,7 +196,7 @@ def strip_irc_colors(message):
     #    ur'\x1d',  # IRC_COLOR_ITALIC_CHAR
     #    ur'\x1f')  # IRC_COLOR_UNDERLINE_CHAR
     # hope, python regexps are character-aware, not byte-aware
-    return re.sub(ur'(?:\x02|\x03(?:\d{1,2})?(?:,\d{1,2)?|\x0F|\x11|\x12|\x16|\x1d|\x1f)', '', message)
+    return re.sub(ur'(?:\x02|\x03(?:\d{1,2})?(?:,\d{1,2})?|\x0F|\x11|\x12|\x16|\x1d|\x1f)', '', message)
 
 
 # weechat does not fire highlight callback on direct PRIVMSG's (aka, «privates» or «queries»)
@@ -230,21 +231,21 @@ def main():
             "icon": "/usr/share/pixmaps/gnome-irc.png"
             }
 
-    if weechat.register("weenotify", "0.5", "", "notify-send on highlight/private msg"):
+    if weechat.register("weenotify", "0.6", "", "notify-send on highlight/private msg"):
         for k, v in default.items():
             if not weechat.get_plugin_config(k):
                 weechat.set_plugin_config(k, v)
 
-    local_charset = getlocale()[1]
+        local_charset = getlocale()[1]
 
-    if os.uname()[0] == 'Linux':
-        weeos = LinuxSupport()
-    else:
-        weeos = OsSupport()
-    
-    update_env_ext()
-    weechat.add_message_handler("weechat_highlight", "on_msg")
-    weechat.add_message_handler("weechat_pv", "on_msg")
+        if os.uname()[0] == 'Linux':
+            weeos = LinuxSupport()
+        else:
+            weeos = OsSupport()
+        
+        update_env_ext()
+        weechat.add_message_handler("weechat_highlight", "on_msg")
+        weechat.add_message_handler("weechat_pv", "on_msg")
 
 main()
 
