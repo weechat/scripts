@@ -15,8 +15,8 @@ weechat.register ('weempd', '0.03', '', """mpd-weechat current song script (usag
 weechat.add_command_handler ('weempd', 'show_it_to_them')
 
 default = {
-  "msg_head": "profite de",
-  "msg_tail": "avec mpd (Music Player Daemon)",
+  "msg_head": "is playing",
+  "msg_tail": "with mpd",
   "spacer": " " ,
   "colour_title": "12",
   "colour_spacer": "08",
