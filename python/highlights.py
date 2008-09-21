@@ -15,10 +15,11 @@
 
     Author: Jason Whaley 
     Website: http://www.jasonwhaley.com
-    Email:  "".join["jasonwhaley", "@", "gmail", ".", "com"]
+    Email:  "".join(["jasonwhaley", "@", "gmail", ".", "com"])
 """
 
 import weechat
+import time 
 
 _function = "cmd_dispatcher"
 _description = "Highlight Aggregator" 
@@ -133,7 +134,7 @@ def format_message(server, channel, nick, message):
   '''
   Formats messages as (server: #channel) nick | message"
   '''
-  return "("+  server + ": " + channel + ")" + " " + nick + " | " + message
+  return nick + " | " + message + "   (" +  server + ": " + channel + " | " + time.strftime("%x %X",time.localtime()) + ")" 
 
 def cmd_dispatcher(server, args):
   '''
@@ -161,7 +162,7 @@ def cmd_dispatcher(server, args):
   return weechat.PLUGIN_RC_KO
 
 
-weechat.register("highlights", "0.1", "unload", "WeeChat python script")
+weechat.register("highlights", "0.1.1", "unload", "WeeChat python script")
 weechat.add_message_handler("weechat_highlight","add_message")
 weechat.add_command_handler(
   "highlights",
