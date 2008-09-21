@@ -11,15 +11,15 @@ import re
 import codecs
 from os import popen
 
-weechat.register ('weempd', '0.01', '', """mpd-weechat current song script (usage: /weempd)""")
+weechat.register ('weempd', '0.03', '', """mpd-weechat current song script (usage: /weempd)""")
 weechat.add_command_handler ('weempd', 'show_it_to_them')
 
 default = {
-  "msg_head": "is playing",
-  "msg_tail": "with mpd",
-  "spacer": "★",
-  "colour_title": "C12",
-  "colour_spacer": "C08",
+  "msg_head": "profite de",
+  "msg_tail": "avec mpd (Music Player Daemon)",
+  "spacer": " " ,
+  "colour_title": "12",
+  "colour_spacer": "08",
 }
 
 for k, v in default.items():
@@ -33,7 +33,8 @@ def show_it_to_them(server, args):
 	colour_title = weechat.get_plugin_config("colour_title")
 	colour_spacer = weechat.get_plugin_config("colour_spacer")
 	tempinfo = popen('mpc').readline().rstrip()
-	all = '/me ' + msg_head + ' %' + colour_spacer + spacer + ' %' + colour_title + tempinfo + ' %' + colour_spacer + spacer + " %C00" + msg_tail 
+#	all = '/me ' + msg_head + ' %' + colour_spacer + spacer + ' %' + colour_title + tempinfo + ' %' + colour_spacer + spacer + " %C00" + msg_tail
+	all = '/me ' + msg_head + '\x03' + colour_spacer + spacer + '\x03' + colour_title + tempinfo + '\x03' + colour_spacer + spacer + '\x031' + msg_tail 
 	weechat.command(all)
 	return 0
 
