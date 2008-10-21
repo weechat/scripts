@@ -74,6 +74,8 @@
 #             auto-reply; the second time she's able to send private messages.
 #
 #             Removed:  help command.
+# 0.6 added:  Updated the /wl add method to allow the user to enter multiple nicks
+#             in one operation:  /wl add bob bob- alice alice_
 
 
 import        os
@@ -155,22 +157,25 @@ def isOnList(nickSender):
 # isOnList
 
 
-def whiteListAdd(nick):
-  if (len(nick) < 1):
+def whiteListAdd(nickList):
+  if nickList == None or len(nickList) < 1:
     return
 
-  weechat.print_server("Private message white list add: "+nick)
-  list = readList()
-  list.append(nick)
+  list     = readList()
+
+  for nick in nickList:
+    weechat.print_server("Private message white list add: "+nick)
+    if nick not in list:
+      list.append(nick)
+
+    if nick in greyList:
+      greyList.remove(nick)
 
   whiteList = []
   for item in list:
     whiteList.append(item+"\n")
 
   writeList(whiteList)
-
-  if (nick in greyList):
-    greyList.remove(nick)
 # whiteListAdd
 
 
@@ -223,23 +228,23 @@ def PMWLCommandHandler(server, argList):
   if command not in COMMANDS:
     return weechat.PLUGIN_RC_KO
 
-  if len(argList.split(" ")) > 1:
-    argument = argList.split(" ")[1]
+  if len(argList.split(" ")) <= 1:
+    arguments = list() 
   else:
-    argument = ""
+    arguments = argList.split(" ")[1:]
 
   if (command.lower() == "view"):
     whiteListDisplay()
     return weechat.PLUGIN_RC_OK
 
-  if (len(argument) < 1):
+  if (len(arguments) < 1):
     return weechat.PLUGIN_RC_KO
 
   if (command.lower() == "add"):
-    whiteListAdd(argument)
+    whiteListAdd(arguments)
 
   if (command.lower() == "del"):
-    whiteListDel(argument)
+    whiteListDel(arguments[0])
 
   return weechat.PLUGIN_RC_OK
 # PMWLCommandHandler
@@ -247,8 +252,9 @@ def PMWLCommandHandler(server, argList):
 
 # *** Script starts here ***
 
-weechat.register("PMWhiteList", "0.5", "end_PMWhiteList", "Private messages white list", "UTF-8");
+weechat.register("PMWhiteList", "0.6", "end_PMWhiteList", "Private messages white list", "UTF-8");
 weechat.set_charset("UTF-8");
 weechat.add_message_handler("weechat_pv", "PMWLInterceptor")
-weechat.add_command_handler("whitelist", "PMWLCommandHandler", "Private message white list", "add|del|view", "add nick, delete nick, or view white list", "add|del|view")
-weechat.add_command_handler("wl", "PMWLCommandHandler", "Private message white list (shorthand for /whitelist)", "add|del|view", "add nick, delete nick, or view white list", "add|del|view")
+weechat.add_command_handler("whitelist", "PMWLCommandHandler", "Private message white list", "add|del|view", "add nick1 nick2 ... nickN, delete nick, or view white list", "add|del|view")
+weechat.add_command_handler("wl", "PMWLCommandHandler", "Private message white list (shorthand for /whitelist)", "add|del|view", "add nick1 nick2 ... nickN, delete nick, or view white list", "add|del|view")
+
