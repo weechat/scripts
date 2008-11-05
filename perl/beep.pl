@@ -37,7 +37,7 @@ my $default_beep_highlight = "on";
 my $default_beep_pv        = "on";
 
 weechat::register("beep", "FlashCode <flashcode\@flashtux.org>", $version,
-                  "GPL", "Speaker beep on highlight/private message", "", "");
+                  "GPL3", "Speaker beep on highlight/private message", "", "");
 weechat::config_set_plugin("beep_highlight", $default_beep_highlight) if (weechat::config_get_plugin("beep_highlight") eq "");
 weechat::config_set_plugin("beep_pv", $default_beep_pv) if (weechat::config_get_plugin("beep_pv") eq "");
 
