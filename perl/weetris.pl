@@ -18,6 +18,8 @@
 # Tetris game for WeeChat.
 #
 # History:
+# 2008-11-12, FlashCode <flashcode@flashtux.org>:
+#     version 0.2: hook timer only when weetris buffer is open
 # 2008-11-05, FlashCode <flashcode@flashtux.org>:
 #     version 0.1: first official version
 # 2008-04-30, FlashCode <flashcode@flashtux.org>:
@@ -25,9 +27,10 @@
 
 use strict;
 
-my $version = "0.1";
+my $version = "0.2";
 
 my $buffer = "";
+my $timer = "";
 
 my ($nbx, $nby) = (10, 20);
 my $start_y = 0;
@@ -73,6 +76,12 @@ my $item_form = 0;
 sub buffer_close
 {
     $buffer = "";
+    if ($timer ne "")
+    {
+        weechat::unhook($timer);
+        $timer = "";
+    }
+    
     weechat::print("", "Thank you for playing WeeTris!");
     return weechat::WEECHAT_RC_OK;
 }
@@ -80,13 +89,20 @@ sub buffer_close
 sub weetris_init
 {
     $buffer = weechat::buffer_new("weetris", "", "buffer_close");
-    weechat::buffer_set($buffer, "type", "free");
-    weechat::buffer_set($buffer, "title", "WeeTris.pl script - enjoy!");
-    weechat::buffer_set($buffer, "key_bind_meta2-A", "/weetris up");
-    weechat::buffer_set($buffer, "key_bind_meta2-B", "/weetris down");
-    weechat::buffer_set($buffer, "key_bind_meta2-D", "/weetris left");
-    weechat::buffer_set($buffer, "key_bind_meta2-C", "/weetris right");
-    weechat::buffer_set($buffer, "key_bind_meta-N", "/weetris new_game");
+    if ($buffer ne "")
+    {
+        weechat::buffer_set($buffer, "type", "free");
+        weechat::buffer_set($buffer, "title", "WeeTris.pl script - enjoy!");
+        weechat::buffer_set($buffer, "key_bind_meta2-A", "/weetris up");
+        weechat::buffer_set($buffer, "key_bind_meta2-B", "/weetris down");
+        weechat::buffer_set($buffer, "key_bind_meta2-D", "/weetris left");
+        weechat::buffer_set($buffer, "key_bind_meta2-C", "/weetris right");
+        weechat::buffer_set($buffer, "key_bind_meta-N", "/weetris new_game");
+        if ($timer eq "")
+        {
+            $timer = weechat::hook_timer(700, 0, 0, "weetris_timer");
+        }
+    }
 }
 
 sub display_line
@@ -337,4 +353,3 @@ sub weetris_timer
 
 weechat::register("weetris", "FlashCode <flashcode\@flashtux.org>", $version, "GPL3", "Tetris game for WeeChat, yeah!", "", "");
 weechat::hook_command("weetris", "Run WeeTris", "", "", "", "weetris");
-weechat::hook_timer(700, 0, 0, "weetris_timer");
