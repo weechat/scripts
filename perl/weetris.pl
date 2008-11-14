@@ -18,6 +18,8 @@
 # Tetris game for WeeChat.
 #
 # History:
+# 2008-11-14, FlashCode <flashcode@flashtux.org>:
+#     version 0.3: minor code cleanup
 # 2008-11-12, FlashCode <flashcode@flashtux.org>:
 #     version 0.2: hook timer only when weetris buffer is open
 # 2008-11-05, FlashCode <flashcode@flashtux.org>:
@@ -27,7 +29,7 @@
 
 use strict;
 
-my $version = "0.2";
+my $version = "0.3";
 
 my $buffer = "";
 my $timer = "";
@@ -144,13 +146,7 @@ sub display_all
     apply_item(1);
     
     # bar on top
-    my $str = " ┌";
-    for (my $i = 0; $i < $nbx; $i++)
-    {
-        $str .= "──";
-    }
-    $str .= "┐";
-    weechat::print_y($buffer, $start_y, $str);
+    weechat::print_y($buffer, $start_y, " ┌".("──" x $nbx)."┐");
     
     # middle
     for (my $y = 0; $y < $nby; $y++)
@@ -159,13 +155,7 @@ sub display_all
     }
     
     # bottom bar
-    $str = " └";
-    for (my $i = 0; $i < $nbx; $i++)
-    {
-        $str .= "──";
-    }
-    $str .= "┘";
-    weechat::print_y($buffer, $start_y + $nby + 1, $str);
+    weechat::print_y($buffer, $start_y + $nby + 1, " └".("──" x $nbx)."┘");
     
     apply_item(0);
 }
@@ -351,5 +341,6 @@ sub weetris_timer
     return weechat::WEECHAT_RC_OK;
 }
 
-weechat::register("weetris", "FlashCode <flashcode\@flashtux.org>", $version, "GPL3", "Tetris game for WeeChat, yeah!", "", "");
+weechat::register("weetris", "FlashCode <flashcode\@flashtux.org>",
+                  $version, "GPL3", "Tetris game for WeeChat, yeah!", "", "");
 weechat::hook_command("weetris", "Run WeeTris", "", "", "", "weetris");
