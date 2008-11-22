@@ -1,40 +1,38 @@
 #!/usr/bin/python
 
-# pagetitle plugin for weechat-0.2.6
-# usage example:
-#  /pt check this out: http://slashdot.org
-#  <user> check this out: http://slashdot.org ('Slashdot: News for nerds, stuff that matters')
-# author: <wolf@unfoog.de>
+# pagetitle plugin for weechat-0.2.7
+#
+#  /pt http://tech.slashdot.org/tech/08/11/12/199215.shtml
+#  <user> http://tech.slashdot.org/tech/08/11/12/199215.shtml
+#		 ('Slashdot | Microsoft's "Dead Cow" Patch Was 7 Years In the Making')
+#
+# xororand @ irc://irc.freenode.net/#weechat
 
 import htmllib
 import re
 import socket
 import sys
 import urllib2
-import weechat
 
-# Cut off titles
-limit_title_length = 50
-debug = False
+limit_title_length = 100
+debug = True
 
-# Change user agent
+# user agent
 opener = urllib2.build_opener()
 opener.addheaders = [('User-agent', 'Mozilla/5.0 (weechat/pagetitle)')]
 urllib2._urlopener = opener
 
-# Short timeout to avoid freezing weechat [seconds]
+# set a short timeout to avoid freezing weechat [seconds]
 socket.setdefaulttimeout(5)
 
-# Matches http urls
 regex_url = re.compile("""https?://[^ ]+""")
 
-def unescape(s):
+def unescape(s): #{{{
 	"""Unescape HTML entities"""
-
 	p = htmllib.HTMLParser(None)
 	p.save_bgn()
 	p.feed(s)
-	return p.save_end()
+	return p.save_end() #}}}
 
 def getPageTitle(url):
 	"""Retrieve the HTML <title> from a webpage"""
@@ -57,49 +55,50 @@ def getPageTitle(url):
 	head = u.read(8192)
 	head = re.sub("[\r\n\t ]"," ",head)
 
-	title_esc = re.search('(?i)\<title\>(.*?)\</title>', head)
-	if title_esc:
-		title_esc = title_esc.group(1)
-		return unescape(title_esc)
+	title = re.search('(?i)\<title\>(.*?)\</title\>', head)
+	if title:
+		title = title.group(1)
+		return unescape(title)
 	else:
 		return ""
 
-
+# /pt http://foo
 def on_pagetitle(server, args):
 	if len(args) == 0:
-		return weechat.PLUGIN_RC_KO
+		return weechat.WEECHAT_RC_ERROR
 
 	msg = args
 
 	def urlReplace(match):
-
 		url = match.group()
 		try:
 			if debug:
-				weechat.prnt("pagetitle: retrieving '%s'" % url)
-
+				weechat.prnt(weechat.current_buffer(), "pagetitle: retrieving '%s'" % url)
 			title = getPageTitle(url)
 			if len(title) > limit_title_length:
 				title = "%s [...]" % title[0:limit_title_length]
 			url = "%s ('%s')" % (url, title)
-
 		except NameError, e:
-			weechat.prnt("pagetitle: URL: '%s', Error: '%s'" % (url, e))
-
+			weechat.prnt(weechat.current_buffer(), "pagetitle: URL: '%s', Error: '%s'" % (url, e))
 		return url
 
 	msg = regex_url.sub(urlReplace, msg)
+	weechat.command(weechat.current_buffer(), "/say %s" % msg)
 
-	weechat.command(msg)
-	return weechat.PLUGIN_RC_OK
+	return weechat.WEECHAT_RC_OK
+
+# stub end function
+def end_func(server, args):
+	return
 
 # Register plugin
-weechat.register ('pagetitle', '0.3', '', """Adds HTML titles to http:// urls in your message.""")
+import weechat
 
+weechat.register ('pagetitle', 'xororand', '0.4', 'GPL3', """Adds HTML titles to http:// urls in your message.""", "end_func", "UTF-8")
 desc = """Sends a message to the current buffer and adds HTML titles to http:// URLs.
 Example: /pt check this out: http://xkcd.com/364/
 <you> check this out: http://xkcd.com/364/ (xkcd - A webcomic of romance, sarcasm, math and language)"""
+weechat.hook_command ('pt', desc, 'message', 'message containing an URL', '', 'on_pagetitle')
 
-weechat.add_command_handler ('pagetitle', 'on_pagetitle', desc, 'message')
-weechat.add_command_handler ('pt', 'on_pagetitle', desc, 'message')
+# vim:set ts=4 sw=4 noexpandtab nowrap foldmethod=marker:
 
