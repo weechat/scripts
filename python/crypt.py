@@ -5,7 +5,7 @@
 # License     : GPL3
 # Description : encrypt/decrypt PRIVMSGs in WeeChat using openssl
 #
-version="1.0-0.2.6"
+version="1.1-0.2.6"
 #
 # This plugin uses openssl to encrypt/decrypt messages you send
 # or receive with weechat. Due to the very simple method 
@@ -46,7 +46,7 @@ def decrypt(server, args):
     username = username[1:]
 
   if os.path.exists(weechat_dir + "/cryptkey." + username):
-    p = subprocess.Popen(["openssl", "enc", "-d", "-a", "-" + CIPHER, "-pass" ,"file:" + weechat_dir + "/cryptkey." + username], bufsize=4096, stdin=PIPE, stdout=PIPE, close_fds=True)
+    p = subprocess.Popen(["openssl", "enc", "-d", "-a", "-" + CIPHER, "-pass" ,"file:" + weechat_dir + "/cryptkey." + username], bufsize=4096, stdin=PIPE, stdout=PIPE, stderr=PIPE, close_fds=True)
     p.stdin.write("U2FsdGVkX1" + message.replace("|","\n"))
     p.stdin.close()
     decrypted = p.stdout.read()
@@ -62,7 +62,7 @@ def encrypt(server, args):
   prestr=pre.split(" ")
   username=prestr[-2]
   if os.path.exists(weechat_dir + "/cryptkey." + username):
-    p = subprocess.Popen(["openssl", "enc", "-a", "-" + CIPHER, "-pass" ,"file:" + weechat_dir + "/cryptkey." + username], bufsize=4096, stdin=PIPE, stdout=PIPE, close_fds=True)
+    p = subprocess.Popen(["openssl", "enc", "-a", "-" + CIPHER, "-pass" ,"file:" + weechat_dir + "/cryptkey." + username], bufsize=4096, stdin=PIPE, stdout=PIPE, stderr=PIPE, close_fds=True)
     p.stdin.write(message)
     p.stdin.close()
     encrypted = p.stdout.read()
@@ -71,13 +71,13 @@ def encrypt(server, args):
     if len(encrypted) > 400:
       splitmsg=string.split(message," ")
       cutpoint=len(splitmsg)/2
-      p = subprocess.Popen(["openssl", "enc", "-a", "-" + CIPHER, "-pass" ,"file:" + weechat_dir + "/cryptkey." + username], bufsize=4096, stdin=PIPE, stdout=PIPE, close_fds=True)
+      p = subprocess.Popen(["openssl", "enc", "-a", "-" + CIPHER, "-pass" ,"file:" + weechat_dir + "/cryptkey." + username], bufsize=4096, stdin=PIPE, stdout=PIPE, stderr=PIPE, close_fds=True)
       p.stdin.write(string.join(splitmsg[:cutpoint]," ") + "\n")
       p.stdin.close()
       encrypted = p.stdout.read()
       p.stdout.close()
       encrypted = encrypted.replace("\n","|")
-      p = subprocess.Popen(["openssl", "enc", "-a", "-" + CIPHER, "-pass" ,"file:" + weechat_dir + "/cryptkey." + username], bufsize=4096, stdin=PIPE, stdout=PIPE, close_fds=True)
+      p = subprocess.Popen(["openssl", "enc", "-a", "-" + CIPHER, "-pass" ,"file:" + weechat_dir + "/cryptkey." + username], bufsize=4096, stdin=PIPE, stdout=PIPE, stderr=PIPE, close_fds=True)
       p.stdin.write( string.join(splitmsg[cutpoint:]," ") )
       p.stdin.close()
       encrypted2 = p.stdout.read()
