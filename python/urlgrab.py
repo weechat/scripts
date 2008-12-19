@@ -1,8 +1,10 @@
 #
-# UrlGrab, version 1.2, for weechat version 0.2.4
+# UrlGrab, version 1.3 for weechat version 0.2.6
 #
 #   Listens to all channels for URLs, collects them in a list, and launches
 #   them in your favourite web server on the local host or a remote server.
+#   Copies url to X11 clipboard via xsel
+#      (http://www.vergenet.net/~conrad/software/xsel)
 #
 # Usage:
 #
@@ -82,6 +84,9 @@
 #           added parsing of scrollback buffers on load
 #    v1.2:  `historysize` was ignored
 #
+#  - With changes by ExclusivE (exclusive_tm at mail dot ru):
+#    v1.3: X11 clipboard support
+#
 # Copyright (C) 2005 Jim Ramsay <i.am@jimramsay.com>
 #
 # This program is free software; you can redistribute it and/or
@@ -106,7 +111,7 @@ import weechat
 import subprocess
 
 UC_NAME="UrlGrab"
-UC_VERSION="1.2"
+UC_VERSION="1.3"
 
 def urlGrabPrint(message):
     weechat.prnt("-[%s]- %s" % ( UC_NAME, message ) )
@@ -332,6 +337,29 @@ def urlGrabCheckOnload():
             for line in reversed(lines):
                 urlGrabCheckMsgline(buf['server'], buf['channel'], line['data'])
 
+def urlGrabCopy(index):
+    global urlGrab
+
+    server = weechat.get_info("server")
+    channel = weechat.get_info("channel")
+    
+    if channel == "":
+        urlGrabPrint( "No current channel, you must activate one" )
+    elif not urlGrab.hasChannel( channel, server ):
+        urlGrabPrint("No URL found - Invalid channel")
+    else:
+        if index <= 0:
+            urlGrabPrint("No URL found - Invalid index")
+            return
+        url = urlGrab.getUrl(index, channel, server)
+        if url == "":
+            urlGrabPrint("No URL found - Invalid index")
+	else:
+	    weechat.prnt("Url: %s gone to clipboard." % url)
+	    pipe = os.popen("xsel -i","w")
+	    pipe.write(url)
+	    pipe.close()
+
 def urlGrabOpen(index, channel = None):
     global urlGrab, urlGrabSettings
 
@@ -407,6 +435,8 @@ def urlGrabHelp():
     weechat.prnt("    /url n [channel]")
     weechat.prnt("        -> launch the nth url in `/url list`")
     weechat.prnt("           or the nth url in the specified channel")
+    weechat.prnt("    /url copy [n]")
+    weechat.prnt("        -> copy nth or last url to X11 clipboard")
     weechat.prnt("")
 
 def urlGrabMain(server, args):
@@ -449,6 +479,12 @@ def urlGrabMain(server, args):
                     weechat.prnt( "  Failed: No value given" )
         except KeyError:
             weechat.prnt( "  Failed: Unrecognized parameter '%s'" % name )
+    elif largs[0] == 'copy':
+        if len(largs) > 1:
+            urlGrabCopy(int(largs[1]))
+        else:
+            urlGrabCopy(1)
+
     else:
         try:
             no = int(largs[0])
