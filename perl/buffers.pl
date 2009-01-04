@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2008 by FlashCode <flashcode@flashtux.org>
+# Copyright (c) 2008-2009 by FlashCode <flashcode@flashtux.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@
 # Display sidebar with list of buffers.
 #
 # History:
+# 2009-01-04, FlashCode <flashcode@flashtux.org>:
+#     v0.8: update syntax for command /set (comments)
 # 2008-10-20, Jiri Golembiovsky <golemj@gmail.com>:
 #     v0.7: add indenting option
 # 2008-10-01, FlashCode <flashcode@flashtux.org>:
@@ -38,23 +40,23 @@
 #
 # Help about settings:
 #   display short names (remove text before first "." in buffer name):
-#      /set plugins.var.perl.buffers.short_names = on
+#      /set plugins.var.perl.buffers.short_names on
 #   use indenting for some buffers like IRC channels:
-#      /set plugins.var.perl.buffers.indenting = on
+#      /set plugins.var.perl.buffers.indenting on
 #   change colors:
-#      /set plugins.var.perl.buffers.color_number = color
-#      /set plugins.var.perl.buffers.color_default = color
-#      /set plugins.var.perl.buffers.color_hotlist_low = color
-#      /set plugins.var.perl.buffers.color_hotlist_message = color
-#      /set plugins.var.perl.buffers.color_hotlist_private = color
-#      /set plugins.var.perl.buffers.color_hotlist_highlight = color
-#      /set plugins.var.perl.buffers.color_current = color
+#      /set plugins.var.perl.buffers.color_number color
+#      /set plugins.var.perl.buffers.color_default color
+#      /set plugins.var.perl.buffers.color_hotlist_low color
+#      /set plugins.var.perl.buffers.color_hotlist_message color
+#      /set plugins.var.perl.buffers.color_hotlist_private color
+#      /set plugins.var.perl.buffers.color_hotlist_highlight color
+#      /set plugins.var.perl.buffers.color_current color
 #   (replace "color" by your color, which may be "fg" or "fg,bg")
 #
 
 use strict;
 
-my $version = "0.7";
+my $version = "0.8";
 
 # -------------------------------[ config ]-------------------------------------
 
