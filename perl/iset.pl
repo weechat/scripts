@@ -19,6 +19,8 @@
 #
 # History:
 # 2009-01-04, FlashCode <flashcode@flashtux.org>:
+#     version 0.3: open iset buffer when /iset command is executed
+# 2009-01-04, FlashCode <flashcode@flashtux.org>:
 #     version 0.2: use null values for options, add colors, fix refresh bugs,
 #                  use new keys to reset/unset options, sort options by name,
 #                  display number of options in buffer's title
@@ -29,7 +31,7 @@
 
 use strict;
 
-my $version = "0.2";
+my $version = "0.3";
 
 my $buffer = "";
 my @options_names = ();
@@ -300,10 +302,9 @@ sub iset_unset_option
 
 sub iset
 {
-    if ($_[1] ne "")
+    if (($_[1] ne "") && (substr($_[1], 0, 2) ne "**"))
     {
-        iset_filter($_[1]) if (substr($_[1], 0, 2) ne "**");
-        weechat::buffer_set($buffer, "display", "1");
+        iset_filter($_[1]);
     }
     
     if ($buffer eq "")
@@ -313,11 +314,9 @@ sub iset
         iset_refresh();
     }
     
-    if ($_[1] eq "")
-    {
-        weechat::buffer_set($buffer, "display", "1");
-    }
-    else
+    weechat::buffer_set($buffer, "display", "1");
+    
+    if ($_[1] ne "")
     {
         if ($_[1] eq "**refresh")
         {
