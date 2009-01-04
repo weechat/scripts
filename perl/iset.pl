@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2008 by FlashCode <flashcode@flashtux.org>
+# Copyright (c) 2008-2009 by FlashCode <flashcode@flashtux.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,6 +18,10 @@
 # Set WeeChat and plugins options interactively.
 #
 # History:
+# 2009-01-04, FlashCode <flashcode@flashtux.org>:
+#     version 0.2: use null values for options, add colors, fix refresh bugs,
+#                  use new keys to reset/unset options, sort options by name,
+#                  display number of options in buffer's title
 # 2008-11-05, FlashCode <flashcode@flashtux.org>:
 #     version 0.1: first official version
 # 2008-04-19, FlashCode <flashcode@flashtux.org>:
@@ -25,21 +29,47 @@
 
 use strict;
 
-my $version = "0.1";
+my $version = "0.2";
 
 my $buffer = "";
 my @options_names = ();
 my @options_types = ();
 my @options_values = ();
+my @options_is_null = ();
 my $option_max_length = 0;
 my $current_line = 0;
 my $filter = "*";
+
+my %default_options = ("option"               => "default",
+                       "option_selected"      => "white",
+                       "type"                 => "brown",
+                       "type_selected"        => "yellow",
+                       "value"                => "cyan",
+                       "value_selected"       => "lightcyan",
+                       "value_undef"          => "green",
+                       "value_undef_selected" => "lightgreen",
+                       "bg_selected"          => "red");
+
+sub iset_init_config
+{
+    foreach my $color (keys %default_options)
+    {
+        if (weechat::config_get_plugin("color_".$color) eq "")
+        {
+            weechat::config_set_plugin("color_".$color,
+                                       $default_options{$color});
+        }
+    }
+}
 
 sub iset_title
 {
     if ($buffer ne "")
     {
-        weechat::buffer_set($buffer, "title", "Interactive set (iset.pl v$version)  |  Filter: $filter");
+        weechat::buffer_set($buffer, "title",
+                            "Interactive set (iset.pl v$version)  |  "
+                            ."Filter: ".weechat::color("yellow").$filter.weechat::color("default")."  |  "
+                            .@options_names." options");
     }
 }
 
@@ -81,16 +111,16 @@ sub iset_init
     {
         weechat::buffer_set($buffer, "type", "free");
         iset_title();
-        weechat::buffer_set($buffer, "key_bind_ctrl-L", "/iset **refresh");
-        weechat::buffer_set($buffer, "key_bind_meta2-A", "/iset **up");
-        weechat::buffer_set($buffer, "key_bind_meta2-B", "/iset **down");
-        weechat::buffer_set($buffer, "key_bind_meta- ", "/iset **toggle");
-        weechat::buffer_set($buffer, "key_bind_meta-+", "/iset **incr");
-        weechat::buffer_set($buffer, "key_bind_meta--", "/iset **decr");
-        weechat::buffer_set($buffer, "key_bind_meta-r", "/iset **reset");
-        weechat::buffer_set($buffer, "key_bind_meta-u", "/iset **unset");
-        weechat::buffer_set($buffer, "key_bind_meta-ctrl-J", "/iset **set");
-        weechat::buffer_set($buffer, "key_bind_meta-ctrl-M", "/iset **set");
+        weechat::buffer_set($buffer, "key_bind_ctrl-L",        "/iset **refresh");
+        weechat::buffer_set($buffer, "key_bind_meta2-A",       "/iset **up");
+        weechat::buffer_set($buffer, "key_bind_meta2-B",       "/iset **down");
+        weechat::buffer_set($buffer, "key_bind_meta- ",        "/iset **toggle");
+        weechat::buffer_set($buffer, "key_bind_meta-+",        "/iset **incr");
+        weechat::buffer_set($buffer, "key_bind_meta--",        "/iset **decr");
+        weechat::buffer_set($buffer, "key_bind_meta-imeta-r",  "/iset **reset");
+        weechat::buffer_set($buffer, "key_bind_meta-imeta-u",  "/iset **unset");
+        weechat::buffer_set($buffer, "key_bind_meta-ctrl-J",   "/iset **set");
+        weechat::buffer_set($buffer, "key_bind_meta-ctrl-M",   "/iset **set");
         weechat::buffer_set($buffer, "key_bind_meta-meta2-1~", "/iset **scroll_top");
         weechat::buffer_set($buffer, "key_bind_meta-meta2-4~", "/iset **scroll_bottom");
     }
@@ -101,7 +131,9 @@ sub iset_get_options
     @options_names = ();
     @options_types = ();
     @options_values = ();
+    @options_is_null = ();
     $option_max_length = 0;
+    my %options = ();
     my $i = 0;
     my $infolist = weechat::infolist_get("option", "", $filter);
     while (weechat::infolist_next($infolist))
@@ -109,13 +141,21 @@ sub iset_get_options
         my $name = weechat::infolist_string($infolist, "full_name");
         my $type = weechat::infolist_string($infolist, "type");
         my $value = weechat::infolist_string($infolist, "value");
-        push(@options_names, $name);
-        push(@options_types, $type);
-        push(@options_values, $value);
+        my $is_null = weechat::infolist_integer($infolist, "value_is_null");
+        $options{$name}{"type"} = $type;
+        $options{$name}{"value"} = $value;
+        $options{$name}{"is_null"} = $is_null;
         $option_max_length = length($name) if (length($name) > $option_max_length);
         $i++;
     }
     weechat::infolist_free($infolist);
+    foreach my $name (sort keys %options)
+    {
+        push(@options_names, $name);
+        push(@options_types, $options{$name}{"type"});
+        push(@options_values, $options{$name}{"value"});
+        push(@options_is_null, $options{$name}{"is_null"});
+    }
 }
 
 sub iset_refresh_line
@@ -125,26 +165,44 @@ sub iset_refresh_line
         my $y = $_[0];
         my $format = sprintf("%%s%%-%ds %%s %%-7s %%s %%s%%s%%s", $option_max_length);
         my $around = "";
-        $around = "\"" if ($options_types[$y] eq "string");
-        my $color1 = "";
-        my $color2 = "";
+        $around = "\"" if ((!$options_is_null[$y]) && ($options_types[$y] eq "string"));
+        my $color1 = weechat::color(weechat::config_get_plugin("color_option"));
+        my $color2 = weechat::color(weechat::config_get_plugin("color_type"));
         my $color3 = "";
+        if ($options_is_null[$y])
+        {
+            $color3 = weechat::color(weechat::config_get_plugin("color_value_undef"));
+        }
+        else
+        {
+            $color3 = weechat::color(weechat::config_get_plugin("color_value"));
+        }
         if ($y == $current_line)
         {
-            $color1 = weechat::color("white,magenta");
-            $color2 = weechat::color("lightcyan,magenta");
-            $color3 = weechat::color("lightgreen,red");
+            $color1 = weechat::color(weechat::config_get_plugin("color_option_selected").",".weechat::config_get_plugin("color_bg_selected"));
+            $color2 = weechat::color(weechat::config_get_plugin("color_type_selected").",".weechat::config_get_plugin("color_bg_selected"));
+            if ($options_is_null[$y])
+            {
+                $color3 = weechat::color(weechat::config_get_plugin("color_value_undef_selected").",".weechat::config_get_plugin("color_bg_selected"));
+            }
+            else
+            {
+                $color3 = weechat::color(weechat::config_get_plugin("color_value_selected").",".weechat::config_get_plugin("color_bg_selected"));
+            }
         }
+        my $value = $options_values[$y];
+        $value = "(undef)" if ($options_is_null[$y]);
         my $strline = sprintf($format,
                               $color1, $options_names[$y],
                               $color2, $options_types[$y],
-                              $color3, $around, $options_values[$y], $around);
+                              $color3, $around, $value, $around);
         weechat::print_y($buffer, $y, $strline);
     }
 }
 
 sub iset_refresh
 {
+    iset_title();
     if (($buffer ne "") && ($#options_names >= 0))
     {
         foreach my $y (0 .. $#options_names)
@@ -214,7 +272,7 @@ sub iset_config
     if ($buffer ne "")
     {
         iset_get_options();
-        iset_refresh_line($current_line);
+        iset_refresh();
     }
     
     return weechat::WEECHAT_RC_OK;
@@ -245,6 +303,7 @@ sub iset
     if ($_[1] ne "")
     {
         iset_filter($_[1]) if (substr($_[1], 0, 2) ne "**");
+        weechat::buffer_set($buffer, "display", "1");
     }
     
     if ($buffer eq "")
@@ -337,8 +396,16 @@ sub iset
         if ($_[1] eq "**set")
         {
             my $quote = "";
-            $quote = "\"" if ($options_types[$current_line] eq "string");
-            weechat::buffer_set($buffer, "input", "/set ".$options_names[$current_line]." = ".$quote.$options_values[$current_line].$quote);
+            my $value = $options_values[$current_line];
+            if ($options_is_null[$current_line])
+            {
+                $value = "null";
+            }
+            else
+            {
+                $quote = "\"" if ($options_types[$current_line] eq "string");
+            }
+            weechat::buffer_set($buffer, "input", "/set ".$options_names[$current_line]." ".$quote.$value.$quote);
         }
     }
     
@@ -351,16 +418,17 @@ weechat::hook_command("iset", "Interactive set", "[f file] [s section] [text]",
                       "s section : show options for a section (for example: 's look')\n".
                       "text      : show options with 'text' in name (for example: 'nicklist')\n\n".
                       "Keys for iset buffer:\n".
-                      "up,down   : move one option up/down\n".
-                      "pgup,pdwn : move one page up/down\n".
-                      "ctrl + 'L': refresh options and screen\n".
-                      "alt-space : toggle boolean on/off\n".
-                      "alt + '+' : increase value (for integer or color)\n".
-                      "alt + '-' : decrease value (for integer or color)\n".
-                      "alt + 'R' : reset value of option\n".
-                      "alt + 'U' : unset option\n".
-                      "alt-enter : set new value for option (edit it with command line)\n".
-                      "text,enter: set a new filter using command line (use '*' to see all options)",
+                      "up,down        : move one option up/down\n".
+                      "pgup,pdwn      : move one page up/down\n".
+                      "ctrl+'L'       : refresh options and screen\n".
+                      "alt+space      : toggle boolean on/off\n".
+                      "alt+'+'        : increase value (for integer or color)\n".
+                      "alt+'-'        : decrease value (for integer or color)\n".
+                      "alt+'I',alt+'R': reset value of option\n".
+                      "alt+'I',alt+'U': unset option\n".
+                      "alt+enter      : set new value for option (edit it with command line)\n".
+                      "text,enter     : set a new filter using command line (use '*' to see all options)",
                       "", "iset");
 weechat::hook_signal("window_scrolled", "iset_signal_window_scrolled");
 weechat::hook_config("*", "iset_config");
+iset_init_config();
