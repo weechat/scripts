@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2007 by FlashCode <flashcode@flashtux.org>
+# Copyright (c) 2007-2009 by FlashCode <flashcode@flashtux.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@
 # Display old topics for a channel.
 #
 # History:
+# 2009-01-05, Damian Viano <des@debian.org>:
+#     version 0.3: added the difftopic command
 # 2007-08-10, FlashCode <flashcode@flashtux.org>:
 #     version 0.2: upgraded licence to GPL 3
 # 2007-03-29, FlashCode <flashcode@flashtux.org>:
@@ -27,7 +29,7 @@
 
 use strict;
 
-my $version = "0.2";
+my $version = "0.3";
 
 my $plugin_help_options = "Plugins options (set with /setp):\n"
     ."  - perl.oldtopic.log_server: if on, displays all topic changes on server buffer\n"
@@ -59,6 +61,13 @@ weechat::add_command_handler ("oldtopic", "oldtopic_cmd",
                               "channel: channel name (default: current channel)\n\n"
                               .$plugin_help_options,
                               "%C");
+weechat::add_command_handler ("difftopic", "difftopic_cmd",
+                              "Display a diff for the last topic change for a channel",
+                              "[channel]",
+                              "channel: channel name (default: current channel)\n\n"
+                              .$plugin_help_options,
+                              "%C");
+
 
 my %oldtopic;
 undef %oldtopic;
@@ -232,6 +241,97 @@ sub oldtopic_cmd
                            $oldtopic{$server}{$channel}{$date}{"topic"}."\x0F\"");
         }
         weechat::print("No old topic for channel ${server}/${channel}.") if ($found == 0);
+    }
+    else
+    {
+        weechat::print("Error: this buffer is not a channel.");
+    }
+    
+    return weechat::PLUGIN_RC_OK;
+}
+
+sub difftopic_cmd
+{
+    my $server = weechat::get_info("server");
+    my $channel = weechat::get_info("channel");
+    $channel = $_[1] if ($_[1] ne "");
+    
+    if ($channel ne "")
+    {
+        my ($conf_log_server, $conf_max) = get_config();
+        
+        delete($oldtopic{$server}{$channel}) if ($conf_max == 0);
+        
+        my $count = 0;
+        my $found = 0;
+        my $tp1;
+        my $tp2;
+        
+        # get current and previous topics in tp1 and tp2
+        foreach my $date (sort { $b <=> $a } keys %{$oldtopic{$server}{$channel}})
+        {
+            $count++;
+            if ($count == 1)
+            {
+                $tp1 = $oldtopic{$server}{$channel}{$date}{"topic"};
+                $tp1 =~ s/^ +| +$//g;
+                
+            }
+            if ($count > 1)
+            {
+                $found = 1;
+                $tp2 = $oldtopic{$server}{$channel}{$date}{"topic"};
+                $tp2 =~ s/^ +| +$//g;
+                last;
+            }
+        }
+        
+        #if we have both topics, diff them
+        if ($found == 1)
+        {
+            my $diff;
+            my $i = 0;
+            my $j = 0;
+            my $k = 0;
+            
+            my @original = split /\s*\|\s*|\s+-\s+/, $tp2;
+            my @modified = split /\s*\|\s*|\s+-\s+/, $tp1;
+            
+            # this is a ripoff from irsii topic-diff.pl
+            outer: while( $i <= $#original)
+            {
+                if ($j <= $#modified && $original[$i] eq $modified[$j])
+                {
+                    $modified[$j] = '';
+                    $i += 1;
+                    $j += 1;
+                    next;
+                }
+                else
+                {
+                    # First two don't match, check the rest of the list
+                    for ($k = $j ; $k <= $#modified; $k++)
+                    {
+                        if ($modified[$k] eq $original[$i])
+                        {
+                            $modified[$k] = '';
+                            $i += 1;
+                            next outer;
+                        }
+                    }
+                    $diff = ($diff ? $diff." | " : "").$original[$i];
+                    $i += 1;
+                }
+            }
+            
+            if ($diff ne '') { weechat::print("Topic: -: ".$diff);}
+            $diff = join " | ", (grep {$_ ne ''} @modified);
+            if ($diff ne '') { weechat::print("Topic: +: ".$diff);}
+        }
+        else
+        {
+          weechat::print("No old topic for channel ${server}/${channel}.");
+        }
     }
     else
     {
