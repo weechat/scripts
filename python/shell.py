@@ -1,15 +1,17 @@
 
 # =============================================================================
-#  shell.py (c) March 2006 by Kolter <kolter+dev@openics.org>
+#  shell.py (c) March 2006, 2009 by Kolter <kolter+dev@openics.org>
 #
 #  Licence     : GPL v2
 #  Description : running shell commands in WeeChat
 #  Syntax      : try /help shell to get some help on this script
-#  Precond     : needs weechat > 0.1.7 to run else it will crash WeeChat ;-)
+#  Precond     : needs weechat >= 0.2.7 to run
 #
 #
 # ### changelog ###
 #
+#  * version 0.2, FlashCode <flashcode@flashtux.org>:
+#      - conversion to WeeChat 0.2.7+
 #  * version 0.1 :
 #      - first release
 #
@@ -20,15 +22,15 @@ import weechat, os, popen2
 SHELL_CMD="shell"
 SHELL_PREFIX="[shell] "
 
-weechat.register ("Shell", "0.1", "", "Running shell commands in WeeChat")
-weechat.add_command_handler(
+weechat.register ("Shell", "Kolter", "0.2", "GPL", "Running shell commands in WeeChat", "", "")
+weechat.hook_command(
     SHELL_CMD,
-    "shell",
     "Running shell commands in WeeChat",
     "[-o] <command line>",
     "            -o :  print output on current server/channel\n"
     "<command line> :  shell command or builtin like cd, getenv, setenv, unsetenv",
-    "-o|cd|getenv|setenv|unsetenv cd|getenv|setenv|unsetenv"
+    "-o|cd|getenv|setenv|unsetenv cd|getenv|setenv|unsetenv",
+    "shell"
    )
 
 def shell_exec(command):
@@ -46,13 +48,13 @@ def shell_output(command, inchan):
     if status == 0:
         for line in results:
             if inchan:
-                weechat.command(line.rstrip('\n'))
+                weechat.command(weechat.current_buffer(), line.rstrip('\n'))
             else:
-                weechat.prnt(line.rstrip('\n'))
+                weechat.prnt(weechat.current_buffer(), line.rstrip('\n'))
     else:
-        weechat.prnt("%san error occured while running command `%s'" % (SHELL_PREFIX, command))
+        weechat.prnt(weechat.current_buffer(), "%san error occured while running command `%s'" % (SHELL_PREFIX, command))
         for line in results:
-            weechat.prnt(line.rstrip('\n'))
+            weechat.prnt(weechat.current_buffer(), line.rstrip('\n'))
 
 
 def shell_chdir(directory):
@@ -62,31 +64,31 @@ def shell_chdir(directory):
     try:
         os.chdir(directory)
     except:
-        weechat.prnt("%san error occured while running command `cd %s'" % (SHELL_PREFIX, directory))
+        weechat.prnt(weechat.current_buffer(), "%san error occured while running command `cd %s'" % (SHELL_PREFIX, directory))
     else:
         pass
 
 def shell_getenv(var, inchan):
     var = var.strip()
     if var == "":
-        weechat.prnt("%swrong syntax, try 'getenv VAR'" % (SHELL_PREFIX))
+        weechat.prnt(weechat.current_buffer(), "%swrong syntax, try 'getenv VAR'" % (SHELL_PREFIX))
         return
         
     value = os.getenv(var)
     if value == None:
-        weechat.prnt("%s$%s is not set" % (SHELL_PREFIX, var))
+        weechat.prnt(weechat.current_buffer(), "%s$%s is not set" % (SHELL_PREFIX, var))
     else:
         if inchan:
-            weechat.command("$%s=%s" % (var, os.getenv(var)))
+            weechat.command(weechat.current_buffer(), "$%s=%s" % (var, os.getenv(var)))
         else:
-            weechat.prnt("%s$%s=%s" % (SHELL_PREFIX, var, os.getenv(var)))
+            weechat.prnt(weechat.current_buffer(), "%s$%s=%s" % (SHELL_PREFIX, var, os.getenv(var)))
         
 def shell_setenv(expr, inchan):
     expr = expr.strip()
     lexpr = expr.split('=')
     
     if (len(lexpr) < 2):
-        weechat.prnt("%swrong syntax, try 'setenv VAR=VALUE'" % (SHELL_PREFIX))
+        weechat.prnt(weechat.current_buffer(), "%swrong syntax, try 'setenv VAR=VALUE'" % (SHELL_PREFIX))
         return
 
     os.environ[lexpr[0].strip()] = "=".join(lexpr[1:])
@@ -96,14 +98,14 @@ def shell_setenv(expr, inchan):
 def shell_unsetenv(var, inchan):
     var = var.strip()
     if var == "":
-        weechat.prnt("%swrong syntax, try 'unsetenv VAR'" % (SHELL_PREFIX))
+        weechat.prnt(weechat.current_buffer(), "%swrong syntax, try 'unsetenv VAR'" % (SHELL_PREFIX))
         return
 
     if os.environ.has_key(var):
         del os.environ[var]
-        weechat.prnt("%s$%s is now unset" % (SHELL_PREFIX, var))
+        weechat.prnt(weechat.current_buffer(), "%s$%s is now unset" % (SHELL_PREFIX, var))
     else:
-        weechat.prnt("%s$%s is not set" % (SHELL_PREFIX, var))        
+        weechat.prnt(weechat.current_buffer(), "%s$%s is not set" % (SHELL_PREFIX, var))        
     
 def shell(server, args):    
     largs = args.split(" ")    
@@ -115,7 +117,7 @@ def shell(server, args):
         largs.remove(' ')
 
     if len(largs) ==  0:
-        weechat.command("/help %s" % SHELL_CMD)
+        weechat.command("", "/help %s" % SHELL_CMD)
     else:
         inchan = False
         if largs[0] == '-o':
@@ -133,4 +135,4 @@ def shell(server, args):
         else:
             shell_output(" ".join(largs), inchan)
 
-    return weechat.PLUGIN_RC_OK
+    return weechat.WEECHAT_RC_OK
