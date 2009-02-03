@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2006-2007 by FlashCode <flashcode@flashtux.org>
+# Copyright (c) 2006-2009 by FlashCode <flashcode@flashtux.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,10 +16,14 @@
 #
 
 #
-# Play a sound when highlighted/private msg, or for ctcp sound event.
+# Play a sound for IRC "CTCP SOUND" message.
+# (this script requires WeeChat 0.2.7 or newer)
 #
 # History:
 #
+# 2009-02-03, FlashCode <flashcode@flashtux.org>:
+#     version 0.6: conversion to WeeChat 0.2.7+
+#                  move commands for highlight and pv to new script launcher.pl
 # 2007-09-17, FlashCode <flashcode@flashtux.org>:
 #     version 0.5: fixed security problem with message parsing and execution
 #                  of system command
@@ -33,23 +37,20 @@
 
 use strict;
 
-my $version = "0.5";
+my $version = "0.6";
 my $command_suffix = " >/dev/null 2>&1 &";
 
-# default values in setup file (~/.weechat/plugins.rc)
-my $default_cmd_highlight = "alsaplay -i text ~/sound_highlight.wav";
-my $default_cmd_pv        = "alsaplay -i text ~/sound_pv.wav";
-my $default_cmd_ctcp      = "alsaplay -i text \$filename";
+# default values in setup file (~/.weechat/plugins.conf)
+my $default_cmd_ctcp        = "alsaplay -i text \$filename";
+my $default_sound_extension = ".wav";
 
-weechat::register("Sound", $version, "", "Sound for highlights/privates & CTCP sound events");
-weechat::set_plugin_config("cmd_highlight", $default_cmd_highlight) if (weechat::get_plugin_config("cmd_highlight") eq "");
-weechat::set_plugin_config("cmd_pv", $default_cmd_pv) if (weechat::get_plugin_config("cmd_pv") eq "");
-weechat::set_plugin_config("cmd_ctcp", $default_cmd_ctcp) if (weechat::get_plugin_config("cmd_ctcp") eq "");
+weechat::register("sound", "FlashCode <flashcode\@flashtux.org>", $version, "GPL3",
+                  "Sound for IRC \"CTCP SOUND\" message", "", "");
+weechat::config_set_plugin("cmd_ctcp", $default_cmd_ctcp) if (weechat::config_get_plugin("cmd_ctcp") eq "");
+weechat::config_set_plugin("sound_extension", $default_sound_extension) if (weechat::config_get_plugin("sound_extension") eq "");
 
-weechat::add_message_handler("PRIVMSG", "sound");
-weechat::add_message_handler("weechat_highlight", "highlight");
-weechat::add_message_handler("weechat_pv", "pv");
-weechat::add_command_handler("sound", "sound_cmd");
+weechat::hook_signal("*,irc_in_privmsg", "sound");
+weechat::hook_command("sound", "Play sound on IRC channel", "filename", "filename: sound filename", "", "sound_cmd");
 
 sub sound
 {
@@ -59,41 +60,36 @@ sub sound
         my ($host, $msg) = ($1, $2);
 	if ($host ne "localhost")
 	{
+            # sound received
             if ($msg =~ /\001SOUND ([a-zA-Z0-9-_\.]*)\001/)
             {
                 my $filename = $1;
-                my $command = weechat::get_plugin_config("cmd_ctcp");
-                $command =~ s/(\$\w+)/$1/gee;
-                system($command.$command_suffix);
+                my $command = weechat::config_get_plugin("cmd_ctcp");
+                if ($command ne "")
+                {
+                    $command =~ s/(\$\w+)/$1/gee;
+                    system($command.$command_suffix);
+                }
             }
 	}
     }
-    return weechat::PLUGIN_RC_OK;
-}
-
-sub highlight
-{
-    my $command = weechat::get_plugin_config("cmd_highlight");
-    system($command.$command_suffix);
-    return weechat::PLUGIN_RC_OK;
-}
-
-sub pv
-{
-    my $command = weechat::get_plugin_config("cmd_pv");
-    system($command.$command_suffix);
-    return weechat::PLUGIN_RC_OK;
+    return weechat::WEECHAT_RC_OK;
 }
 
 sub sound_cmd
 {
     if ($#_ == 1)
     {
-        my $filename = $_[1].".wav";
-        my $command = weechat::get_plugin_config("cmd_ctcp");
-	$command =~ s/(\$\w+)/$1/gee;
-	system($command.$command_suffix);
-        weechat::command("/quote PRIVMSG ".weechat::get_info("channel")." :\001SOUND $filename\001") if (@_);
+        my $extension = weechat::config_get_plugin("sound_extension");
+        my $filename = $_[1];
+        $filename .= $extension if ($extension ne "");
+        my $command = weechat::config_get_plugin("cmd_ctcp");
+        if ($command ne "")
+        {
+            $command =~ s/(\$\w+)/$1/gee;
+            system($command.$command_suffix);
+        }
+        weechat::command($_[0], "/quote PRIVMSG ".weechat::buffer_get_string($_[0], "localvar_channel")." :\001SOUND $filename\001") if (@_);
     }
-    return weechat::PLUGIN_RC_OK;
+    return weechat::WEECHAT_RC_OK;
 }
