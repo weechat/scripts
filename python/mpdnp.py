@@ -1,6 +1,9 @@
 """
   :Author: Henning Hasemann <hhasemann [at] web [dot] de>
 
+  30-01-2009 -- Adapted for Weechat 0.2.7 By Bonzodog
+  (bonzodog01 [at] gmail [dot] com)
+
   :What it does:
     This plugin lets you inform all users in the current
     channel about the song which music-player-daemon (MPD)
@@ -39,7 +42,7 @@ from os.path import basename, splitext
 
 default_fmt = "/me 's MPD plays: $artist - $title_or_file ($length_min:$length_sec)"
 
-wc.register("mpdnp", "0.3", "", "np for mpd")
+wc.register("mpdnp", "Henning Hasemann", "0.4", "GPL", "np for mpd", "", "")
 
 def subst(text, values):
   out = ""
@@ -58,12 +61,12 @@ def np(server, args):
     Send information about the currently
     played song to the channel.
   """
-  host = wc.get_plugin_config("host")
-  port = int(wc.get_plugin_config("port"))
+  host = wc.config_get_plugin("host")
+  port = int(wc.config_get_plugin("port"))
   cont = mpd.MpdController(host=host, port=port)
   song = cont.getCurrentSong()
   pos, length, pct = cont.getSongPosition()
-
+  
   # insert artist, title, album, track, path
   d = song.__dict__
   d.update({
@@ -75,7 +78,7 @@ def np(server, args):
       "pct": "%2.0f" % pct,
   })
   
-  wc.command(subst(wc.get_plugin_config("format"), d))
+  wc.command(wc.current_buffer(), (subst(wc.config_get_plugin("format"), d)))
   return 0
   
 def dbgnp(server, args):
@@ -84,7 +87,7 @@ def dbgnp(server, args):
   except Exception, e:
     print e
   
-wc.add_command_handler("mpdnp", "np", "", "", np.__doc__)
+wc.hook_command("mpdnp", "now playing", "", np.__doc__, "", "np")
 
 findvar = re.compile(r'[^\\]\$([a-z_]+)(\b|[^a-z_])')
 
@@ -95,7 +98,7 @@ default = {
 }
 
 for k, v in default.items():
-  if not wc.get_plugin_config(k):
-    wc.set_plugin_config(k, v)
+  if not wc.config_get_plugin(k):
+    wc.config_set_plugin(k, v)
 
 
