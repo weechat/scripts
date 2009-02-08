@@ -23,6 +23,8 @@
 # History:
 #
 # 2009-02-08, FlashCode <flashcode@flashtux.org>:
+#     version 0.3: case insensitive search for buffers names
+# 2009-02-08, FlashCode <flashcode@flashtux.org>:
 #     version 0.2: add help about Tab key
 # 2009-02-08, FlashCode <flashcode@flashtux.org>:
 #     version 0.1: initial release
@@ -32,7 +34,7 @@ import weechat
 
 SCRIPT_NAME    = "go"
 SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Quick jump to buffers"
 
@@ -130,10 +132,11 @@ def get_matching_buffers(input):
     list = []
     if len(input) == 0:
         buffers_pos = 0
+    input = input.lower()
     infolist = weechat.infolist_get("buffer", "", "")
     while weechat.infolist_next(infolist):
         name = weechat.infolist_string(infolist, "name")
-        if len(input) == 0 or name.find(input) >= 0:
+        if len(input) == 0 or name.lower().find(input) >= 0:
             number = weechat.infolist_integer(infolist, "number")
             list.append((number, name))
             if len(input) == 0 and weechat.infolist_pointer(infolist, "pointer") == weechat.current_buffer():
@@ -146,10 +149,11 @@ def buffers_to_string(buffers, pos, input):
     global settings
     string = ""
     colors = {}
+    input = input.lower()
     for option in settings:
         colors[option] = weechat.config_get_plugin(option)
     for i in range(len(buffers)):
-        index = buffers[i][1].find(input)
+        index = buffers[i][1].lower().find(input)
         if index >= 0:
             index2 = index + len(input)
             selected = ""
