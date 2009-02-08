@@ -23,6 +23,8 @@
 # History:
 #
 # 2009-02-08, FlashCode <flashcode@flashtux.org>:
+#     version 0.2: add help about Tab key
+# 2009-02-08, FlashCode <flashcode@flashtux.org>:
 #     version 0.1: initial release
 #
 
@@ -30,7 +32,7 @@ import weechat
 
 SCRIPT_NAME    = "go"
 SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Quick jump to buffers"
 
@@ -66,7 +68,9 @@ buffers_pos = 0
 weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
                  SCRIPT_DESC, "go_unload_script", "")
 weechat.hook_command("go", "Quick jump to buffers", "",
-                     "You can bind command to a key, for example:\n  /key meta-g /go",
+                     "You can bind command to a key, for example:\n  /key meta-g /go\n\n" +
+                     "You can use completion key (commonly Tab and shift-Tab) to select " +
+                     "next/previous buffer in list.",
                      "", "go_cmd")
 for option, default_value in settings.iteritems():
     if weechat.config_get_plugin(option) == "":
