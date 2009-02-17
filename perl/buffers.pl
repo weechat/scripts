@@ -19,6 +19,8 @@
 # Display sidebar with list of buffers.
 #
 # History:
+# 2009-02-17, FlashCode <flashcode@flashtux.org>:
+#     v0.9: fix bug with indenting of private buffers
 # 2009-01-04, FlashCode <flashcode@flashtux.org>:
 #     v0.8: update syntax for command /set (comments)
 # 2008-10-20, Jiri Golembiovsky <golemj@gmail.com>:
@@ -56,7 +58,7 @@
 
 use strict;
 
-my $version = "0.8";
+my $version = "0.9";
 
 # -------------------------------[ config ]-------------------------------------
 
@@ -156,9 +158,9 @@ sub build_buffers
             .weechat::color($color);
         if (weechat::config_get_plugin("indenting") eq "on")
         {
-            if ((weechat::infolist_string($infolist, "plugin_name") eq "irc")
-                && (weechat::info_get("irc_is_channel",
-                                      weechat::infolist_string($infolist, "short_name")) eq "1"))
+            my $type = weechat::buffer_get_string(weechat::infolist_pointer($infolist, "pointer"),
+                                                  "localvar_type");
+            if (($type eq "channel") || ($type eq "private"))
             {
                 $str .= "  ";
             }
