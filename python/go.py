@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2009-02-18, FlashCode <flashcode@flashtux.org>:
+#     version 0.4: do not hook command and init options if register failed
 # 2009-02-08, FlashCode <flashcode@flashtux.org>:
 #     version 0.3: case insensitive search for buffers names
 # 2009-02-08, FlashCode <flashcode@flashtux.org>:
@@ -34,7 +36,7 @@ import weechat
 
 SCRIPT_NAME    = "go"
 SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.3"
+SCRIPT_VERSION = "0.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Quick jump to buffers"
 
@@ -67,16 +69,16 @@ old_input = None
 buffers = []
 buffers_pos = 0
 
-weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
-                 SCRIPT_DESC, "go_unload_script", "")
-weechat.hook_command("go", "Quick jump to buffers", "",
-                     "You can bind command to a key, for example:\n  /key meta-g /go\n\n" +
-                     "You can use completion key (commonly Tab and shift-Tab) to select " +
-                     "next/previous buffer in list.",
-                     "", "go_cmd")
-for option, default_value in settings.iteritems():
-    if weechat.config_get_plugin(option) == "":
-        weechat.config_set_plugin(option, default_value)
+if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
+                    SCRIPT_DESC, "go_unload_script", ""):
+    weechat.hook_command("go", "Quick jump to buffers", "",
+                         "You can bind command to a key, for example:\n  /key meta-g /go\n\n" +
+                         "You can use completion key (commonly Tab and shift-Tab) to select " +
+                         "next/previous buffer in list.",
+                         "", "go_cmd")
+    for option, default_value in settings.iteritems():
+        if weechat.config_get_plugin(option) == "":
+            weechat.config_set_plugin(option, default_value)
 
 def unhook_one(hook):
     """ Unhook something hooked by this script """
