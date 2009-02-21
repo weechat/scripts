@@ -19,6 +19,8 @@
 # Display sidebar with list of buffers.
 #
 # History:
+# 2009-02-21, FlashCode <flashcode@flashtux.org>:
+#     v1.0: remove timer used to update bar item first time (not needed any more)
 # 2009-02-17, FlashCode <flashcode@flashtux.org>:
 #     v0.9: fix bug with indenting of private buffers
 # 2009-01-04, FlashCode <flashcode@flashtux.org>:
@@ -58,7 +60,7 @@
 
 use strict;
 
-my $version = "0.9";
+my $version = "1.0";
 
 # -------------------------------[ config ]-------------------------------------
 
@@ -111,7 +113,7 @@ weechat::bar_new("buffers", "0", "0", "root", "", "left", "horizontal",
 weechat::hook_signal("buffer_*", "buffers_signal_buffer");
 weechat::hook_signal("hotlist_*", "buffers_signal_hotlist");
 weechat::hook_config("plugins.var.perl.buffers.*", "buffers_signal_config");
-weechat::hook_timer(1, 0, 1, "buffers_timer_one_time");
+weechat::bar_item_update("buffers");
 
 # ------------------------------------------------------------------------------
 
@@ -193,12 +195,6 @@ sub buffers_signal_hotlist
 }
 
 sub buffers_signal_config
-{
-    weechat::bar_item_update("buffers");
-    return weechat::WEECHAT_RC_OK;
-}
-
-sub buffers_timer_one_time
 {
     weechat::bar_item_update("buffers");
     return weechat::WEECHAT_RC_OK;
