@@ -10,129 +10,217 @@
 #
 # ### changelog ###
 #
-#  * version 0.2, FlashCode <flashcode@flashtux.org>:
+#  * version 0.3, 2009-03-06, FlashCode <flashcode@flashtux.org>:
+#      - use of hook_process to run background process
+#      - add option -t <timeout> to kill process after <timeout> seconds
+#      - show process running, kill it with -kill
+#  * version 0.2, 2009-01-31, FlashCode <flashcode@flashtux.org>:
 #      - conversion to WeeChat 0.2.7+
-#  * version 0.1 :
+#  * version 0.1, 2006-03-13, Kolter <kolter+dev@openics.org> :
 #      - first release
 #
 # =============================================================================
 
-import weechat, os, popen2
+import weechat, os, datetime
 
-SHELL_CMD="shell"
-SHELL_PREFIX="[shell] "
+SCRIPT_NAME    = "shell"
+SCRIPT_AUTHOR  = "Kolter"
+SCRIPT_VERSION = "0.3"
+SCRIPT_LICENSE = "GPL2"
+SCRIPT_DESC    = "Run shell commands in WeeChat"
 
-weechat.register ("Shell", "Kolter", "0.2", "GPL", "Running shell commands in WeeChat", "", "")
-weechat.hook_command(
-    SHELL_CMD,
-    "Running shell commands in WeeChat",
-    "[-o] <command line>",
-    "            -o :  print output on current server/channel\n"
-    "<command line> :  shell command or builtin like cd, getenv, setenv, unsetenv",
-    "-o|cd|getenv|setenv|unsetenv cd|getenv|setenv|unsetenv",
-    "shell"
-   )
+SHELL_CMD      = "shell"
+SHELL_PREFIX   = "[shell] "
 
-def shell_exec(command):
-    proc = popen2.Popen3(command, True)
-    status = proc.wait()
-    results = []
-    if status == 0:
-        results = proc.fromchild.readlines()
-    else:
-        results = proc.childerr.readlines()
-    return status, results
-            
-def shell_output(command, inchan):
-    status, results = shell_exec(command)
-    if status == 0:
-        for line in results:
-            if inchan:
-                weechat.command(weechat.current_buffer(), line.rstrip('\n'))
+cmd_hook_process   = ""
+cmd_command        = ""
+cmd_start_time     = None
+cmd_buffer         = ""
+cmd_stdout         = ""
+cmd_stderr         = ""
+cmd_send_to_buffer = False
+cmd_timeout        = 0
+
+if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
+                    SCRIPT_DESC, "", ""):
+    weechat.hook_command(
+        SHELL_CMD,
+        "Running shell commands in WeeChat",
+        "[-kill | [-o] [-t seconds] <command line>]",
+        "         -kill: kill running process\n"
+        "            -o: send output to current buffer (simulate user entry "
+        "with command output - dangerous, be careful when using this option)\n"
+        "    -t seconds: auto-kill process after timeout (seconds) if process "
+        "is still running\n"
+        "<command line>: shell command or builtin like cd, getenv, setenv, "
+        "unsetenv",
+        "-kill|-o|-t|cd|getenv|setenv|unsetenv -o|-t|cd|getenv|setenv|unsetenv",
+        "shell"
+        )
+
+def shell_init():
+    global cmd_hook_process, cmd_command, cmd_start_time, cmd_buffer, cmd_stdout, cmd_stderr
+    cmd_hook_process = ""
+    cmd_command      = ""
+    cmd_start_time   = None
+    cmd_buffer       = ""
+    cmd_stdout       = ""
+    cmd_stderr       = ""
+
+def shell_process_cb(command, rc, stdout, stderr):
+    global cmd_hook_process, cmd_buffer, cmd_stdout, cmd_stderr, cmd_send_to_buffer
+    cmd_stdout += stdout
+    cmd_stderr += stderr
+    if int(rc) >= 0:
+        if cmd_stdout != "":
+            lines = cmd_stdout.split("\n")
+            if cmd_send_to_buffer:
+                for line in lines:
+                    if line != "":
+                        weechat.command(cmd_buffer, "%s" % line)
             else:
-                weechat.prnt(weechat.current_buffer(), line.rstrip('\n'))
+                weechat.prnt(cmd_buffer, "%sCommand '%s' (rc %s), stdout:"
+                             % (SHELL_PREFIX, command, rc))
+                for line in lines:
+                    if line != "":
+                        weechat.prnt(cmd_buffer, " \t%s" % line)
+        if cmd_stderr != "":
+            lines = cmd_stderr.split("\n")
+            if cmd_send_to_buffer:
+                for line in lines:
+                    if line != "":
+                        weechat.command(cmd_buffer, "%s" % line)
+            else:
+                weechat.prnt(cmd_buffer, "%s\t%sCommand '%s' (rc %s), stderr:"
+                             % (weechat.prefix("error"), SHELL_PREFIX, command, rc))
+                for line in lines:
+                    if line != "":
+                        weechat.prnt(cmd_buffer, " \t%s" % line)
+        cmd_hook_process = ""
+    return weechat.WEECHAT_RC_OK
+
+def shell_exec(buffer, command):
+    global cmd_hook_process, cmd_command, cmd_start_time, cmd_buffer
+    global cmd_stdout, cmd_stderr, cmd_timeout
+    if cmd_hook_process != "":
+        weechat.prnt(buffer,
+                     "%sanother process is running! (use '/%s -kill' to kill it)"
+                     % (SHELL_PREFIX, SHELL_CMD))
+        return
+    shell_init()
+    cmd_command = command
+    cmd_start_time = datetime.datetime.now()
+    cmd_buffer = buffer
+    cmd_hook_process = weechat.hook_process(command, cmd_timeout * 1000, "shell_process_cb")
+
+def shell_show_process(buffer):
+    global cmd_command, cmd_start_time
+    if cmd_hook_process == "":
+        weechat.prnt(buffer, "%sno process running" % SHELL_PREFIX)
     else:
-        weechat.prnt(weechat.current_buffer(), "%san error occured while running command `%s'" % (SHELL_PREFIX, command))
-        for line in results:
-            weechat.prnt(weechat.current_buffer(), line.rstrip('\n'))
+        weechat.prnt(buffer, "%sprocess running: '%s' (started on %s)"
+                     % (SHELL_PREFIX, cmd_command, cmd_start_time.ctime()))
 
+def shell_kill_process(buffer):
+    global cmd_hook_process, cmd_command
+    if cmd_hook_process == "":
+        weechat.prnt(buffer, "%sno process running" % SHELL_PREFIX)
+    else:
+        weechat.unhook(cmd_hook_process)
+        weechat.prnt(buffer, "%sprocess killed (command '%s')" % (SHELL_PREFIX, cmd_command))
+        shell_init()
 
-def shell_chdir(directory):
+def shell_chdir(buffer, directory):
     if directory == "":
         if os.environ.has_key('HOME'):
             directory = os.environ['HOME']
     try:
         os.chdir(directory)
     except:
-        weechat.prnt(weechat.current_buffer(), "%san error occured while running command `cd %s'" % (SHELL_PREFIX, directory))
+        weechat.prnt(buffer, "%san error occured while running command 'cd %s'" % (SHELL_PREFIX, directory))
     else:
-        pass
+        weechat.prnt(buffer, "%schdir to '%s' ok" % (SHELL_PREFIX, directory))
 
-def shell_getenv(var, inchan):
+def shell_getenv(buffer, var):
+    global cmd_send_to_buffer
     var = var.strip()
     if var == "":
-        weechat.prnt(weechat.current_buffer(), "%swrong syntax, try 'getenv VAR'" % (SHELL_PREFIX))
+        weechat.prnt(buffer, "%swrong syntax, try 'getenv VAR'" % (SHELL_PREFIX))
         return
         
     value = os.getenv(var)
     if value == None:
-        weechat.prnt(weechat.current_buffer(), "%s$%s is not set" % (SHELL_PREFIX, var))
+        weechat.prnt(buffer, "%s$%s is not set" % (SHELL_PREFIX, var))
     else:
-        if inchan:
-            weechat.command(weechat.current_buffer(), "$%s=%s" % (var, os.getenv(var)))
+        if cmd_send_to_buffer:
+            weechat.command(buffer, "$%s=%s" % (var, os.getenv(var)))
         else:
-            weechat.prnt(weechat.current_buffer(), "%s$%s=%s" % (SHELL_PREFIX, var, os.getenv(var)))
+            weechat.prnt(buffer, "%s$%s=%s" % (SHELL_PREFIX, var, os.getenv(var)))
         
-def shell_setenv(expr, inchan):
+def shell_setenv(buffer, expr):
+    global cmd_send_to_buffer
     expr = expr.strip()
     lexpr = expr.split('=')
     
     if (len(lexpr) < 2):
-        weechat.prnt(weechat.current_buffer(), "%swrong syntax, try 'setenv VAR=VALUE'" % (SHELL_PREFIX))
+        weechat.prnt(buffer, "%swrong syntax, try 'setenv VAR=VALUE'" % (SHELL_PREFIX))
         return
 
     os.environ[lexpr[0].strip()] = "=".join(lexpr[1:])
-    if not inchan:
-        weechat.prnt("%s$%s is now set to '%s'" % (SHELL_PREFIX, lexpr[0], "=".join(lexpr[1:])))
+    if not cmd_send_to_buffer:
+        weechat.prnt(buffer, "%s$%s is now set to '%s'" % (SHELL_PREFIX, lexpr[0], "=".join(lexpr[1:])))
 
-def shell_unsetenv(var, inchan):
+def shell_unsetenv(buffer, var):
+    global cmd_send_to_buffer
     var = var.strip()
     if var == "":
-        weechat.prnt(weechat.current_buffer(), "%swrong syntax, try 'unsetenv VAR'" % (SHELL_PREFIX))
+        weechat.prnt(buffer, "%swrong syntax, try 'unsetenv VAR'" % (SHELL_PREFIX))
         return
-
+    
     if os.environ.has_key(var):
         del os.environ[var]
-        weechat.prnt(weechat.current_buffer(), "%s$%s is now unset" % (SHELL_PREFIX, var))
+        weechat.prnt(buffer, "%s$%s is now unset" % (SHELL_PREFIX, var))
     else:
-        weechat.prnt(weechat.current_buffer(), "%s$%s is not set" % (SHELL_PREFIX, var))        
+        weechat.prnt(buffer, "%s$%s is not set" % (SHELL_PREFIX, var))        
     
-def shell(server, args):    
-    largs = args.split(" ")    
-
-    #strip spaces
+def shell(buffer, args):
+    global cmd_send_to_buffer, cmd_timeout
+    largs = args.split(" ")
+    
+    # strip spaces
     while '' in largs:
         largs.remove('')
     while ' ' in largs:
         largs.remove(' ')
-
+    
     if len(largs) ==  0:
-        weechat.command("", "/help %s" % SHELL_CMD)
+        shell_show_process(buffer)
     else:
-        inchan = False
-        if largs[0] == '-o':
-            inchan = True
-            largs = largs[1:]
-
-        if largs[0] == 'cd':
-            shell_chdir(" ".join(largs[1:]), inchan)
-        elif largs[0] == 'getenv':
-            shell_getenv (" ".join(largs[1:]), inchan)
-        elif largs[0] == 'setenv':
-            shell_setenv (" ".join(largs[1:]), inchan)
-        elif largs[0] == 'unsetenv':
-            shell_unsetenv (" ".join(largs[1:]), inchan)
+        if largs[0] == '-kill':
+            shell_kill_process(buffer)
         else:
-            shell_output(" ".join(largs), inchan)
-
+            cmd_send_to_buffer = False
+            cmd_timeout = 0
+            while True:
+                if largs[0] == '-o':
+                    cmd_send_to_buffer = True
+                    largs = largs[1:]
+                    continue
+                if largs[0] == '-t' and len(largs) > 2:
+                    cmd_timeout = int(largs[1])
+                    largs = largs[2:]
+                    continue
+                break;
+            if len(largs) > 0:
+                if largs[0] == 'cd':
+                    shell_chdir(buffer, " ".join(largs[1:]))
+                elif largs[0] == 'getenv':
+                    shell_getenv (buffer, " ".join(largs[1:]))
+                elif largs[0] == 'setenv':
+                    shell_setenv (buffer, " ".join(largs[1:]))
+                elif largs[0] == 'unsetenv':
+                    shell_unsetenv (buffer, " ".join(largs[1:]))
+                else:
+                    shell_exec(buffer, " ".join(largs))
+    
     return weechat.WEECHAT_RC_OK
