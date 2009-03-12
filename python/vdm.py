@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2009-03-12, FlashCode <flashcode@flashtux.org>:
+#     version 0.2: fix bug with "&quot;" in string
 # 2009-03-08, FlashCode <flashcode@flashtux.org>:
 #     version 0.1: initial release
 #
@@ -30,7 +32,7 @@ import weechat, xml.dom.minidom
 
 SCRIPT_NAME    = "vdm"
 SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Display content of viedemerde.fr/fmylife.com website"
 
@@ -161,7 +163,7 @@ def vdm_parse(string):
             texte = node.getElementsByTagName("text")
             if texte:
                 vdm.append({"id": node.getAttribute("id"),
-                            "text": texte[0].firstChild.data.replace("\n", " ")})
+                            "text": texte[0].firstChild.data.replace("\n", " ").replace("&quot;", "\"")})
     return vdm
 
 def vdm_process_cb(command, rc, stdout, stderr):
