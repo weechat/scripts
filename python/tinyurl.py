@@ -1,6 +1,6 @@
 #!/bin/env python
 #
-# TinyUrl, version 3.5, for weechat version 0.1.9 or later
+# TinyUrl, version 3.6, for weechat version 0.2.7 or later
 #
 #   Listens to all channels for long URLs, and submits them to ln-s.net or
 #   tinyurl.com for easier links.
@@ -53,7 +53,7 @@
 #
 # Requirements:
 #
-#  - Designed to run with weechat version 0.1.9 or better.
+#  - Designed to run with weechat version 0.2.7 or better.
 #      http://weechat.flashtux.org/
 #
 #  - Requires that 'curl' is in the path (tested with curl 7.15.0).
@@ -77,6 +77,28 @@
 # USA.
 #
 # Changelog:
+#
+# Version 3.6, 12 March 2009
+#   Conversion to WeeChat 0.2.7+
+#   by FlashCode <flashcode@flashtux.org>
+#
+# Version 3.5d, 19 September, 2008
+#   Updated with recent api changes
+#   by Chris Hills <chaz@chaz6.com>
+#
+# Version 3.5c, 18 July, 2008
+#   Send the url to the correct channel in activechans
+#   by Chris Hills <chaz@chaz6.com>
+#
+# Version 3.5b, 18 July, 2008
+#   Fixed a few prnt functional calls
+#   by Chris Hills <chaz@chaz6.com>
+#
+# Version 3.5a, 18 July, 2008
+#   Updated for the new script api in weechat 0.2.7-dev
+#   by Chris Hills <chaz@chaz6.com>
+#   Updated to use the tinyurl api instead of screen-scraping
+#   by Chris Hills <chaz@chaz6.com>
 #
 # Version 3.5, June 3, 2008
 #   Added ln-s.net support
@@ -130,27 +152,26 @@ class TryAgain(UserWarning):
 		super(UserWarning, self).__init__(message)
 
 # Register with weechat
-weechat.register( "TinyUrl", "3.5", "tinyurlShutdown", "Waits for URLs and sends them to 'tinyurl' for you" )
+weechat.register( "TinyUrl", "Jim Ramsay", "3.6", "GPL", "Waits for URLs and sends them to 'tinyurl' for you", "tinyurlShutdown", "" )
 
 # Global variables
 tinyurlParams = ("urllength","activechans","printall","service","debug")
 tinyurlProcessList = {}
 
 # Set default settings values:
-if weechat.get_plugin_config('urllength') == "":
-	weechat.set_plugin_config('urllength', "30")
-if not weechat.get_plugin_config('printall') in ("on", "off"):
-	weechat.set_plugin_config('printall', "on")
-if not weechat.get_plugin_config('service') in ("tinyurl", "ln-s"):
-	weechat.set_plugin_config('service', "tinyurl")
-if not weechat.get_plugin_config('debug') in ("on", "off"):
-	weechat.set_plugin_config('debug', "off")
+if weechat.config_get_plugin('urllength') == "":
+	weechat.config_set_plugin('urllength', "30")
+if not weechat.config_get_plugin('printall') in ("on", "off"):
+	weechat.config_set_plugin('printall', "on")
+if not weechat.config_get_plugin('service') in ("tinyurl", "ln-s"):
+	weechat.config_set_plugin('service', "tinyurl")
+if not weechat.config_get_plugin('debug') in ("on", "off"):
+	weechat.config_set_plugin('debug', "off")
 
 # Start the timer thread and register handlers
-weechat.add_timer_handler( 1, "tinyurlCheckComplete" )
-weechat.add_message_handler("privmsg", "tinyurlHandleMessage")
-weechat.add_command_handler("tinyurl", "tinyurlMain", \
-	"Sets/Gets 'tinyurl' settings.",
+weechat.hook_timer( 1000, 0, 0, "tinyurlCheckComplete" )
+weechat.hook_signal("*,irc_in_privmsg", "tinyurlHandleMessage")
+weechat.hook_command("tinyurl", "Sets/Gets 'tinyurl' settings.", "urllength|activechans|printall|service|debug", \
 	"[<variable> [[=] <value>]]",
 """When run without arguments, displays all tinyurl settings
 
@@ -171,34 +192,34 @@ weechat.add_command_handler("tinyurl", "tinyurlMain", \
     debug [[=] on|off]
         Creates extra debug output in the server window when on.
         Default: off""",
-	 "urllength|activechans|printall|service|debug"
+	"tinyurlMain"
     )
 
 def tinyurlShutdown():
 	"""Cleanup - Kills any leftover child processes"""
 	if len(tinyurlProcessList.keys()) > 0:
-		weechat.prnt( "-TinyUrl- Cleaning up unfinished processes:", "", "" )
+		weechat.prnt( weechat.buffer_search("",""), "-TinyUrl- Cleaning up unfinished processes:" )
 		for pid in tinyurlProcessList.keys():
-			weechat.prnt( "	Process %d" % pid, "", "" )
+			weechat.prnt( weechat.buffer_search("",""), "	Process %d" % pid )
 			try:
 				os.kill(pid, 9)
 				os.waitpid( pid, 0 )
 			except:
-				weechat.prnt( "		Cleanup failed, skipping", "", "" )
-	return weechat.PLUGIN_RC_OK
+				weechat.prnt( weechat.buffer_search("",""), "		Cleanup failed, skipping" )
+	return weechat.WEECHAT_RC_OK
 	
 def tinyurlGet( name = "" ):
 	"""Gets a variable value"""
 	if name == "":
-		weechat.prnt( "-TinyUrl- Get all:" )
+		weechat.prnt( weechat.buffer_search("",""), "-TinyUrl- Get all:" )
 		for name in tinyurlParams:
-			weechat.prnt( "	%s = %s" % (name, weechat.get_plugin_config(name)) )
+			weechat.prnt( weechat.buffer_search("",""), "	%s = %s" % (name, weechat.config_get_plugin(name)) )
 	else:
-		weechat.prnt( "-TinyUrl- Get:" )
+		weechat.prnt( weechat.buffer_search("",""), "-TinyUrl- Get:" )
 		if name in tinyurlParams:
-			weechat.prnt( "	%s = %s" % (name, weechat.get_plugin_config(name)) )
+			weechat.prnt( weechat.buffer_search("",""), "	%s = %s" % (name, weechat.config_get_plugin(name)) )
 		else:
-			weechat.prnt( "	Unknown parameter \"%s\", try '/help tinyurl'" % name )
+			weechat.prnt( weechat.buffer_search("",""), "	Unknown parameter \"%s\", try '/help tinyurl'" % name )
 	return
 
 def tinyurlSet( name, value ):
@@ -206,7 +227,7 @@ def tinyurlSet( name, value ):
 	if value == "":
 		tinyurlGet( name )
 	else:
-		weechat.prnt( "-TinyUrl- Set:" )
+		weechat.prnt( weechat.buffer_search("",""), "-TinyUrl- Set:" )
 		if name in tinyurlParams:
 			if name == "printall" or name == "debug":
 				if value == "0" or value.lower() == "no" or value.lower() == "off":
@@ -214,26 +235,26 @@ def tinyurlSet( name, value ):
 				elif value == "1" or value.lower() == "yes" or value.lower() == "on":
 					value = "on"
 				else:
-					weechat.prnt( "	%s must be one of 'on' or 'off'" % name )
-					weechat.prnt( "	value = '%s'" % value )
+					weechat.prnt( weechat.buffer_search("",""), "	%s must be one of 'on' or 'off'" % name )
+					weechat.prnt( weechat.buffer_search("",""), "	value = '%s'" % value )
 					return
 			elif name == "service":
 				if value.lower() in ("tinyurl", "ln-s"):
 					value = value.lower()
 				else:
-					weechat.prnt( "	service must be one of 'tinyurl' or 'ln-s'" )
-					weechat.prnt( "	value = '%s'" % value )
+					weechat.prnt( weechat.buffer_search("",""), "	service must be one of 'tinyurl' or 'ln-s'" )
+					weechat.prnt( weechat.buffer_search("",""), "	value = '%s'" % value )
 					return
 			elif name == "urllength":
 				try:
 					v = int(value)
 					if v < 0 or v > 100:
-						weechat.prnt( "	urllength must be between 0 and 100" )
-						weechat.prnt( "	value = '%s'" % value )
+						weechat.prnt( weechat.buffer_search("",""), "	urllength must be between 0 and 100" )
+						weechat.prnt( weechat.buffer_search("",""), "	value = '%s'" % value )
 						return
 				except:
-					weechat.prnt( "	urllength must be a valid integer" )
-					weechat.prnt( "	value = '%s'" % value )
+					weechat.prnt( weechat.buffer_search("",""), "	urllength must be a valid integer" )
+					weechat.prnt( weechat.buffer_search("",""), "	value = '%s'" % value )
 					return
 			elif name == "activechans":
 				vs = re.split(", |,| ", value)
@@ -242,10 +263,10 @@ def tinyurlSet( name, value ):
 					if v.startswith("#"):
 						values.append(v)
 						value = ",".join(values)
-			weechat.set_plugin_config(name, value)
-			weechat.prnt( "	%s = %s" % (name, weechat.get_plugin_config(name)) )
+			weechat.config_set_plugin(name, value)
+			weechat.prnt( weechat.buffer_search("",""), "	%s = %s" % (name, weechat.config_get_plugin(name)) )
 		else:
-			weechat.prnt( "	Unknown parameter \'%s\'" % name )
+			weechat.prnt( weechat.buffer_search("",""), "	Unknown parameter \'%s\'" % name )
 	return
 
 def tinyurlMain( server, args ):
@@ -268,7 +289,7 @@ def tinyurlMain( server, args ):
 			tinyurlSet( args[0], value )
 		else:
 			tinyurlGet( name )
-	return weechat.PLUGIN_RC_OK
+	return weechat.WEECHAT_RC_OK
 
 def tinyurlGetUrl( url, channel, server ):
 	"""Starts a background process which will query the appropriate service and
@@ -277,34 +298,32 @@ def tinyurlGetUrl( url, channel, server ):
 	global tinyurlProcessList
 	handle, filename = tempfile.mkstemp( prefix="weechat-tinyurl.py-" )
 	os.close(handle)
-	service = weechat.get_plugin_config('service')
+	service = weechat.config_get_plugin('service')
 	if service == "tinyurl":
-		cmd = ("curl -d url=%s http://tinyurl.com/create.php --stderr /dev/null -o %s" % \
+		cmd = ("curl -d url=%s http://tinyurl.com/api-create.php --stderr /dev/null -o %s" % \
 			 (urllib.quote(url), filename)).split()
 	else:
 		cmd = ("curl http://ln-s.net/home/api.jsp?url=%s --stderr /dev/null -o %s" % \
 			 (urllib.quote(url), filename)).split()
 	try:
 		pid = os.spawnvp( os.P_NOWAIT, cmd[0], cmd )
-		if weechat.get_plugin_config('debug') == "on":
-			weechat.prnt( "Setting ProcessList[%d] to (%s, %s, %s)" % \
-				(pid, filename, channel, server), "", server )
+		if weechat.config_get_plugin('debug') == "on":
+			weechat.prnt( weechat.buffer_search(server,""), "Setting ProcessList[%d] to (%s, %s, %s)" % \
+				(pid, filename, channel, server))
 		tinyurlProcessList[pid] = (filename, url, service, channel, server)
 	except Exception, e:
-		weechat.prnt( "-TinyUrl- Error: Could not spawn curl: %s" % e )
+		weechat.prnt( weechat.buffer_search("",""), "-TinyUrl- Error: Could not spawn curl: %s" % (e) )
 
 def parseTinyurl( file ):
 	turl = None
 	for line in file:
-		if( line.startswith("<input type=\"hidden\" id=\"tinyurl\" value=\"") ):
-			turlend = line[41:].find("\"")
-			if turlend > -1:
-				turl = line[41:][:turlend]
+		if( line.startswith("http://tinyurl.com") ):
+			turl = line
 			break
 	if turl is None:
-		weechat.prnt( "-TinyUrl- Error: Unrecognized response from server" )
-		weechat.prnt( "          Maybe tinyurl.com changed their format again." )
-		weechat.prnt( "          Try '/tinyurl service ln-s' to use ln-s.net instead" )
+		weechat.prnt( weechat.buffer_search("",""), "-TinyUrl- Error: Unrecognized response from server" )
+		weechat.prnt( weechat.buffer_search("",""), "          Maybe tinyurl.com changed their format again." )
+		weechat.prnt( weechat.buffer_search("",""), "          Try '/tinyurl service ln-s' to use ln-s.net instead" )
 	return turl
 
 def parseLns( file ):
@@ -315,10 +334,10 @@ def parseLns( file ):
 			return message.rstrip()
 		elif code == "503":
 			# Try again, respawn curl
-			weechat.prnt( "-TinyUrl- Warning: ln-s.net is busy, trying again shortly" )
+			weechat.prnt( weechat.buffer_search("",""), "-TinyUrl- Warning: ln-s.net is busy, trying again shortly" )
 			raise TryAgain(line)
 		else:
-			weechat.prnt( "-TinyUrl- Error: Error response from server: %s" % (line) )
+			weechat.prnt( weechat.buffer_search("",""), "-TinyUrl- Error: Error response from server: %s" % (line) )
 			return None
 
 def tinyurlParsefile( filename, service ):
@@ -332,7 +351,7 @@ def tinyurlParsefile( filename, service ):
 			turl = parseLns(html)
 		html.close()
 	except Exception, e:
-		weechat.prnt( "-TinyUrl- Error: Could not open result file %s: %s" % (filename, e) )
+		weechat.prnt( weechat.buffer_search("",""), "-TinyUrl- Error: Could not open result file %s: %s" % (filename, e) )
 	return turl
 
 def tinyurlPrint( original, url, channel, server ):
@@ -343,14 +362,14 @@ def tinyurlPrint( original, url, channel, server ):
 		locend = original.find("/", locstart + 2)
 		if locend > -1:
 			where = original[locstart + 2:locend]
-	activeChans = weechat.get_plugin_config('activechans').split(',')
+	activeChans = weechat.config_get_plugin('activechans').split(',')
 	if channel in activeChans:
-		weechat.command( "/msg %s [AKA] %s" % ( channel, url) )
+		weechat.command( weechat.buffer_search("irc",server + "." + channel), "/msg %s [AKA] %s" % (channel, url) )
 	else:
-		if weechat.get_plugin_config('debug') == "on":
-			weechat.prnt( "Printing url to channel '%s', server '%s'" % \
-				(channel, server), "", server )
-		weechat.prnt( "[AKA] %s (%s)" % (url, where), channel, server )
+		if weechat.config_get_plugin('debug') == "on":
+			weechat.prnt( weechat.buffer_search("irc",server + "." + channel), "Printing url to channel '%s', server '%s'" % \
+				(channel, server) )
+		weechat.prnt( weechat.buffer_search("irc",server + "." + channel), "[AKA] %s (%s)" % (url, where) )
 
 def tinyurlFindUrlstart( msg, start = 0 ):
 	"""Finds the beginnings of URLs"""
@@ -373,7 +392,7 @@ def tinyurlFindUrlend( msg, urlstart ):
 		index -= 1
 	return index + urlstart
 
-def tinyurlCheckComplete():
+def tinyurlCheckComplete(remaining_calls):
 	"""The periodic poll of all waiting processes"""
 	global tinyurlProcessList
 	for pid in tinyurlProcessList.keys():
@@ -389,23 +408,24 @@ def tinyurlCheckComplete():
 					except TryAgain:
 						tinyurlGetUrl(url, channel, server)
 				else:
-					weechat.prnt( "-TinyUrl- Error: 'curl' did not run properly" )
+					weechat.prnt( weechat.buffer_search("",""), "-TinyUrl- Error: 'curl' did not run properly" )
 				os.unlink(filename)
 				del tinyurlProcessList[pid]
 		except OSError, e:
-			weechat.prnt( "-TinyUrl- Error: 'curl' process not found: %s", e )
+			weechat.prnt( weechat.buffer_search("",""), "-TinyUrl- Error: 'curl' process not found: %s" % (e) )
 			os.unlink(filename)
 			del tinyurlProcessList[pid]
-	return weechat.PLUGIN_RC_OK
+	return weechat.WEECHAT_RC_OK
 
-def tinyurlHandleMessage( server, args ):
+def tinyurlHandleMessage( hook, args ):
 	"""Handles IRC PRIVMSG and checks for URLs"""
-	maxlen = int(weechat.get_plugin_config( "urllength" ))
-	activeChans = weechat.get_plugin_config('activechans').split(',')
-	onlyActiveChans = weechat.get_plugin_config('printall') == "off"
+	(server,signal) = hook.split(",",1)
+	maxlen = int(weechat.config_get_plugin( "urllength" ))
+	activeChans = weechat.config_get_plugin('activechans').split(',')
+	onlyActiveChans = weechat.config_get_plugin('printall') == "off"
 	(source, type, channel, msg) = args.split(" ", 3)
 	if onlyActiveChans and channel not in activeChans:
-		return weechat.PLUGIN_RC_OK
+		return weechat.WEECHAT_RC_OK
 	if not channel.startswith("#"):
 		channel = source.split("!", 2)[0][1:]
 	urlstart = tinyurlFindUrlstart( msg )
@@ -416,4 +436,4 @@ def tinyurlHandleMessage( server, args ):
 			tinyurlGetUrl(url, channel, server)
 		# Check for more URLs
 		urlstart = tinyurlFindUrlstart( msg, urlend+1 )
-	return weechat.PLUGIN_RC_OK
+	return weechat.WEECHAT_RC_OK
