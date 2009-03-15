@@ -22,6 +22,9 @@
 #
 # History:
 #
+# 2009-03-15, FlashCode <flashcode@flashtux.org>:
+#     version 0.3: do not switch to vdm buffer if there's nothing new to
+#                  display, do not display time for each line on vdm buffer
 # 2009-03-12, FlashCode <flashcode@flashtux.org>:
 #     version 0.2: fix bug with "&quot;" in string
 # 2009-03-08, FlashCode <flashcode@flashtux.org>:
@@ -32,7 +35,7 @@ import weechat, xml.dom.minidom
 
 SCRIPT_NAME    = "vdm"
 SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Display content of viedemerde.fr/fmylife.com website"
 
@@ -173,7 +176,7 @@ def vdm_process_cb(command, rc, stdout, stderr):
         vdm_stdout += stdout
     if int(rc) >= 0:
         list = vdm_parse(vdm_stdout)
-        if list != vdm_oldlist:
+        if len(list) > 0 and list != vdm_oldlist:
             vdm_buffer_set_title()
             vdm_display(list)
             vdm_oldlist = list[:]
@@ -245,6 +248,7 @@ def vdm_buffer_create():
     if vdm_buffer != "":
         vdm_buffer_set_title()
         weechat.buffer_set(vdm_buffer, "localvar_set_no_log", "1")
+        weechat.buffer_set(vdm_buffer, "time_for_each_line", "0")
 
 def vdm_cmd(buffer, args):
     """ Callback for /vdm command. """
