@@ -22,6 +22,9 @@
 #
 # History:
 #
+# 2009-03-22, FlashCode <flashcode@flashtux.org>:
+#     version 0.5: update modifier signal name for input text display,
+#                  fix arguments for function string_remove_color
 # 2009-02-18, FlashCode <flashcode@flashtux.org>:
 #     version 0.4: do not hook command and init options if register failed
 # 2009-02-08, FlashCode <flashcode@flashtux.org>:
@@ -36,7 +39,7 @@ import weechat
 
 SCRIPT_NAME    = "go"
 SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.4"
+SCRIPT_VERSION = "0.5"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Quick jump to buffers"
 
@@ -101,7 +104,7 @@ def hook_all():
             hooks[hook] = weechat.hook_command_run(value[0], value[1])
     if "modifier" not in hooks:
         hooks["modifier"] = weechat.hook_modifier(
-            "weechat_input_text_display_with_cursor", "input_modifier")
+            "input_text_display_with_cursor", "input_modifier")
 
 def go_start(buffer):
     """ Start go on buffer """
@@ -177,7 +180,7 @@ def input_modifier(modifier, modifier_data, string):
     prefix ("Go to:"), and suffix (list of buffers found) """
     global old_input, buffers, buffers_pos
     names = ""
-    input = weechat.string_remove_color(string)
+    input = weechat.string_remove_color(string, "")
     input = input.strip()
     if old_input == None or input != old_input:
         old_buffers = buffers
