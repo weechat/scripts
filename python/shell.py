@@ -1,6 +1,6 @@
 
 # =============================================================================
-#  shell.py (c) March 2006 by Kolter <kolter+dev@openics.org>
+#  shell.py (c) March 2006 by Kolter <kolter@openics.org>
 #
 #  Licence     : GPL v2
 #  Description : running shell commands in WeeChat

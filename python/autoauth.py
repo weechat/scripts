@@ -1,7 +1,7 @@
 # -*- coding: iso-8859-1 -*-
 
 # =============================================================================
-#  autoauth.py (c) October 2005 by kolter <kolter+dev@openics.org>
+#  autoauth.py (c) October 2005 by kolter <kolter@openics.org>
 #  Python script for WeeChat.
 #
 #  Licence     : GPL v2
