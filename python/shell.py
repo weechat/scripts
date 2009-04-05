@@ -1,6 +1,6 @@
 
 # =============================================================================
-#  shell.py (c) March 2006, 2009 by Kolter <kolter+dev@openics.org>
+#  shell.py (c) March 2006, 2009 by Kolter <kolter@openics.org>
 #
 #  Licence     : GPL v2
 #  Description : running shell commands in WeeChat
@@ -16,7 +16,7 @@
 #      - show process running, kill it with -kill
 #  * version 0.2, 2009-01-31, FlashCode <flashcode@flashtux.org>:
 #      - conversion to WeeChat 0.2.7+
-#  * version 0.1, 2006-03-13, Kolter <kolter+dev@openics.org> :
+#  * version 0.1, 2006-03-13, Kolter <kolter@openics.org> :
 #      - first release
 #
 # =============================================================================
