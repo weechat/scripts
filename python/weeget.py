@@ -23,6 +23,10 @@
 # History:
 #
 # 2009-04-07, FlashCode <flashcode@flashtux.org>:
+#     version 0.3: fix bug with install/upgrade when weeget is updated with
+#                  other scripts: ensure that weeget is always the last
+#                  installed script
+# 2009-04-07, FlashCode <flashcode@flashtux.org>:
 #     version 0.2: add author's mail in script description
 # 2009-04-05, FlashCode <flashcode@flashtux.org>:
 #     version 0.1: initial release
@@ -30,7 +34,7 @@
 
 SCRIPT_NAME    = "weeget"
 SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "WeeChat scripts manager"
 
@@ -456,6 +460,11 @@ def wg_install_next_script():
     global wg_hook_process
     if len(wg_scripts) == 0:
         return
+    # be sure weeget is ALWAYS last script to install/update
+    # otherwise we'll lose end of list when weeget is unloaded by WeeChat
+    if SCRIPT_NAME in wg_scripts_to_install:
+        wg_scripts_to_install.remove(SCRIPT_NAME)
+        wg_scripts_to_install.append(SCRIPT_NAME)
     # loop until a script is installed, or end if list is empty
     while len(wg_scripts_to_install) > 0:
         name = wg_scripts_to_install.pop(0)
