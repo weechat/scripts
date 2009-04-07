@@ -17,20 +17,22 @@
 #
 
 #
-# WeeChat script manager.
+# WeeChat scripts manager.
 # (this script requires WeeChat 0.2.7 (or newer) and python 2.5)
 #
 # History:
 #
+# 2009-04-07, FlashCode <flashcode@flashtux.org>:
+#     version 0.2: add author's mail in script description
 # 2009-04-05, FlashCode <flashcode@flashtux.org>:
 #     version 0.1: initial release
 #
 
 SCRIPT_NAME    = "weeget"
 SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL3"
-SCRIPT_DESC    = "WeeChat script manager"
+SCRIPT_DESC    = "WeeChat scripts manager"
 
 SCRIPT_COMMAND = "weeget"
 
@@ -388,14 +390,15 @@ def wg_list_scripts(search):
 
 def wg_show_script(name):
     """
-    Show detailed info about a script.
+    Show detailed info about a script (in repository).
     For example:
-      Script: go.py, version 0.5, license: GPL3, by FlashCode
+      Script: weeget.py, version 0.2, license: GPL3
+      Author: FlashCode <flashcode [at] flashtux [dot] org>
       Status: installed, running
-        Date: added: 2009-02-08, updated: 2009-03-22
-         URL: http://weechat.flashtux.org/dev/scripts/go.py
-        Desc: Quick jump to buffers.
-        Tags: buffers
+        Date: added: 2009-04-05, updated: 2009-04-07
+         URL: http://weechat.flashtux.org/dev/scripts/weeget.py
+        Desc: Scripts manager.
+        Tags: scripts
          Min: 0.2.7
     """
     if len(wg_scripts) == 0:
@@ -409,13 +412,13 @@ def wg_show_script(name):
                         weechat.color("chat")))
     else:
         weechat.prnt("", "")
-        weechat.prnt("", "Script: %s%s%s, version %s, license: %s, by %s"
+        weechat.prnt("", "Script: %s%s%s, version %s, license: %s"
                      % (wg_config_color("script"),
                         script["full_name"],
                         weechat.color("chat"),
                         script["version"],
-                        script["license"],
-                        script["author"]))
+                        script["license"]))
+        weechat.prnt("", "Author: %s <%s>" % (script["author"], script["mail"]))
         status = wg_get_local_script_status(script)
         str_status = "not installed"
         if status["installed"]:
@@ -647,7 +650,26 @@ def wg_check_version(script):
     return True
 
 def wg_parse_xml():
-    """ Parse XML scripts list and return dictionary with list, with key 'id'. """
+    """
+    Parse XML scripts list and return dictionary with list, with key 'id'.
+    Example of item return in dictionary :
+      '119': { 'name'        : 'weeget',
+               'version'     : '0.1',
+               'url'         : 'http://weechat.flashtux.org/dev/scripts/weeget.py',
+               'language'    : 'python',
+               'license'     : 'GPL3',
+               'md5sum'      : 'd500714fc19b0e10cc4e339e70739e4ad500714fc19b0e10cc4e339e70739e4a',
+               'tags'        : 'scripts',
+               'desc_en'     : 'Scripts manager.',
+               'desc_fr'     : 'Gestionnaire de scripts.',
+               'requirements': 'python 2.5',
+               'min_weechat' : '0.2.7',
+               'max_weechat' : '',
+               'author'      : 'FlashCode',
+               'mail'        : 'flashcode [at] flashtux [dot] org',
+               'added'       : '2009-04-05 22:39:18',
+               'updated'     : '0000-00-00 00:00:00' }
+    """
     global wg_scripts, wg_action, wg_action_args
     wg_scripts = {}
     try:
@@ -805,12 +827,12 @@ if __name__ == "__main__" and import_ok:
         str_running = wg_config_color("running") + "r" + weechat.color("chat")
         str_obsolete = wg_config_color("obsolete") + "N" + weechat.color("chat")
         weechat.hook_command(SCRIPT_COMMAND,
-                             "WeeChat script manager",
+                             "WeeChat scripts manager",
                              "[list [<text>] | show <script> | "
                              "install <script> [<script>...] | check | update | "
                              "upgrade | remove <script> [<script>...]]",
                              "   list: list scripts (search text if given)\n"
-                             "   show: show detailed information about a script\n"
+                             "   show: show detailed information about a script (in repository)\n"
                              "install: install/upgrade script(s)\n"
                              "  check: check if local scripts needs upgrade\n"
                              " update: update local scripts cache\n"
