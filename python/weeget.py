@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2009-04-11, FlashCode <flashcode@flashtux.org>:
+#     version 0.4: use new completion for command arguments
 # 2009-04-07, FlashCode <flashcode@flashtux.org>:
 #     version 0.3: fix bug with install/upgrade when weeget is updated with
 #                  other scripts: ensure that weeget is always the last
@@ -34,7 +36,7 @@
 
 SCRIPT_NAME    = "weeget"
 SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.3"
+SCRIPT_VERSION = "0.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "WeeChat scripts manager"
 
@@ -857,10 +859,16 @@ if __name__ == "__main__" and import_ok:
                              "  /" + SCRIPT_COMMAND + " list game       => list all scripts with text/tag \"game\"\n"
                              "  /" + SCRIPT_COMMAND + " install weetris => install script weetris.pl\n"
                              "  /" + SCRIPT_COMMAND + " remove weetris  => remove script weetris.pl",
-                             "list|show|install|check|update|upgrade|remove "
-                             "%(weeget_scripts)|%*",
+                             "list %(weeget_scripts)"
+                             " || show %(weeget_scripts)"
+                             " || install %(weeget_scripts)|%*"
+                             " || check"
+                             " || update"
+                             " || upgrade"
+                             " || remove %(weeget_scripts)|%*",
                              "wg_cmd")
-        weechat.hook_completion("weeget_scripts", "wg_completion_scripts_cb")
+        weechat.hook_completion("weeget_scripts", "list of scripts in repository",
+                                "wg_completion_scripts_cb")
 
 # ==================================[ end ]===================================
 
