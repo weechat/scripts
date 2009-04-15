@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2009-04-15, FlashCode <flashcode@flashtux.org>:
+#     version 0.5: display missing module(s) when import failed
 # 2009-04-11, FlashCode <flashcode@flashtux.org>:
 #     version 0.4: use new completion for command arguments
 # 2009-04-07, FlashCode <flashcode@flashtux.org>:
@@ -36,7 +38,7 @@
 
 SCRIPT_NAME    = "weeget"
 SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.4"
+SCRIPT_VERSION = "0.5"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "WeeChat scripts manager"
 
@@ -46,15 +48,15 @@ import_ok = True
 
 try:
     import weechat
-except:
+except ImportError:
     print "This script must be run under WeeChat."
     print "Get WeeChat now at: http://weechat.flashtux.org/"
     import_ok = False
 
 try:
     import os, stat, time, gzip, hashlib, xml.dom.minidom
-except:
-    print "Missing package(s) for %s" % SCRIPT_NAME
+except ImportError, message:
+    print "Missing package(s) for %s: %s" % (SCRIPT_NAME, message)
     import_ok = False
 
 CONFIG_FILE_NAME = "wg"
