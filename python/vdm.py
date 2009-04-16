@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2009-03-16, FlashCode <flashcode@flashtux.org>:
+#     version 0.4: use existing vdm buffer if found (for example after /upgrade)
 # 2009-03-15, FlashCode <flashcode@flashtux.org>:
 #     version 0.3: do not switch to vdm buffer if there's nothing new to
 #                  display, do not display time for each line on vdm buffer
@@ -35,7 +37,7 @@ import weechat, xml.dom.minidom
 
 SCRIPT_NAME    = "vdm"
 SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.3"
+SCRIPT_VERSION = "0.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Display content of viedemerde.fr/fmylife.com website"
 
@@ -184,9 +186,24 @@ def vdm_process_cb(command, rc, stdout, stderr):
         vdm_hook_process = ""
     return weechat.WEECHAT_RC_OK
 
+def vdm_buffer_create():
+    """ Create VDM buffer. """
+    global vdm_buffer
+    vdm_buffer = weechat.buffer_search("python", "vdm")
+    if vdm_buffer == "":
+        vdm_buffer = weechat.buffer_new("vdm",
+                                        "vdm_buffer_input", "vdm_buffer_close")
+    if vdm_buffer != "":
+        vdm_buffer_set_title()
+        weechat.buffer_set(vdm_buffer, "localvar_set_no_log", "1")
+        weechat.buffer_set(vdm_buffer, "time_for_each_line", "0")
+
 def vdm_get(key):
     """ Get some VDMs by launching background process. """
     global vdm_buffer, vdm_hook_process, vdm_key, vdm_stdout, vdm_oldlist
+    # open buffer if needed
+    if vdm_buffer == "":
+        vdm_buffer_create()
     # set language
     if key == "fr" or key == "en":
         weechat.config_set_plugin("lang", key)
@@ -240,21 +257,9 @@ def vdm_buffer_close(buffer):
     vdm_buffer = ""
     return weechat.WEECHAT_RC_OK
 
-def vdm_buffer_create():
-    """ Create VDM buffer. """
-    global vdm_buffer
-    vdm_buffer = weechat.buffer_new("vdm",
-                                    "vdm_buffer_input", "vdm_buffer_close")
-    if vdm_buffer != "":
-        vdm_buffer_set_title()
-        weechat.buffer_set(vdm_buffer, "localvar_set_no_log", "1")
-        weechat.buffer_set(vdm_buffer, "time_for_each_line", "0")
-
 def vdm_cmd(buffer, args):
     """ Callback for /vdm command. """
-    global vdm_buffer, vdm_switch_to_buffer
-    if vdm_buffer == "":
-        vdm_buffer_create()
+    global vdm_switch_to_buffer
     if weechat.config_get_plugin("auto_switch") == "on":
         vdm_switch_to_buffer = True
     if args != "":
