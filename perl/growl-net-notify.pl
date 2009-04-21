@@ -21,11 +21,12 @@
 #
 # History:
 #
+# 2009-04-16, kinabalu <andrew AT mysticcoders DOT com>
+#	version 0.2, removed need for Parse::IRC
+#
 # 2009-04-10, kinabalu <andrew AT mysticcoders DOT com>
 #	version 0.1, initial version rewritten from growl-notify
 #   - original inspiration from growl-notify.pl author Zak Elep
-#
-# /growl and /gl can be used in combination with these actions
 #
 # /growl on
 # /growl off
@@ -59,50 +60,70 @@
 #
 
 use Net::Growl;
-use Parse::IRC;
 use integer;
 
 my $growl_app = "growl-net-notify";				# name given to Growl for configuration
 my $growl_active = 1;
+my $weechat_version = "0.2.6";
 
 sub message_process_init {
-	my @messages = (
-		[ weechat_highlight => 'Highlight Mentioned', '$text in $channel' ],
-		[ weechat_pv => 'Private Message', '$nick: $text' ],
-	);
+
+	weechat::add_message_handler("weechat_highlight", "highlight_public");
+	weechat::add_message_handler("weechat_pv", "highlight_privmsg");
+}
+
+#
+# support for private messages, have to parse the IRC message
+#
+sub highlight_privmsg {
+    my ( $nick, $message ) = ( $_[1] =~ /:([^!]+)[^:]+:(.*)/ );
+    
+	send_message($nick, $message);    
+	return weechat::PLUGIN_RC_OK;	
+}
+
+#
+# support for highlights of nicks in public, have to parse the IRC message
+#
+sub highlight_public {
+	my ( $nick, $channel, $message ) = ( $_[1] =~ /:([^!]+)[^#]+([^:]+):(.*)/ );
+		
+	send_message($nick, $message . " in " . $channel); 
+	return weechat::PLUGIN_RC_OK;	
+}
+
+sub send_message {
+	my ( $nick, $message ) = @_;
 	
-	for my $message (@messages){
-		no strict 'refs';	# access symbol table
-		my $subname = join '', __PACKAGE__, '::handler_', $message->[0];
-		*{$subname} = sub
-		{
-			my($ircmsg) = parse_irc $_[1];
-			my($nick, undef) = split /!/, $ircmsg->{prefix};
-			my($channel, $text);
-			$channel = shift @{$ircmsg->{params}}
-			if $message->[0] =~ /(part|pv|highlight|topic)/;
-				$text = shift @{$ircmsg->{params}};
+	my $inactivity = 0;
 	
-			my $inactivity = weechat::get_info("inactivity");
-	
-			my $message = eval qq("$message->[2]");
-	
-			if((&getc('growl_net_inactivity') - $inactivity) <= 0 && $growl_active) {
-				growl_notify( &getc('growl_net_client'), &getc('growl_net_pass'), &getc('growl_net_port'), "$growl_app", "$realname" || "$nick", "$message" );
-			}	
-			return weechat::PLUGIN_RC_OK;
-		};
-		weechat::add_message_handler $message->[0], $subname;
-	}
+	$inactivity = weechat::get_info("inactivity");
+		
+	if((&getc('growl_net_inactivity') - $inactivity) <= 0 && $growl_active) {
+		growl_notify( &getc('growl_net_client'), &getc('growl_net_pass'), &getc('growl_net_port'), "$growl_app", "$nick", "$message" );
+	}			
 }
 
 #
 # smaller way to do weechat::get_plugin_config
 #
 sub getc {
-	return weechat::get_plugin_config($_[0]);	
+	return weechat::get_plugin_config($_[0]);
 }
 
+#
+# smaller way to do weechat::get_plugin_config
+#
+sub setc {
+	return weechat::set_plugin_config($_[0], $_[1]);
+}
+
+#
+# print function
+# 
+sub prt {
+	weechat::print($_[0]);
+}
 
 #
 # Send notification through growl
@@ -144,72 +165,71 @@ sub growl_register {
 # /help growl
 #
 sub handler {
+	no strict 'refs';	# access symbol table
+	
 	my $server = shift;
 	my $argList = shift;
-	
+
 	my @args = split(/ /, $argList);
-	my $command = @args[0];	
+	my $command = $args[0];	
 		
+	if(!$command) {
+		prt("Rawr!");
+		return weechat::PLUGIN_RC_OK;
+	}
+	
 	if($command eq "off") {
 		$growl_active = 0;
-		weechat::print("Growl notifications: OFF");
+		prt("Growl notifications: OFF");
 		return weechat::PLUGIN_RC_OK;
 	} elsif($command eq "on") {
 		$growl_active = 1;
-		weechat::print("Growl notifications: ON");
+		prt("Growl notifications: ON");
 		return weechat::PLUGIN_RC_OK;
 	} elsif($command eq "inactive") {
-		if(@args[1] >= 0) {
-			weechat::set_plugin_config("growl_net_inactivity", @args[1]);
-			weechat::print("Growl notifications inactivity set to: " . @args[1] . "s");
+		if(exists $args[1] && $args[1] >= 0) {
+			setc("growl_net_inactivity", $args[1]);
+			prt("Growl notifications inactivity set to: " . $args[1] . "s");
 			return weechat::PLUGIN_RC_OK;
 		}
 		return weechat::PLUGIN_RC_KO;	
 	} elsif($command eq "setup") {
-		if(@args[1] ne "") {
-			weechat::set_plugin_config("growl_net_client", @args[1]);			
+		if(exists $args[1] && $args[1] ne "") {
+			setc("growl_net_client", $args[1]);			
 		} 
-		if(@args[2] ne "") {
-			weechat::set_plugin_config("growl_net_pass", @args[2]);
+		if(exists $args[2] && $args[2] ne "") {
+			setc("growl_net_pass", $args[2]);
 		}
-		if(@args[3] ne "") {
-			weechat::set_plugin_config("growl_net_port", @args[3]);
+		if(exists $args[3] && $args[3] ne "") {
+			setc("growl_net_port", $args[3]);
 		}
 		growl_register( &getc('growl_net_client'), &getc('growl_net_pass'), &getc('growl_net_port'), "$growl_app" );				
-		weechat::print("Growl setup re-registered with: [host: " . &getc('growl_net_client') . ":"  . &getc('growl_net_port') . ", pass: " . &getc('growl_net_pass') . "]"); 
+		prt("Growl setup re-registered with: [host: " . &getc('growl_net_client') . ":"  . &getc('growl_net_port') . ", pass: " . &getc('growl_net_pass') . "]"); 
 		return weechat::PLUGIN_RC_OK;
 	} elsif($command eq "status") {
-		weechat::print("Growl notifications: " . ($growl_active ? "ON" : "OFF") . ", inactivity timeout: " . &getc("growl_net_inactivity"));
+		prt("Growl notifications: " . ($growl_active ? "ON" : "OFF") . ", inactivity timeout: " . &getc("growl_net_inactivity"));
+		return weechat::PLUGIN_RC_OK;
 	} elsif($command eq "test") {
 		my $test_message = substr $argList, 5;
-		weechat::print("Sending test message: " . $test_message);
+		prt("Sending test message: " . $test_message);
 		growl_notify( &getc('growl_net_client'), &getc('growl_net_pass'), &getc('growl_net_port'), "$growl_app", "Test Message", $test_message );
 		return weechat::PLUGIN_RC_OK;
 	}
-	
-	weechat::print("Rawr!");
+
+    return weechat::PLUGIN_RC_KO;
 }
 
 
 #
 # setup
 #
-my $version = '0.1';
+my $version = '0.2';
 
 weechat::register $growl_app, $version, '',	'Send Weechat notifications thru Net::Growl';
-	
+		
 weechat::add_command_handler ("growl", "handler", "setup the growl notify script",
 							  "on|off|setup [host] [password] [port]|inactive [time_in_seconds]|status|help",
 							   " on: turn on growl notifications (default)\n"
-							  ."off: turn off growl notifications\n"
-							  ."setup [host] [password] [port]: change the parameters for registration/notification with Growl\n"
-							  ."inactive [time_in_seconds]: number of seconds of inactivity before we notify (default: 30)\n"
-							  ."status: gives info on notification and inactivity settings\n"
-							  ."test [message]: send a test message\n",
-							  "on|off|setup|inactive|status");
-weechat::add_command_handler ("gl", "handler", "setup the growl notify script",
-							  "on|off|setup [host] [password] [port]|inactive [time_in_seconds]|status|help",
-							  "on: turn on growl notifications (default)\n"
 							  ."off: turn off growl notifications\n"
 							  ."setup [host] [password] [port]: change the parameters for registration/notification with Growl\n"
 							  ."inactive [time_in_seconds]: number of seconds of inactivity before we notify (default: 30)\n"
@@ -222,10 +242,10 @@ my $default_growl_net_client = "localhost";
 my $default_growl_net_inactivity = 30;
 my $default_growl_net_port = 9887;				# default UDP port used by Growl
 
-weechat::set_plugin_config("growl_net_pass", $default_growl_net_pass) if (weechat::get_plugin_config("growl_net_pass") eq "");
-weechat::set_plugin_config("growl_net_client", $default_growl_net_client) if (weechat::get_plugin_config("growl_net_client") eq "");
-weechat::set_plugin_config("growl_net_inactivity", $default_inactivity_for_message) if (weechat::get_plugin_config("growl_net_inactivity") eq "");
-weechat::set_plugin_config("growl_net_port", $default_growl_net_port) if (weechat::get_plugin_config("growl_net_port") eq "");
+&setc("growl_net_pass", $default_growl_net_pass) if (&getc("growl_net_pass") eq "");
+&setc("growl_net_client", $default_growl_net_client) if (&getc("growl_net_client") eq "");
+&setc("growl_net_inactivity", $default_growl_net_inactivity) if (&getc("growl_net_inactivity") eq "");
+&setc("growl_net_port", $default_growl_net_port) if (&getc("growl_net_port") eq "");
 		
 # register our app with growl		
 growl_register( &getc('growl_net_client'), &getc('growl_net_pass'), &getc('growl_net_port'), "$growl_app" );
