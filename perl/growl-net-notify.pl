@@ -21,6 +21,9 @@
 #
 # History:
 #
+# 2009-04-25, kinabalu <andrew AT mysticcoders DOT com>
+#       version 0.4, version upgrade, minor cleanup of source
+#
 # 2009-04-18, kinabalu <andrew AT mysticcoders DOT com>
 #	version 0.3, version upgraded to support weechat 0.2.7+
 #
@@ -30,6 +33,8 @@
 # 2009-04-10, kinabalu <andrew AT mysticcoders DOT com>
 #	version 0.1, initial version rewritten from growl-notify
 #   - original inspiration from growl-notify.pl author Zak Elep
+#
+# /growl and /gl can be used in combination with these actions
 #
 # /growl on
 # /growl off
@@ -70,7 +75,7 @@ my $growl_active = 1;
 
 sub message_process_init {
 
-	weechat::hook_signal("weechat_pv", "highlight_privmsg");
+    weechat::hook_signal("weechat_pv", "highlight_privmsg");
     weechat::hook_print( "", "", "", 1, "highlight_public" );
 }
 
@@ -115,33 +120,21 @@ sub send_message {
 # smaller way to do weechat::get_plugin_config
 #
 sub getc {
-	if($weechat_version eq "0.2.6") {
-		return weechat::get_plugin_config($_[0]);
-	} else {
-		return weechat::config_get_plugin($_[0]);	
-	}
+	return weechat::config_get_plugin($_[0]);	
 }
 
 #
 # smaller way to do weechat::get_plugin_config
 #
 sub setc {
-	if($weechat_version eq "0.2.6") {
-		return weechat::set_plugin_config($_[0], $_[1]);
-	} else {		
-		return weechat::config_set_plugin($_[0], $_[1]);	
-	}
+	return weechat::config_set_plugin($_[0], $_[1]);	
 }
 
 #
 # print function
 # 
 sub prt {
-	if($weechat_version eq "0.2.6") {
-		weechat::print($_[0]);
-	} else {
-		weechat::print("buffer", $_[0]);
-	}
+	weechat::print("buffer", $_[0]);
 }
 
 #
@@ -242,7 +235,7 @@ sub handler {
 #
 # setup
 #
-my $version = '0.3';
+my $version = '0.4';
    
 	weechat::register("$growl_app", "kinabalu <andrew\@mysticcoders.com>", $version, "GPL3", "Send Weechat notifications thru Net::Growl", "", "");
 		
