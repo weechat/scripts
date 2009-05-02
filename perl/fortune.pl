@@ -5,7 +5,7 @@
 #
 # Port to WeeChat 0.2.7: Sid Vicious (aka Trashlord) <dornenreich666@gmail.com>
 
-weechat::register("fortune", "Trashlord", "0.2", "Public domain", "Send a random fortune cookie to a specified nick", "", "");
+weechat::register("fortune", "ptitlouis", "0.2", "Public domain", "Send a random fortune cookie to a specified nick", "", "");
 
 weechat::hook_command("fortune", "Send a random fortune cookie to a specified nick",
 	"<nick> [lang]", 

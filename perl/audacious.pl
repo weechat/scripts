@@ -25,7 +25,7 @@
 #  0.3: port to WeeChat 0.2.7 by Trashlord
 #
 
-weechat::register ("audacious", "Trashlord", "0.3", "GPL", "audacious-weechat current song script (usage: /music)", "", "");
+weechat::register ("audacious", "DeltaS4", "0.3", "GPL", "audacious-weechat current song script (usage: /music)", "", "");
 weechat::hook_command("music", "", "", "", "", "audtool", "");
 
 sub audtool {
