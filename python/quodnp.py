@@ -24,7 +24,7 @@ from stat import *
 
 SCRIPT_NAME    = "quodnp"
 SCRIPT_AUTHOR  = "Sharn"
-SCRIPT_VERSION = "0.4"
+SCRIPT_VERSION = "0.5"
 SCRIPT_LICENSE = "GPL2"
 SCRIPT_DESC    = "Full control of Quodlibet from Weechat"
 
@@ -43,7 +43,7 @@ if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
         "from \"cat ~/.quodlibet/current\" - just ignore the ~#s\n"
         "and add a \"$\" - for example, to print the artist put $artist, or $album for album.",
         "np|next|prev|play-pause",
-        "command_handle"
+        "command_handle", ""
         )
 
 # default options
@@ -107,7 +107,7 @@ def format_output(format, values):
 
 findvar = re.compile(r'[^\\]\$([a-z_]+)(\b|[^a-z_])')
 
-def command_handle(buffer, args):
+def command_handle(data, buffer, args):
     largs = args.split(" ")
     if len(largs) > 1:
         weechat.prnt("", "This script can only use 1 argument at a time, see /help " + SCRIPT_COMMAND + " if you need help")

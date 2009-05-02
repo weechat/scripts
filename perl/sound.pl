@@ -21,6 +21,8 @@
 #
 # History:
 #
+# 2009-05-02, FlashCode <flashcode@flashtux.org>:
+#     version 0.7: sync with last API changes
 # 2009-02-03, FlashCode <flashcode@flashtux.org>:
 #     version 0.6: conversion to WeeChat 0.2.7+
 #                  move commands for highlight and pv to new script launcher.pl
@@ -37,7 +39,7 @@
 
 use strict;
 
-my $version = "0.6";
+my $version = "0.7";
 my $command_suffix = " >/dev/null 2>&1 &";
 
 # default values in setup file (~/.weechat/plugins.conf)
@@ -49,13 +51,13 @@ weechat::register("sound", "FlashCode <flashcode\@flashtux.org>", $version, "GPL
 weechat::config_set_plugin("cmd_ctcp", $default_cmd_ctcp) if (weechat::config_get_plugin("cmd_ctcp") eq "");
 weechat::config_set_plugin("sound_extension", $default_sound_extension) if (weechat::config_get_plugin("sound_extension") eq "");
 
-weechat::hook_signal("*,irc_in_privmsg", "sound");
-weechat::hook_command("sound", "Play sound on IRC channel", "filename", "filename: sound filename", "", "sound_cmd");
+weechat::hook_signal("*,irc_in_privmsg", "sound", "");
+weechat::hook_command("sound", "Play sound on IRC channel", "filename", "filename: sound filename", "", "sound_cmd", "");
 
 sub sound
 {
-    my $server = $_[0];
-    if ($_[1] =~ /(.*) PRIVMSG (.*)/)
+    my ($data, $server, $signal) = ($_[0], $_[1], $_[2]);
+    if ($signal =~ /(.*) PRIVMSG (.*)/)
     {
         my ($host, $msg) = ($1, $2);
 	if ($host ne "localhost")

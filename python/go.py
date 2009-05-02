@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2009-05-02, FlashCode <flashcode@flashtux.org>:
+#     version 0.6: sync with last API changes
 # 2009-03-22, FlashCode <flashcode@flashtux.org>:
 #     version 0.5: update modifier signal name for input text display,
 #                  fix arguments for function string_remove_color
@@ -39,7 +41,7 @@ import weechat
 
 SCRIPT_NAME    = "go"
 SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.5"
+SCRIPT_VERSION = "0.6"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Quick jump to buffers"
 
@@ -78,7 +80,7 @@ if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
                          "You can bind command to a key, for example:\n  /key meta-g /go\n\n" +
                          "You can use completion key (commonly Tab and shift-Tab) to select " +
                          "next/previous buffer in list.",
-                         "", "go_cmd")
+                         "", "go_cmd", "")
     for option, default_value in settings.iteritems():
         if weechat.config_get_plugin(option) == "":
             weechat.config_set_plugin(option, default_value)
@@ -101,10 +103,10 @@ def hook_all():
     global hook_command_run, hooks
     for hook, value in hook_command_run.iteritems():
         if hook not in hooks:
-            hooks[hook] = weechat.hook_command_run(value[0], value[1])
+            hooks[hook] = weechat.hook_command_run(value[0], value[1], "")
     if "modifier" not in hooks:
         hooks["modifier"] = weechat.hook_modifier(
-            "input_text_display_with_cursor", "input_modifier")
+            "input_text_display_with_cursor", "input_modifier", "")
 
 def go_start(buffer):
     """ Start go on buffer """
@@ -122,7 +124,7 @@ def go_end(buffer):
     weechat.buffer_set(buffer, "input", saved_input)
     old_input = None
 
-def go_cmd(buffer, args):
+def go_cmd(data, buffer, args):
     """ Command "/go": just hook what we need """
     global hooks
     if "modifier" in hooks:
@@ -174,7 +176,7 @@ def buffers_to_string(buffers, pos, input):
         string = "  " + string
     return string
 
-def input_modifier(modifier, modifier_data, string):
+def input_modifier(data, modifier, modifier_data, string):
     """ This modifier is called when input text item is built by WeeChat
     (commonly after changes in input or cursor move), it builds new input with
     prefix ("Go to:"), and suffix (list of buffers found) """
@@ -191,7 +193,7 @@ def input_modifier(modifier, modifier_data, string):
     names = buffers_to_string(buffers, buffers_pos, input)
     return weechat.config_get_plugin("message") + string + names
 
-def command_run_input(buffer, command):
+def command_run_input(data, buffer, command):
     """ Function called when a command "/input xxxx" is run """
     global buffers, buffers_pos
     if command == "/input search_text" or command.find("/input jump") == 0:
@@ -215,11 +217,11 @@ def command_run_input(buffer, command):
         return weechat.WEECHAT_RC_OK_EAT
     return weechat.WEECHAT_RC_OK
 
-def command_run_buffer(buffer, command):
+def command_run_buffer(data, buffer, command):
     """ Function called when a command "/buffer xxxx" is run """
     return weechat.WEECHAT_RC_OK_EAT
 
-def command_run_window(buffer, command):
+def command_run_window(data, buffer, command):
     """ Function called when a command "/buffer xxxx" is run """
     return weechat.WEECHAT_RC_OK_EAT
 

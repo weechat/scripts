@@ -18,6 +18,8 @@
 # Set WeeChat and plugins options interactively.
 #
 # History:
+# 2009-05-02, FlashCode <flashcode@flashtux.org>:
+#     version 0.4: sync with last API changes
 # 2009-01-04, FlashCode <flashcode@flashtux.org>:
 #     version 0.3: open iset buffer when /iset command is executed
 # 2009-01-04, FlashCode <flashcode@flashtux.org>:
@@ -31,9 +33,9 @@
 
 use strict;
 
-my $version = "0.3";
+my $version = "0.4";
 
-my $buffer = "";
+my $iset_buffer = "";
 my @options_names = ();
 my @options_types = ();
 my @options_values = ();
@@ -66,9 +68,9 @@ sub iset_init_config
 
 sub iset_title
 {
-    if ($buffer ne "")
+    if ($iset_buffer ne "")
     {
-        weechat::buffer_set($buffer, "title",
+        weechat::buffer_set($iset_buffer, "title",
                             "Interactive set (iset.pl v$version)  |  "
                             ."Filter: ".weechat::color("yellow").$filter.weechat::color("default")."  |  "
                             .@options_names." options");
@@ -88,9 +90,10 @@ sub iset_filter
 
 sub iset_buffer_input
 {
-    iset_filter($_[1]);
+    my ($data, $buffer, $string) = ($_[0], $_[1], $_[2]);
+    iset_filter($string);
     iset_get_options();
-    weechat::buffer_clear($_[0]);
+    weechat::buffer_clear($buffer);
     iset_title();
     $current_line = 0;
     iset_refresh();
@@ -100,7 +103,7 @@ sub iset_buffer_input
 
 sub iset_buffer_close
 {
-    $buffer = "";
+    $iset_buffer = "";
     
     return weechat::WEECHAT_RC_OK;
 }
@@ -108,23 +111,23 @@ sub iset_buffer_close
 sub iset_init
 {
     $current_line = 0;
-    $buffer = weechat::buffer_new("iset", "iset_buffer_input", "iset_buffer_close");
-    if ($buffer ne "")
+    $iset_buffer = weechat::buffer_new("iset", "iset_buffer_input", "", "iset_buffer_close", "");
+    if ($iset_buffer ne "")
     {
-        weechat::buffer_set($buffer, "type", "free");
+        weechat::buffer_set($iset_buffer, "type", "free");
         iset_title();
-        weechat::buffer_set($buffer, "key_bind_ctrl-L",        "/iset **refresh");
-        weechat::buffer_set($buffer, "key_bind_meta2-A",       "/iset **up");
-        weechat::buffer_set($buffer, "key_bind_meta2-B",       "/iset **down");
-        weechat::buffer_set($buffer, "key_bind_meta- ",        "/iset **toggle");
-        weechat::buffer_set($buffer, "key_bind_meta-+",        "/iset **incr");
-        weechat::buffer_set($buffer, "key_bind_meta--",        "/iset **decr");
-        weechat::buffer_set($buffer, "key_bind_meta-imeta-r",  "/iset **reset");
-        weechat::buffer_set($buffer, "key_bind_meta-imeta-u",  "/iset **unset");
-        weechat::buffer_set($buffer, "key_bind_meta-ctrl-J",   "/iset **set");
-        weechat::buffer_set($buffer, "key_bind_meta-ctrl-M",   "/iset **set");
-        weechat::buffer_set($buffer, "key_bind_meta-meta2-1~", "/iset **scroll_top");
-        weechat::buffer_set($buffer, "key_bind_meta-meta2-4~", "/iset **scroll_bottom");
+        weechat::buffer_set($iset_buffer, "key_bind_ctrl-L",        "/iset **refresh");
+        weechat::buffer_set($iset_buffer, "key_bind_meta2-A",       "/iset **up");
+        weechat::buffer_set($iset_buffer, "key_bind_meta2-B",       "/iset **down");
+        weechat::buffer_set($iset_buffer, "key_bind_meta- ",        "/iset **toggle");
+        weechat::buffer_set($iset_buffer, "key_bind_meta-+",        "/iset **incr");
+        weechat::buffer_set($iset_buffer, "key_bind_meta--",        "/iset **decr");
+        weechat::buffer_set($iset_buffer, "key_bind_meta-imeta-r",  "/iset **reset");
+        weechat::buffer_set($iset_buffer, "key_bind_meta-imeta-u",  "/iset **unset");
+        weechat::buffer_set($iset_buffer, "key_bind_meta-ctrl-J",   "/iset **set");
+        weechat::buffer_set($iset_buffer, "key_bind_meta-ctrl-M",   "/iset **set");
+        weechat::buffer_set($iset_buffer, "key_bind_meta-meta2-1~", "/iset **scroll_top");
+        weechat::buffer_set($iset_buffer, "key_bind_meta-meta2-4~", "/iset **scroll_bottom");
     }
 }
 
@@ -162,7 +165,7 @@ sub iset_get_options
 
 sub iset_refresh_line
 {
-    if ($buffer ne "")
+    if ($iset_buffer ne "")
     {
         my $y = $_[0];
         my $format = sprintf("%%s%%-%ds %%s %%-7s %%s %%s%%s%%s", $option_max_length);
@@ -198,14 +201,14 @@ sub iset_refresh_line
                               $color1, $options_names[$y],
                               $color2, $options_types[$y],
                               $color3, $around, $value, $around);
-        weechat::print_y($buffer, $y, $strline);
+        weechat::print_y($iset_buffer, $y, $strline);
     }
 }
 
 sub iset_refresh
 {
     iset_title();
-    if (($buffer ne "") && ($#options_names >= 0))
+    if (($iset_buffer ne "") && ($#options_names >= 0))
     {
         foreach my $y (0 .. $#options_names)
         {
@@ -216,12 +219,13 @@ sub iset_refresh
 
 sub iset_signal_window_scrolled
 {
-    if ($buffer ne "")
+    my ($data, $signal, $signal_data) = ($_[0], $_[1], $_[2]);
+    if ($iset_buffer ne "")
     {
-        my $infolist = weechat::infolist_get("window", $_[1], "");
+        my $infolist = weechat::infolist_get("window", $signal_data, "");
         if (weechat::infolist_next($infolist))
         {
-            if (weechat::infolist_pointer($infolist, "buffer") eq $buffer)
+            if (weechat::infolist_pointer($infolist, "buffer") eq $iset_buffer)
             {
                 my $old_current_line = $current_line;
                 my $start_line_y = weechat::infolist_integer($infolist, "start_line_y");
@@ -246,7 +250,7 @@ sub iset_signal_window_scrolled
 
 sub iset_check_line_outside_window
 {
-    if ($buffer ne "")
+    if ($iset_buffer ne "")
     {
         my $infolist = weechat::infolist_get("window", "", "current");
         if (weechat::infolist_next($infolist))
@@ -255,13 +259,13 @@ sub iset_check_line_outside_window
             my $chat_height = weechat::infolist_integer($infolist, "chat_height");
             if ($start_line_y > $current_line)
             {
-                weechat::command($buffer, "/window scroll -".($start_line_y - $current_line));
+                weechat::command($iset_buffer, "/window scroll -".($start_line_y - $current_line));
             }
             else
             {
                 if ($start_line_y <= $current_line - $chat_height)
                 {
-                    weechat::command($buffer, "/window scroll +".($current_line - $start_line_y - $chat_height + 1));
+                    weechat::command($iset_buffer, "/window scroll +".($current_line - $start_line_y - $chat_height + 1));
                 }
             }
         }
@@ -271,7 +275,7 @@ sub iset_check_line_outside_window
 
 sub iset_config
 {
-    if ($buffer ne "")
+    if ($iset_buffer ne "")
     {
         iset_get_options();
         iset_refresh();
@@ -296,36 +300,37 @@ sub iset_unset_option
 {
     my $option = weechat::config_get($_[0]);
     weechat::config_option_unset($option) if ($option ne "");
-    weechat::buffer_clear($buffer);
+    weechat::buffer_clear($iset_buffer);
     iset_refresh();
 }
 
 sub iset
 {
-    if (($_[1] ne "") && (substr($_[1], 0, 2) ne "**"))
+    my ($data, $buffer, $args) = ($_[0], $_[1], $_[2]);
+    if (($args ne "") && (substr($args, 0, 2) ne "**"))
     {
-        iset_filter($_[1]);
+        iset_filter($args);
     }
     
-    if ($buffer eq "")
+    if ($iset_buffer eq "")
     {
         iset_init();
         iset_get_options();
         iset_refresh();
     }
     
-    weechat::buffer_set($buffer, "display", "1");
+    weechat::buffer_set($iset_buffer, "display", "1");
     
-    if ($_[1] ne "")
+    if ($args ne "")
     {
-        if ($_[1] eq "**refresh")
+        if ($args eq "**refresh")
         {
-            weechat::buffer_clear($buffer);
+            weechat::buffer_clear($iset_buffer);
             iset_get_options();
             iset_refresh();
-            weechat::command($buffer, "/window refresh");
+            weechat::command($iset_buffer, "/window refresh");
         }
-        if ($_[1] eq "**up")
+        if ($args eq "**up")
         {
             if ($current_line > 0)
             {
@@ -335,7 +340,7 @@ sub iset
                 iset_check_line_outside_window();
             }
         }
-        if ($_[1] eq "**down")
+        if ($args eq "**down")
         {
             if ($current_line < $#options_names)
             {
@@ -345,30 +350,30 @@ sub iset
                 iset_check_line_outside_window();
             }
         }
-        if ($_[1] eq "**scroll_top")
+        if ($args eq "**scroll_top")
         {
             my $old_current_line = $current_line;
             $current_line = 0;
             iset_refresh_line ($old_current_line);
             iset_refresh_line ($current_line);
-            weechat::command($buffer, "/window scroll_top");
+            weechat::command($iset_buffer, "/window scroll_top");
         }
-        if ($_[1] eq "**scroll_bottom")
+        if ($args eq "**scroll_bottom")
         {
             my $old_current_line = $current_line;
             $current_line = $#options_names;
             iset_refresh_line ($old_current_line);
             iset_refresh_line ($current_line);
-            weechat::command($buffer, "/window scroll_bottom");
+            weechat::command($iset_buffer, "/window scroll_bottom");
         }
-        if ($_[1] eq "**toggle")
+        if ($args eq "**toggle")
         {
             if ($options_types[$current_line] eq "boolean")
             {
                 iset_set_option($options_names[$current_line], "toggle");
             }
         }
-        if ($_[1] eq "**incr")
+        if ($args eq "**incr")
         {
             if (($options_types[$current_line] eq "integer")
                 || ($options_types[$current_line] eq "color"))
@@ -376,7 +381,7 @@ sub iset
                 iset_set_option($options_names[$current_line], "++1");
             }
         }
-        if ($_[1] eq "**decr")
+        if ($args eq "**decr")
         {
             if (($options_types[$current_line] eq "integer")
                 || ($options_types[$current_line] eq "color"))
@@ -384,15 +389,15 @@ sub iset
                 iset_set_option($options_names[$current_line], "--1");
             }
         }
-        if ($_[1] eq "**reset")
+        if ($args eq "**reset")
         {
             iset_reset_option($options_names[$current_line]);
         }
-        if ($_[1] eq "**unset")
+        if ($args eq "**unset")
         {
             iset_unset_option($options_names[$current_line]);
         }
-        if ($_[1] eq "**set")
+        if ($args eq "**set")
         {
             my $quote = "";
             my $value = $options_values[$current_line];
@@ -404,7 +409,7 @@ sub iset
             {
                 $quote = "\"" if ($options_types[$current_line] eq "string");
             }
-            weechat::buffer_set($buffer, "input", "/set ".$options_names[$current_line]." ".$quote.$value.$quote);
+            weechat::buffer_set($iset_buffer, "input", "/set ".$options_names[$current_line]." ".$quote.$value.$quote);
         }
     }
     
@@ -427,7 +432,7 @@ weechat::hook_command("iset", "Interactive set", "[f file] [s section] [text]",
                       "alt+'I',alt+'U': unset option\n".
                       "alt+enter      : set new value for option (edit it with command line)\n".
                       "text,enter     : set a new filter using command line (use '*' to see all options)",
-                      "", "iset");
-weechat::hook_signal("window_scrolled", "iset_signal_window_scrolled");
-weechat::hook_config("*", "iset_config");
+                      "", "iset", "");
+weechat::hook_signal("window_scrolled", "iset_signal_window_scrolled", "");
+weechat::hook_config("*", "iset_config", "");
 iset_init_config();

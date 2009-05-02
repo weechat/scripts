@@ -21,6 +21,9 @@
 #
 # History:
 #
+# 2009-05-02, FlashCode <flashcode@flashtux.org>:
+#       version 0.5, sync with last API changes
+#
 # 2009-04-25, kinabalu <andrew AT mysticcoders DOT com>
 #       version 0.4, version upgrade, minor cleanup of source
 #
@@ -75,15 +78,15 @@ my $growl_active = 1;
 
 sub message_process_init {
 
-    weechat::hook_signal("weechat_pv", "highlight_privmsg");
-    weechat::hook_print( "", "", "", 1, "highlight_public" );
+    weechat::hook_signal("weechat_pv", "highlight_privmsg", "");
+    weechat::hook_print( "", "", "", 1, "highlight_public", "");
 }
 
 #
 # 0.2.7 clean version of highlighting for private messages
 #
 sub highlight_privmsg {
-    my ( $nick, $message ) = ( $_[1] =~ /(.*?)\t(.*)/ );
+    my ( $nick, $message ) = ( $_[2] =~ /(.*?)\t(.*)/ );
 		
 	send_message($nick, $message);				
 	return weechat::WEECHAT_RC_OK;	
@@ -93,7 +96,7 @@ sub highlight_privmsg {
 # 0.2.7 clean version of highlighting for public messages
 #
 sub highlight_public {
-    my ( $bufferp, undef, undef, undef, $ishilight, $nick, $message ) = @_;
+    my ( $data, $bufferp, undef, undef, undef, $ishilight, $nick, $message ) = @_;
 		
 	if( $ishilight == 1 ) {
 				
@@ -179,7 +182,8 @@ sub growl_register {
 sub handler {
 	no strict 'refs';	# access symbol table
 	
-	my $server = shift;
+        my $data = shift;
+	my $buffer = shift;
 	my $argList = shift;
 
 	my @args = split(/ /, $argList);
@@ -235,7 +239,7 @@ sub handler {
 #
 # setup
 #
-my $version = '0.4';
+my $version = '0.5';
    
 	weechat::register("$growl_app", "kinabalu <andrew\@mysticcoders.com>", $version, "GPL3", "Send Weechat notifications thru Net::Growl", "", "");
 		
@@ -247,7 +251,7 @@ my $version = '0.4';
 								  ."inactive [time_in_seconds]: number of seconds of inactivity before we notify (default: 30)\n"
 								  ."status: gives info on notification and inactivity settings\n"
 								  ."test [message]: send a test message\n",
-								  "on|off|setup|inactive|status","handler");
+								  "on|off|setup|inactive|status","handler","");
 
 my $default_growl_net_pass = "password";
 my $default_growl_net_client = "localhost";

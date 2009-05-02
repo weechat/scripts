@@ -37,10 +37,13 @@
 # TODO:
 #   * separate channels with same name on different servers
 #
-# 20090417 v0.1
+# 2009-05-02, FlashCode <flashcode@flashtux.org>:
+#     version 0.2: sync with last API changes
+# 2009-04-17, Dmitry Kobylin <fnfal@academ.tsc.ru>:
+#     version 0.1
 #
 
-set VERSION 0.1
+set VERSION 0.2
 set SCRIPT_NAME chan_hl
 
 weechat::register \
@@ -59,12 +62,12 @@ if {[set HL_ON_CUR_CHAN [weechat::config_get_plugin hl_on_cur_chan]] eq ""} {
     set HL_ON_CUR_CHAN 0
 }
 
-proc config_changed {option value} {
+proc config_changed {data option value} {
     set ::HL_ON_CUR_CHAN $value
     return $::weechat::WEECHAT_CONFIG_OPTION_SET_OK_CHANGED
 }
 
-proc mark_cmd {buffer args} {
+proc mark_cmd {data buffer args} {
     set channel [weechat::buffer_get_string $buffer localvar_channel]
     if {[weechat::info_get irc_is_channel $channel] eq "1"} {
 	if {[lsearch $::MARK_LIST $channel] == -1} {
@@ -79,7 +82,7 @@ proc mark_cmd {buffer args} {
     return $::weechat::WEECHAT_RC_OK
 }
 
-proc unmark_cmd {buffer args} {
+proc unmark_cmd {data buffer args} {
     if {[lindex $args 0] eq "all"} {
 	set ::MARK_LIST [list]
 	weechat::print $buffer "all channels was removed from notify list"
@@ -100,7 +103,7 @@ proc unmark_cmd {buffer args} {
     return $::weechat::WEECHAT_RC_OK
 }
 
-proc smark_cmd {buffer args} {
+proc smark_cmd {data buffer args} {
     set channel [weechat::buffer_get_string $buffer localvar_channel]
     if {[weechat::info_get irc_is_channel $channel] eq "1"} {
 	if {[set index [lsearch $::MARK_LIST $channel]] == -1} {
@@ -116,7 +119,7 @@ proc smark_cmd {buffer args} {
     return $::weechat::WEECHAT_RC_OK
 }
 
-proc signal_proc {signal irc_msg} {
+proc signal_proc {data signal irc_msg} {
     if {[regexp {.+@.+\sPRIVMSG\s(#.+)\s:.+} $irc_msg wh channel] == 1} {
 	if {[lsearch $::MARK_LIST $channel] != -1} {
 	    set buffer [weechat::current_buffer]
@@ -133,9 +136,9 @@ proc signal_proc {signal irc_msg} {
     return $::weechat::WEECHAT_RC_OK
 }
 
-weechat::hook_command mark {mark current channel to highlight on each message} {} {} {} mark_cmd
-weechat::hook_command unmark {unmark channel(s)} {[all]} {} {} unmark_cmd
-weechat::hook_command smark {unmark channel(s)} {[all]} {} {} smark_cmd
-weechat::hook_signal *,irc_in_PRIVMSG signal_proc
-weechat::hook_config plugins.var.tcl.chan_hl.hl_on_cur_chan config_changed
+weechat::hook_command mark {mark current channel to highlight on each message} {} {} {} mark_cmd {}
+weechat::hook_command unmark {unmark channel(s)} {[all]} {} {} unmark_cmd {}
+weechat::hook_command smark {unmark channel(s)} {[all]} {} {} smark_cmd {}
+weechat::hook_signal *,irc_in_PRIVMSG signal_proc {}
+weechat::hook_config plugins.var.tcl.chan_hl.hl_on_cur_chan config_changed {}
 

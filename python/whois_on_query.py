@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2009-05-02, FlashCode <flashcode@flashtux.org>:
+#     version 0.2: sync with last API changes
 # 2009-02-08, FlashCode <flashcode@flashtux.org>:
 #     version 0.1: initial release
 #
@@ -30,7 +32,7 @@ import weechat
 
 SCRIPT_NAME    = "whois_on_query"
 SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Whois on query"
 
@@ -41,12 +43,12 @@ settings = {
 
 weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
                  SCRIPT_DESC, "", "")
-weechat.hook_signal("irc_pv_opened", "signal_irc_pv_opened")
+weechat.hook_signal("irc_pv_opened", "signal_irc_pv_opened", "")
 for option, default_value in settings.iteritems():
     if weechat.config_get_plugin(option) == "":
         weechat.config_set_plugin(option, default_value)
 
-def signal_irc_pv_opened(signal, signal_data):
+def signal_irc_pv_opened(data, signal, signal_data):
     if weechat.buffer_get_string(signal_data, "plugin") == "irc":
         channel = weechat.buffer_get_string(signal_data, "localvar_channel")
         if weechat.info_get("irc_is_channel", channel) != "1":

@@ -26,16 +26,18 @@
 # * allows for manual shortening of urls
 # * set the shortener function alias to point to favorite shortener (qurl,tinyurl)
 #
-# FlashCode <flashcode@flashtux.org>, 2008-11-11:
+# 2009-05-02, FlashCode <flashcode@flashtux.org>:
+#     version 1.2: sync with last API changes
+# 2008-11-11, FlashCode <flashcode@flashtux.org>:
 #     version 1.1: conversion to WeeChat 0.2.7+
 
 require 'net/http'
 require 'uri'
 
 def weechat_init
-  Weechat.register "url_shorten", "Daniel Bretoi <daniel@bretoi.com>", "1.1", "BSD", "Shorten url", "", ""
-  Weechat.hook_command "url_shorten", "Shorten URL", "url", "url: url to shorten", "", "url_shorten"
-  Weechat.hook_signal "*,irc_in2_privmsg", "msg_shorten"
+  Weechat.register "url_shorten", "Daniel Bretoi <daniel@bretoi.com>", "1.2", "BSD", "Shorten url", "", ""
+  Weechat.hook_command "url_shorten", "Shorten URL", "url", "url: url to shorten", "", "url_shorten", ""
+  Weechat.hook_signal "*,irc_in2_privmsg", "msg_shorten", ""
   if (maxlen = Weechat.config_get_plugin("maxlen")).empty?
     Weechat.config_set_plugin("maxlen","50")
   end
@@ -71,7 +73,7 @@ def regexp_url
   @regexp_url
 end
 
-def url_shorten(server,msg)
+def url_shorten(data,buffer,msg)
   if (msg.empty?)
     return Weechat::WEECHAT_RC_OK
   end
@@ -82,7 +84,7 @@ def url_shorten(server,msg)
   return Weechat::WEECHAT_RC_OK
 end
 
-def msg_shorten(signal,message)
+def msg_shorten(data,signal,message)
   if (message.empty?)
     return Weechat::WEECHAT_RC_OK
   end

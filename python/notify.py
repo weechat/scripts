@@ -5,12 +5,15 @@
 # To make it work, you may need to download: python-notify (and libnotify - libgtk)
 # Requires Weechat 0.2.7
 # Released under GNU GPL v2
+#
+# 2009-05-02, FlashCode <flashcode@flashtux.org>:
+#     version 0.0.2.1: sync with last API changes
 
 import weechat, pynotify, string
 
 WEECHAT_ICON = "/usr/share/pixmaps/weechat.xpm"
 
-weechat.register("notify", "lavaramano", "0.0.2.0", "GPL", "notify: A real time notification system for weechat", "", "")
+weechat.register("notify", "lavaramano", "0.0.2.1", "GPL", "notify: A real time notification system for weechat", "", "")
 
 # script options
 settings = {
@@ -24,11 +27,11 @@ for option, default_value in settings.items():
         weechat.config_set_plugin(option, default_value)
 
 # Hook privmsg/hilights
-weechat.hook_print("", "", "", 1, "nofify_show_hi")
-weechat.hook_signal("weechat_pv", "nofify_show_priv")
+weechat.hook_print("", "", "", 1, "nofify_show_hi", "")
+weechat.hook_signal("weechat_pv", "nofify_show_priv", "")
 
 # Functions
-def nofify_show_hi( bufferp, uber_empty, tagsn, isdisplayed, ishilight, prefix, message ):
+def nofify_show_hi( data, bufferp, uber_empty, tagsn, isdisplayed, ishilight, prefix, message ):
     """Sends highlighted message to be printed on notification"""
     if ishilight == "1" and weechat.config_get_plugin('show_hilights') == "on":
         if not weechat.buffer_get_string(bufferp, "short_name"):
@@ -42,7 +45,7 @@ def nofify_show_hi( bufferp, uber_empty, tagsn, isdisplayed, ishilight, prefix, 
 
     return weechat.WEECHAT_RC_OK
 
-def nofify_show_priv( signal, message ):
+def nofify_show_priv( data, signal, message ):
     """Sends private message to be printed on notification"""
     if weechat.config_get_plugin('show_priv_msg') == "on":
         show_notification("Private message: ",  message)

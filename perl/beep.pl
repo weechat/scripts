@@ -19,6 +19,8 @@
 # Speaker beep on highlight/private msg.
 #
 # History:
+# 2009-05-02, FlashCode <flashcode@flashtux.org>:
+#     version 0.4: sync with last API changes
 # 2008-11-05, FlashCode <flashcode@flashtux.org>:
 #     version 0.3: conversion to WeeChat 0.2.7+
 # 2007-08-10, FlashCode <flashcode@flashtux.org>:
@@ -29,7 +31,7 @@
 
 use strict;
 
-my $version = "0.3";
+my $version = "0.4";
 my $beep_command = "echo -n \a";
 
 # default values in setup file (~/.weechat/plugins.conf)
@@ -41,8 +43,8 @@ weechat::register("beep", "FlashCode <flashcode\@flashtux.org>", $version,
 weechat::config_set_plugin("beep_highlight", $default_beep_highlight) if (weechat::config_get_plugin("beep_highlight") eq "");
 weechat::config_set_plugin("beep_pv", $default_beep_pv) if (weechat::config_get_plugin("beep_pv") eq "");
 
-weechat::hook_signal("weechat_highlight", "highlight");
-weechat::hook_signal("irc_pv", "pv");
+weechat::hook_signal("weechat_highlight", "highlight", "");
+weechat::hook_signal("irc_pv", "pv", "");
 
 sub highlight
 {

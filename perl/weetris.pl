@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2008 by FlashCode <flashcode@flashtux.org>
+# Copyright (c) 2008-2009 by FlashCode <flashcode@flashtux.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,6 +18,8 @@
 # Tetris game for WeeChat.
 #
 # History:
+# 2009-05-02, FlashCode <flashcode@flashtux.org>:
+#     version 0.4: sync with last API changes, fix problem with key alt-n
 # 2008-11-14, FlashCode <flashcode@flashtux.org>:
 #     version 0.3: minor code cleanup
 # 2008-11-12, FlashCode <flashcode@flashtux.org>:
@@ -29,9 +31,9 @@
 
 use strict;
 
-my $version = "0.3";
+my $version = "0.4";
 
-my $buffer = "";
+my $weetris_buffer = "";
 my $timer = "";
 
 my ($nbx, $nby) = (10, 20);
@@ -77,7 +79,7 @@ my $item_form = 0;
 
 sub buffer_close
 {
-    $buffer = "";
+    $weetris_buffer = "";
     if ($timer ne "")
     {
         weechat::unhook($timer);
@@ -90,19 +92,19 @@ sub buffer_close
 
 sub weetris_init
 {
-    $buffer = weechat::buffer_new("weetris", "", "buffer_close");
-    if ($buffer ne "")
+    $weetris_buffer = weechat::buffer_new("weetris", "", "", "buffer_close", "");
+    if ($weetris_buffer ne "")
     {
-        weechat::buffer_set($buffer, "type", "free");
-        weechat::buffer_set($buffer, "title", "WeeTris.pl script - enjoy!");
-        weechat::buffer_set($buffer, "key_bind_meta2-A", "/weetris up");
-        weechat::buffer_set($buffer, "key_bind_meta2-B", "/weetris down");
-        weechat::buffer_set($buffer, "key_bind_meta2-D", "/weetris left");
-        weechat::buffer_set($buffer, "key_bind_meta2-C", "/weetris right");
-        weechat::buffer_set($buffer, "key_bind_meta-N", "/weetris new_game");
+        weechat::buffer_set($weetris_buffer, "type", "free");
+        weechat::buffer_set($weetris_buffer, "title", "WeeTris.pl script - enjoy!");
+        weechat::buffer_set($weetris_buffer, "key_bind_meta2-A", "/weetris up");
+        weechat::buffer_set($weetris_buffer, "key_bind_meta2-B", "/weetris down");
+        weechat::buffer_set($weetris_buffer, "key_bind_meta2-D", "/weetris left");
+        weechat::buffer_set($weetris_buffer, "key_bind_meta2-C", "/weetris right");
+        weechat::buffer_set($weetris_buffer, "key_bind_meta-n", "/weetris new_game");
         if ($timer eq "")
         {
-            $timer = weechat::hook_timer(700, 0, 0, "weetris_timer");
+            $timer = weechat::hook_timer(700, 0, 0, "weetris_timer", "");
         }
     }
 }
@@ -125,7 +127,7 @@ sub display_line
         $str .= "  ";
     }
     $str .= weechat::color(",default")."│";
-    weechat::print_y($buffer, $start_y + $y + 1, $str);
+    weechat::print_y($weetris_buffer, $start_y + $y + 1, $str);
 }
 
 sub apply_item
@@ -146,7 +148,7 @@ sub display_all
     apply_item(1);
     
     # bar on top
-    weechat::print_y($buffer, $start_y, " ┌".("──" x $nbx)."┐");
+    weechat::print_y($weetris_buffer, $start_y, " ┌".("──" x $nbx)."┐");
     
     # middle
     for (my $y = 0; $y < $nby; $y++)
@@ -155,7 +157,7 @@ sub display_all
     }
     
     # bottom bar
-    weechat::print_y($buffer, $start_y + $nby + 1, " └".("──" x $nbx)."┘");
+    weechat::print_y($weetris_buffer, $start_y + $nby + 1, " └".("──" x $nbx)."┘");
     
     apply_item(0);
 }
@@ -170,7 +172,7 @@ sub new_form
 
 sub new_game
 {
-    weechat::print_y($buffer, $start_y + $nby + 2, "");
+    weechat::print_y($weetris_buffer, $start_y + $nby + 2, "");
     for (my $y = 0; $y < $nby; $y++)
     {
         $matrix[$y] = " " x $nbx;
@@ -243,7 +245,7 @@ sub remove_completed_lines
         my $plural = "";
         $plural = "s" if ($lines > 1);
         my $str = sprintf("%7d line%s", $lines, $plural);
-        weechat::print_y($buffer, $start_y + $nby + 2, $str);
+        weechat::print_y($weetris_buffer, $start_y + $nby + 2, $str);
     }
 }
 
@@ -259,22 +261,24 @@ sub end_of_item
     {
         $item_form = 0;
         $playing = 0;
-        weechat::print_y($buffer, $start_y + $nby + 2, ">> End of game, score: $lines lines (alt-N to restart) <<");
+        weechat::print_y($weetris_buffer, $start_y + $nby + 2, ">> End of game, score: $lines lines (alt-N to restart) <<");
     }
 }
 
 sub weetris
 {
-    if ($buffer eq "")
+    my ($data, $buffer, $args) = ($_[0], $_[1], $_[2]);
+    
+    if ($weetris_buffer eq "")
     {
         weetris_init();
         new_game();
         apply_item(1);
         display_all();
-        weechat::buffer_set($buffer, "display", "1");
+        weechat::buffer_set($weetris_buffer, "display", "1");
     }
     
-    if ($_[1] eq "new_game")
+    if ($args eq "new_game")
     {
         new_game();
         display_all();
@@ -282,7 +286,7 @@ sub weetris
     
     if ($playing eq 1)
     {
-        if ($_[1] eq "up")
+        if ($args eq "up")
         {
             my $new_form = rotation($item_form);
             if (is_possible($item_x, $item_y, $new_form))
@@ -291,7 +295,7 @@ sub weetris
                 display_all();
             }
         }
-        if ($_[1] eq "down")
+        if ($args eq "down")
         {
             if (is_possible($item_x, $item_y + 1, $item_form))
             {
@@ -303,7 +307,7 @@ sub weetris
                 end_of_item();
             }
         }
-        if ($_[1] eq "left")
+        if ($args eq "left")
         {
             if (is_possible($item_x - 1, $item_y, $item_form))
             {
@@ -311,7 +315,7 @@ sub weetris
                 display_all();
             }
         }
-        if ($_[1] eq "right")
+        if ($args eq "right")
         {
             if (is_possible($item_x + 1, $item_y, $item_form))
             {
@@ -326,7 +330,7 @@ sub weetris
 
 sub weetris_timer
 {
-    if (($buffer ne "") && ($playing eq 1))
+    if (($weetris_buffer ne "") && ($playing eq 1))
     {
         if (is_possible($item_x, $item_y + 1, $item_form))
         {
@@ -343,4 +347,4 @@ sub weetris_timer
 
 weechat::register("weetris", "FlashCode <flashcode\@flashtux.org>",
                   $version, "GPL3", "Tetris game for WeeChat, yeah!", "", "");
-weechat::hook_command("weetris", "Run WeeTris", "", "", "", "weetris");
+weechat::hook_command("weetris", "Run WeeTris", "", "", "", "weetris", "");

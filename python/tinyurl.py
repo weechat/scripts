@@ -1,6 +1,6 @@
 #!/bin/env python
 #
-# TinyUrl, version 3.6, for weechat version 0.2.7 or later
+# TinyUrl, version 3.7, for weechat version 0.2.7 or later
 #
 #   Listens to all channels for long URLs, and submits them to ln-s.net or
 #   tinyurl.com for easier links.
@@ -78,7 +78,11 @@
 #
 # Changelog:
 #
-# Version 3.6, 12 March 2009
+# Version 3.7, 2 May, 2009
+#   Sync with last API changes
+#   by FlashCode <flashcode@flashtux.org>
+#
+# Version 3.6, 12 March, 2009
 #   Conversion to WeeChat 0.2.7+
 #   by FlashCode <flashcode@flashtux.org>
 #
@@ -152,7 +156,7 @@ class TryAgain(UserWarning):
 		super(UserWarning, self).__init__(message)
 
 # Register with weechat
-weechat.register( "TinyUrl", "Jim Ramsay", "3.6", "GPL", "Waits for URLs and sends them to 'tinyurl' for you", "tinyurlShutdown", "" )
+weechat.register( "TinyUrl", "Jim Ramsay", "3.7", "GPL", "Waits for URLs and sends them to 'tinyurl' for you", "tinyurlShutdown", "" )
 
 # Global variables
 tinyurlParams = ("urllength","activechans","printall","service","debug")
@@ -169,8 +173,8 @@ if not weechat.config_get_plugin('debug') in ("on", "off"):
 	weechat.config_set_plugin('debug', "off")
 
 # Start the timer thread and register handlers
-weechat.hook_timer( 1000, 0, 0, "tinyurlCheckComplete" )
-weechat.hook_signal("*,irc_in_privmsg", "tinyurlHandleMessage")
+weechat.hook_timer( 1000, 0, 0, "tinyurlCheckComplete", "" )
+weechat.hook_signal("*,irc_in_privmsg", "tinyurlHandleMessage", "")
 weechat.hook_command("tinyurl", "Sets/Gets 'tinyurl' settings.", "urllength|activechans|printall|service|debug", \
 	"[<variable> [[=] <value>]]",
 """When run without arguments, displays all tinyurl settings
@@ -192,7 +196,7 @@ weechat.hook_command("tinyurl", "Sets/Gets 'tinyurl' settings.", "urllength|acti
     debug [[=] on|off]
         Creates extra debug output in the server window when on.
         Default: off""",
-	"tinyurlMain"
+	"tinyurlMain", ""
     )
 
 def tinyurlShutdown():
@@ -269,7 +273,7 @@ def tinyurlSet( name, value ):
 			weechat.prnt( weechat.buffer_search("",""), "	Unknown parameter \'%s\'" % name )
 	return
 
-def tinyurlMain( server, args ):
+def tinyurlMain( data, buffer, args ):
 	"""Main handler for the /tinyurl command"""
 	args = args.split( " " )
 	while '' in args:
@@ -392,7 +396,7 @@ def tinyurlFindUrlend( msg, urlstart ):
 		index -= 1
 	return index + urlstart
 
-def tinyurlCheckComplete(remaining_calls):
+def tinyurlCheckComplete(data, remaining_calls):
 	"""The periodic poll of all waiting processes"""
 	global tinyurlProcessList
 	for pid in tinyurlProcessList.keys():
@@ -417,13 +421,13 @@ def tinyurlCheckComplete(remaining_calls):
 			del tinyurlProcessList[pid]
 	return weechat.WEECHAT_RC_OK
 
-def tinyurlHandleMessage( hook, args ):
+def tinyurlHandleMessage( data, signal, signal_data ):
 	"""Handles IRC PRIVMSG and checks for URLs"""
-	(server,signal) = hook.split(",",1)
+	(server,sig) = signal.split(",",1)
 	maxlen = int(weechat.config_get_plugin( "urllength" ))
 	activeChans = weechat.config_get_plugin('activechans').split(',')
 	onlyActiveChans = weechat.config_get_plugin('printall') == "off"
-	(source, type, channel, msg) = args.split(" ", 3)
+	(source, type, channel, msg) = signal_data.split(" ", 3)
 	if onlyActiveChans and channel not in activeChans:
 		return weechat.WEECHAT_RC_OK
 	if not channel.startswith("#"):

@@ -21,6 +21,8 @@
 # Log highlights msg to core buffer
 #
 # History:
+#   2009-05-02, FlashCode <flashcode@flashtux.org>:
+#       version 0.6, sync with last API changes
 #   2008-11-30, GolemJ <golemj@gmail.com>:
 #       version 0.5, conversion to WeeChat 0.2.7+
 #
@@ -28,21 +30,21 @@
 
 use strict;
 
-weechat::register( "awaylog", "Jiri Golembiovsky", "0.5", "GPL", "Prints highlights to core buffer", "", "UTF-8" );
-weechat::hook_print( "", "", "", 1, "highlight_cb" );
+weechat::register( "awaylog", "Jiri Golembiovsky", "0.6", "GPL", "Prints highlights to core buffer", "", "" );
+weechat::hook_print( "", "", "", 1, "highlight_cb", "" );
 
 if( weechat::config_get_plugin( "on_away_only" ) eq "" ) {
   weechat::config_set_plugin( "on_away_only", "off" );
 }
 
 sub highlight_cb {
-  if( $_[4] == 1 ) {
-    my $away = weechat::buffer_get_string($_[0], "localvar_away");
+  if( $_[5] == 1 ) {
+    my $away = weechat::buffer_get_string($_[1], "localvar_away");
     if (($away ne "") || (weechat::config_get_plugin( "on_away_only" ) ne "on"))
     {
-        my $plugin = weechat::buffer_get_string($_[0], "plugin");
-        my $name = weechat::buffer_get_string($_[0], "name");
-        weechat::print("", "${plugin}.${name} -- $_[5] :: $_[6]");
+        my $plugin = weechat::buffer_get_string($_[1], "plugin");
+        my $name = weechat::buffer_get_string($_[1], "name");
+        weechat::print("", "${plugin}.${name} -- $_[6] :: $_[7]");
     }
   }
   

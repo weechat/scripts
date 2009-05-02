@@ -27,8 +27,8 @@
 #                                                                            #
 ##############################################################################
 
-weechat::register( "moc", "Jiri Golembiovsky", "0.3", "GPL",
-  "Show info about current song in moc", "", "UTF-8" );
+weechat::register( "moc", "Jiri Golembiovsky", "0.4", "GPL",
+  "Show info about current song in moc", "", "" );
 weechat::hook_command(
   "moc", 
   "Show info about current song in moc",
@@ -39,7 +39,7 @@ weechat::hook_command(
   "To set output format use moc_set_format command.\n" .
   "To set another default output type than -i use moc_set_output command.\n",
   "i|o|ot",
-  "moc" );
+  "moc", "" );
 
 # values for output_format: any string (may contain following item)
 # %A - artist
@@ -120,13 +120,13 @@ sub moc {
   my $out;
   my $outType = weechat::config_get_plugin( "output_type" );
   if( length( $outType ) == 0 ) { $outType = 'i'; }
-  if( length( $_[1] ) ) { $outType = $_[1]; }
+  if( length( $_[2] ) ) { $outType = $_[2]; }
   if( ( $outType ne 'i' ) && ( $outType ne 'o' ) && ( $outType ne 'ot' ) ) {
-    weechat::print( $_[0], "Bad parameter or default output type" );
+    weechat::print( $_[1], "Bad parameter or default output type" );
   }
   $out = info();
-  if( $outType eq 'i' ) { weechat::print( $_[0], $out ); }
-  if( $outType eq 'o' ) { weechat::command( $_[0], $out ); }
-  if( $outType eq 'ot' ) { weechat::command( $_[0], "/me " . $out ); }
+  if( $outType eq 'i' ) { weechat::print( $_[1], $out ); }
+  if( $outType eq 'o' ) { weechat::command( $_[1], $out ); }
+  if( $outType eq 'ot' ) { weechat::command( $_[1], "/me " . $out ); }
   return weechat::WEECHAT_RC_OK;
 }

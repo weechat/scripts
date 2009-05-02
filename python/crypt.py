@@ -8,7 +8,7 @@
 #
 # *this version is for the upcoming weechat-0.2.7 only*
 #
-version="1.1-0.2.7"
+version="1.2-0.2.7"
 #
 # This plugin uses openssl to encrypt/decrypt messages you send
 # or receive with weechat. Due to the very simple method 
@@ -39,7 +39,7 @@ CIPHER="blowfish"
 
 import weechat, string, os, subprocess
 
-def decrypt(msgtype, servername, args):
+def decrypt(data, msgtype, servername, args):
   hostmask, chanmsg = string.split(args, "PRIVMSG ", 1)
   channelname, message = string.split(chanmsg, " :", 1)
   if channelname[0] == "#":
@@ -59,7 +59,7 @@ def decrypt(msgtype, servername, args):
   else:
     return args
     
-def encrypt(msgtype, servername, args):
+def encrypt(data, msgtype, servername, args):
   pre, message = string.split(args, ":", 1)
   prestr=pre.split(" ")
   username=prestr[-2]
@@ -98,5 +98,5 @@ weechat.register("crypt", "Nicolai Lissner", version, "GPL3",  "encrypt/decrypt 
 weechat_dir = weechat.info_get("weechat_dir","")
 
 # register the modifiers
-weechat.hook_modifier("irc_in_privmsg", "decrypt")
-weechat.hook_modifier("irc_out_privmsg", "encrypt")
+weechat.hook_modifier("irc_in_privmsg", "decrypt", "")
+weechat.hook_modifier("irc_out_privmsg", "encrypt", "")

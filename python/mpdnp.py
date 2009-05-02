@@ -42,7 +42,7 @@ from os.path import basename, splitext
 
 default_fmt = "/me 's MPD plays: $artist - $title_or_file ($length_min:$length_sec)"
 
-wc.register("mpdnp", "Henning Hasemann", "0.4", "GPL", "np for mpd", "", "")
+wc.register("mpdnp", "Henning Hasemann", "0.5", "GPL", "np for mpd", "", "")
 
 def subst(text, values):
   out = ""
@@ -56,7 +56,7 @@ def subst(text, values):
       n = r
   return out + text[n:]
 
-def np(server, args):
+def np(data, buffer, args):
   """
     Send information about the currently
     played song to the channel.
@@ -81,13 +81,13 @@ def np(server, args):
   wc.command(wc.current_buffer(), (subst(wc.config_get_plugin("format"), d)))
   return 0
   
-def dbgnp(server, args):
+def dbgnp(data, buffer, args):
   try:
-    return np(server, args)
+    return np(data, buffer, args)
   except Exception, e:
     print e
   
-wc.hook_command("mpdnp", "now playing", "", np.__doc__, "", "np")
+wc.hook_command("mpdnp", "now playing", "", np.__doc__, "", "np", "")
 
 findvar = re.compile(r'[^\\]\$([a-z_]+)(\b|[^a-z_])')
 

@@ -10,6 +10,8 @@
 #
 # ### changelog ###
 #
+#  * version 0.4, 2009-05-02, FlashCode <flashcode@flashtux.org>:
+#      - sync with last API changes
 #  * version 0.3, 2009-03-06, FlashCode <flashcode@flashtux.org>:
 #      - use of hook_process to run background process
 #      - add option -t <timeout> to kill process after <timeout> seconds
@@ -25,7 +27,7 @@ import weechat, os, datetime
 
 SCRIPT_NAME    = "shell"
 SCRIPT_AUTHOR  = "Kolter"
-SCRIPT_VERSION = "0.3"
+SCRIPT_VERSION = "0.4"
 SCRIPT_LICENSE = "GPL2"
 SCRIPT_DESC    = "Run shell commands in WeeChat"
 
@@ -55,7 +57,7 @@ if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
         "<command line>: shell command or builtin like cd, getenv, setenv, "
         "unsetenv",
         "-kill|-o|-t|cd|getenv|setenv|unsetenv -o|-t|cd|getenv|setenv|unsetenv",
-        "shell"
+        "shell_cmd", ""
         )
 
 def shell_init():
@@ -67,7 +69,7 @@ def shell_init():
     cmd_stdout       = ""
     cmd_stderr       = ""
 
-def shell_process_cb(command, rc, stdout, stderr):
+def shell_process_cb(data, command, rc, stdout, stderr):
     global cmd_hook_process, cmd_buffer, cmd_stdout, cmd_stderr, cmd_send_to_buffer
     cmd_stdout += stdout
     cmd_stderr += stderr
@@ -111,7 +113,7 @@ def shell_exec(buffer, command):
     cmd_command = command
     cmd_start_time = datetime.datetime.now()
     cmd_buffer = buffer
-    cmd_hook_process = weechat.hook_process(command, cmd_timeout * 1000, "shell_process_cb")
+    cmd_hook_process = weechat.hook_process(command, cmd_timeout * 1000, "shell_process_cb", "")
 
 def shell_show_process(buffer):
     global cmd_command, cmd_start_time
@@ -183,7 +185,7 @@ def shell_unsetenv(buffer, var):
     else:
         weechat.prnt(buffer, "%s$%s is not set" % (SHELL_PREFIX, var))        
     
-def shell(buffer, args):
+def shell_cmd(data, buffer, args):
     global cmd_send_to_buffer, cmd_timeout
     largs = args.split(" ")
     

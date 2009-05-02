@@ -7,6 +7,9 @@
 #		 ('Slashdot | Microsoft's "Dead Cow" Patch Was 7 Years In the Making')
 #
 # xororand @ irc://irc.freenode.net/#weechat
+#
+# 2009-05-02, FlashCode <flashcode@flashtux.org>:
+#     version 0.5: sync with last API changes
 
 import htmllib
 import re
@@ -63,7 +66,7 @@ def getPageTitle(url):
 		return ""
 
 # /pt http://foo
-def on_pagetitle(server, args):
+def on_pagetitle(data, buffer, args):
 	if len(args) == 0:
 		return weechat.WEECHAT_RC_ERROR
 
@@ -73,32 +76,28 @@ def on_pagetitle(server, args):
 		url = match.group()
 		try:
 			if debug:
-				weechat.prnt(weechat.current_buffer(), "pagetitle: retrieving '%s'" % url)
+				weechat.prnt(buffer, "pagetitle: retrieving '%s'" % url)
 			title = getPageTitle(url)
 			if len(title) > limit_title_length:
 				title = "%s [...]" % title[0:limit_title_length]
 			url = "%s ('%s')" % (url, title)
 		except NameError, e:
-			weechat.prnt(weechat.current_buffer(), "pagetitle: URL: '%s', Error: '%s'" % (url, e))
+			weechat.prnt(buffer, "pagetitle: URL: '%s', Error: '%s'" % (url, e))
 		return url
 
 	msg = regex_url.sub(urlReplace, msg)
-	weechat.command(weechat.current_buffer(), "/say %s" % msg)
+	weechat.command(buffer, "/say %s" % msg)
 
 	return weechat.WEECHAT_RC_OK
-
-# stub end function
-def end_func(server, args):
-	return
 
 # Register plugin
 import weechat
 
-weechat.register ('pagetitle', 'xororand', '0.4', 'GPL3', """Adds HTML titles to http:// urls in your message.""", "end_func", "UTF-8")
+weechat.register ('pagetitle', 'xororand', '0.5', 'GPL3', """Adds HTML titles to http:// urls in your message.""", "", "")
 desc = """Sends a message to the current buffer and adds HTML titles to http:// URLs.
 Example: /pt check this out: http://xkcd.com/364/
 <you> check this out: http://xkcd.com/364/ (xkcd - A webcomic of romance, sarcasm, math and language)"""
-weechat.hook_command ('pt', desc, 'message', 'message containing an URL', '', 'on_pagetitle')
+weechat.hook_command ('pt', desc, 'message', 'message containing an URL', '', 'on_pagetitle', '')
 
 # vim:set ts=4 sw=4 noexpandtab nowrap foldmethod=marker:
 

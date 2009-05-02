@@ -21,13 +21,15 @@
 #
 # History:
 #
+# 2009-05-02, FlashCode <flashcode@flashtux.org>:
+#     version 0.2: sync with last API changes
 # 2009-02-03, FlashCode <flashcode@flashtux.org>:
 #     version 0.1: initial release
 #
 
 use strict;
 
-my $version = "0.1";
+my $version = "0.2";
 my $command_suffix = " >/dev/null 2>&1 &";
 
 weechat::register("launcher", "FlashCode <flashcode\@flashtux.org>", $version, "GPL3",
@@ -46,12 +48,14 @@ weechat::hook_command("launcher", "Associate external commands to signals",
                       ."    /launcher -del weechat_highlight\n\n"
                       ."For advanced users: it's possible to change commands with /set command:\n"
                       ."  /set plugins.var.perl.launcher.signal.weechat_highlight \"my command here\"",
-                      "", "launcher_cmd");
-weechat::hook_signal("*", "signal");
+                      "", "launcher_cmd", "");
+weechat::hook_signal("*", "signal", "");
 
 sub launcher_cmd
 {
-    if ($_[1] =~ /([^ ]+) (.*)/)
+    my ($data, $buffer, $args) = ($_[0], $_[1], $_[2]);
+    
+    if ($args =~ /([^ ]+) (.*)/)
     {
         if ($1 eq "-del")
         {
@@ -81,14 +85,14 @@ sub launcher_cmd
     }
     else
     {
-        weechat::command($_[0], "/set plugins.var.perl.launcher.*");
+        weechat::command($buffer, "/set plugins.var.perl.launcher.*");
     }
     return weechat::WEECHAT_RC_OK;
 }
 
 sub signal
 {
-    my $command = weechat::config_get_plugin("signal.$_[0]");
+    my $command = weechat::config_get_plugin("signal.$_[1]");
     system($command.$command_suffix) if ($command ne "");
     return weechat::WEECHAT_RC_OK;
 }

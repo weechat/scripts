@@ -19,6 +19,8 @@
 # Display sidebar with list of buffers.
 #
 # History:
+# 2009-05-02, FlashCode <flashcode@flashtux.org>:
+#     v1.1: sync with last API changes
 # 2009-02-21, FlashCode <flashcode@flashtux.org>:
 #     v1.0: remove timer used to update bar item first time (not needed any more)
 # 2009-02-17, FlashCode <flashcode@flashtux.org>:
@@ -60,7 +62,7 @@
 
 use strict;
 
-my $version = "1.0";
+my $version = "1.1";
 
 # -------------------------------[ config ]-------------------------------------
 
@@ -106,13 +108,13 @@ if (weechat::config_get_plugin("color_current") eq "")
 {
     weechat::config_set_plugin("color_current", "lightcyan,red");
 }
-weechat::bar_item_new("buffers", "build_buffers");
+weechat::bar_item_new("buffers", "build_buffers", "");
 weechat::bar_new("buffers", "0", "0", "root", "", "left", "horizontal",
                  "vertical", "0", "0", "default", "default", "default", "1",
                  "buffers");
-weechat::hook_signal("buffer_*", "buffers_signal_buffer");
-weechat::hook_signal("hotlist_*", "buffers_signal_hotlist");
-weechat::hook_config("plugins.var.perl.buffers.*", "buffers_signal_config");
+weechat::hook_signal("buffer_*", "buffers_signal_buffer", "");
+weechat::hook_signal("hotlist_*", "buffers_signal_hotlist", "");
+weechat::hook_config("plugins.var.perl.buffers.*", "buffers_signal_config", "");
 weechat::bar_item_update("buffers");
 
 # ------------------------------------------------------------------------------

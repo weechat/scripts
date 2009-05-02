@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2009-05-02, FlashCode <flashcode@flashtux.org>:
+#     version 0.6: sync with last API changes
 # 2009-04-15, FlashCode <flashcode@flashtux.org>:
 #     version 0.5: display missing module(s) when import failed
 # 2009-04-11, FlashCode <flashcode@flashtux.org>:
@@ -38,7 +40,7 @@
 
 SCRIPT_NAME    = "weeget"
 SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.5"
+SCRIPT_VERSION = "0.6"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "WeeChat scripts manager"
 
@@ -106,44 +108,44 @@ def wg_config_init():
     """
     global wg_config_file, wg_config_option
     wg_config_file = weechat.config_new(CONFIG_FILE_NAME,
-                                        "wg_config_reload_cb")
+                                        "wg_config_reload_cb", "")
     if wg_config_file == "":
         return
     
     # section "color"
     section_color = weechat.config_new_section(
-        wg_config_file, "color", 0, 0, "", "", "", "", "")
+        wg_config_file, "color", 0, 0, "", "", "", "", "", "", "", "", "", "")
     if section_color == "":
         weechat.config_free(wg_config_file)
         return
     wg_config_option["color_script"] = weechat.config_new_option(
         wg_config_file, section_color,
         "script", "color", "Color for script names", "", 0, 0,
-        "cyan", "cyan", 0, "", "", "")
+        "cyan", "cyan", 0, "", "", "", "", "", "")
     wg_config_option["color_installed"] = weechat.config_new_option(
         wg_config_file, section_color,
         "installed", "color", "Color for \"installed\" indicator", "", 0, 0,
-        "yellow", "yellow", 0, "", "", "")
+        "yellow", "yellow", 0, "", "", "", "", "", "")
     wg_config_option["color_running"] = weechat.config_new_option(
         wg_config_file, section_color,
         "running", "color", "Color for \"running\" indicator", "", 0, 0,
-        "lightgreen", "lightgreen", 0, "", "", "")
+        "lightgreen", "lightgreen", 0, "", "", "", "", "", "")
     wg_config_option["color_obsolete"] = weechat.config_new_option(
         wg_config_file, section_color,
         "obsolete", "color", "Color for \"obsolete\" indicator", "", 0, 0,
-        "lightmagenta", "lightmagenta", 0, "", "", "")
+        "lightmagenta", "lightmagenta", 0, "", "", "", "", "", "")
     wg_config_option["color_unknown"] = weechat.config_new_option(
         wg_config_file, section_color,
         "unknown", "color", "Color for \"unknown status\" indicator", "", 0, 0,
-        "lightred", "lightred", 0, "", "", "")
+        "lightred", "lightred", 0, "", "", "", "", "", "")
     wg_config_option["color_language"] = weechat.config_new_option(
         wg_config_file, section_color,
         "language", "color", "Color for language names", "", 0, 0,
-        "lightblue", "lightblue", 0, "", "", "")
+        "lightblue", "lightblue", 0, "", "", "", "", "", "")
     
     # section "scripts"
     section_scripts = weechat.config_new_section(
-        wg_config_file, "scripts", 0, 0, "", "", "", "", "")
+        wg_config_file, "scripts", 0, 0, "", "", "", "", "", "", "", "", "", "")
     if section_scripts == "":
         weechat.config_free(wg_config_file)
         return
@@ -151,18 +153,18 @@ def wg_config_init():
         wg_config_file, section_scripts,
         "url", "string", "URL for file with list of plugins", "", 0, 0,
         "http://weechat.flashtux.org/plugins.xml.gz",
-        "http://weechat.flashtux.org/plugins.xml.gz", 0, "", "", "")
+        "http://weechat.flashtux.org/plugins.xml.gz", 0, "", "", "", "", "", "")
     wg_config_option["scripts_dir"] = weechat.config_new_option(
         wg_config_file, section_scripts,
         "dir", "string", "Local cache directory for" + SCRIPT_NAME, "", 0, 0,
-        "%h/" + SCRIPT_NAME, "%h/" + SCRIPT_NAME, 0, "", "", "")
+        "%h/" + SCRIPT_NAME, "%h/" + SCRIPT_NAME, 0, "", "", "", "", "", "")
     wg_config_option["scripts_cache_expire"] = weechat.config_new_option(
         wg_config_file, section_scripts,
         "cache_expire", "integer", "Local cache expiration time, in minutes "
         "(-1 = never expires, 0 = always expires)", "",
-        -1, 60*24*365, "60", "60", 0, "", "", "")
+        -1, 60*24*365, "60", "60", 0, "", "", "", "", "", "")
 
-def wg_config_reload_cb(config_file):
+def wg_config_reload_cb(data, config_file):
     """ Reload configuration file. """
     return weechat.config_read(config_file)
 
@@ -512,7 +514,7 @@ def wg_install_next_script():
                     "except urllib2.URLError, e:\n"
                     "    print 'error:%s' % e.code\n"
                     "\"",
-                    TIMEOUT_SCRIPT, "wg_process_script_cb")
+                    TIMEOUT_SCRIPT, "wg_process_script_cb", "")
                 # this function will be called again when script will be
                 # downloaded
                 return
@@ -524,7 +526,7 @@ def wg_install_scripts(names):
         wg_scripts_to_install.append(name)
     wg_install_next_script()
 
-def wg_process_script_cb(command, rc, stdout, stderr):
+def wg_process_script_cb(data, command, rc, stdout, stderr):
     """ Callback when reading a script from website. """
     global wg_hook_process, wg_stdout, wg_current_script_install, wg_loaded_scripts
     if stdout != "":
@@ -718,7 +720,7 @@ def wg_parse_xml():
                         wg_scripts[id] = script
             wg_execute_action()
 
-def wg_process_update_cb(command, rc, stdout, stderr):
+def wg_process_update_cb(data, command, rc, stdout, stderr):
     """ Callback when reading XML cache file from website. """
     global wg_hook_process, wg_stdout, wg_scripts
     if stdout != "":
@@ -760,7 +762,7 @@ def wg_update_cache():
         "except urllib2.URLError, e:\n"
         "    print 'error:%s' % e.code\n"
         "\"",
-        TIMEOUT_UPDATE, "wg_process_update_cb")
+        TIMEOUT_UPDATE, "wg_process_update_cb", "")
 
 def wg_read_scripts(download_list=True):
     """ Read scripts list (download list if needed and asked). """
@@ -784,7 +786,7 @@ def wg_read_scripts(download_list=True):
 
 # ================================[ command ]=================================
 
-def wg_cmd(buffer, args):
+def wg_cmd(data, buffer, args):
     """ Callback for /weeget command. """
     global wg_action, wg_action_args
     if args == "":
@@ -818,7 +820,7 @@ def wg_cmd(buffer, args):
     
     return weechat.WEECHAT_RC_OK
 
-def wg_completion_scripts_cb(completion_item, buffer, completion):
+def wg_completion_scripts_cb(data, completion_item, buffer, completion):
     """ Complete with known script names, for command '/weeget'. """
     global wg_scripts
     wg_read_scripts(download_list=False)
@@ -868,9 +870,9 @@ if __name__ == "__main__" and import_ok:
                              " || update"
                              " || upgrade"
                              " || remove %(weeget_scripts)|%*",
-                             "wg_cmd")
+                             "wg_cmd", "")
         weechat.hook_completion("weeget_scripts", "list of scripts in repository",
-                                "wg_completion_scripts_cb")
+                                "wg_completion_scripts_cb", "")
 
 # ==================================[ end ]===================================
 

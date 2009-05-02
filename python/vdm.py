@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2009-05-02, FlashCode <flashcode@flashtux.org>:
+#     version 0.5: sync with last API changes
 # 2009-03-16, FlashCode <flashcode@flashtux.org>:
 #     version 0.4: use existing vdm buffer if found (for example after /upgrade)
 # 2009-03-15, FlashCode <flashcode@flashtux.org>:
@@ -37,7 +39,7 @@ import weechat, xml.dom.minidom
 
 SCRIPT_NAME    = "vdm"
 SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.4"
+SCRIPT_VERSION = "0.5"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Display content of viedemerde.fr/fmylife.com website"
 
@@ -107,7 +109,7 @@ if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
                          "next page\n\n"
                          "All arguments for this command can be used as input "
                          "on VDM buffer.",
-                         "", "vdm_cmd")
+                         "", "vdm_cmd", "")
     for option, default_value in settings.iteritems():
         if weechat.config_get_plugin(option) == "":
             weechat.config_set_plugin(option, default_value)
@@ -171,7 +173,7 @@ def vdm_parse(string):
                             "text": texte[0].firstChild.data.replace("\n", " ").replace("&quot;", "\"")})
     return vdm
 
-def vdm_process_cb(command, rc, stdout, stderr):
+def vdm_process_cb(data, command, rc, stdout, stderr):
     """ Callback reading HTML data from website. """
     global vdm_stdout, vdm_switch_to_buffer, vdm_hook_process, vdm_key, vdm_oldlist
     if stdout != "":
@@ -192,7 +194,8 @@ def vdm_buffer_create():
     vdm_buffer = weechat.buffer_search("python", "vdm")
     if vdm_buffer == "":
         vdm_buffer = weechat.buffer_new("vdm",
-                                        "vdm_buffer_input", "vdm_buffer_close")
+                                        "vdm_buffer_input", "",
+                                        "vdm_buffer_close", "")
     if vdm_buffer != "":
         vdm_buffer_set_title()
         weechat.buffer_set(vdm_buffer, "localvar_set_no_log", "1")
@@ -244,20 +247,20 @@ def vdm_get(key):
     url = weechat.config_get_plugin("url") % (vdm_key, weechat.config_get_plugin("lang"))
     vdm_hook_process = weechat.hook_process(
         "python -c \"import urllib; print urllib.urlopen('" + url + "').read()\"",
-        10 * 1000, "vdm_process_cb")
+        10 * 1000, "vdm_process_cb", "")
 
-def vdm_buffer_input(buffer, input_data):
+def vdm_buffer_input(data, buffer, input_data):
     """ Read data from user in VDM buffer. """
     vdm_get(input_data)
     return weechat.WEECHAT_RC_OK
 
-def vdm_buffer_close(buffer):
+def vdm_buffer_close(data, buffer):
     """ User closed VDM buffer. Oh no, why? """
     global vdm_buffer
     vdm_buffer = ""
     return weechat.WEECHAT_RC_OK
 
-def vdm_cmd(buffer, args):
+def vdm_cmd(data, buffer, args):
     """ Callback for /vdm command. """
     global vdm_switch_to_buffer
     if weechat.config_get_plugin("auto_switch") == "on":
