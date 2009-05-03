@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2009-05-03, FlashCode <flashcode@flashtux.org>:
+#     version 0.7: eat tab key (do not complete input, just move buffer pointer)
 # 2009-05-02, FlashCode <flashcode@flashtux.org>:
 #     version 0.6: sync with last API changes
 # 2009-03-22, FlashCode <flashcode@flashtux.org>:
@@ -41,7 +43,7 @@ import weechat
 
 SCRIPT_NAME    = "go"
 SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.6"
+SCRIPT_VERSION = "0.7"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Quick jump to buffers"
 
@@ -204,11 +206,17 @@ def command_run_input(data, buffer, command):
         buffers_pos += 1
         if buffers_pos >= len(buffers):
             buffers_pos = 0
+        weechat.hook_signal_send("input_text_changed",
+                                 weechat.WEECHAT_HOOK_SIGNAL_STRING, "")
+        return weechat.WEECHAT_RC_OK_EAT
     elif command == "/input complete_previous":
         # choose previous buffer in list
         buffers_pos -= 1
         if buffers_pos < 0:
             buffers_pos = len(buffers) - 1
+        weechat.hook_signal_send("input_text_changed",
+                                 weechat.WEECHAT_HOOK_SIGNAL_STRING, "")
+        return weechat.WEECHAT_RC_OK_EAT
     elif command == "/input return":
         # switch to selected buffer (if any)
         go_end(buffer)
