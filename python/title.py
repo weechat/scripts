@@ -1,3 +1,4 @@
+''' Title-setter '''
 # -*- coding: utf-8 -*-
 #
 # Copyright (c) 2009 by xt <tor@bash.no>
@@ -18,10 +19,11 @@
 
 #
 # Set screen title
-# (this script requires WeeChat 0.2.7 or newer)
+# (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
-#
+# 2009-05-15, xt
+#     version 0.2: add names from hotlist to title
 # 2009-05-10, xt <tor@bash.no>
 #     version 0.1: initial release
 
@@ -29,22 +31,42 @@ import weechat
 
 SCRIPT_NAME    = "title"
 SCRIPT_AUTHOR  = "xt <tor@bash.no>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL3"
-SCRIPT_DESC    = "Set screen title"
+SCRIPT_DESC    = "Set screen title to current buffer name + hotlist items with configurable priority level"
+
+# script options
+settings = {
+    "title_priority"       : '2',
+    }
 
 hooks = (
         'buffer_switch',
+        'hotlist_*',
 )
 
 if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
                     SCRIPT_DESC, "", ""):
+    for option, default_value in settings.iteritems():
+        if weechat.config_get_plugin(option) == "":
+            weechat.config_set_plugin(option, default_value)
     for hook in hooks:
-        weechat.hook_signal(hook, hook, '')
+        weechat.hook_signal(hook, 'update_title', '')
 
-def buffer_switch(data, signal, signal_data):
-    ''' Called on buffer switch '''
+def update_title(data, signal, signal_data):
+    ''' The callback that adds title. '''
 
-    title = weechat.buffer_get_string(signal_data, 'name')
+    title = weechat.buffer_get_string(weechat.current_buffer(), 'name')
+
+    hotlist = weechat.infolist_get('hotlist', '', '')
+    while weechat.infolist_next(hotlist):
+        priority = weechat.infolist_integer(hotlist, 'priority')
+        if priority >= int(weechat.config_get_plugin('title_priority')):
+            number = weechat.infolist_integer(hotlist, 'buffer_number')
+            thebuffer = weechat.infolist_pointer(hotlist, 'buffer_pointer')
+            name = weechat.buffer_get_string(thebuffer, 'short_name')
+            title += ' %s:%s' % (number, name)
+
     weechat.window_set_title(title)
+
     return weechat.WEECHAT_RC_OK
