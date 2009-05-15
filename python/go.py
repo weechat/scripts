@@ -18,10 +18,12 @@
 
 #
 # Quick jump to buffers.
-# (this script requires WeeChat 0.2.7 or newer)
+# (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
 #
+# 2009-05-16, FlashCode <flashcode@flashtux.org>:
+#     version 0.8: search buffer by number, fix bug when window is split
 # 2009-05-03, FlashCode <flashcode@flashtux.org>:
 #     version 0.7: eat tab key (do not complete input, just move buffer pointer)
 # 2009-05-02, FlashCode <flashcode@flashtux.org>:
@@ -43,7 +45,7 @@ import weechat
 
 SCRIPT_NAME    = "go"
 SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.7"
+SCRIPT_VERSION = "0.8"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Quick jump to buffers"
 
@@ -145,9 +147,12 @@ def get_matching_buffers(input):
     infolist = weechat.infolist_get("buffer", "", "")
     while weechat.infolist_next(infolist):
         name = weechat.infolist_string(infolist, "name")
-        if len(input) == 0 or name.lower().find(input) >= 0:
-            number = weechat.infolist_integer(infolist, "number")
-            list.append((number, name))
+        number = weechat.infolist_integer(infolist, "number")
+        matching = name.lower().find(input) >= 0
+        if not matching and input.isdigit():
+            matching = str(number).startswith(input)
+        if len(input) == 0 or matching:
+            list.append({"number": number, "name": name})
             if len(input) == 0 and weechat.infolist_pointer(infolist, "pointer") == weechat.current_buffer():
                 buffers_pos = len(list) - 1
     weechat.infolist_free(infolist)
@@ -162,17 +167,22 @@ def buffers_to_string(buffers, pos, input):
     for option in settings:
         colors[option] = weechat.config_get_plugin(option)
     for i in range(len(buffers)):
-        index = buffers[i][1].lower().find(input)
+        selected = ""
+        if i == pos:
+            selected = "_selected"
+        index = buffers[i]["name"].lower().find(input)
         if index >= 0:
             index2 = index + len(input)
-            selected = ""
-            if i == pos:
-                selected = "_selected"
             string += " " + \
-                weechat.color(colors["color_number" + selected]) + str(buffers[i][0]) + \
-                weechat.color(colors["color_name" + selected]) + buffers[i][1][:index] + \
-                weechat.color(colors["color_name_highlight" + selected]) + buffers[i][1][index:index2] + \
-                weechat.color(colors["color_name" + selected]) + buffers[i][1][index2:] + \
+                weechat.color(colors["color_number" + selected]) + str(buffers[i]["number"]) + \
+                weechat.color(colors["color_name" + selected]) + buffers[i]["name"][:index] + \
+                weechat.color(colors["color_name_highlight" + selected]) + buffers[i]["name"][index:index2] + \
+                weechat.color(colors["color_name" + selected]) + buffers[i]["name"][index2:] + \
+                weechat.color("reset")
+        else:
+            string += " " + \
+                weechat.color(colors["color_number" + selected]) + str(buffers[i]["number"]) + \
+                weechat.color(colors["color_name" + selected]) + buffers[i]["name"] + \
                 weechat.color("reset")
     if string != "":
         string = "  " + string
@@ -183,6 +193,8 @@ def input_modifier(data, modifier, modifier_data, string):
     (commonly after changes in input or cursor move), it builds new input with
     prefix ("Go to:"), and suffix (list of buffers found) """
     global old_input, buffers, buffers_pos
+    if modifier_data != weechat.current_buffer():
+        return ""
     names = ""
     input = weechat.string_remove_color(string, "")
     input = input.strip()
@@ -221,7 +233,7 @@ def command_run_input(data, buffer, command):
         # switch to selected buffer (if any)
         go_end(buffer)
         if len(buffers) > 0:
-            weechat.command(buffer, "/buffer " + str(buffers[buffers_pos][0]))
+            weechat.command(buffer, "/buffer " + str(buffers[buffers_pos]["number"]))
         return weechat.WEECHAT_RC_OK_EAT
     return weechat.WEECHAT_RC_OK
 
