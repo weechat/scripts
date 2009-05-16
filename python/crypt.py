@@ -6,9 +6,9 @@
 # Description : encrypt/decrypt PRIVMSGs in WeeChat using 
 #               a pre-shared key and openssl
 #
-# *this version is for the upcoming weechat-0.2.7 only*
+# *this version is for the upcoming weechat-0.3.0 only*
 #
-version="1.2-0.2.7"
+version="1.3"
 #
 # This plugin uses openssl to encrypt/decrypt messages you send
 # or receive with weechat. Due to the very simple method 

@@ -22,7 +22,7 @@
 # 2009-05-02, FlashCode <flashcode@flashtux.org>:
 #     version 0.4: sync with last API changes
 # 2008-11-05, FlashCode <flashcode@flashtux.org>:
-#     version 0.3: conversion to WeeChat 0.2.7+
+#     version 0.3: conversion to WeeChat 0.3.0+
 # 2007-08-10, FlashCode <flashcode@flashtux.org>:
 #     version 0.2: upgraded licence to GPL 3
 # 2006-09-02, FlashCode <flashcode@flashtux.org>:

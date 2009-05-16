@@ -28,7 +28,7 @@
 #       version 0.4, version upgrade, minor cleanup of source
 #
 # 2009-04-18, kinabalu <andrew AT mysticcoders DOT com>
-#	version 0.3, version upgraded to support weechat 0.2.7+
+#	version 0.3, version upgraded to support weechat 0.3.0+
 #
 # 2009-04-16, kinabalu <andrew AT mysticcoders DOT com>
 #	version 0.2, removed need for Parse::IRC
@@ -83,7 +83,7 @@ sub message_process_init {
 }
 
 #
-# 0.2.7 clean version of highlighting for private messages
+# 0.3.0 clean version of highlighting for private messages
 #
 sub highlight_privmsg {
     my ( $nick, $message ) = ( $_[2] =~ /(.*?)\t(.*)/ );
@@ -93,7 +93,7 @@ sub highlight_privmsg {
 }
 
 #
-# 0.2.7 clean version of highlighting for public messages
+# 0.3.0 clean version of highlighting for public messages
 #
 sub highlight_public {
     my ( $data, $bufferp, undef, undef, undef, $ishilight, $nick, $message ) = @_;

@@ -18,7 +18,7 @@
 
 #
 # Display content of viedemerde.fr/fmylife.com website.
-# (this script requires WeeChat 0.2.7 or newer)
+# (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
 #

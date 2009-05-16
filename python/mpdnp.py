@@ -1,7 +1,7 @@
 """
   :Author: Henning Hasemann <hhasemann [at] web [dot] de>
 
-  30-01-2009 -- Adapted for Weechat 0.2.7 By Bonzodog
+  30-01-2009 -- Adapted for Weechat 0.3.0 By Bonzodog
   (bonzodog01 [at] gmail [dot] com)
 
   :What it does:

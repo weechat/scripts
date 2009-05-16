@@ -18,7 +18,7 @@
 
 #
 # WeeChat scripts manager.
-# (this script requires WeeChat 0.2.7 (or newer) and python 2.5)
+# (this script requires WeeChat 0.3.0 (or newer) and python 2.5)
 #
 # History:
 #
@@ -409,7 +409,7 @@ def wg_show_script(name):
          URL: http://weechat.flashtux.org/dev/scripts/weeget.py
         Desc: Scripts manager.
         Tags: scripts
-         Min: 0.2.7
+         Min: 0.3.0
     """
     if len(wg_scripts) == 0:
         return
@@ -678,7 +678,7 @@ def wg_parse_xml():
                'desc_en'     : 'Scripts manager.',
                'desc_fr'     : 'Gestionnaire de scripts.',
                'requirements': 'python 2.5',
-               'min_weechat' : '0.2.7',
+               'min_weechat' : '0.3.0',
                'max_weechat' : '',
                'author'      : 'FlashCode',
                'mail'        : 'flashcode [at] flashtux [dot] org',

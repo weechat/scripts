@@ -1,9 +1,9 @@
 # Author: lavaramano <lavaramano AT gmail DOT com>
 # Improved by: BaSh - <bash.lnx AT gmail DOT com>
-# Ported to Weechat 0.2.7 by: Sharn - <sharntehnub AT gmail DOT com)
+# Ported to Weechat 0.3.0 by: Sharn - <sharntehnub AT gmail DOT com)
 # This Plugin Calls the libnotify bindings via python when somebody says your nickname, sends you a query, etc.
 # To make it work, you may need to download: python-notify (and libnotify - libgtk)
-# Requires Weechat 0.2.7
+# Requires Weechat 0.3.0
 # Released under GNU GPL v2
 #
 # 2009-05-02, FlashCode <flashcode@flashtux.org>:

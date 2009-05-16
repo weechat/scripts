@@ -18,7 +18,7 @@
 
 #
 # Send "whois" on nick when receiving new IRC query.
-# (this script requires WeeChat 0.2.7 or newer)
+# (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
 #

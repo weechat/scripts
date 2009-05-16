@@ -1,7 +1,7 @@
 # This is a rewrite of the script "Kernel" for WeeChat.
-# This script is for WeeChat 0.2.7
+# This script is for WeeChat 0.3.0
 # Written by Julien Louis <ptitlouis@sysif.net>
-# Port to WeeChat 0.2.7: Sid Vicious (aka Trashlord) <dornenreich666@gmail.com>
+# Port to WeeChat 0.3.0: Sid Vicious (aka Trashlord) <dornenreich666@gmail.com>
 # This script is public domain
 
 use warnings;

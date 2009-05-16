@@ -22,7 +22,7 @@
 #  0.2: now you don't need the Song Change plugin enabled because
 #  	it uses audtool --current-song to get the music name as nenolod
 #  	suggested (http://boards.nenolod.net/index.php?showtopic=147). :)
-#  0.3: port to WeeChat 0.2.7 by Trashlord
+#  0.3: port to WeeChat 0.3.0 by Trashlord
 #
 
 weechat::register ("audacious", "DeltaS4", "0.3", "GPL", "audacious-weechat current song script (usage: /music)", "", "");

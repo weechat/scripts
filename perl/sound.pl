@@ -17,14 +17,14 @@
 
 #
 # Play a sound for IRC "CTCP SOUND" message.
-# (this script requires WeeChat 0.2.7 or newer)
+# (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
 #
 # 2009-05-02, FlashCode <flashcode@flashtux.org>:
 #     version 0.7: sync with last API changes
 # 2009-02-03, FlashCode <flashcode@flashtux.org>:
-#     version 0.6: conversion to WeeChat 0.2.7+
+#     version 0.6: conversion to WeeChat 0.3.0+
 #                  move commands for highlight and pv to new script launcher.pl
 # 2007-09-17, FlashCode <flashcode@flashtux.org>:
 #     version 0.5: fixed security problem with message parsing and execution

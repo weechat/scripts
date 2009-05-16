@@ -1,6 +1,6 @@
 #!/bin/env python
 #
-# TinyUrl, version 3.7, for weechat version 0.2.7 or later
+# TinyUrl, version 3.7, for weechat version 0.3.0 or later
 #
 #   Listens to all channels for long URLs, and submits them to ln-s.net or
 #   tinyurl.com for easier links.
@@ -53,7 +53,7 @@
 #
 # Requirements:
 #
-#  - Designed to run with weechat version 0.2.7 or better.
+#  - Designed to run with weechat version 0.3.0 or better.
 #      http://weechat.flashtux.org/
 #
 #  - Requires that 'curl' is in the path (tested with curl 7.15.0).
@@ -83,7 +83,7 @@
 #   by FlashCode <flashcode@flashtux.org>
 #
 # Version 3.6, 12 March, 2009
-#   Conversion to WeeChat 0.2.7+
+#   Conversion to WeeChat 0.3.0+
 #   by FlashCode <flashcode@flashtux.org>
 #
 # Version 3.5d, 19 September, 2008
@@ -99,7 +99,7 @@
 #   by Chris Hills <chaz@chaz6.com>
 #
 # Version 3.5a, 18 July, 2008
-#   Updated for the new script api in weechat 0.2.7-dev
+#   Updated for the new script api in weechat 0.3.0-dev
 #   by Chris Hills <chaz@chaz6.com>
 #   Updated to use the tinyurl api instead of screen-scraping
 #   by Chris Hills <chaz@chaz6.com>

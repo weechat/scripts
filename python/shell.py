@@ -5,7 +5,7 @@
 #  Licence     : GPL v2
 #  Description : running shell commands in WeeChat
 #  Syntax      : try /help shell to get some help on this script
-#  Precond     : needs weechat >= 0.2.7 to run
+#  Precond     : needs weechat >= 0.3.0 to run
 #
 #
 # ### changelog ###
@@ -17,7 +17,7 @@
 #      - add option -t <timeout> to kill process after <timeout> seconds
 #      - show process running, kill it with -kill
 #  * version 0.2, 2009-01-31, FlashCode <flashcode@flashtux.org>:
-#      - conversion to WeeChat 0.2.7+
+#      - conversion to WeeChat 0.3.0+
 #  * version 0.1, 2006-03-13, Kolter <kolter@openics.org> :
 #      - first release
 #

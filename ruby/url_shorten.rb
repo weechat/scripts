@@ -29,7 +29,7 @@
 # 2009-05-02, FlashCode <flashcode@flashtux.org>:
 #     version 1.2: sync with last API changes
 # 2008-11-11, FlashCode <flashcode@flashtux.org>:
-#     version 1.1: conversion to WeeChat 0.2.7+
+#     version 1.1: conversion to WeeChat 0.3.0+
 
 require 'net/http'
 require 'uri'

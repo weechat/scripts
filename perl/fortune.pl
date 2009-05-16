@@ -3,7 +3,7 @@
 # 
 # Original WeeChat Author: Julien Louis <ptitlouis@sysif.net>
 #
-# Port to WeeChat 0.2.7: Sid Vicious (aka Trashlord) <dornenreich666@gmail.com>
+# Port to WeeChat 0.3.0: Sid Vicious (aka Trashlord) <dornenreich666@gmail.com>
 
 weechat::register("fortune", "ptitlouis", "0.2", "Public domain", "Send a random fortune cookie to a specified nick", "", "");
 

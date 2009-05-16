@@ -24,7 +24,7 @@
 #   2009-05-02, FlashCode <flashcode@flashtux.org>:
 #       version 0.6, sync with last API changes
 #   2008-11-30, GolemJ <golemj@gmail.com>:
-#       version 0.5, conversion to WeeChat 0.2.7+
+#       version 0.5, conversion to WeeChat 0.3.0+
 #
 ###############################################################################
 
