@@ -1,6 +1,7 @@
 # Weechat now-playing script for Banshee (tested for 1.4.3)
 # Author: Vitaly Dolgov [ ferhiord@gmail.com ]
 # Usage: /weebanshee
+# Released under GPLv2
 
 import os
 import weechat
