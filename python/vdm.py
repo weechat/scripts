@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2009-06-12, FlashCode <flashcode@flashtux.org>:
+#     version 0.6: fix bug when vdm buffer is closed: clear old list
 # 2009-05-02, FlashCode <flashcode@flashtux.org>:
 #     version 0.5: sync with last API changes
 # 2009-03-16, FlashCode <flashcode@flashtux.org>:
@@ -39,7 +41,7 @@ import weechat, xml.dom.minidom
 
 SCRIPT_NAME    = "vdm"
 SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.5"
+SCRIPT_VERSION = "0.6"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Display content of viedemerde.fr/fmylife.com website"
 
@@ -256,8 +258,9 @@ def vdm_buffer_input(data, buffer, input_data):
 
 def vdm_buffer_close(data, buffer):
     """ User closed VDM buffer. Oh no, why? """
-    global vdm_buffer
+    global vdm_buffer, vdm_oldlist
     vdm_buffer = ""
+    vdm_oldlist = []
     return weechat.WEECHAT_RC_OK
 
 def vdm_cmd(data, buffer, args):
