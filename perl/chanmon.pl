@@ -1,5 +1,5 @@
 #
-# chanmon.pl - Channel Monitoring for weechat 0.3.0 
+# chanmon.pl - Channel Monitoring for weechat 0.3.0
 #
 # Add 'Channel Monitor' buffer that you can position to show IRC channel
 # messages in a single location without constantly switching buffers
@@ -78,7 +78,7 @@ sub chanmon_new_message
 				}
 				$outstr = $bufname.":".$nick." ".$_[7];
 
-				weechat::print($chanmon_buffer, $outstr);
+				weechat::print($chanmon_buffer, "\t".$outstr);
 			}
 		}
 	}
@@ -101,7 +101,7 @@ sub chanmon_new_message
 					$nick = weechat::color("white")." *".$nick.weechat::color("reset");
 					$outstr = $bufname.":".$nick." ".$_[7];
 					
-					weechat::print($chanmon_buffer, $outstr);
+					weechat::print($chanmon_buffer, "\t".$outstr);
 
 				}
 				
@@ -161,7 +161,7 @@ sub chanmon_buffer_input
 	return weechat::WEECHAT_RC_OK;
 }
 
-weechat::register("chanmon", "KenjiE20", "1.0", "GPL3", "Channel Monitor", "", "");
+weechat::register("chanmon", "KenjiE20", "1.0.1", "GPL3", "Channel Monitor", "", "");
 weechat::hook_print("", "", "", 0, "chanmon_new_message", "");
 weechat::hook_command("monitor", "Toggles monitoring for a channel (must be used in the channel buffer itself)", "", "", "", "chanmon_toggle", "");
 weechat::hook_config("plugins.var.perl.chanmon.*", "", "");
