@@ -20,6 +20,8 @@
 #
 # History:
 # 2009-06-14, FlashCode <flashcode@flashtux.org>:
+#     v1.3: add option "hide_merged_buffers"
+# 2009-06-14, FlashCode <flashcode@flashtux.org>:
 #     v1.2: improve display with merged buffers
 # 2009-05-02, FlashCode <flashcode@flashtux.org>:
 #     v1.1: sync with last API changes
@@ -68,8 +70,9 @@ my $version = "1.2";
 
 # -------------------------------[ config ]-------------------------------------
 
-my $default_short_names = "off";
-my $default_indenting   = "off";
+my $default_short_names         = "off";
+my $default_indenting           = "off";
+my $default_hide_merged_buffers = "off";
 
 my %hotlist_level = (0 => "low", 1 => "message", 2 => "private", 3 => "highlight");
 my %default_color_hotlist = ("low"       => "white",
@@ -89,6 +92,10 @@ if (weechat::config_get_plugin("short_names") eq "")
 if (weechat::config_get_plugin("indenting") eq "")
 {
     weechat::config_set_plugin("indenting", $default_indenting);
+}
+if (weechat::config_get_plugin("hide_merged_buffers") eq "")
+{
+    weechat::config_set_plugin("hide_merged_buffers", $default_hide_merged_buffers);
 }
 if (weechat::config_get_plugin("color_number") eq "")
 {
@@ -179,8 +186,13 @@ sub build_buffers
     
     # build string with buffers
     $old_number = -1;
+    my $hide_merged_buffers = weechat::config_get_plugin("hide_merged_buffers");
     for my $buffer (@buffers)
     {
+        if (($hide_merged_buffers eq "on") && (! $buffer->{"active"}))
+        {
+            next;
+        }
         my $color = weechat::config_get_plugin("color_default");
         $color = "default" if ($color eq "");
         my $bg = "";
