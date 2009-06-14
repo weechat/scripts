@@ -1,14 +1,16 @@
 # -*- coding: utf-8 -*-
+# Copyright (c) 2009 by xt <xt@bash.no>
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
 #
-# 2009-05-16, xt <tor@bash.no>
+# 2009-05-26, xt <xt@bash.no>
+#   version 0.3: only update keydict when key bindings change
+# 2009-05-16, xt <xt@bash.no>
 #   version 0.2: added support for using keybindigs instead of names.   
-# 2009-05-10, xt <tor@bash.no>
+# 2009-05-10, xt <xt@bash.no>
 #   version 0.1: initial release.
 #
-# Copyright (c) 2009 by xt <tor@bash.no>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,7 +25,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-
 ''' Hotlist replacement. 
 
 Usage: first, put [chanact] in your status bar items. 
@@ -38,8 +39,8 @@ And then it will show as [Act: w] on your status bar.
 import weechat as w
 
 SCRIPT_NAME    = "chanact"
-SCRIPT_AUTHOR  = "xt <tor@bash.no>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_AUTHOR  = "xt <xt@bash.no>"
+SCRIPT_VERSION = "0.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Hotlist replacement, use names and keybindings instead of numbers"
 
@@ -55,49 +56,50 @@ settings = {
     'color_4'               : 'yellow',
     'color_8'               : 'cyan',
     'use_keybindings'       : 'on',
-    'delimiter'             : ','
+    'delimiter'             : ',',
+    'skip_number_binds'     : 'on',
 }
 
 hooks = (
     ('hotlist_*', 'chanact_update'),
-    ('key_bind', 'chanact_update'),
-    ('key_unbind', 'chanact_update'),
+    ('key_bind', 'keydict_update'),
+    ('key_unbind', 'keydict_update'),
 )
 
+keydict = {}
 
-if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
-                    SCRIPT_DESC, '', ''):
-    for option, default_value in settings.iteritems():
-        if not w.config_is_set_plugin(option):
-            w.config_set_plugin(option, default_value)
 
-    for hook, cb in hooks:
-        w.hook_signal(hook, cb, '')
+def keydict_update(*kwargs):
+    ' Populate a python dictionary with relevant key=>buffer mappings'
 
-    w.bar_item_new('chanact', 'chanact_cb', '')
-
-def chanact_cb(*kwargs):
-    ''' Callback ran on hotlist changes '''
+    global keydict
 
     keylist = w.infolist_get('key', '', '')
-    keydict = {}
     if w.config_get_plugin('use_keybindings') == 'on':
         while w.infolist_next(keylist):
             key = w.infolist_string(keylist, 'key')
-# we dont want jump sequences
+            # we dont want jump sequences
             if 'j' in key:
                 continue
             key = key.replace('meta-', '')
-# skip entries where buffer number = key, typically entries below 11
-#            if key.isdigit():
-#                continue
+            if w.config_get_plugin('skip_number_binds') == 'on':
+                # skip entries where buffer number = key, typically entries below 11
+                if key.isdigit():
+                    continue
             command = w.infolist_string(keylist, 'command')
-# we only care about commands that leads to buffers
+            # we only care about commands that leads to buffers
             if command.startswith('/buffer'):
                 command = command.replace('/buffer ', '')
                 buffer = command.lstrip('*')
                 keydict[buffer] = key
-        w.infolist_free(keylist)
+    w.infolist_free(keylist)
+    return w.WEECHAT_RC_OK
+
+
+def chanact_cb(*kwargs):
+    ''' Callback ran on hotlist changes '''
+    global keydict
+
 
     result = w.config_get_plugin('message')
     hotlist = w.infolist_get('hotlist', '', '')
@@ -148,3 +150,15 @@ def chanact_update(*kwargs):
     w.bar_item_update('chanact')
 
     return w.WEECHAT_RC_OK
+
+if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
+                    SCRIPT_DESC, '', ''):
+    for option, default_value in settings.iteritems():
+        if not w.config_is_set_plugin(option):
+            w.config_set_plugin(option, default_value)
+
+    for hook, cb in hooks:
+        w.hook_signal(hook, cb, '')
+
+    w.bar_item_new('chanact', 'chanact_cb', '')
+    keydict_update()
