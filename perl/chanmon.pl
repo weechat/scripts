@@ -1,6 +1,6 @@
 #
 # chanmon.pl - Channel Monitoring for weechat 0.3.0
-# Version 1.1.1
+# Version 1.1.2
 #
 # Add 'Channel Monitor' buffer that you can position to show IRC channel
 # messages in a single location without constantly switching buffers
@@ -23,6 +23,9 @@
 # /set weechat.bar.input.conditions "active"
 #
 # History:
+# 2009-06-14, KenjiE20 <longbow@longbowslair.co.uk>:
+#	v.1.1.2	-fix: don't assume chanmon buffer needs creating
+#		fixes crashing with /upgrade
 # 2009-06-13, KenjiE20 <longbow@longbowslair.co.uk>:
 #	v.1.1.1	-code: change from True/False to on/off for weechat consistency
 #		Settings WILL NEED to be changed manually from previous versions
@@ -221,7 +224,6 @@ sub chanmon_dyn_toggle
 
 sub chanmon_buffer_close
 {
-	weechat::buffer_close($chanmon_buffer);
 	$chanmon_buffer = "";
 	return weechat::WEECHAT_RC_OK;
 }
@@ -233,10 +235,21 @@ sub chanmon_buffer_setup
 
 sub chanmon_buffer_open
 {
-	$chanmon_buffer = weechat::buffer_new("chanmon", "chanmon_buffer_setup", "", "", "chanmon_buffer_close", "");
-	weechat::buffer_set($chanmon_buffer, "notify", "0");
-	weechat::buffer_set($chanmon_buffer, "title", "Channel Monitor");
+	$chanmon_buffer = weechat::buffer_search("perl", "chanmon");
+	
+	if ($chanmon_buffer eq "")
+	{
+		$chanmon_buffer = weechat::buffer_new("chanmon", "chanmon_buffer_setup", "", "", "chanmon_buffer_close", "");
+	}
+
+        if ($chanmon_buffer ne "")
+        {
+		weechat::buffer_set($chanmon_buffer, "notify", "0");
+		weechat::buffer_set($chanmon_buffer, "title", "Channel Monitor");
+	}
 	return weechat::WEECHAT_RC_OK;
+	
+
 }
 
 sub chanmon_buffer_input
@@ -244,7 +257,7 @@ sub chanmon_buffer_input
 	return weechat::WEECHAT_RC_OK;
 }
 
-weechat::register("chanmon", "KenjiE20", "1.1.1", "GPL3", "Channel Monitor", "", "");
+weechat::register("chanmon", "KenjiE20", "1.1.2", "GPL3", "Channel Monitor", "", "");
 weechat::hook_print("", "", "", 0, "chanmon_new_message", "");
 weechat::hook_command("monitor", "Toggles monitoring for a channel (must be used in the channel buffer itself)", "", "", "", "chanmon_toggle", "");
 weechat::hook_command("dynmon", "Toggles 'dynamic' monitoring (auto-disable monitoring for current channel)", "", "", "", "chanmon_dyn_toggle", "");
