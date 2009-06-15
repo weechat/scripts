@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2009-06-15, FlashCode <flashcode@flashtux.org>:
+#     version 0.9: fix typo in /help go with command /key
 # 2009-05-16, FlashCode <flashcode@flashtux.org>:
 #     version 0.8: search buffer by number, fix bug when window is split
 # 2009-05-03, FlashCode <flashcode@flashtux.org>:
@@ -45,7 +47,7 @@ import weechat
 
 SCRIPT_NAME    = "go"
 SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.8"
+SCRIPT_VERSION = "0.9"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Quick jump to buffers"
 
@@ -81,7 +83,8 @@ buffers_pos = 0
 if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
                     SCRIPT_DESC, "go_unload_script", ""):
     weechat.hook_command("go", "Quick jump to buffers", "",
-                         "You can bind command to a key, for example:\n  /key meta-g /go\n\n" +
+                         "You can bind command to a key, for example:\n" +
+                         "  /key bind meta-g /go\n\n" +
                          "You can use completion key (commonly Tab and shift-Tab) to select " +
                          "next/previous buffer in list.",
                          "", "go_cmd", "")
