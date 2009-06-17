@@ -6,19 +6,21 @@
 # Requires Weechat 0.3.0
 # Released under GNU GPL v2
 #
+# 2009-06-16, kba <unixprog@gmail.com.org>:
+#     version 0.0.3: added config options for icon and urgency
 # 2009-05-02, FlashCode <flashcode@flashtux.org>:
 #     version 0.0.2.1: sync with last API changes
 
 import weechat, pynotify, string
 
-WEECHAT_ICON = "/usr/share/pixmaps/weechat.xpm"
-
-weechat.register("notify", "lavaramano", "0.0.2.1", "GPL", "notify: A real time notification system for weechat", "", "")
+weechat.register("notify", "lavaramano", "0.0.3", "GPL", "notify: A real time notification system for weechat", "", "")
 
 # script options
 settings = {
     "show_hilights"             : "on",
     "show_priv_msg"             : "on",
+    "icon"                      : "/usr/share/pixmaps/weechat.xpm",
+    "urgency"                   : "normal",
 }
 
 # Init everything
@@ -53,8 +55,17 @@ def nofify_show_priv( data, signal, message ):
 
 def show_notification(chan,message):
     pynotify.init("wee-notifier")
-    wn = pynotify.Notification(chan, message, WEECHAT_ICON)
-    wn.set_urgency(pynotify.URGENCY_NORMAL)
+
+    # determine urgency level
+    if weechat.config_get_plugin('urgency') == "low":
+        urgency_level = pynotify.URGENCY_LOW
+    elif weechat.config_get_plugin('urgency') == "critical":
+        urgency_level = pynotify.URGENCY_CRITICAL
+    else:
+        urgency_level = pynotify.URGENCY_NORMAL
+
+    wn = pynotify.Notification(chan, message, weechat.config_get_plugin('icon'))
+    wn.set_urgency(urgency_level)
     #wn.set_timeout(pynotify.EXPIRES_NEVER)
     wn.show()
 
