@@ -22,6 +22,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2009-06-18, xt
+#     version 0.4, option to use short_name
 # 2009-06-15, xt
 #     version 0.3, free infolist
 # 2009-05-15, xt
@@ -33,13 +35,14 @@ import weechat as w
 
 SCRIPT_NAME    = "title"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.3"
+SCRIPT_VERSION = "0.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Set screen title to current buffer name + hotlist items with configurable priority level"
 
 # script options
 settings = {
     "title_priority"       : '2',
+    "short_name"           : 'on',
 }
 
 hooks = (
@@ -47,18 +50,14 @@ hooks = (
         'hotlist_*',
 )
 
-if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, "", ""):
-    for option, default_value in settings.iteritems():
-        if w.config_get_plugin(option) == "":
-            w.config_set_plugin(option, default_value)
-    for hook in hooks:
-        w.hook_signal(hook, 'update_title', '')
 
 def update_title(data, signal, signal_data):
     ''' The callback that adds title. '''
 
-
-    title = w.buffer_get_string(w.current_buffer(), 'name')
+    if w.config_get_plugin('short_name') == 'on':
+        title = w.buffer_get_string(w.current_buffer(), 'short_name')
+    else:
+        title = w.buffer_get_string(w.current_buffer(), 'name')
 
     hotlist = w.infolist_get('hotlist', '', '')
     while w.infolist_next(hotlist):
@@ -74,3 +73,12 @@ def update_title(data, signal, signal_data):
     w.window_set_title(title)
 
     return w.WEECHAT_RC_OK
+
+if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, "", ""):
+    for option, default_value in settings.iteritems():
+        if not w.config_is_set_plugin(option):
+            w.config_set_plugin(option, default_value)
+    for hook in hooks:
+        w.hook_signal(hook, 'update_title', '')
+
+    update_title('', '', '')
