@@ -1,6 +1,6 @@
 #
 # chanmon.pl - Channel Monitoring for weechat 0.3.0
-# Version 1.1.2
+# Version 1.2
 #
 # Add 'Channel Monitor' buffer that you can position to show IRC channel
 # messages in a single location without constantly switching buffers
@@ -14,6 +14,13 @@
 # will automagically stop monitoring the current active buffer, without
 # affecting regular settings (Default is off)
 #
+# /set plugins.var.perl.chanmon.alignment "channel"
+# The config setting "alignment" can be changed to;
+# "channel", "schannel", "channel,nick", "schannel,nick"
+# to change how the monitor appears
+# The 'schannel' value will only show the buffer number as opposed to
+# 'server#channel'
+#
 # Ideal set up:
 # Split the layout 70/30 (or there abouts) horizontally and load
 # Optionally, make the status and input lines only show on active windows
@@ -23,12 +30,15 @@
 # /set weechat.bar.input.conditions "active"
 #
 # History:
+# 2009-06-19, KenjiE20 <longbow@longbowslair.co.uk>:
+#	v.1.2	-feature(tte): Customisable alignment
+#			Thanks to 'FreakGaurd' for the idea
 # 2009-06-14, KenjiE20 <longbow@longbowslair.co.uk>:
 #	v.1.1.2	-fix: don't assume chanmon buffer needs creating
-#		fixes crashing with /upgrade
+#			fixes crashing with /upgrade
 # 2009-06-13, KenjiE20 <longbow@longbowslair.co.uk>:
 #	v.1.1.1	-code: change from True/False to on/off for weechat consistency
-#		Settings WILL NEED to be changed manually from previous versions
+#			Settings WILL NEED to be changed manually from previous versions
 # 2009-06-13, KenjiE20 <longbow@longbowslair.co.uk>:
 #	v1.1:	-feature(tte): Dynamic Channel Monitoring,
 #			don't display messages from active channel buffer
@@ -113,8 +123,32 @@ sub chanmon_new_message
 				{
 					$nick = $_[6].weechat::color("reset");
 				}
-				$outstr = "\t".$bufname.":".$nick." ".$_[7];
-				
+
+				if (weechat::config_get_plugin("alignment") eq "channel")
+				{
+					$nick =~ s/\s(.*)/$1/;
+					$outstr = $bufname."\t".$nick." ".$_[7];
+				}
+				elsif (weechat::config_get_plugin("alignment") eq "schannel")
+				{
+					$nick =~ s/\s(.*)/$1/;
+					$bufname = weechat::color("chat_prefix_buffer").weechat::buffer_get_integer($_[1], 'number').weechat::color("reset");
+					$outstr = $bufname."\t".$nick." ".$_[7];
+				}
+				elsif (weechat::config_get_plugin("alignment") eq "channel,nick")
+				{
+					$outstr = $bufname.":".$nick."\t".$_[7];
+				}
+				elsif (weechat::config_get_plugin("alignment") eq "schannel,nick")
+				{
+					$bufname = weechat::color("chat_prefix_buffer").weechat::buffer_get_integer($_[1], 'number').weechat::color("reset");
+					$outstr = $bufname.":".$nick."\t".$_[7];
+				}
+				else
+				{
+					$outstr = "\t".$bufname.":".$nick." ".$_[7];
+				}
+
 				if (weechat::config_get_plugin("dynamic") eq "on")
 				{
 					if ($dyncheck)
@@ -139,7 +173,8 @@ sub chanmon_new_message
 		}
 		if (weechat::config_get_plugin($bufname) eq "on" && $_[4] eq "1")
 		{
-			if ($bufname =~ /(.*)\.([#&\+!])(.*)/) {
+			if ($bufname =~ /(.*)\.([#&\+!])(.*)/)
+			{
 				if (weechat::config_get_plugin("dynamic") eq "on")
 				{
 					$curbuf = weechat::buffer_get_string(weechat::current_buffer(), 'name');
@@ -155,8 +190,31 @@ sub chanmon_new_message
 				if ($_[7] =~ $mynick)
 				{
 					$nick = weechat::color("white")." *".$nick.weechat::color("reset");
-					$outstr = "\t".$bufname.":".$nick." ".$_[7];
-						
+					if (weechat::config_get_plugin("alignment") eq "channel")
+					{
+						$nick =~ s/\s(.*)/$1/;
+						$outstr = $bufname."\t".$nick." ".$_[7];
+					}
+					elsif (weechat::config_get_plugin("alignment") eq "schannel")
+					{
+						$nick =~ s/\s(.*)/$1/;
+						$bufname = weechat::color("chat_prefix_buffer").weechat::buffer_get_integer($_[1], 'number').weechat::color("reset");
+						$outstr = $bufname."\t".$nick." ".$_[7];
+					}
+					elsif (weechat::config_get_plugin("alignment") eq "channel,nick")
+					{
+						$outstr = $bufname.":".$nick."\t".$_[7];
+					}
+					elsif (weechat::config_get_plugin("alignment") eq "schannel,nick")
+					{
+						$bufname = weechat::color("chat_prefix_buffer").weechat::buffer_get_integer($_[1], 'number').weechat::color("reset");
+						$outstr = $bufname.":".$nick."\t".$_[7];
+					}
+					else
+					{
+						$outstr = "\t".$bufname.":".$nick." ".$_[7];
+					}
+
 					if (weechat::config_get_plugin("dynamic") eq "on")
 					{
 						if ($dyncheck)
@@ -172,7 +230,6 @@ sub chanmon_new_message
 			}
 		}
 	}
-
 	return weechat::WEECHAT_RC_OK;
 }
 
@@ -236,20 +293,18 @@ sub chanmon_buffer_setup
 sub chanmon_buffer_open
 {
 	$chanmon_buffer = weechat::buffer_search("perl", "chanmon");
-	
+
 	if ($chanmon_buffer eq "")
 	{
 		$chanmon_buffer = weechat::buffer_new("chanmon", "chanmon_buffer_setup", "", "", "chanmon_buffer_close", "");
 	}
 
-        if ($chanmon_buffer ne "")
-        {
+	if ($chanmon_buffer ne "")
+	{
 		weechat::buffer_set($chanmon_buffer, "notify", "0");
 		weechat::buffer_set($chanmon_buffer, "title", "Channel Monitor");
 	}
 	return weechat::WEECHAT_RC_OK;
-	
-
 }
 
 sub chanmon_buffer_input
@@ -257,11 +312,19 @@ sub chanmon_buffer_input
 	return weechat::WEECHAT_RC_OK;
 }
 
-weechat::register("chanmon", "KenjiE20", "1.1.2", "GPL3", "Channel Monitor", "", "");
+weechat::register("chanmon", "KenjiE20", "1.2", "GPL3", "Channel Monitor", "", "");
 weechat::hook_print("", "", "", 0, "chanmon_new_message", "");
 weechat::hook_command("monitor", "Toggles monitoring for a channel (must be used in the channel buffer itself)", "", "", "", "chanmon_toggle", "");
 weechat::hook_command("dynmon", "Toggles 'dynamic' monitoring (auto-disable monitoring for current channel)", "", "", "", "chanmon_dyn_toggle", "");
 weechat::hook_config("plugins.var.perl.chanmon.*", "", "");
+if (!(weechat::config_is_set_plugin ("alignment")))
+{
+	weechat::config_set_plugin("alignment", "channel");
+}
+if (weechat::config_get_plugin("alignment") eq "")
+{
+	weechat::config_set_plugin("alignment", "none");
+}
 if (weechat::config_get_plugin("dynamic") eq "")
 {
 	weechat::config_set_plugin("dynamic", "off");
