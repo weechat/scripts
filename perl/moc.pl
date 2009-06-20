@@ -27,42 +27,33 @@
 #                                                                            #
 ##############################################################################
 
-weechat::register( "moc", "Jiri Golembiovsky", "0.4", "GPL",
+weechat::register( "moc", "Jiri Golembiovsky", "0.5", "GPL",
   "Show info about current song in moc", "", "" );
 weechat::hook_command(
   "moc", 
   "Show info about current song in moc",
   "[i|o|ot]",
+  "To set another default output type than 'i' use: /set plugins.var.perl.moc.output_type\n" .
   "i   show info about current song (default parameter if no other is given)\n" .
   "o   print results to the current channel as /msg\n" .
-  "ot  print results to the current channel as /me, this parameter overide -o parameter\n" .
-  "To set output format use moc_set_format command.\n" .
-  "To set another default output type than -i use moc_set_output command.\n",
+  "ot  print results to the current channel as /me, this parameter overrides -o parameter\n" .
+  "\n" .
+  "To set output format use: /set plugins.var.perl.moc.output_format\n" .
+  "%A - artist           %B - album\n" .
+  "%F - file/stream name %H - stream name\n" .
+  "%J - total time       %K - current time\n" .
+  "%L - time left        %M - total sec\n" .
+  "%N - current sec      %S - status\n" .
+  "%T - title            %U - song title\n" .
+  "%Y - bitrate          %Z - rate\n",
   "i|o|ot",
   "moc", "" );
 
-# values for output_format: any string (may contain following item)
-# %A - artist
-# %B - album
-# %F - file name or stream name
-# %H - stream name
-# %J - total time
-# %K - current time
-# %L - time left
-# %M - total sec
-# %N - current sec
-# %S - status
-# %T - title
-# %U - song title
-# %Y - bitrate
-# %Z - rate
+
 if( weechat::config_get_plugin( "output_format" ) eq "" ) {
   weechat::config_set_plugin( "output_format", "is listening to %T ::: %H" );
 }
-# values for output_type:
-# i - show info about current song (default)
-# o - print info to the current channel as /msg
-# ot - print info to the current channel as /me
+
 if( weechat::config_get_plugin( "output_type" ) eq "" ) {
   weechat::config_set_plugin( "output_type", "i" );
 }
