@@ -18,6 +18,8 @@
 # Tetris game for WeeChat.
 #
 # History:
+# 2009-06-21, FlashCode <flashcode@flashtux.org>:
+#     version 0.5: fix bug with weetris buffer after /upgrade
 # 2009-05-02, FlashCode <flashcode@flashtux.org>:
 #     version 0.4: sync with last API changes, fix problem with key alt-n
 # 2008-11-14, FlashCode <flashcode@flashtux.org>:
@@ -31,7 +33,7 @@
 
 use strict;
 
-my $version = "0.4";
+my $version = "0.5";
 
 my $weetris_buffer = "";
 my $timer = "";
@@ -88,25 +90,6 @@ sub buffer_close
     
     weechat::print("", "Thank you for playing WeeTris!");
     return weechat::WEECHAT_RC_OK;
-}
-
-sub weetris_init
-{
-    $weetris_buffer = weechat::buffer_new("weetris", "", "", "buffer_close", "");
-    if ($weetris_buffer ne "")
-    {
-        weechat::buffer_set($weetris_buffer, "type", "free");
-        weechat::buffer_set($weetris_buffer, "title", "WeeTris.pl script - enjoy!");
-        weechat::buffer_set($weetris_buffer, "key_bind_meta2-A", "/weetris up");
-        weechat::buffer_set($weetris_buffer, "key_bind_meta2-B", "/weetris down");
-        weechat::buffer_set($weetris_buffer, "key_bind_meta2-D", "/weetris left");
-        weechat::buffer_set($weetris_buffer, "key_bind_meta2-C", "/weetris right");
-        weechat::buffer_set($weetris_buffer, "key_bind_meta-n", "/weetris new_game");
-        if ($timer eq "")
-        {
-            $timer = weechat::hook_timer(700, 0, 0, "weetris_timer", "");
-        }
-    }
 }
 
 sub display_line
@@ -265,6 +248,33 @@ sub end_of_item
     }
 }
 
+sub weetris_init
+{
+    $weetris_buffer = weechat::buffer_search("perl", "weetris");
+    if ($weetris_buffer eq "")
+    {
+        $weetris_buffer = weechat::buffer_new("weetris", "", "", "buffer_close", "");
+    }
+    if ($weetris_buffer ne "")
+    {
+        weechat::buffer_set($weetris_buffer, "type", "free");
+        weechat::buffer_set($weetris_buffer, "title", "WeeTris.pl script - enjoy!");
+        weechat::buffer_set($weetris_buffer, "key_bind_meta2-A", "/weetris up");
+        weechat::buffer_set($weetris_buffer, "key_bind_meta2-B", "/weetris down");
+        weechat::buffer_set($weetris_buffer, "key_bind_meta2-D", "/weetris left");
+        weechat::buffer_set($weetris_buffer, "key_bind_meta2-C", "/weetris right");
+        weechat::buffer_set($weetris_buffer, "key_bind_meta-n", "/weetris new_game");
+        if ($timer eq "")
+        {
+            $timer = weechat::hook_timer(700, 0, 0, "weetris_timer", "");
+        }
+        new_game();
+        apply_item(1);
+        display_all();
+        weechat::buffer_set($weetris_buffer, "display", "1");
+    }
+}
+
 sub weetris
 {
     my ($data, $buffer, $args) = ($_[0], $_[1], $_[2]);
@@ -272,10 +282,6 @@ sub weetris
     if ($weetris_buffer eq "")
     {
         weetris_init();
-        new_game();
-        apply_item(1);
-        display_all();
-        weechat::buffer_set($weetris_buffer, "display", "1");
     }
     
     if ($args eq "new_game")
@@ -348,3 +354,8 @@ sub weetris_timer
 weechat::register("weetris", "FlashCode <flashcode\@flashtux.org>",
                   $version, "GPL3", "Tetris game for WeeChat, yeah!", "", "");
 weechat::hook_command("weetris", "Run WeeTris", "", "", "", "weetris", "");
+$weetris_buffer = weechat::buffer_search("perl", "weetris");
+if ($weetris_buffer ne "")
+{
+    weetris_init();
+}

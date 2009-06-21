@@ -18,6 +18,8 @@
 # Set WeeChat and plugins options interactively.
 #
 # History:
+# 2009-06-21, FlashCode <flashcode@flashtux.org>:
+#     version 0.5: fix bug with iset buffer after /upgrade
 # 2009-05-02, FlashCode <flashcode@flashtux.org>:
 #     version 0.4: sync with last API changes
 # 2009-01-04, FlashCode <flashcode@flashtux.org>:
@@ -33,7 +35,7 @@
 
 use strict;
 
-my $version = "0.4";
+my $version = "0.5";
 
 my $iset_buffer = "";
 my @options_names = ();
@@ -58,7 +60,7 @@ sub iset_init_config
 {
     foreach my $color (keys %default_options)
     {
-        if (weechat::config_get_plugin("color_".$color) eq "")
+        if (! weechat::config_is_set_plugin("color_".$color))
         {
             weechat::config_set_plugin("color_".$color,
                                        $default_options{$color});
@@ -111,7 +113,11 @@ sub iset_buffer_close
 sub iset_init
 {
     $current_line = 0;
-    $iset_buffer = weechat::buffer_new("iset", "iset_buffer_input", "", "iset_buffer_close", "");
+    $iset_buffer = weechat::buffer_search("perl", "iset");
+    if ($iset_buffer eq "")
+    {
+        $iset_buffer = weechat::buffer_new("iset", "iset_buffer_input", "", "iset_buffer_close", "");
+    }
     if ($iset_buffer ne "")
     {
         weechat::buffer_set($iset_buffer, "type", "free");
@@ -436,3 +442,8 @@ weechat::hook_command("iset", "Interactive set", "[f file] [s section] [text]",
 weechat::hook_signal("window_scrolled", "iset_signal_window_scrolled", "");
 weechat::hook_config("*", "iset_config", "");
 iset_init_config();
+$iset_buffer = weechat::buffer_search("perl", "iset");
+if ($iset_buffer ne "")
+{
+    iset_init();
+}

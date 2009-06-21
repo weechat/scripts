@@ -18,6 +18,8 @@
 # Mastermind game for WeeChat.
 #
 # History:
+# 2009-06-21, FlashCode <flashcode@flashtux.org>:
+#     version 0.3: fix bug with mastermind buffer after /upgrade
 # 2009-05-02, FlashCode <flashcode@flashtux.org>:
 #     version 0.2: sync with last API changes, fix problem with keys
 # 2008-11-14, FlashCode <flashcode@flashtux.org>:
@@ -27,7 +29,7 @@
 
 use strict;
 
-my $version = "0.2";
+my $version = "0.3";
 
 my $mm_buffer = "";
 
@@ -60,7 +62,11 @@ sub buffer_close
 
 sub mastermind_init
 {
-    $mm_buffer = weechat::buffer_new("mastermind", "", "", "buffer_close", "");
+    $mm_buffer = weechat::buffer_search("perl", "mastermind");
+    if ($mm_buffer eq "")
+    {
+        $mm_buffer = weechat::buffer_new("mastermind", "", "", "buffer_close", "");
+    }
     if ($mm_buffer ne "")
     {
         weechat::buffer_set($mm_buffer, "type", "free");
@@ -76,6 +82,10 @@ sub mastermind_init
         # command: /mastermind toggle_solution
         # (shame on you if you do that!)
         #weechat::buffer_set($mm_buffer, "key_bind_meta-Z",      "/mastermind toggle_solution");
+        
+        new_game();
+        display_all();
+        weechat::buffer_set($mm_buffer, "display", "1");
     }
 }
 
@@ -270,9 +280,6 @@ sub mastermind
     if ($mm_buffer eq "")
     {
         mastermind_init();
-        new_game();
-        display_all();
-        weechat::buffer_set($mm_buffer, "display", "1");
     }
     
     if ($args eq "new_game")
@@ -343,3 +350,8 @@ sub mastermind
 weechat::register("mastermind", "FlashCode <flashcode\@flashtux.org>",
                   $version, "GPL3", "Mastermind game for WeeChat, yeah!", "", "");
 weechat::hook_command("mastermind", "Run Mastermind", "", "", "", "mastermind", "");
+$mm_buffer = weechat::buffer_search("perl", "mastermind");
+if ($mm_buffer ne "")
+{
+    mastermind_init();
+}
