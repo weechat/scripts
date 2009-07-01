@@ -21,7 +21,9 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
-# 2005-05-22, xt <xt@bash.no>
+# 2009-07-01, xt <xt@bash.no>
+#     version 0.5: changed script command to /urlbar, comma separated ignore list
+# 2009-05-22, xt <xt@bash.no>
 #     version 0.4: added configurable showing of buffer name, nick and time
 # 2009-05-21, xt <xt@bash.no>
 #     version 0.3: bug fixes, add ignore feature from sleo
@@ -33,21 +35,20 @@
 
 SCRIPT_NAME    = "urlbar"
 SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.4"
+SCRIPT_VERSION = "0.5"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Bar with URLs. For easy clicking or selecting."
-
-SCRIPT_COMMAND = "url"
+SCRIPT_COMMAND = "urlbar"
 
 settings = {
-    "visible_amount"        : '5',  # Amount of URLS visible in urlbar at any given time
-    "visible_seconds"       : '5',  # Amount of seconds URLbar is visible
-    "use_popup"             : 'on', # Pop up automatically
-    "remember_amount"       : '25', # Max amout of URLs to keep in RAM
-    "ignore"                : '',   # List of buffers to ignore. (Space separated)
-    "show_timestamp"        : 'on', # Show timestamp in list
-    "show_nick"             : 'on', # Show nick in list
-    "show_buffername"       : 'on', # Show buffer name in list
+    "visible_amount"        : '5',     # Amount of URLS visible in urlbar at any given time
+    "visible_seconds"       : '5',     # Amount of seconds URLbar is visible
+    "use_popup"             : 'on',    # Pop up automatically
+    "remember_amount"       : '25',    # Max amout of URLs to keep in RAM
+    "ignore"                : 'grep',  # List of buffers to ignore. (comma separated)
+    "show_timestamp"        : 'on',    # Show timestamp in list
+    "show_nick"             : 'on',    # Show nick in list
+    "show_buffername"       : 'on',    # Show buffer name in list
     "time_format"           : '%H:%M', # Time format
 }
 
@@ -145,7 +146,7 @@ def urlbar_print_cb(data, buffer, time, tags, displayed, highlight, prefix, mess
 
     buffer_name = get_buffer_name(buffer, long=True)
     # Skip ignored buffers
-    for ignored_buffer in weechat.config_get_plugin('ignore').split():
+    for ignored_buffer in weechat.config_get_plugin('ignore').split(','):
         if ignored_buffer.lower() == buffer_name.lower():
             return weechat.WEECHAT_RC_OK
        
