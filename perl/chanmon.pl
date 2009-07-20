@@ -1,6 +1,6 @@
 #
 # chanmon.pl - Channel Monitoring for weechat 0.3.0
-# Version 1.3.2
+# Version 1.3.3
 #
 # Add 'Channel Monitor' buffer that you can position to show IRC channel
 # messages in a single location without constantly switching buffers
@@ -33,6 +33,8 @@
 # /set weechat.bar.input.conditions "active"
 #
 # History:
+# 2009-07-09, KenjiE20 <longbow@longbowslair.co.uk>:
+#	v.1.3.3	-fix: highlight on the channel monitor when someone /me highlights
 # 2009-07-04, KenjiE20 <longbow@longbowslair.co.uk>:
 #	v.1.3.2	-fix: use new away_info tag instead of ugly regexp for away detection
 #		-code: cleanup old raw callback arguement variables to nice neat named ones
@@ -138,11 +140,20 @@ sub chanmon_new_message
 				}
 				elsif ($cb_prefix =~ /--/)
 				{
+
 					$nick = " ".$cb_prefix.weechat::color("reset");
 				}
 				else
 				{
-					$nick = $cb_prefix.weechat::color("reset");
+					if ($_[5] eq "1")
+					{
+						$uncolnick = weechat::string_remove_color($cb_prefix, "");
+						$nick = weechat::color("chat_highlight").$uncolnick.weechat::color("reset");
+					}
+					else
+					{
+						$nick = $cb_prefix.weechat::color("reset");
+					}
 				}
 				
 				if (weechat::config_get_plugin("short_names") eq "on")
@@ -385,7 +396,7 @@ sub chanmon_buffer_input
 	return weechat::WEECHAT_RC_OK;
 }
 
-weechat::register("chanmon", "KenjiE20", "1.3.2", "GPL3", "Channel Monitor", "", "");
+weechat::register("chanmon", "KenjiE20", "1.3.3", "GPL3", "Channel Monitor", "", "");
 weechat::hook_print("", "", "", 0, "chanmon_new_message", "");
 weechat::hook_command("monitor", "Toggles monitoring for a channel (must be used in the channel buffer itself)", "", "", "", "chanmon_toggle", "");
 weechat::hook_command("dynmon", "Toggles 'dynamic' monitoring (auto-disable monitoring for current channel)", "", "", "", "chanmon_dyn_toggle", "");
