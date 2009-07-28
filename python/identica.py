@@ -30,10 +30,11 @@
 
 import weechat
 import re
+import random
 
 SCRIPT_NAME = "identica"
 SCRIPT_AUTHOR = "fauno <fauno@kiwwwi.com.ar>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.1.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Formats identi.ca's bot messages"
 
@@ -76,6 +77,15 @@ def colorize (message):
 
 	return message
 
+def nick_color (nick):
+	"""Randomizes color for nicks"""
+	random_color = random.choice('123456789')
+
+	random_color = ''.join([ 'nick_color0', random_color ])
+	
+	nick = ''.join([weechat.color(random_color), nick, weechat.color('reset')])
+	return nick
+
 def parse (server, modifier, data, the_string):
 	"""Parses weechat_print modifier on update@identi.ca pv"""
 
@@ -85,16 +95,14 @@ def parse (server, modifier, data, the_string):
 		the_string = weechat.string_remove_color(the_string, "")
 		matcher = re.compile(weechat.config_get_plugin('re'), re.UNICODE)
 
-		if debug == "true":
-			weechat.prnt("", the_string)
-
 		m = matcher.search(the_string)
 
 		if not m: return colorize(the_string)
 
 		dent = colorize(m.group('dent'))
+		username = nick_color(m.group('username'))
 
-		the_string = ''.join([ m.group('username'), m.group('separator'), dent ])
+		the_string = ''.join([ weechat.color('cyan'), username, weechat.color('reset'), m.group('separator'), dent ])
 
 	return the_string
 
