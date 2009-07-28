@@ -1,11 +1,10 @@
 #
 # rslap.pl - Random slap strings for weechat 0.3.0
-# Version 1.0
+# Version 1.1
 #
 # Let's you /slap a nick but with a random string
 # Customisable via the 'rslap' file in your config dir
-# The rslap file is plain text, with no comments
-# One message per line, no blank last line or you get a blank
+# The rslap file is plain text, with one message per line
 # Use '$nick' to denote where a nick should go
 #
 # Usage:
@@ -15,6 +14,9 @@
 # This tells you how many messages there are, and prints them
 #
 # History:
+# 2009-07-28, KenjiE20 <longbow@longbowslair.co.uk>:
+#	v1.1:	-fix: Make file loading more robust
+#		and strip out comments/blank lines
 # 2009-07-09, KenjiE20 <longbow@longbowslair.co.uk>:
 #	v1.0:	Initial Public Release
 #
@@ -34,7 +36,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-weechat::register("rslap", "KenjiE20", "1.0", "GPL3", "Slap Randomiser", "", "");
+weechat::register("rslap", "KenjiE20", "1.1", "GPL3", "Slap Randomiser", "", "");
 
 $file = weechat::info_get("weechat_dir", "")."/rslap";
 my @lines;
@@ -53,8 +55,10 @@ sub rslap_start
 
 		foreach (@lines)
 		{
+			s/^#.*$//;
 			chomp;
 		}
+		@lines = grep /\S/, @lines;
 	}
 	else
 	{
@@ -65,7 +69,7 @@ sub rslap_start
 
 sub slap_info
 {
-	weechat::print ("", "Number of available strings: ".@lines."\n");
+	weechat::print ("", "Number of available strings: ".weechat::color("bold").@lines.weechat::color("-bold")."\n");
 	foreach (@lines)
 	{
 		weechat::print ("", "\t  ".$_."\n");
