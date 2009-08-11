@@ -14,6 +14,8 @@
 # This tells you how many messages there are, and prints them
 #
 # History:
+# 2009-08-10, KenjiE20 <longbow@longbowslair.co.uk>:
+#	v1.2:	Correct /help format to match weechat base
 # 2009-07-28, KenjiE20 <longbow@longbowslair.co.uk>:
 #	v1.1:	-fix: Make file loading more robust
 #		and strip out comments/blank lines
@@ -36,7 +38,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-weechat::register("rslap", "KenjiE20", "1.1", "GPL3", "Slap Randomiser", "", "");
+weechat::register("rslap", "KenjiE20", "1.2", "GPL3", "Slap Randomiser", "", "");
 
 $file = weechat::info_get("weechat_dir", "")."/rslap";
 my @lines;
@@ -46,7 +48,7 @@ sub rslap_start
 {
 	if (-r $file)
 	{
-		weechat::hook_command("rslap", "Slap a nick with a random string", "[nick]", "Nick to slap", "nicks", "rslap", "");
+		weechat::hook_command("rslap", "Slap a nick with a random string", "nickname", "nickname: Nick to slap", "nicks", "rslap", "");
 		weechat::hook_command("rslapinfo", "Prints out the current strings /rslap will use", "", "", "", "slap_info", "");
 
 		open FILE, $file;

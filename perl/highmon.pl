@@ -1,10 +1,10 @@
 #
 # highmon.pl - Highlight monitor for weechat 0.3.0
-# Version 1.0
+# Version 1.1
 #
 # Add 'Highlight Monitor' buffer to log all highlights in one spot
 #
-# /set plugins.var.perl.highmon.alignment "channel"
+# /set plugins.var.perl.highmon.alignment
 # The config setting "alignment" can be changed to;
 # "channel", "schannel", "channel,nick", "schannel,nick"
 # to change how the monitor appears
@@ -23,6 +23,8 @@
 # you set your status to away
 #
 # History:
+# 2009-08-10, KenjiE20 <longbow@longbowslair.co.uk>:
+#	v1.1:	In-client help added
 # 2009-08-02, KenjiE20 <longbow@longbowslair.co.uk>:
 #	v1.0:	Initial Public Release
 #
@@ -43,6 +45,22 @@
 #
 
 my $highmon_buffer = "";
+
+# Replicate info earlier for in-client help
+$highmonhelp = weechat::color("bold")."/set plugins.var.perl.highmon.alignment".weechat::color("-bold")."
+The config setting \"alignment\" can be changed to;
+\"channel\", \"schannel\", \"channel,nick\", \"schannel,nick\"
+to change how the monitor appears
+The 'schannel' value will only show the buffer number as opposed to 'server#channel'
+
+".weechat::color("bold")."/set plugins.var.perl.highmon.short_names".weechat::color("-bold")."
+Setting this to 'on' will trim the network name from chanmon, ala buffers.pl
+
+".weechat::color("bold")."/set plugins.var.perl.highmon.hotlist_show".weechat::color("-bold")."
+Setting this to 'on' will let the highmon buffer appear in hotlists (status bar/buffer.pl)
+
+".weechat::color("bold")."/set plugins.var.perl.highmon.away_only".weechat::color("-bold")."
+Setting this to 'on' will only put messages in the highmon buffer when you set your status to away";
 
 sub highmon_new_message
 {
@@ -168,8 +186,16 @@ sub highmon_buffer_input
 	return weechat::WEECHAT_RC_OK;
 }
 
-weechat::register("highmon", "KenjiE20", "1.0", "GPL3", "Highlight Monitor", "", "");
+sub print_help
+{
+	weechat::print("", "\t".weechat::color("bold")."Highmon Help".weechat::color("-bold")."\n\n");
+	weechat::print("", "\t".$highmonhelp);
+	return weechat::WEECHAT_RC_OK;
+}
+
+weechat::register("highmon", "KenjiE20", "1.1", "GPL3", "Highlight Monitor", "", "");
 weechat::hook_print("", "", "", 0, "highmon_new_message", "");
+weechat::hook_command("highmon", $highmonhelp, "", "", "", "print_help", "");
 
 weechat::hook_config("plugins.var.perl.highmon.*", "", "");
 if (!(weechat::config_is_set_plugin ("alignment")))

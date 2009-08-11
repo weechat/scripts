@@ -1,6 +1,6 @@
 #
 # chanmon.pl - Channel Monitoring for weechat 0.3.0
-# Version 1.3.3
+# Version 1.4
 #
 # Add 'Channel Monitor' buffer that you can position to show IRC channel
 # messages in a single location without constantly switching buffers
@@ -14,7 +14,7 @@
 # will automagically stop monitoring the current active buffer, without
 # affecting regular settings (Default is off)
 #
-# /set plugins.var.perl.chanmon.alignment "channel"
+# /set plugins.var.perl.chanmon.alignment
 # The config setting "alignment" can be changed to;
 # "channel", "schannel", "channel,nick", "schannel,nick"
 # to change how the monitor appears
@@ -23,6 +23,13 @@
 #
 # /set plugins.var.perl.chanmon.short_names
 # Setting this to 'on' will trim the network name from chanmon, ala buffers.pl
+#
+# show_aways – /set plugins.var.perl.chanmon.show_aways
+# Toggles showing the Weechat away messages
+#
+# servername.#channel
+# servername is the internal name for the server (set when you use /server add)
+# #channel is the channel name, (where # is whatever channel type that channel happens to be)
 #
 # Ideal set up:
 # Split the layout 70/30 (or there abouts) horizontally and load
@@ -33,6 +40,10 @@
 # /set weechat.bar.input.conditions "active"
 #
 # History:
+# 2009-08-10, KenjiE20 <longbow@longbowslair.co.uk>:
+#	v1.4:	-feature: In-client help added
+#		-fix: Added missing help entries
+#			Fix remaining ugly vars
 # 2009-07-09, KenjiE20 <longbow@longbowslair.co.uk>:
 #	v.1.3.3	-fix: highlight on the channel monitor when someone /me highlights
 # 2009-07-04, KenjiE20 <longbow@longbowslair.co.uk>:
@@ -83,6 +94,31 @@
 
 my $chanmon_buffer = "";
 
+# Replicate info earlier for in-client help
+$chanmonhelp = weechat::color("bold")."/set plugins.var.perl.chanmon.alignment".weechat::color("-bold")."
+The config setting \"alignment\" can be changed to;
+\"channel\", \"schannel\", \"channel,nick\", \"schannel,nick\"
+to change how the monitor appears
+The 'schannel' value will only show the buffer number as opposed to 'server#channel'
+
+".weechat::color("bold")."/set plugins.var.perl.chanmon.short_names".weechat::color("-bold")."
+Setting this to 'on' will trim the network name from chanmon, ala buffers.pl
+
+".weechat::color("bold")."/set plugins.var.perl.chanmon.show_aways".weechat::color("-bold")."
+Toggles showing the Weechat away messages
+
+".weechat::color("bold")."servername.#channel".weechat::color("-bold")."
+servername is the internal name for the server (set when you use /server add)
+#channel is the channel name, (where # is whatever channel type that channel happens to be)
+
+".weechat::color("bold")."Ideal set up:".weechat::color("-bold")."
+Split the layout 70/30 (or there abouts) horizontally and load
+Optionally, make the status and input lines only show on active windows
+
+".weechat::color("bold")."/window splith 70 --> open the chanmon buffer".weechat::color("-bold")."
+".weechat::color("bold")."/set weechat.bar.status.conditions \"active\"".weechat::color("-bold")."
+".weechat::color("bold")."/set weechat.bar.input.conditions \"active\"".weechat::color("-bold");
+
 sub chanmon_new_message
 {
 	my $net = "";
@@ -128,7 +164,7 @@ sub chanmon_new_message
 				$bufname = $1.$2.$3;
 				if (!($cb_prefix =~ / \*/) && !($cb_prefix =~ /--/))
 				{
-					if ($_[5] eq "1")
+					if ($cb_high eq "1")
 					{
 						$uncolnick = weechat::string_remove_color($cb_prefix, "");
 						$nick = " <".weechat::color("chat_highlight").$uncolnick.weechat::color("reset").">";
@@ -145,7 +181,7 @@ sub chanmon_new_message
 				}
 				else
 				{
-					if ($_[5] eq "1")
+					if ($cb_high eq "1")
 					{
 						$uncolnick = weechat::string_remove_color($cb_prefix, "");
 						$nick = weechat::color("chat_highlight").$uncolnick.weechat::color("reset");
@@ -396,11 +432,20 @@ sub chanmon_buffer_input
 	return weechat::WEECHAT_RC_OK;
 }
 
-weechat::register("chanmon", "KenjiE20", "1.3.3", "GPL3", "Channel Monitor", "", "");
+sub print_help
+{
+	weechat::print("", "\t".weechat::color("bold")."Chanmon Help".weechat::color("-bold")."\n\n");
+	weechat::print("", "\t".$chanmonhelp);
+	return weechat::WEECHAT_RC_OK;
+}
+
+weechat::register("chanmon", "KenjiE20", "1.4", "GPL3", "Channel Monitor", "", "");
 weechat::hook_print("", "", "", 0, "chanmon_new_message", "");
 weechat::hook_command("monitor", "Toggles monitoring for a channel (must be used in the channel buffer itself)", "", "", "", "chanmon_toggle", "");
 weechat::hook_command("dynmon", "Toggles 'dynamic' monitoring (auto-disable monitoring for current channel)", "", "", "", "chanmon_dyn_toggle", "");
+weechat::hook_command("chanmon", $chanmonhelp, "", "", "", "print_help", "");
 weechat::hook_config("plugins.var.perl.chanmon.*", "", "");
+
 if (!(weechat::config_is_set_plugin ("alignment")))
 {
 	weechat::config_set_plugin("alignment", "channel");
