@@ -1,6 +1,6 @@
 #
 # rslap.pl - Random slap strings for weechat 0.3.0
-# Version 1.1
+# Version 1.2
 #
 # Let's you /slap a nick but with a random string
 # Customisable via the 'rslap' file in your config dir
