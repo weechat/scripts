@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-#
 #       quodnp.py
 #
 #       Copyright 2009 Brandon Hartshorn <sharntehnub AT gmail DOT com>

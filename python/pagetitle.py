@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 # pagetitle plugin for weechat-0.3.0
 #
 #  /pt http://tech.slashdot.org/tech/08/11/12/199215.shtml

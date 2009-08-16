@@ -1,5 +1,3 @@
-#!/usr/bin/perl -w
-
 # Written by Sid Vicious (Trashlord) <dornenreich666@gmail.com>
 # Released under GPL3
 

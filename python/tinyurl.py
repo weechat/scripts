@@ -1,5 +1,3 @@
-#!/bin/env python
-#
 # TinyUrl, version 3.7, for weechat version 0.3.0 or later
 #
 #   Listens to all channels for long URLs, and submits them to ln-s.net or
