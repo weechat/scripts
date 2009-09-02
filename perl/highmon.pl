@@ -1,6 +1,6 @@
 #
 # highmon.pl - Highlight monitor for weechat 0.3.0
-# Version 1.1
+# Version 1.1.1
 #
 # Add 'Highlight Monitor' buffer to log all highlights in one spot
 #
@@ -23,6 +23,8 @@
 # you set your status to away
 #
 # History:
+# 2009-09-02, KenjiE20 <longbow@longbowslair.co.uk>:
+#	v.1.1.1	-change: Stop unsightly text block on '/help'
 # 2009-08-10, KenjiE20 <longbow@longbowslair.co.uk>:
 #	v1.1:	In-client help added
 # 2009-08-02, KenjiE20 <longbow@longbowslair.co.uk>:
@@ -193,9 +195,9 @@ sub print_help
 	return weechat::WEECHAT_RC_OK;
 }
 
-weechat::register("highmon", "KenjiE20", "1.1", "GPL3", "Highlight Monitor", "", "");
+weechat::register("highmon", "KenjiE20", "1.1.1", "GPL3", "Highlight Monitor", "", "");
 weechat::hook_print("", "", "", 0, "highmon_new_message", "");
-weechat::hook_command("highmon", $highmonhelp, "", "", "", "print_help", "");
+weechat::hook_command("highmon", "Highmon help", "", $highmonhelp, "", "print_help", "");
 
 weechat::hook_config("plugins.var.perl.highmon.*", "", "");
 if (!(weechat::config_is_set_plugin ("alignment")))

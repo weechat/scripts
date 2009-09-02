@@ -1,6 +1,6 @@
 #
 # chanmon.pl - Channel Monitoring for weechat 0.3.0
-# Version 1.4
+# Version 1.4.1
 #
 # Add 'Channel Monitor' buffer that you can position to show IRC channel
 # messages in a single location without constantly switching buffers
@@ -40,6 +40,8 @@
 # /set weechat.bar.input.conditions "active"
 #
 # History:
+# 2009-09-02, KenjiE20 <longbow@longbowslair.co.uk>:
+#	v.1.4.1	-change: Stop unsightly text block on '/help'
 # 2009-08-10, KenjiE20 <longbow@longbowslair.co.uk>:
 #	v1.4:	-feature: In-client help added
 #		-fix: Added missing help entries
@@ -439,11 +441,11 @@ sub print_help
 	return weechat::WEECHAT_RC_OK;
 }
 
-weechat::register("chanmon", "KenjiE20", "1.4", "GPL3", "Channel Monitor", "", "");
+weechat::register("chanmon", "KenjiE20", "1.4.1", "GPL3", "Channel Monitor", "", "");
 weechat::hook_print("", "", "", 0, "chanmon_new_message", "");
 weechat::hook_command("monitor", "Toggles monitoring for a channel (must be used in the channel buffer itself)", "", "", "", "chanmon_toggle", "");
 weechat::hook_command("dynmon", "Toggles 'dynamic' monitoring (auto-disable monitoring for current channel)", "", "", "", "chanmon_dyn_toggle", "");
-weechat::hook_command("chanmon", $chanmonhelp, "", "", "", "print_help", "");
+weechat::hook_command("chanmon", "Chanmon help", "", $chanmonhelp, "", "print_help", "");
 weechat::hook_config("plugins.var.perl.chanmon.*", "", "");
 
 if (!(weechat::config_is_set_plugin ("alignment")))
