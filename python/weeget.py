@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2009-09-07, FlashCode <flashcode@flashtux.org>:
+#     version 0.7: update weechat site with new URL
 # 2009-05-02, FlashCode <flashcode@flashtux.org>:
 #     version 0.6: sync with last API changes
 # 2009-04-15, FlashCode <flashcode@flashtux.org>:
@@ -40,7 +42,7 @@
 
 SCRIPT_NAME    = "weeget"
 SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.6"
+SCRIPT_VERSION = "0.7"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "WeeChat scripts manager"
 
@@ -52,7 +54,7 @@ try:
     import weechat
 except ImportError:
     print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://weechat.flashtux.org/"
+    print "Get WeeChat now at: http://www.weechat.org/"
     import_ok = False
 
 try:
@@ -152,8 +154,8 @@ def wg_config_init():
     wg_config_option["scripts_url"] = weechat.config_new_option(
         wg_config_file, section_scripts,
         "url", "string", "URL for file with list of plugins", "", 0, 0,
-        "http://weechat.flashtux.org/plugins.xml.gz",
-        "http://weechat.flashtux.org/plugins.xml.gz", 0, "", "", "", "", "", "")
+        "http://www.weechat.org/files/plugins.xml.gz",
+        "http://www.weechat.org/files/plugins.xml.gz", 0, "", "", "", "", "", "")
     wg_config_option["scripts_dir"] = weechat.config_new_option(
         wg_config_file, section_scripts,
         "dir", "string", "Local cache directory for" + SCRIPT_NAME, "", 0, 0,
@@ -406,7 +408,7 @@ def wg_show_script(name):
       Author: FlashCode <flashcode [at] flashtux [dot] org>
       Status: installed, running
         Date: added: 2009-04-05, updated: 2009-04-07
-         URL: http://weechat.flashtux.org/dev/scripts/weeget.py
+         URL: http://www.weechat.org/files/scripts/weeget.py
         Desc: Scripts manager.
         Tags: scripts
          Min: 0.3.0
@@ -670,7 +672,7 @@ def wg_parse_xml():
     Example of item return in dictionary :
       '119': { 'name'        : 'weeget',
                'version'     : '0.1',
-               'url'         : 'http://weechat.flashtux.org/dev/scripts/weeget.py',
+               'url'         : 'http://www.weechat.org/files/scripts/weeget.py',
                'language'    : 'python',
                'license'     : 'GPL3',
                'md5sum'      : 'd500714fc19b0e10cc4e339e70739e4ad500714fc19b0e10cc4e339e70739e4a',
