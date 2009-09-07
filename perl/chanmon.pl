@@ -1,6 +1,6 @@
 #
 # chanmon.pl - Channel Monitoring for weechat 0.3.0
-# Version 1.5
+# Version 1.6
 #
 # Add 'Channel Monitor' buffer that you can position to show IRC channel
 # messages in a single location without constantly switching buffers
@@ -24,7 +24,11 @@
 # /set plugins.var.perl.chanmon.short_names
 # Setting this to 'on' will trim the network name from chanmon, ala buffers.pl
 #
-# show_aways – /set plugins.var.perl.chanmon.show_aways
+# /set plugins.var.perl.chanmon.color_buf
+# This turns colored buffer names on or off, you can also set a single fixed color by using a weechat color name.
+# This *must* be a valid color name, or weechat will likely do unexpected things :)
+#
+# /set plugins.var.perl.chanmon.show_aways
 # Toggles showing the Weechat away messages
 #
 # servername.#channel
@@ -40,6 +44,9 @@
 # /set weechat.bar.input.conditions "active"
 #
 # History:
+# 2009-09-07, KenjiE20 <longbow@longbowslair.co.uk>:
+#	v1.6:	-feature: colored buffer names
+#		-change: chanmon version sync
 # 2009-09-05, KenjiE20 <longbow@longbowslair.co.uk>:
 #	v1.5:	-fix: disable buffer highlight
 # 2009-09-02, KenjiE20 <longbow@longbowslair.co.uk>:
@@ -107,6 +114,10 @@ The 'schannel' value will only show the buffer number as opposed to 'server#chan
 
 ".weechat::color("bold")."/set plugins.var.perl.chanmon.short_names".weechat::color("-bold")."
 Setting this to 'on' will trim the network name from chanmon, ala buffers.pl
+
+".weechat::color("bold")."/set plugins.var.perl.chanmon.color_buf".weechat::color("-bold")."
+This turns colored buffer names on or off, you can also set a single fixed color by using a weechat color name.
+This ".weechat::color("bold")."must".weechat::color("-bold")." be a valid color name, or weechat will likely do unexpected things :)
 
 ".weechat::color("bold")."/set plugins.var.perl.chanmon.show_aways".weechat::color("-bold")."
 Toggles showing the Weechat away messages
@@ -196,10 +207,7 @@ sub chanmon_new_message
 					}
 				}
 				
-				if (weechat::config_get_plugin("short_names") eq "on")
-				{
-					$bufname =~ s/.*([#&\+!])(.*)/$1$2/;
-				}
+				$bufname = format_buffer($cb_bufferp, $bufname);
 
 				if (weechat::config_get_plugin("alignment") eq "channel")
 				{
@@ -268,10 +276,7 @@ sub chanmon_new_message
 				{
 					$nick = weechat::color("white")." *".$nick.weechat::color("reset");
 
-					if (weechat::config_get_plugin("short_names") eq "on")
-					{
-						$bufname =~ s/.*([#&\+!])(.*)/$1$2/;
-					}
+					$bufname = format_buffer($cb_bufferp, $bufname);
 
 					if (weechat::config_get_plugin("alignment") eq "channel")
 					{
@@ -329,10 +334,7 @@ sub chanmon_toggle
 			$nicename = $bufname;
 			$nicename =~ s/(.*)\.([#&\+!])(.*)/$1$2$3/;
 
-			if (weechat::config_get_plugin("short_names") eq "on")
-			{
-				$nicename =~ s/.*([#&\+!])(.*)/$1$2/;
-			}
+			$nicename = format_buffer(weechat::current_buffer(), $nicename);
 
 			if (weechat::config_get_plugin("alignment") =~ /channel/)
 			{
@@ -358,10 +360,7 @@ sub chanmon_toggle
 			$nicename = $bufname;
 			$nicename =~ s/(.*)\.([#&\+!])(.*)/$1$2$3/;
 			
-			if (weechat::config_get_plugin("short_names") eq "on")
-			{
-				$nicename =~ s/.*([#&\+!])(.*)/$1$2/;
-			}
+			$nicename = format_buffer(weechat::current_buffer(), $nicename);
 
 			if (weechat::config_get_plugin("alignment") =~ /channel/)
 			{
@@ -382,6 +381,39 @@ sub chanmon_toggle
 			return weechat::WEECHAT_RC_OK;
 		}
 	}
+}
+
+sub format_buffer
+{
+	$cb_bufferp = $_[0];
+	$bufname = $_[1];
+
+	if (weechat::config_get_plugin("short_names") eq "on")
+	{
+		$bufname = weechat::buffer_get_string($cb_bufferp, 'short_name');
+	}
+
+	if (weechat::config_get_plugin("color_buf") eq "on")
+	{
+		$color = 0;
+		@char_array = split(//,weechat::buffer_get_string($cb_bufferp, 'name'));
+		foreach $char (@char_array)
+		{
+			$color += ord($char);
+		}
+		$color %= 10;
+		$color = sprintf "weechat.color.chat_nick_color%02d", $color+1;
+		$color = weechat::config_get($color);
+		$color = weechat::config_string($color);
+		$bufname = weechat::color($color).$bufname.weechat::color("reset");
+	}
+	elsif (weechat::config_get_plugin("color_buf") ne "off")
+	{
+		$color = weechat::config_get_plugin("color_buf");
+		$bufname = weechat::color($color).$bufname.weechat::color("reset");
+	}
+
+	return $bufname;
 }
 
 sub chanmon_dyn_toggle
@@ -444,7 +476,7 @@ sub print_help
 	return weechat::WEECHAT_RC_OK;
 }
 
-weechat::register("chanmon", "KenjiE20", "1.5", "GPL3", "Channel Monitor", "", "");
+weechat::register("chanmon", "KenjiE20", "1.6", "GPL3", "Channel Monitor", "", "");
 weechat::hook_print("", "", "", 0, "chanmon_new_message", "");
 weechat::hook_command("monitor", "Toggles monitoring for a channel (must be used in the channel buffer itself)", "", "", "", "chanmon_toggle", "");
 weechat::hook_command("dynmon", "Toggles 'dynamic' monitoring (auto-disable monitoring for current channel)", "", "", "", "chanmon_dyn_toggle", "");
@@ -466,6 +498,10 @@ if (weechat::config_get_plugin("dynamic") eq "")
 if (!(weechat::config_is_set_plugin ("short_names")))
 {
 	weechat::config_set_plugin("short_names", "off");
+}
+if (!(weechat::config_is_set_plugin ("color_buf")))
+{
+	weechat::config_set_plugin("color_buf", "on");
 }
 if (!(weechat::config_is_set_plugin ("show_aways")))
 {
