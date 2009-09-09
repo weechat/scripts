@@ -1,0 +1,326 @@
+#
+# Copyright (c) 2009 by Benjamin Neff <info@benjaminneff.ch>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
+# moc control and now playing script for Weechat.
+# (this script requires WeeChat 0.3.0 (or newer) and moc)
+#
+# History:
+#
+# 2009-09-08, Benjamin Neff <info@benjaminneff.ch>:
+#     version 1.5: initial release / port to weechat 0.3.0
+#
+
+SCRIPT_NAME    = "moc-control"
+SCRIPT_AUTHOR  = "SuperTux88 (Benjamin Neff) <info@benjaminneff.ch>"
+SCRIPT_VERSION = "1.5"
+SCRIPT_LICENSE = "GPL2"
+SCRIPT_DESC    = "moc control and now playing script for Weechat"
+
+SCRIPT_COMMAND = "moc"
+
+import_ok = True
+
+try:
+    import weechat
+except ImportError:
+    print "This script must be run under WeeChat."
+    print "Get WeeChat now at: http://www.weechat.org/"
+    import_ok = False
+
+try:
+    import os
+    import subprocess
+    import traceback
+except ImportError, message:
+    print "Missing package(s) for %s: %s" % (SCRIPT_NAME, message)
+    import_ok = False
+
+# =================================[ config ]=================================
+
+infobar = {}
+output = {}
+
+STATUS_PLAYING = 'PLAY'
+STATUS_PAUSED = 'PAUSE'
+STATUS_STOPPED = 'STOP'
+
+def _load_settings():
+    """load all settings"""
+    infobar['enabled'] = _load_setting('infobar_enabled', '0', 'bool')
+    infobar['format'] = _load_setting('infobar_format', 'Now Playing: %mocTitle%')
+    infobar['update'] = _load_setting('infobar_update', '10', 'int')
+    output['format'] = _load_setting('output_format', 'is listening to %C04%title%%C %artist%%album%::: %C07%file%%C ::: %cTime%/%tTime% @ %bitrate%')
+    output['artist'] = _load_setting('output_format_artist', '- %C03%artist%%C ')
+    output['album'] = _load_setting('output_format_album', '(%C12%album%%C) ')
+    output['type'] = _load_setting('output_type', 'ot')
+    output['nothing'] = _load_setting('output_nothing', 'is listening to nothing')
+
+def _load_setting(setting, default=None, type=None):
+    """load setting or create it"""
+    value = weechat.config_get_plugin(setting)
+    if value == '' and default != None:
+        weechat.config_set_plugin(setting, default)
+        value = default
+
+    if type == 'int' or type == 'bool':
+        value = int(value)
+
+    if type == 'bool':
+        value = bool(value)
+
+    return value
+
+# ================================[ command ]=================================
+
+def moc_command(data, buffer, args):
+    """run command"""
+    args = args.split(' ')
+    if args[0] == '' or args[0] == 'i' or args[0] == 'o' or args[0] == 'ot':
+        return moc_now_playing(buffer, args[0])
+
+    elif args[0] == 'pause' or args[0] == 'pp':
+        if _get_status(buffer) == STATUS_STOPPED:
+            weechat.prnt(buffer, 'moc: Not playing')
+            return weechat.WEECHAT_RC_OK
+        else:
+            _execute_command(buffer, 'mocp -G')
+            weechat.prnt(buffer, 'moc: Song paused / Continue playing')
+            return weechat.WEECHAT_RC_OK
+    elif args[0] == 'play':
+        if _get_status(buffer) == STATUS_PLAYING:
+            weechat.prnt(buffer, 'moc: Already playing')
+            return weechat.WEECHAT_RC_OK
+        elif _get_status(buffer) == STATUS_PAUSED:
+            _execute_command(buffer, 'mocp -U')
+            weechat.prnt(buffer, 'moc: Continue playing.')
+            return weechat.WEECHAT_RC_OK
+        else:
+            _execute_command(buffer, 'mocp -p')
+            weechat.prnt(buffer, 'moc: Started playing.')
+            return weechat.WEECHAT_RC_OK
+    elif args[0] == 'stop':
+        _execute_command(buffer, 'mocp -s')
+        weechat.prnt(buffer, 'moc: Stop playing.')
+        return weechat.WEECHAT_RC_OK
+    elif args[0] == 'prev':
+        if _get_status(buffer) == STATUS_STOPPED:
+            weechat.prnt(buffer, 'moc: Not playing, cannot go to previous song.')
+            return weechat.WEECHAT_RC_OK
+        else:
+            _execute_command(buffer, 'mocp -r')
+            weechat.prnt(buffer, 'moc: Playing previous song.')
+            return weechat.WEECHAT_RC_OK
+    elif args[0] == 'next':
+        if _get_status(buffer) == STATUS_STOPPED:
+            weechat.prnt(buffer, 'moc: Not playing, cannot go to next song.')
+            return weechat.WEECHAT_RC_OK
+        else:
+            _execute_command(buffer, 'mocp -f')
+            weechat.prnt(buffer, 'moc: Playing next song.')
+            return weechat.WEECHAT_RC_OK
+    elif args[0] == 'infobar':
+        if infobar['enabled']:
+            infobar['enabled'] = False
+            weechat.config_set_plugin('infobar_enabled', '0')
+            remove_infobar()
+        else:
+            infobar['enabled'] = True
+            weechat.config_set_plugin('infobar_enabled', '1')
+            add_infobar()
+        return weechat.WEECHAT_RC_OK
+    elif args[0] == 'help':
+        weechat.command(buffer, '/help moc')
+        return weechat.WEECHAT_RC_OK
+    else:
+        weechat.prnt(buffer, 'moc: Unknown command %s' % (args[0]), '', server)
+        return weechat.WEECHAT_RC_OK
+
+def moc_infobar_update(data, buffer, args):
+    """Callback for the bar item"""
+    _load_settings()
+    if _get_status(buffer) == STATUS_STOPPED:
+        return 'moc is not currently playing'
+    else:
+        song = _get_song_info(buffer)
+        return _format_np(buffer, infobar['format'], song, 'infobar')
+    
+def moc_infobar_updater(data,cals):
+    """Update the bar item"""
+    if infobar['enabled']:
+        weechat.bar_item_update('moc_infobar')
+    return weechat.WEECHAT_RC_OK
+
+def moc_now_playing(buffer, formatType):
+    """print now playing"""
+    _load_settings()
+    format = ''
+    if formatType == '':
+        formatType = output['type']
+
+    if _get_status(buffer) == STATUS_STOPPED:
+        format = output['nothing']
+    else:
+        song = _get_song_info(buffer)
+        format = _format_np(buffer, output['format'], song, 'chat')
+
+    if formatType == 'i':
+        weechat.prnt(buffer, format)
+    elif formatType == 'o':
+        weechat.command(buffer, format)
+    elif formatType == 'ot':
+        weechat.command(buffer, '/me %s' % format)
+
+    return weechat.WEECHAT_RC_OK
+
+def _execute_command(buffer, cmd):
+    """execute a command"""
+    from subprocess import PIPE
+    proc = subprocess.Popen(cmd, shell = True, stderr = PIPE, stdout = PIPE, close_fds = True)
+    error = proc.stderr.read()
+    if error != '':
+        weechat.prnt(buffer, error)
+    output = proc.stdout.read()
+    proc.wait()
+    return output
+
+def _format_np(buffer, np, song, npType):
+    """format the 'now Playing'-String"""
+    np = np.replace('%mocTitle%', song['Title'])
+    np = np.replace('%title%', song['SongTitle'])
+
+    if npType == 'chat':
+        if song['Artist'] != 'unknown':
+            np = np.replace('%artist%', output['artist'])
+            np = np.replace('%artist%', song['Artist'])
+        else:
+            np = np.replace('%artist%', '')
+
+        if song['Album'] != 'unknown':
+            np = np.replace('%album%', output['album'])
+            np = np.replace('%album%', song['Album'])
+        else:
+            np = np.replace('%album%', '')
+    else:
+        np = np.replace('%artist%', song['Artist'])
+        np = np.replace('%album%', song['Album'])
+
+    np = np.replace('%cTime%', song['CurrentTime'])
+    np = np.replace('%cSec%', song['CurrentSec'])
+    np = np.replace('%tTime%', song['TotalTime'])
+    np = np.replace('%tSec%', song['TotalSec'])
+    np = np.replace('%bitrate%', song['Bitrate'])
+    np = np.replace('%avgBitrate%', song['AvgBitrate'])
+    np = np.replace('%rate%', song['Rate'])
+    np = np.replace('%file%', song['File'])
+    np = np.replace('%C', chr(3))
+
+    if _get_status(buffer) == STATUS_PAUSED:
+        np = np + " - [PAUSED]"
+
+    return np
+
+def _get_song_info(buffer):
+    """Get the song information from moc"""
+    song = {}
+    song['TotalTime'] = '?:??'
+    song['TotalSec'] = '??'
+
+    info = _execute_command(buffer, 'mocp -i')
+    for line in info.split('\n'):
+        if line != '':
+            index = line.find(': ')
+            name = line[:index]
+            value = line[index+2:]
+            if value == '':
+                value = 'unknown'
+            song[name] = value.strip()
+
+    if song['File'].find("://") < 0:
+        song['File'] = os.path.basename(song['File'])
+
+    return song
+
+def _get_status(buffer):
+    """return the Status of moc"""
+    return _execute_command(buffer, 'mocp -i | grep "State:" | cut -d " " -f 2').strip()
+
+def add_infobar():
+    """add the infobar for moc-control"""
+    weechat.bar_new(SCRIPT_NAME, "off", "750", "window", "", "bottom", "horizontal", "vertical", "1", "0", "default", "blue", "cyan", "off", "moc_infobar")
+    return weechat.WEECHAT_RC_OK
+    
+def remove_infobar():
+    """remove the infobar for moc-control"""
+    weechat.bar_remove(weechat.bar_search(SCRIPT_NAME))
+    return weechat.WEECHAT_RC_OK
+
+# ==================================[ main ]==================================
+
+if __name__ == "__main__" and import_ok:
+    if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, "moc_unload", ""):
+        _load_settings()
+
+        weechat.bar_item_new('moc_infobar', 'moc_infobar_update', '')
+        weechat.hook_timer(infobar['update']*1000,0,0,'moc_infobar_updater','')
+
+        if infobar['enabled']:
+            add_infobar()
+        weechat.hook_command(
+            SCRIPT_COMMAND,
+            'Control moc or display now playing information.',
+            'i|o|ot|play|pause|pp|stop|prev|next|infobar|help',
+            'Commands Available\n'
+            '  /moc         - Display currently playing song.\n'
+            '  /moc i       - Show info about current song\n'
+            '  /moc o       - Display currently playing song as /msg\n'
+            '  /moc ot      - Display currently playing song as /me\n'
+            '  /moc play    - Start playing music.\n'
+            '  /moc pause   - Toggle between pause/playing.\n'
+            '  /moc pp      - Toggle between pause/playing.\n'
+            '  /moc stop    - Stop playing music.\n'
+            '  /moc prev    - Move to the previous song in the playlist.\n'
+            '  /moc next    - Move to the next song in the playlist.\n'
+            '  /moc infobar - Toggle the infobar display.\n'
+            '\n'
+            'Formatting\n'
+            '  %mocTitle%   - Replaced with the title from moc.\n'
+            '  %artist%     - Replaced with the song artist.\n'
+            '  %title%      - Replaced with the song title.\n'
+            '  %album%      - Replaced with the song album.\n'
+            '  %file%       - Replaced with the filename/url of the song.\n'
+            '  %cTime%      - Replaced with how long the song has been playing.\n'
+            '  %cSec%       - Replaced with how long the song has been playing (seconcs).\n'
+            '  %tTime%      - Replaced with the length of the song.\n'
+            '  %tSec%       - Replaced with the length of the song (seconcs).\n'
+            '  %bitrate%    - Replaced with the bitrate of the song.\n'
+            '  %avgBitrate% - Replaced with the AvgBitrate of the song.\n'
+            '  %rate%       - Replaced with the rate of the song.\n'
+            '  %C##         - Make ## the number code of the color you want to use. Use %C by itself to end the color.\n'
+            '\n'
+            'To see all available settings, please check /set *moc-control*\n',
+            'i|o|ot|play|pause|pp|stop|prev|next|infobar|help',
+            'moc_command',
+            ''
+        )
+
+# ==================================[ end ]===================================
+        
+def moc_unload():
+    """Unload the plugin from weechat"""
+    if infobar['enabled']:
+        remove_infobar()
+    return weechat.WEECHAT_RC_OK
