@@ -17,10 +17,17 @@
 ###
 
 ###
-# Prints user's country in whois/whowas replies (for WeeChat 0.3.*)
+# Prints user's country and local time information in
+# whois/whowas replies (for WeeChat 0.3.*)
 #
 #   This script uses MaxMind's GeoLite database from
 #   http://www.maxmind.com/app/geolitecountry
+#
+#   This script depends in pytz third party module for retrieving
+#   timezone information for a given country. Without it the local time
+#   for a user won't be displayed.
+#   Get it from http://pytz.sourceforge.net or from your distro packages,
+#   python-tz in Ubuntu/Debian
 #
 #   Commands:
 #   * /country
@@ -30,11 +37,14 @@
 #   * plugins.var.python.country.show_in_whois:
 #     If 'off' /whois or /whowas replies won't contain country information.
 #     Valid values: on, off
-#
-#   TODO:
-#   * Get timezone for a country and display local time for a user.
+#   * plugins.var.python.country.show_localtime:
+#     If 'off' timezone and local time infomation won't be looked for.
+#     Valid values: on, off
 #
 #   History:
+#   2009-09-17
+#   version 0.2: added timezone and local time information.
+#
 #   2009-08-24
 #   version 0.1.1: fixed python 2.5 compatibility
 #
@@ -45,19 +55,24 @@
 
 SCRIPT_NAME    = "country"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.1.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL3"
-SCRIPT_DESC    = "Prints user's country in whois replies"
+SCRIPT_DESC    = "Prints user's country and local time in whois replies"
 SCRIPT_COMMAND = "country"
 
 try:
 	import weechat
-	from weechat import WEECHAT_RC_OK
+	WEECHAT_RC_OK = weechat.WEECHAT_RC_OK
 	import_ok = True
 except ImportError:
 	print "This script must be run under WeeChat."
 	print "Get WeeChat now at: http://weechat.flashtux.org/"
 	import_ok = False
+try:
+	import pytz, datetime
+	pytz_module = True
+except:
+	pytz_module = False
 
 import os
 
@@ -88,7 +103,7 @@ class ValidValuesDict(dict):
 			self._error_msg(key)
 			return dict.__getitem__(self, self.default)
 
-settings = (('show_in_whois', 'on'),)
+settings = (('show_in_whois', 'on'), ('show_localtime', 'on'))
 
 boolDict = ValidValuesDict({'on':True, 'off':False}, 'off')
 def get_config_boolean(config):
@@ -105,20 +120,29 @@ def error(s, prefix=SCRIPT_NAME, buffer=''):
 def debug(s, prefix='debug', buffer=''):
 	weechat.prnt(buffer, '%s: %s' %(prefix, s))
 
-def whois(nick, code, country, buffer=''):
+def whois(nick, string, buffer=''):
 	"""Message formatted like a whois reply."""
-	weechat.prnt(buffer, '%s%s[%s%s%s] %s%s %s(%s%s%s)' %(
-			weechat.prefix('network'),
-			weechat.color('chat_delimiters'),
-			weechat.color('chat_nick'),
-			nick,
-			weechat.color('chat_delimiters'),
-			weechat.color('chat'),
-			country,
-			weechat.color('chat_delimiters'),
-			weechat.color('chat'),
-			code,
-			weechat.color('chat_delimiters')))
+	prefix_network = weechat.prefix('network')
+	color_delimiter = weechat.color('chat_delimiters')
+	color_nick = weechat.color('chat_nick')
+	weechat.prnt(buffer, '%s%s[%s%s%s] %s' %(prefix_network, color_delimiter, color_nick, nick,
+		color_delimiter, string))
+
+def string_country(country, code):
+	"""Format for country info string."""
+	color_delimiter = weechat.color('chat_delimiters')
+	color_chat = weechat.color('chat')
+	return '%s%s %s(%s%s%s)' %(color_chat, country, color_delimiter,
+			color_chat, code, color_delimiter)
+
+def string_time(dt):
+	"""Format for local time info string."""
+	color_delimiter = weechat.color('chat_delimiters')
+	color_chat = weechat.color('chat')
+	date = dt.strftime('%x %X %Z')
+	tz = dt.strftime('UTC%z')
+	return '%s%s %s(%s%s%s)' %(color_chat, date, color_delimiter,
+			color_chat, tz, color_delimiter)
 
 ### functions
 def get_script_dir():
@@ -214,6 +238,7 @@ def get_ip_process(host):
 			timeout, 'get_ip_process_cb', '')
 
 def get_ip_process_cb(data, command, rc, stdout, stderr):
+	"""Called when uri resolve finished."""
 	global hook_get_ip, reply_wrapper
 	#debug("%s @ stderr: '%s', stdout: '%s'" %(rc, stderr.strip('\n'), stdout.strip('\n')))
 	if stdout and reply_wrapper:
@@ -234,7 +259,7 @@ def is_ip(ip):
 		try:
 			for n in L:
 				n = int(n)
-				if not (n > 0 and n < 255):
+				if not (n >= 0 and n <= 255):
 					return False
 		except:
 			return False
@@ -244,6 +269,8 @@ def is_ip(ip):
 
 def is_host(host):
 	"""A valid host must have at least one dot an no slashes."""
+	# This is a very poor check
+	# I will fix it when it fails
 	if '/' in host:
 		return False
 	elif '.' in host:
@@ -306,32 +333,50 @@ def search_in_database(ip):
 		pass
 	return unknown
 
-def print_country(host, buffer, quiet=False, nick=''):
+def print_country(host, buffer, quiet=False, broken=False, nick=''):
 	"""
-	Prints country for a given host, if quiet is True prints only if there's a match
+	Prints country and local time for a given host, if quiet is True prints only if there's a match,
+	if broken is True reply will be split in two messages.
 	"""
 	#debug('host: ' + host)
 	def reply_country(code, country):
 		if quiet and code == '--':
 			return
-		whois(nick or host, code, country, buffer)
+		if pytz_module and get_config_boolean('show_localtime') and code != '--':
+			dt = get_country_datetime(code)
+			if broken:
+				whois(nick or host, string_country(country, code), buffer)
+				whois(nick or host, string_time(dt), buffer)
+			else:
+				s = '%s - %s' %(string_country(country, code), string_time(dt))
+				whois(nick or host, s, buffer)
+		else:
+			whois(nick or host, string_country(country, code), buffer)
+
 	if is_ip(host):
 		# good, got an ip
 		code, country = search_in_database(host)
-	elif not is_host(host):
-		# probably a cloak
-		code, country = '--', 'cloaked'
-	else:
+	elif is_host(host):
 		# try to resolve uri
 		global reply_wrapper
 		reply_wrapper = reply_country
 		get_ip_process(host)
 		return
+	else:
+		# probably a cloak
+		code, country = '--', 'cloaked'
 	reply_country(code, country)
 
-### cmd
+### timezone
+def get_country_datetime(code):
+	"""Get datetime object with country's timezone."""
+	tzname = pytz.country_timezones(code)[0]
+	tz = pytz.timezone(tzname)
+	return datetime.datetime.now(tz)
+
+### commands
 def cmd_country(data, buffer, args):
-	"""Shows country for a given ip, uri or nick."""
+	"""Shows country and local time for a given ip, uri or nick."""
 	if not args:
 		weechat.command('', '/HELP %s' %SCRIPT_COMMAND)
 		return WEECHAT_RC_OK
@@ -348,12 +393,11 @@ def cmd_country(data, buffer, args):
 		#check if is a nick
 		host = get_host_by_nick(args, buffer)
 		if not host:
-			# not a nick
 			host = args
 		print_country(host, buffer)
 	return WEECHAT_RC_OK
 
-### signal callback
+### signal callbacks
 def whois_cb(data, signal, signal_data):
 	"""function for /WHOIS"""
 	if not get_config_boolean('show_in_whois') or not check_database():
@@ -362,7 +406,7 @@ def whois_cb(data, signal, signal_data):
 	server = signal[:signal.find(',')]
 	#debug('%s | %s | %s' %(data, signal, signal_data))
 	buffer = weechat.buffer_search('irc', 'server.%s' %server)
-	print_country(host, buffer, quiet=True, nick=nick)
+	print_country(host, buffer, quiet=True, broken=True, nick=nick)
 	return WEECHAT_RC_OK
 
 ### main
@@ -372,7 +416,7 @@ if import_ok and weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SC
 	weechat.hook_signal('*,irc_in2_314', 'whois_cb', '') # /whowas
 	weechat.hook_command('country', cmd_country.__doc__, 'update | (nick|ip|uri)',
 			"       update: Downloads/updates ip database with country codes.\n"
-			"nick, ip, uri: Gets country for a given ip, domain or nick.",
+			"nick, ip, uri: Gets country and local time for a given ip, domain or nick.",
 			'update||%(nick)', 'cmd_country', '')
 	# settings
 	for opt, val in settings:
@@ -381,5 +425,11 @@ if import_ok and weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SC
 	if not check_database():
 		say("IP database not found. You must download a database with '/country update' before "
 				"using this script.")
+	if not pytz_module and get_config_boolean('show_localtime'):
+		error(
+			"pytz module isn't installed, local time information is DISABLED. "
+			"Get it from http://pytz.sourceforge.net or from your distro packages "
+			"(python-tz in Ubuntu/Debian).")
+		weechat.config_set_plugin('show_localtime', 'off')
 
 # vim:set shiftwidth=4 tabstop=4 noexpandtab textwidth=100:
