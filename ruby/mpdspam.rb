@@ -1,5 +1,3 @@
-#!/usr/bin/env ruby
-#
 # Author: Benedikt 'linopolus' Mueller <linopolus@xssn.at>
 # File: mpdspam.rb
 #   weechat script to print the played song from mpd in the format '/me ♫ <artist> — <titel> (<album>)
