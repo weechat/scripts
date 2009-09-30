@@ -19,6 +19,8 @@
 # Display sidebar with list of buffers.
 #
 # History:
+# 2009-09-30, FlashCode <flashcode@flashtux.org>:
+#     v1.4: remove spaces for indenting when bar position is top/bottom
 # 2009-06-14, FlashCode <flashcode@flashtux.org>:
 #     v1.3: add option "hide_merged_buffers"
 # 2009-06-14, FlashCode <flashcode@flashtux.org>:
@@ -66,7 +68,7 @@
 
 use strict;
 
-my $version = "1.3";
+my $version = "1.4";
 
 # -------------------------------[ config ]-------------------------------------
 
@@ -131,6 +133,14 @@ weechat::bar_item_update("buffers");
 sub build_buffers
 {
     my $str = "";
+    
+    # get bar position (left/right/top/bottom)
+    my $position = "left";
+    my $option = weechat::config_get("weechat.bar.buffers.position");
+    if ($option ne "")
+    {
+        $position = weechat::config_string($option);
+    }
     
     # read hotlist
     my %hotlist;
@@ -220,13 +230,15 @@ sub build_buffers
         }
         else
         {
+            my $indent = "";
+            $indent = ((" " x length($buffer->{"number"}))." ") if (($position eq "left") || ($position eq "right"));
             $str .= weechat::color("default")
                 .$color_bg
-                .(" " x length($buffer->{"number"}))
-                ." "
+                .$indent
                 .weechat::color($color);
         }
-        if (weechat::config_get_plugin("indenting") eq "on")
+        if ((weechat::config_get_plugin("indenting") eq "on")
+            && (($position eq "left") || ($position eq "right")))
         {
             my $type = weechat::buffer_get_string($buffer->{"pointer"}, "localvar_type");
             if (($type eq "channel") || ($type eq "private"))
