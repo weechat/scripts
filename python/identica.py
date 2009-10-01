@@ -18,27 +18,46 @@
 # the @sender into the bot's nick and colorizing usernames, groups
 # and hashtags.
 
-# It's written for bitlbee.
+# It's written for bitlbee, but should work with anything that permits
+# the XMPP bot open a query buffer with you.
+
+# Since version 0.2 it includes suscription handling and whois
+# habilities.
 
 # HISTORY
 # 2009-07-27, fauno:
 #		initial release
+# 2009-09-17, fauno:
+#       added basic suscription handling (sub/unsub/block/unblock)
+#		username whois
+#       remind user color
+# 2009-09-27, fauno:
+#       help definition
 
 # PLANNED FEATURES
-# 	- colorize sender nickname
-# 	- @replies recolection for nick autocompletion
+# 	- @autocompletion (if it's really possible!)
 
 import weechat
 import re
-import random
+import urllib2
+import simplejson as json
 
-SCRIPT_NAME = "identica"
-SCRIPT_AUTHOR = "fauno <fauno@kiwwwi.com.ar>"
-SCRIPT_VERSION = "0.1.1"
+from base64 import encodestring
+from urllib import urlencode
+from random import randint
+
+
+SCRIPT_NAME    = "identica"
+SCRIPT_AUTHOR  = "fauno <fauno@kiwwwi.com.ar>"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL3"
-SCRIPT_DESC = "Formats identi.ca's bot messages"
+SCRIPT_DESC    = "Formats identi.ca's bot messages"
 
 settings = {
+		"username"                : "",
+		"password"                : "",
+		"service"                 : "identi.ca",
+		"scheme"                  : "https",
 		"channel"                 : "localhost.update",
 		"re"                      : "^(?P<update>\w+)(?P<separator>\W+?)(?P<username>\w+): (?P<dent>.+)$",
 
@@ -54,6 +73,148 @@ settings = {
 		"hashtag_re"              : "(#)([a-zA-Z0-9]+)",
 		"group_re"                : "(!)([a-zA-Z0-9]+)"
 		}
+
+users = {}
+
+class StatusNet():
+	def __init__(self, username, password, scheme, service):
+
+		self.username = username
+		self.password = password
+
+		self.realm    = 'StatusNet API'
+		self.service  = service
+		self.scheme   = scheme
+
+		self.opener = self.get_auth_opener()
+
+	def get_auth_opener(self):
+		'''Authentication'''
+		basic_auth = encodestring(':'.join([self.username, self.password]))
+		basic_auth = ' '.join(['Basic', basic_auth])
+
+		handler = urllib2.HTTPBasicAuthHandler()
+		handler.add_password(realm=self.realm,
+		                     uri=self.service,
+							 user=self.username,
+							 passwd=self.password)
+		
+		self.headers = {'Authorization':basic_auth}
+		return urllib2.build_opener(handler)
+
+	def build_request(self, api_method, api_action, user_or_id, data={}):
+		'''Builds an API request'''
+		url = '%s://%s/api/%s/%s/%s.json' % (self.scheme,
+		                                     self.service,
+											 api_method,
+											 api_action,
+											 user_or_id)
+
+		request = urllib2.Request(url, urlencode(data), self.headers)
+		return request
+
+	def handle_request(self, request):
+		'''Sends an API request and handles errors'''
+		try:
+			response = self.opener.open(request)
+		except urllib2.HTTPError, error:
+			if error.code == 403:
+				return False
+			else:
+				weechat.prnt(weechat.current_buffer(),
+				             '%s[%s] Server responded with a %d error code' % (weechat.prefix('error'),
+							                                                   self.service,
+																			   error.code))
+				return None
+		else:
+			return response
+
+# End of StatusNet
+
+def subscribe (username):
+	if len(username) == 0:
+		return weechat.WEECHAT_RC_ERROR
+
+	response = statusnet_handler.handle_request(statusnet_handler.build_request('friendships', 'create', username))
+
+	if response == None:
+		pass
+	elif response == False:
+		weechat.prnt(weechat.current_buffer(), ('%sYou\'re already suscribed to %s' % (weechat.prefix('error'), username)))
+	else:
+		weechat.prnt(weechat.current_buffer(), response)
+		weechat.prnt(weechat.current_buffer(), ('%sSuscribed to %s updates' % (weechat.prefix('join'), username)))
+
+	return weechat.WEECHAT_RC_OK
+
+
+def unsubscribe (username):
+	if len(username) == 0:
+		return weechat.WEECHAT_RC_ERROR
+
+	response = statusnet_handler.handle_request(statusnet_handler.build_request('friendships', 'destroy', username))
+
+	if response == None:
+		pass
+	elif response == False:
+		weechat.prnt(weechat.current_buffer(), ('%sYou aren\'t suscribed to %s' % (weechat.prefix('error'), username)))
+	else:
+		weechat.prnt(weechat.current_buffer(), ('%sUnsuscribed from %s\'s updates' % (weechat.prefix('quit'), username)))
+	
+	return weechat.WEECHAT_RC_OK
+
+def whois (username):
+	if len(username) == 0:
+		return weechat.WEECHAT_RC_ERROR
+	
+	response = statusnet_handler.handle_request(statusnet_handler.build_request('users', 'show', username))
+
+	if response == None:
+		pass
+	elif response == False:
+		weechat.prnt(weechat.current_buffer(), ('%sCan\'t retrieve information about %s' % (weechat.prefix('error'), username)))
+	else:
+		whois = json.load(response)
+
+		for property in ['name', 'description', 'url', 'location']:
+			if whois[property] != None:
+				weechat.prnt(weechat.current_buffer(), ('%s[%s] %s' % (weechat.prefix('network'), username, whois[property].encode('utf-8'))))
+		
+	return weechat.WEECHAT_RC_OK
+
+def block (username):
+	'''Blocks users'''
+	if len(username) == 0:
+		return weechat.WEECHAT_RC_ERROR
+
+	response = statusnet_handler.handle_request(statusnet_handler.build_request('blocks', 'create', username))
+
+	if response == None:
+		pass
+	elif response == False:
+		weechat.prnt(weechat.current_buffer(), ('%sCan\'t block %s' % (weechat.prefix('error'), username)))
+	else:
+		weechat.prnt(weechat.current_buffer(), ('%sBlocked %s' % (weechat.prefix('network'), username)))
+		
+	return weechat.WEECHAT_RC_OK
+
+
+def unblock (username):
+	'''Unblocks users'''
+	if len(username) == 0:
+		return weechat.WEECHAT_RC_ERROR
+
+	response = statusnet_handler.handle_request(statusnet_handler.build_request('blocks', 'destroy', username))
+
+	if response == None:
+		pass
+	elif response == False:
+		weechat.prnt(weechat.current_buffer(), ('%sCan\'t unblock %s' % (weechat.prefix('error'), username)))
+	else:
+		weechat.prnt(weechat.current_buffer(), ('%sUnblocked %s' % (weechat.prefix('network'), username)))
+		
+	return weechat.WEECHAT_RC_OK
+
 
 def colorize (message):
 	"""Colorizes replies, hashtags and groups"""
@@ -79,11 +240,13 @@ def colorize (message):
 
 def nick_color (nick):
 	"""Randomizes color for nicks"""
-	random_color = random.choice('123456789')
+	if users.has_key(nick) and users[nick].has_key('color'):
+		pass
+	else:
+		users[nick] = {}
+		users[nick]['color'] = ''.join(['chat_nick_color', str(randint(1,10)).zfill(2)])
 
-	random_color = ''.join([ 'nick_color0', random_color ])
-	
-	nick = ''.join([weechat.color(random_color), nick, weechat.color('reset')])
+	nick = ''.join([weechat.color(users[nick]['color']), nick, weechat.color('reset')])
 	return nick
 
 def parse (server, modifier, data, the_string):
@@ -106,6 +269,34 @@ def parse (server, modifier, data, the_string):
 
 	return the_string
 
+def nicklist(data, completion_item, buffer, completion):
+	"""Completion for /sn"""
+	for username, properties in users.iteritems():
+		weechat.hook_completion_list_add(completion, username, 0, weechat.WEECHAT_LIST_POS_SORT)
+	return weechat.WEECHAT_RC_OK
+
+def sn (data, buffer, args):
+	if args == "":
+		weechat.command("", "/help sn")
+		return weechat.WEECHAT_RC_OK
+	
+	argv = args.strip().split(' ', 1)
+
+	if argv[0] == 'subscribe':
+		subscribe(argv[1])
+	elif argv[0] == 'unsubscribe':
+		unsubscribe(argv[1])
+	elif argv[0] == 'whois':
+		whois(argv[1])
+	elif argv[0] == 'block':
+		block(argv[1])
+	elif argv[0] == 'unblock':
+		unblock(argv[1])
+
+	return weechat.WEECHAT_RC_OK
+	
+	
+
 # init
 
 if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
@@ -115,5 +306,38 @@ if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
 		if not weechat.config_is_set_plugin(option):
 			weechat.config_set_plugin(option, default_value)
 
-	weechat.hook_modifier('weechat_print', "parse", "")
+	username = weechat.config_get_plugin('username')
+	password = weechat.config_get_plugin('password')
+	service  = weechat.config_get_plugin('service')
+	scheme   = weechat.config_get_plugin('scheme')
+	
+	if len(username) == 0 or len(password) == 0:
+		weechat.prnt(weechat.current_buffer(),
+		            '%s[%s] Please set your username and password and reload the plugin' % (weechat.prefix('error'),
+					                                                                        service))
+	else:
+		statusnet_handler = StatusNet(username, password, scheme, service)
+
+    # hook incoming messages
+	weechat.hook_modifier('weechat_print', 'parse', '')
+
+    # /sn
+	weechat.hook_command('sn',
+	                     'StatusNet manager',
+						 'whois | subscribe | unsubscribe | block | unblock <username>',
+						 '        whois: retrieves profile information from <username>'
+						 "\n"
+						 '    subscribe: subscribes to <username>'
+						 "\n"
+						 '  unsubscribe: unsubscribes from <username>'
+						 "\n"
+						 '        block: blocks <username>'
+						 "\n"
+						 '      unblock: unblocks <username>',
+						 'whois %(sn_nicklist) || sub %(sn_nicklist) || unsub %(sn_nicklist) || block %(sn_nicklist) || unblock %(sn_nicklist)',
+						 'sn',
+						 '')
+
+	# Completion for /sn commands
+	weechat.hook_completion('sn_nicklist', 'list of SN users', 'nicklist', '')
 
