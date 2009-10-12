@@ -22,6 +22,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2009-10-12, omero
+#   version 0.5: made it python-2.4.x compliant
 # 2009-06-23
 #   version 0.4: added --exact
 # 2009-06-22
@@ -33,13 +35,13 @@
 # 2009-05-24, xt <xt@bash.no>
 #     version 0.1: initial release
 
-from __future__ import with_statement # This isn't required in Python 2.6
+#from __future__ import with_statement # This isn't required in Python 2.6
 import weechat as w
 import re
 
 SCRIPT_NAME    = "grep"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.4"
+SCRIPT_VERSION = "0.5"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Search in buffer"
 SCRIPT_COMMAND = 'grep'
@@ -127,15 +129,15 @@ def get_matching_lines(buffer, matcher, exact):
     matching_lines = []
     logfilename = get_logfilename(buffer)
     if logfilename:
-        with file(logfilename, 'r') as f:
-            for line in f:
-                if exact:
-                    for match in matcher.findall(line):
-                        time, prefix = line.split('\t')[0], line.split('\t')[1]
-                        matching_lines.append((time, prefix, match))
-                else:
-                    if matcher.findall(line):
-                        matching_lines.append(line.split('\t'))
+        f = file(logfilename, 'r')
+        for line in f:
+            if exact:
+                for match in matcher.findall(line):
+                    time, prefix = line.split('\t')[0], line.split('\t')[1]
+                    matching_lines.append((time, prefix, match))
+            else:
+                if matcher.findall(line):
+                    matching_lines.append(line.split('\t'))
     else:
         matching_lines = find_infolist_matching_lines(buffer, matcher, exact)
 

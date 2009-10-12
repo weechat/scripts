@@ -45,6 +45,9 @@
 #
 #
 #   History:
+#   2009-10-12, omero
+#   version 0.5.2: made it python-2.4.x compliant
+#
 #   2009-08-17
 #   version 0.5.1: some refactoring, show_summary option added.
 #
@@ -69,7 +72,7 @@
 #
 ###
 
-from __future__ import with_statement # This isn't required in Python 2.6
+#from __future__ import with_statement # This isn't required in Python 2.6
 import os.path as path
 import getopt
 
@@ -78,7 +81,7 @@ from weechat import WEECHAT_RC_OK
 
 SCRIPT_NAME    = "egrep"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.5.1"
+SCRIPT_VERSION = "0.5.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Search in buffers and logs"
 SCRIPT_COMMAND = "egrep"
@@ -408,21 +411,21 @@ def check_string(s, regexp, hilight=False, exact=False):
 def grep_file(file, head, tail, *args):
 	"""Return a list of lines that match 'regexp' in 'file', if no regexp returns all lines."""
 	lines = []
-	with open(file, 'r') as file_object:
-		if tail:
-			# instead of searching in the whole file and later pick the last few lines, we read the
-			# log, reverse it, search until count reached and reverse it again, that way is a lot
-			# faster
-			fd = file_object.readlines()
-			fd.reverse()
-		else:
-			fd = file_object
-		limit = head or tail
-		for line in fd:
-			line = check_string(line, *args)
-			if line:
-				lines.append(line)
-				if limit and len(lines) >= limit: break
+	file_object = open(file, 'r')
+	if tail:
+		# instead of searching in the whole file and later pick the last few lines, we read the
+		# log, reverse it, search until count reached and reverse it again, that way is a lot
+		# faster
+		fd = file_object.readlines()
+		fd.reverse()
+	else:
+		fd = file_object
+	limit = head or tail
+	for line in fd:
+		line = check_string(line, *args)
+		if line:
+			lines.append(line)
+			if limit and len(lines) >= limit: break
 	if tail:
 		lines.reverse()
 	return lines
