@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2009-10-13, FlashCode <flashcode@flashtux.org>:
+#     version 0.7: use "q" to close vdm buffer
 # 2009-06-12, FlashCode <flashcode@flashtux.org>:
 #     version 0.6: fix bug when vdm buffer is closed: clear old list
 # 2009-05-02, FlashCode <flashcode@flashtux.org>:
@@ -41,7 +43,7 @@ import weechat, xml.dom.minidom
 
 SCRIPT_NAME    = "vdm"
 SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.6"
+SCRIPT_VERSION = "0.7"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Display content of viedemerde.fr/fmylife.com website"
 
@@ -253,7 +255,10 @@ def vdm_get(key):
 
 def vdm_buffer_input(data, buffer, input_data):
     """ Read data from user in VDM buffer. """
-    vdm_get(input_data)
+    if input_data == "q" or input_data == "Q":
+        weechat.buffer_close(buffer)
+    else:
+        vdm_get(input_data)
     return weechat.WEECHAT_RC_OK
 
 def vdm_buffer_close(data, buffer):
