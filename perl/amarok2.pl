@@ -13,14 +13,15 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# v0.2: auto completion is now possible
 # v0.1: first release.
 #
 # This script needs Amarok2 and KDE4 (qdbus)
 #
 
 use strict;
-my $version = "0.1";
-my $description = "remote control for Amarok2";
+my $version = "0.2";
+my $description = "Amarok 2 control and now playing script.";
 my $program_name = "amarok2";
 
 # since KDE4 dcop doesn't work anymore. We have to use qdbus instead
@@ -33,7 +34,7 @@ weechat::register($program_name, "Nils Görs <weechatter\@arcor.de>", $version,
 
 # commands used by amarok2. Type: /help amarok2
 weechat::hook_command($program_name, $description,
-	"[album] [artist] [title] [all] [stop] [play] [next] [prev]", 
+	"[album | artist | title | all | stop | play | next | prev]", 
 	"album  : display album\n".
 	"artist : display artist\n".
 	"title  : display current playing title\n".
@@ -42,7 +43,7 @@ weechat::hook_command($program_name, $description,
 	"play   : Play/Pause current song\n".
 	"next   : play next song\n".
 	"prev   : play previous song\n",
-	"", "checkargs", "");
+	"album|artist|title|all|play|stop|next|prev", "checkargs", "");
 return weechat::WEECHAT_RC_OK;					# Return_Code OK
 
 ### my subroutines

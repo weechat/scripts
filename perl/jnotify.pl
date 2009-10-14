@@ -15,6 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+# v0.4: auto completion
 # v0.3: $extern_command better readable and typo "toogle" instead of "toggle" removed
 # v0.2: variable bug removed
 # v0.1: first step (in perl)
@@ -27,7 +28,7 @@
 
 use strict;
 #### Use your own external command here (do not forget the ";" at the end of line):
-my $extern_command = qq(notify-send -t 90000 -i /home/nils/.weechat/120px-Weechat_logo.png "jnotify_channel" "neuer User: jnotify_nick");
+my $extern_command = qq(notify-send -t 9000 -i /home/nils/.weechat/120px-Weechat_logo.png "jnotify_channel" "neuer User: jnotify_nick");
 
 # example: playing a sound
 # my $extern_command = qq(play -q /home/nils/sounds/hello.wav);
@@ -35,7 +36,7 @@ my $extern_command = qq(notify-send -t 90000 -i /home/nils/.weechat/120px-Weecha
 ###########################
 ### program starts here ###
 ###########################
-my $version = "0.3";
+my $version = "0.4";
 my $description = "starts an external program if a user JOIN the same channel";
 # default values in setup file (~/.weechat/plugins.conf)
 my $status		= "status";
@@ -48,11 +49,11 @@ weechat::register("jnotify", "Nils Görs <weechatter\@arcor.de>", $version,
 # commands used by jnotify. Type: /help jnotify
 weechat::hook_command("jnotify", $description,
 
-	"<toggle> <status>", 
+	"[toggle | status]", 
 
 	"<toggle> jnotify between on and off\n".
 	"<status> tells you if jnotify is on or off\n",
-	"", "switch", "");
+	"toggle|status", "switch", "");
 
 
 # set value of script (for example starting script the first time)
