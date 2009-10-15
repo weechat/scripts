@@ -24,13 +24,15 @@
 #
 # History:
 #
+# 2009-10-15, xt <xt@bash.no>:
+#     version 0.2: error checking from output command
 # 2009-10-14, xt <xt@bash.no>:
 #     version 0.1: initial release inspired by nils' perl script
 #
 
 SCRIPT_NAME    = "bandwidth"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Displays network interface bandwidth on a bar"
 
@@ -71,7 +73,15 @@ def bandwidth_item_cb(data, buffer, args):
                     split($0, a, /: */); $0 = a[2]; \
                     print "" $1 "\\n" $9 \
                 }'     /proc/net/dev''' %device)
-    cur_i, cur_o = pipe.read().split()
+    pipeoutput = pipe.read()
+    if not pipeoutput:
+        # Problem with reading
+        return ''
+    if not len(pipeoutput.split()) == 2:
+        # Problem with reading
+        return ''
+
+    cur_i, cur_o = pipeoutput.split()
     pipe.close()
 
     cur_i = float(cur_i)
