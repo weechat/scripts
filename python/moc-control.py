@@ -20,6 +20,9 @@
 #
 # History:
 #
+# 2009-10-16, Benjamin Neff <info@benjaminneff.ch>:
+#     version 1.7: - AvgBitrate bug
+#                  - format Time
 # 2009-09-15, Benjamin Neff <info@benjaminneff.ch>:
 #     version 1.6: - bugfixing ;-)
 #                  - hook_config
@@ -30,7 +33,7 @@
 
 SCRIPT_NAME    = "moc-control"
 SCRIPT_AUTHOR  = "SuperTux88 (Benjamin Neff) <info@benjaminneff.ch>"
-SCRIPT_VERSION = "1.6"
+SCRIPT_VERSION = "1.7"
 SCRIPT_LICENSE = "GPL2"
 SCRIPT_DESC    = "moc control and now playing script for Weechat"
 
@@ -249,8 +252,8 @@ def _format_np(np, song, npType):
 def _get_song_info():
     """Get the song information from moc"""
     song = {}
-    song['TotalTime'] = '?:??'
     song['TotalSec'] = '??'
+    song['AvgBitrate'] = '???Kbps'
 
     info = _execute_command('mocp -i')
     for line in info.split('\n'):
@@ -265,7 +268,33 @@ def _get_song_info():
     if song['File'].find("://") < 0:
         song['File'] = os.path.basename(song['File'])
 
+    if song['TotalSec'] == '??':
+        song['TotalTime'] = '?:??'
+    else:
+        if song['TotalTime'].find("m") > 0:
+            song['TotalTime'] = _format_seconds(song['TotalSec'])
+
+    if song['CurrentTime'].find("m") > 0:
+        song['CurrentTime'] = _format_seconds(song['CurrentSec'])
+
     return song
+
+def _format_seconds(s):
+    """return the formated time"""
+    s = int(s)
+    temp = float()
+    temp = float(s) / (60 * 60 * 24)
+    d = int(temp)
+    temp = (temp - d) * 24
+    h = int(temp)
+    temp = (temp - h) * 60
+    m = int(temp)
+    temp = (temp - m) * 60
+    sec = temp
+    if d > 0:
+        return "%id %i:%02i:%02i" % (d, h, m, sec)
+    else:
+        return "%i:%02i:%02i" % (h, m, sec)
 
 def _get_status():
     """return the Status of moc"""
