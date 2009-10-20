@@ -21,6 +21,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2009-10-20, xt <xt@bash.no
+#     version 0.6: removed priority on the bar
 # 2009-07-01, xt <xt@bash.no>
 #     version 0.5: changed script command to /urlbar, comma separated ignore list
 # 2009-05-22, xt <xt@bash.no>
@@ -35,7 +37,7 @@
 
 SCRIPT_NAME    = "urlbar"
 SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.5"
+SCRIPT_VERSION = "0.6"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Bar with URLs. For easy clicking or selecting."
 SCRIPT_COMMAND = "urlbar"
@@ -238,7 +240,7 @@ if __name__ == "__main__" and import_ok:
         weechat.hook_completion("urlbar_urls", "list of URLs",
                                 "urlbar_completion_urls_cb", "")
         weechat.bar_item_new("urlbar_urls", "urlbar_item_cb", "");
-        weechat.bar_new("urlbar", "on", "1000", "root", "", "top", "horizontal",
+        weechat.bar_new("urlbar", "on", "0", "root", "", "top", "horizontal",
                         "vertical", "0", "0", "default", "default", "default", "0",
                         "urlbar_urls");
         weechat.hook_print("", "", "://", 1, "urlbar_print_cb", "")

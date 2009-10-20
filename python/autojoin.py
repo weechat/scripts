@@ -1,4 +1,3 @@
-''' Autojoin current channels '''
 # -*- coding: utf-8 -*-
 #
 # Copyright (c) 2009 by xt <xt@bash.no>
@@ -22,35 +21,66 @@
 # History:
 # 2009-06-18, xt <xt@bash.no>
 #     version 0.1: initial release
+#
+# 2009-06-18, LBo <leon@tim-online.nl>
+#     version 0.2: added autosaving of join channels
+#     /set plugins.var.python.autojoin.autosave 'on'
+#
+# @TODO: find_channels() also returns channels which are already /part'ed but
+#        are still in a buffer
+# @TODO: plugin responds to all part messages, not only from self
 
 import weechat as w
 
 SCRIPT_NAME    = "autojoin"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Configure autojoin for all servers according to currently joined channels"
 SCRIPT_COMMAND = "autojoin"
 
+# script options
+settings = {
+    "autosave": "off",
+}
+
+if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, "", ""):
+    # Init everything
+    for option, default_value in settings.items():
+        if w.config_get_plugin(option) == "":
+            w.config_set_plugin(option, default_value)
+    
+    w.hook_command(SCRIPT_COMMAND,
+                   SCRIPT_DESC,
+                   "[--run]",
+                   "   --run: actually run the commands instead of displaying\n",
+                   "--run",
+                   "autojoin_cb",
+                   "")
+    
+    w.hook_signal('*,irc_in2_join', 'autosave_autojoin_channels', '')
+    w.hook_signal('*,irc_in2_part', 'autosave_autojoin_channels', '')
+    w.hook_signal('*,irc_in2_quit', 'autosave_autojoin_channels', '')
+    w.hook_signal('quit',           'autosave_autojoin_channels', '')
+
+def autosave_autojoin_channels(data, buffer, args):
+    ''' Autojoin current channels '''
+    if w.config_get_plugin("autosave") != "on":
+        return w.WEECHAT_RC_OK
+    items = find_channels()
+    
+    # print/execute commands
+    for server, channels in items.iteritems():
+        channels = channels.rstrip(',')
+        command = "/set irc.server.%s.autojoin '%s'" % (server, channels)
+        w.command('', command)
+    
+    return w.WEECHAT_RC_OK
+
 def autojoin_cb(data, buffer, args):
-
-    items = {}
-    infolist = w.infolist_get('irc_server', '', '')
-    # populate servers
-    while w.infolist_next(infolist):
-        items[w.infolist_string(infolist, 'name')] = ''
-
-    w.infolist_free(infolist)
-
-    # populate channels per server
-    for server in items.keys():
-        infolist = w.infolist_get('irc_channel', '',  server)
-        while w.infolist_next(infolist):
-            if w.infolist_integer(infolist, 'type') == 0:
-                channel = w.infolist_string(infolist, "buffer_short_name")
-                items[server] += '%s,' %channel
-        w.infolist_free(infolist)
-
+    """Old behaviour: doesn't save empty channel list"""
+    items = find_channels()
+    
     # print/execute commands
     for server, channels in items.iteritems():
         channels = channels.rstrip(',')
@@ -61,15 +91,25 @@ def autojoin_cb(data, buffer, args):
             w.command('', command)
         else:
             w.prnt('', command)
-
+    
     return w.WEECHAT_RC_OK
 
-if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, "", ""):
-
-    w.hook_command(SCRIPT_COMMAND,
-                   SCRIPT_DESC,
-                   "[--run]",
-                   "   --run: actually run the commands instead of displaying\n",
-                   "--run",
-                   "autojoin_cb",
-                   "")
+def find_channels():
+    items = {}
+    infolist = w.infolist_get('irc_server', '', '')
+    # populate servers
+    while w.infolist_next(infolist):
+        items[w.infolist_string(infolist, 'name')] = ''
+    
+    w.infolist_free(infolist)
+    
+    # populate channels per server
+    for server in items.keys():
+        infolist = w.infolist_get('irc_channel', '',  server)
+        while w.infolist_next(infolist):
+            if w.infolist_integer(infolist, 'type') == 0:
+                channel = w.infolist_string(infolist, "buffer_short_name")
+                items[server] += '%s,' %channel
+        w.infolist_free(infolist)
+    
+    return items
