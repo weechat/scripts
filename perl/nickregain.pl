@@ -1,6 +1,6 @@
 #
 # nickregain.pl - Automatically regain your nick when avaiable, for weechat 0.3.0
-# Version 1.0
+# Version 1.0.1
 #
 # Automatically checks every x mins to see if your prefered nicks are available
 # and issues either /nick or a custom nickserv command
@@ -27,6 +27,8 @@
 # Default: 60
 #
 # History:
+# 2009-10-22, KenjiE20 <longbow@longbowslair.co.uk>:
+#	v1.0.1	-fix: make infolist loop $name's local vars, so they don't overwrite existing
 # 2009-10-19, KenjiE20 <longbow@longbowslair.co.uk>:
 #	v1.0:	Public Release
 #		-fix: /ison command was sending /ison /ison nicks
@@ -70,7 +72,7 @@ $helpstr = "  on: Enables regain for current server
  Used incase you can't see the old nick quit or nick change
  Default: ".weechat::color("bold")."60".weechat::color("-bold");
 
-weechat::register("nickregain", "KenjiE20", "1.0", "GPL3", "Auto Nick Regaining", "", "");
+weechat::register("nickregain", "KenjiE20", "1.0.1", "GPL3", "Auto Nick Regaining", "", "");
 
 regain_setup();
 
@@ -88,7 +90,7 @@ sub regain_setup
 	while (weechat::infolist_next($infolist))
 	{
 		# Get server internal name
-		$name = weechat::infolist_string($infolist, "name");
+		my $name = weechat::infolist_string($infolist, "name");
 #DEBUG		weechat::print ("", "Checking and creating config entries for $name");
 
 		# If no configs exist, populate
@@ -487,7 +489,7 @@ sub regain_command
 		while (weechat::infolist_next($infolist))
 		{
 			# Get server internal name
-			$name = weechat::infolist_string($infolist, "name");
+			my $name = weechat::infolist_string($infolist, "name");
 
 			# Are we configured to run on this server
 			if ($config{$name}{'enabled'} ne 'off')
@@ -547,7 +549,7 @@ sub regain_info
 	while (weechat::infolist_next($infolist))
 	{
 		# Get server internal name
-		$name = weechat::infolist_string($infolist, "name");
+		my $name = weechat::infolist_string($infolist, "name");
 
 		weechat::print("", $name.": Enabled: ".$config{$name}{'enabled'});
 		weechat::print("", $name.": Active: ".$config{$name}{'active'});
