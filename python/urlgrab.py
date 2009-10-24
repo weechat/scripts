@@ -1,5 +1,5 @@
 #
-# UrlGrab, version 1.5 for weechat version 0.3 devel
+# UrlGrab, version 1.6 for weechat version 0.3 devel
 #
 #   Listens to all channels for URLs, collects them in a list, and launches
 #   them in your favourite web server on the local host or a remote server.
@@ -95,6 +95,8 @@
 #           5) Added /url open http://url.com functionality
 #           6) Changed urls detection to use regexpressions so should be much better
 #                Thanks to xt of #weechat bassed on on urlbar.py
+#  - V1.6 FlashCode <flashcode@flashtux.org>: Increase timeout for hook_process
+#         (from 1 second to 1 minute)
 #
 # Copyright (C) 2005 David Rubin <drubin AT smartcube dot co dot za>
 #
@@ -139,7 +141,7 @@ urlRe = re.compile(r'(\w+://(?:%s|%s)(?::\d+)?(?:/[^\])>\s]*)?)' % (domain, ipAd
 
 SCRIPT_NAME    = "urlgrab"
 SCRIPT_AUTHOR  = "David Rubin <drubin [At] smartcube [dot] co [dot] za>"
-SCRIPT_VERSION = "1.5"
+SCRIPT_VERSION = "1.6"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Url functionality Loggin, opening of browser, selectable links"
 CONFIG_FILE_NAME= "urlgrab" 
@@ -420,7 +422,7 @@ def urlGrabCopy(bufferd, index):
 def urlGrabOpenUrl(url):
     global urlGrab, urlGrabSettings
     argl = urlGrabSettings.createCmd( url )
-    weechat.hook_process(argl,1000, "ug_open_cb", "")
+    weechat.hook_process(argl,60000, "ug_open_cb", "")
 
 def ug_open_cb(data, command, code, out, err):
     #print out
