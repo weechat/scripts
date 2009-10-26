@@ -20,6 +20,8 @@
 #
 # History:
 #
+# 2009-10-26, Benjamin Neff <info@benjaminneff.ch>:
+#     version 1.7.3: - Bugfix ( "/me" --> "output_nothing" ) 2
 # 2009-10-25, Benjamin Neff <info@benjaminneff.ch>:
 #     version 1.7.2: - Fix if moc isn't running
 # 2009-10-24, Benjamin Neff <info@benjaminneff.ch>:
@@ -37,7 +39,7 @@
 
 SCRIPT_NAME    = "moc-control"
 SCRIPT_AUTHOR  = "SuperTux88 (Benjamin Neff) <info@benjaminneff.ch>"
-SCRIPT_VERSION = "1.7.2"
+SCRIPT_VERSION = "1.7.3"
 SCRIPT_LICENSE = "GPL2"
 SCRIPT_DESC    = "moc control and now playing script for Weechat"
 
@@ -84,8 +86,9 @@ def load_settings(data, option, value):
     if weechat.config_is_set_plugin('output_type'):
         if weechat.config_get_plugin('output_type') == 'ot':
             weechat.config_set_plugin('output_format', "/me " + output['format'])
+            weechat.config_set_plugin('output_nothing', "/me " + output['nothing'])
             output['format'] = "/me " + output['format']
-            output['output_nothing'] = "/me " + output['output_nothing']
+            output['nothing'] = "/me " + output['nothing']
         weechat.config_unset_plugin('output_type')
 
     return weechat.WEECHAT_RC_OK
