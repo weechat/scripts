@@ -1,6 +1,6 @@
 #
 # nickregain.pl - Automatically regain your nick when avaiable, for weechat 0.3.0
-# Version 1.0.1
+# Version 1.0.2
 #
 # Automatically checks every x mins to see if your prefered nicks are available
 # and issues either /nick or a custom nickserv command
@@ -27,6 +27,10 @@
 # Default: 60
 #
 # History:
+# 2009-10-27, KenjiE20 <longbow@longbowslair.co.uk>:
+#	v1.0.2	-fix: Make ison nicks check quote better, didn't always work
+#			Give /nickregain now it's own sub, to trigger ison
+#			Let /nickregain work out the server name, rather than assume it was on a server buffer
 # 2009-10-22, KenjiE20 <longbow@longbowslair.co.uk>:
 #	v1.0.1	-fix: make infolist loop $name's local vars, so they don't overwrite existing
 # 2009-10-19, KenjiE20 <longbow@longbowslair.co.uk>:
@@ -72,7 +76,7 @@ $helpstr = "  on: Enables regain for current server
  Used incase you can't see the old nick quit or nick change
  Default: ".weechat::color("bold")."60".weechat::color("-bold");
 
-weechat::register("nickregain", "KenjiE20", "1.0.1", "GPL3", "Auto Nick Regaining", "", "");
+weechat::register("nickregain", "KenjiE20", "1.0.2", "GPL3", "Auto Nick Regaining", "", "");
 
 regain_setup();
 
@@ -416,7 +420,7 @@ sub regain_isoncb
 		# Get list of /ison nicks online
 		if ($cb_data =~ /.* 303 .* :(.*)/)
 		{
-			$isonnicks = $1;
+			$isonnicks = " ".$1." ";
 			$isonnicks =~ tr/A-Z/a-z/;
 		}
 
@@ -440,8 +444,9 @@ sub regain_isoncb
 				return weechat::WEECHAT_RC_OK;
 			}
 
-			# Test if current desired nick is in the /ison hash
-			if ($isonnicks =~ /\b\Q$lc_\E\b/)
+			$check = quotemeta($lc_);
+                        # Test if current desired nick is in the /ison hash
+			if ($isonnicks =~ / $check /)
 			{
 				# Nick is online, more on
 #DEBUG				weechat::print ($bufferp, "nickregain.pl: Nick $_ is online, cannot regain");
@@ -508,7 +513,11 @@ sub regain_command
 		return weechat::WEECHAT_RC_OK;
 	}
 
-	$name = weechat::buffer_get_string ($buffer, "short_name");
+	# Get server command was run on
+	$name = weechat::buffer_get_string ($buffer, "name");
+	@namearr = split(/\./, $name);
+	$name = $namearr[0];
+	$name = $namearr[1] if ($name eq "server");
 	
 	if ($args eq 'on')
 	{
@@ -519,7 +528,7 @@ sub regain_command
 	elsif ($args eq 'off')
 	{
 		weechat::config_set_plugin($name."_enabled", "off");
-		
+
 		weechat::unhook($nhook{$name}) if (exists $nhook{$name});
 		weechat::unhook($qhook{$name}) if (exists $qhook{$name});
 		weechat::unhook($thook{$name}) if (exists $thook{$name});
@@ -531,13 +540,63 @@ sub regain_command
 		# Are we configured to run on this server
 		if ($config{$name}{'enabled'} ne 'off')
 		{
-			regain_conn("","",$name);
+			regain_now($name);
 		}
 		else
 		{
                         weechat::print ($buffer, weechat::prefix("error")."nickregain not enabled for this server, try \"/nickregain on\" to enable");
 		}
 		return weechat::WEECHAT_RC_OK;
+	}
+}
+
+# Manual run of regain, run command, if somehow failed, and trigger an ison
+sub regain_now
+{
+	$name = $_[0];
+	
+        # Update all settings
+	regain_setup();
+	
+	# Are we configured to run on this server & check we are connected for manual commands
+	if ($config{$name}{'enabled'} ne 'off' && $config{$name}{'connected'})
+	{
+		# Run nick check, and get primary nick, for command servers
+		$nick = regain_nick_prim($name);
+		
+		# Are we activated for this server
+		if ($config{$name}{'active'})
+		{
+			# Where to print messages
+			$bufferp = weechat::info_get("irc_buffer", $name);
+#DEBUG			weechat::print($bufferp, "nickregain.pl: Regain active");
+
+			# Does this server have a regain command set
+			if ($config{$name}{'command'} ne "")
+			{
+#DEBUG				weechat::print($bufferp, "nickregain.pl: Server has command, using");
+
+				# Split command by ;
+				undef @cmds;
+				@cmds = split(/;/, $config{$name}{'command'});
+				# Run commands
+				foreach (@cmds)
+				{
+					# Sub config nick
+					$_ =~ s/\$nick/$nick/;
+					# Send commands
+					weechat::command($bufferp, $_);
+				}
+				# Deactivate and stop
+				$config{$name}{'active'} = 0;
+				return weechat::WEECHAT_RC_OK;
+			}
+			# If not, run ison
+			else
+			{
+				regain_timer_handle($name);
+			}
+		}
 	}
 }
 
