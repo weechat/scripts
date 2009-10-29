@@ -24,6 +24,8 @@
 # 
 #
 # History:
+# 2009-10-29, xt
+#   version 0.3 use official spotify API, and add support for albums
 # 2009-09-25, xt
 #   version 0.2: use spotify.url.fi
 # 2009-06-19, xt <xt@bash.no>
@@ -37,18 +39,25 @@ import urllib2
 
 SCRIPT_NAME    = "spotify"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.3"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Look up spotify urls"
 
+import_ok = True
+try:
+    from BeautifulSoup import BeautifulSoup # install package python-beautifulsoup
+except:
+    print "Package python-beautifulsoup must be installed for script '%s'." % SCRIPT_NAME
+    import_ok = False
+
 settings = {
     "buffers"        : 'freenode.#mychan,',     # comma separated list of buffers
-    "gateway"        : 'http://spotify.url.fi/track/',  # http spotify gw address
 }
 
+gateway =  'http://ws.spotify.com/lookup/1/'  # http spotify gw address
 
-spotify_track_res = ( re.compile(r'spotify:track:(?P<track_id>\w{22})'),
-            re.compile(r'http://open.spotify.com/track/(?P<track_id>\w{22})') )
+spotify_track_res = ( re.compile(r'spotify:(?P<type>\w+):(?P<track_id>\w{22})'),
+            re.compile(r'http://open.spotify.com/(?P<type>\w+)/(?P<track_id>\w{22})') )
 
 
 spotify_hook_process = ''
@@ -59,16 +68,11 @@ def get_buffer_name(bufferp):
     bufferd = weechat.buffer_get_string(bufferp, "name")
     return bufferd
 
-def printReply(buffer_name, reply):
-    splits = buffer_name.split('.')
-    server = splits[0]
-    buffer = '.'.join(splits[1:])
-    w.command('', '/msg -server %s %s %s' %(server, buffer, reply))
 
 def get_spotify_ids(s):
     for r in spotify_track_res:
-        for track in r.findall(s):
-            yield track
+        for type, track in r.findall(s):
+            yield type, track
 
 
 def spotify_print_cb(data, buffer, time, tags, displayed, highlight, prefix, message):
@@ -88,8 +92,8 @@ def spotify_print_cb(data, buffer, time, tags, displayed, highlight, prefix, mes
         return weechat.WEECHAT_RC_OK
 
        
-    for spotify_id in get_spotify_ids(message):
-        url = w.config_get_plugin('gateway') + spotify_id + '?txt'
+    for type, spotify_id in get_spotify_ids(message):
+        url = '%s?uri=spotify:%s:%s' %(gateway, type, spotify_id)
         if spotify_hook_process != "":
             weechat.unhook(spotify_hook_process)
             spotify_hook_process = ""
@@ -100,24 +104,52 @@ def spotify_print_cb(data, buffer, time, tags, displayed, highlight, prefix, mes
     return weechat.WEECHAT_RC_OK
 
 def spotify_process_cb(data, command, rc, stdout, stderr):
-    """ Callback reading HTML data from website. """
+    """ Callback reading XML data from website. """
 
     global spotify_hook_process, buffer_name
 
     spotify_hook_process = ""
 
     #if int(rc) >= 0:
-    reply = stdout
-    reply = reply.strip()
-    if reply:
-        printReply(buffer_name, reply)
+    if stdout.strip():
+        #stdout = stdout.decode('UTF-8').encode('UTF-8')
+        soup = BeautifulSoup(stdout)
+        lookup_type = soup.contents[2].name
+        if lookup_type == 'track':
+            name = soup.find('name').string
+            album_name = soup.find('album').find('name').string
+            artist_name = soup.find('artist').find('name').string
+            popularity = float(soup.find('popularity').string)*100
+            length = float(soup.find('length').string)
+            minutes = int(length)/60
+            seconds =  int(length)%60
+
+            reply = '%s - %s / %s %s:%s %2d%%' %(artist_name, name,
+                    album_name, minutes, seconds, popularity)
+        elif lookup_type == 'album':
+            album_name = soup.find('album').find('name').string
+            artist_name = soup.find('artist').find('name').string
+            released = soup.find('released').string
+            reply = '%s - %s - %s' %(artist_name, album_name, released)
+        else:
+            # Unsupported lookup type
+            return weechat.WEECHAT_RC_OK
+
+
+        reply = reply.replace('&amp;', '&')
+        reply = reply.encode('UTF-8')
+
+        splits = buffer_name.split('.') #FIXME bad code
+        server = splits[0]
+        buffer = '.'.join(splits[1:])
+        w.command('', '/msg -server %s %s %s' %(server, buffer, reply))
 
     return weechat.WEECHAT_RC_OK
 
 
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" and import_ok:
     if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
                         SCRIPT_DESC, "", ""):
         # Set default settings
