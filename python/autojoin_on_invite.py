@@ -20,6 +20,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2009-11-09, xt <xt@bash.no>
+#   version 0.3: add ignore option for channels
 # 2009-10-29, xt <xt@bash.no>
 #   version 0.2: add ignore option
 # 2009-10-28, xt <xt@bash.no>
@@ -30,7 +32,7 @@ import re
 
 SCRIPT_NAME    = "autojoin_on_invite"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Auto joins channels when invited"
 
@@ -38,6 +40,7 @@ SCRIPT_DESC    = "Auto joins channels when invited"
 settings = {
         'ignore_nicks': '', # comma separated list of nicks 
                             #that we will not accept auto invite from
+        'ignore_channels': '', # comma separated list of channels to not join 
 }
 
 if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
@@ -54,7 +57,9 @@ def invite_cb(data, signal, signal_data):
     channel = signal_data.split(':')[-1] # :nick!ident@host.name INVITE yournick :#channel
     from_nick = re.match(':(?P<nick>.+)!', signal_data).groups()[0]
     if from_nick in w.config_get_plugin('ignore_nicks').split(','):
-        w.prnt('', 'Ignoring invite from %s to channel %s.' %(from_nick, channel))
+        w.prnt('', 'Ignoring invite from %s to channel %s. Invite from ignored inviter.' %(from_nick, channel))
+    elif channel in w.config_get_plugin('ignore_channels').split(','):
+        w.prnt('', 'Ignoring invite from %s to channel %s. Invite to ignored channel' %(from_nick, channel))
     else:
         w.prnt('', 'Automatically joining %s on server %s, invitation from %s' \
             %(channel, server, from_nick))
