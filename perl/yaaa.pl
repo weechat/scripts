@@ -21,10 +21,11 @@
 #/set plugins.var.perl.yaaa.message AFK
 #/set plugins.var.perl.yaaa.status on
 # Changelog:
+#  0.2: bug with toggle removed (nils <weechatter@arcor.de>)
 #  0.1: first version
 # TODO:
 
-my $version  = '0.1';
+my $version  = '0.2';
 my $interval = 5;  # Seconds between checks
 my $away     = 15;  # Minutes til away
 my $msg      = "AFK";
@@ -51,15 +52,15 @@ if(!weechat::config_get_plugin("status")){
 sub switch_up {
     my ( $self, $buffer, $args ) = @_;
     #Check status and set accordingly
-    if(weechat::config_get_plugin("status") eq "on"){
+    if(weechat::config_get_plugin("status") eq "on") {
        $status = "off";
        weechat::config_set_plugin("status", $status);
        weechat::print($buffer, "YaAA: Yet Another AutoAway is now $status");
     }
-    if(weechat::config_get_plugin("status") eq "off"){
-       $status = "on";
-       weechat::config_set_plugin("status", $status);
-       weechat::print($buffer, "YaAA: Yet Another AutoAway is now $status");
+    elsif (weechat::config_get_plugin("status") eq "off") {
+         $status = "on";
+         weechat::config_set_plugin("status", $status);
+         weechat::print($buffer, "YaAA: Yet Another AutoAway is now $status");
     }
     return weechat::WEECHAT_RC_OK;
 }
