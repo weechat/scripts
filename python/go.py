@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2009-11-16, FlashCode <flashcode@flashtux.org>:
+#     version 1.0: add new option for displaying short names
 # 2009-06-15, FlashCode <flashcode@flashtux.org>:
 #     version 0.9: fix typo in /help go with command /key
 # 2009-05-16, FlashCode <flashcode@flashtux.org>:
@@ -47,7 +49,7 @@ import weechat
 
 SCRIPT_NAME    = "go"
 SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.9"
+SCRIPT_VERSION = "1.0"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Quick jump to buffers"
 
@@ -60,6 +62,7 @@ settings = {
     "color_name_highlight"         : "red,cyan",
     "color_name_highlight_selected": "red,brown",
     "message"                      : "Go to: ",
+    "short_name"                   : "off",
 }
 
 # hooks management
@@ -149,7 +152,10 @@ def get_matching_buffers(input):
     input = input.lower()
     infolist = weechat.infolist_get("buffer", "", "")
     while weechat.infolist_next(infolist):
-        name = weechat.infolist_string(infolist, "name")
+        if weechat.config_get_plugin("short_name") == "on":
+            name = weechat.infolist_string(infolist, "short_name")
+        else:
+            name = weechat.infolist_string(infolist, "name")
         number = weechat.infolist_integer(infolist, "number")
         matching = name.lower().find(input) >= 0
         if not matching and input.isdigit():
