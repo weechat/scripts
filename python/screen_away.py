@@ -21,6 +21,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2009-11-30, xt <xt@bash.no>
+#  version 0.3: do not touch servers that are manually set away
 # 2009-11-27, xt <xt@bash.no>
 #  version 0.2: code for TMUX from penryu
 # 2009-11-27, xt <xt@bash.no>
@@ -32,7 +34,7 @@ import os
 
 SCRIPT_NAME    = "screen_away"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Set away status on screen detach"
 
@@ -77,6 +79,22 @@ def get_socket():
 
     return socket
 
+
+def get_servers():
+    ''' Get the servers that are not away, or has been set away by this 
+    script '''
+
+    infolist = w.infolist_get('irc_server','','')
+    buffers = []
+    while w.infolist_next(infolist):
+        if not w.infolist_integer(infolist, 'is_away') or \
+               w.infolist_string(infolist, 'away_message') == \
+               w.config_get_plugin('message'):
+            buffers.append(w.infolist_pointer(infolist, 'buffer'))
+    w.infolist_free(infolist)
+    return buffers
+
+
 def screen_away_timer_cb(buffer, args):
 
     global IS_AWAY
@@ -86,18 +104,22 @@ def screen_away_timer_cb(buffer, args):
         # We got no socket. No screen or tmux detected
         return w.WEECHAT_RC_OK
 
+    servers = get_servers()
+
     if os.access(socket, os.X_OK):
         # Screen is attached
         if IS_AWAY:
             # Only remove away status if it was set by this script
-            w.command('', "/away -all")
             w.prnt('', '%s: Detected screen attach. Clearing away status' %SCRIPT_NAME)
+            for server in servers:
+                w.command(server,  "/away")
             IS_AWAY = False
     else:
         # if it has X bit set screen is attached 
         if not IS_AWAY: # Do not set away if we are already set away
-            w.command('', "/away -all %s" %w.config_get_plugin('message') );
             w.prnt('', '%s: Detected screen detach. Setting away status' %SCRIPT_NAME)
+            for server in servers:
+                w.command(server, "/away %s" %w.config_get_plugin('message') );
             IS_AWAY = True
 
     return w.WEECHAT_RC_OK
