@@ -20,6 +20,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2009-12-02, xt
+#  version 0.2: bugfix, more printing
 # 2009-12-01, xt <xt@bash.no>
 #  version 0.1: initial release
 
@@ -28,7 +30,7 @@ import time
 
 SCRIPT_NAME    = "buffer_autoclose"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Automatically close inactive private message buffers"
 
@@ -94,18 +96,22 @@ def close_time_cb(buffer, args):
     ''' Callback for check for inactivity and close '''
 
     for buffer in get_all_buffers():
+        name = w.buffer_get_string(buffer, 'name')
+
         if buffer == w.current_buffer():
             # Never close current buffer
+            w.prnt('', '%s: Not closing buffer: %s: it is in currently active' %(SCRIPT_NAME, name))
             continue
         if len(w.buffer_get_string(buffer, 'input')):
             # Don't close buffers with text on input line
+            w.prnt('', '%s: Not closing buffer: %s: it has input' %(SCRIPT_NAME, name))
             continue
-        name = w.buffer_get_string(buffer, 'name')
+
         date = get_last_line_date(buffer)
         date = time.mktime(time.strptime(date, '%Y-%m-%d %H:%M:%S'))
         now = time.time()
         seconds_old = now - date
-        if seconds_old > int(w.config_get_plugin('age_limit'))*60*60:
+        if seconds_old > int(w.config_get_plugin('age_limit'))*60:
             if is_in_hotlist(buffer):
                 w.prnt('', '%s: Not closing buffer: %s: it is in hotlist' %(SCRIPT_NAME, name))
                 continue
@@ -115,5 +121,7 @@ def close_time_cb(buffer, args):
                 
             w.prnt('', '%s: Closing buffer: %s' %(SCRIPT_NAME, name))
             w.command(buffer, '/buffer close')
+        #else:
+        #    w.prnt('', '%s: Not closing buffer: %s: it is too new: %s' %(SCRIPT_NAME, name, seconds_old))
 
     return w.WEECHAT_RC_OK
