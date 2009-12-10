@@ -22,28 +22,29 @@
 # /set plugins.var.perl.buddylist.color.online
 # /set plugins.var.perl.buddylist.color.away
 # /set plugins.var.perl.buddylist.color.default
+# /set plugins.var.perl.buddylist.sort ("default" = sorted by nickname or "status" = sorted by status (online, away, offline)
 #
+# v0.4: added option "sort"
 # v0.3: remove spaces for indenting when bar position is top/bottom
 #     : hook_config when settings changed.
 # v0.2: removed the work-around for crash when searching nick in buffer without nicklist (function nicklist_search_nick)  
 # v0.1: initial release
 
 
-
 use strict;
 my $prgname	= "buddylist";
-my $version	= "0.3";
-my $description	= "a simple buddylist using the nicklist from the irc-buffers";
+my $version	= "0.4";
+my $description	= "A simple buddylist to show if your buddies are online/away/offline.";
 
 my $buffer	= "";
 my $bar_name	= "buddylist";
 my $default_buddylist = "buddylist.txt";
 my %buddies = ();					# to store the buddylist
 
-my %buddylist_level = (0 => "offline", 1 => "online", 2 => "away");
-my %default_color_buddylist = ("offline" => "blue",
-                             "online"    => "yellow",
-                             "away"    => "cyan");
+my %buddylist_level = (0 => "online", 1 => "away", 2 => "offline");
+my %default_color_buddylist = ("online" => "yellow",
+                             "away"    => "cyan",
+                             "offline"    => "blue");
 my $color_default = "lightcyan";
 my $position = "top";
 
@@ -93,52 +94,63 @@ sub config_signal{
   return weechat::WEECHAT_RC_OK;
 }
 
+my $str = "";
 sub build_buffer{
-    my $cr = "\n";
-    my $str = "";
-    # get bar position (left/right/top/bottom)
+$str = "";
+    # get bar position (left/right/top/bottom) and sort (default/status)
     my $option = weechat::config_get("weechat.bar.$prgname.position");
-    if ($option ne "")
-    {
+    if ($option ne ""){
         $position = weechat::config_string($option);
     }
-    foreach ( sort { "\L$a" cmp "\L$b" } keys %buddies ){
+    my $sort = weechat::config_get_plugin("sort");
+
+    if ($sort eq "status"){							# use sort option "status"
+      foreach (sort {$buddies{$a} <=> $buddies{$b}} (sort keys(%buddies))){	# sorted by value
+	createoutput();
+      }
+    } else {									# use "default" for sort
+      foreach ( sort { "\L$a" cmp "\L$b" } keys %buddies ){
+	createoutput();
+      }
+    }
+    return $str;
+}
+sub createoutput{
+    my $cr = "\n";
         my $color = weechat::config_get_plugin("color.default");
         $color = "default" if ($color eq "");
-	    my $status = $buddies{$_};					# get buddy status
+	    my $status = $buddies{$_};						# get buddy status
             $color = weechat::config_get_plugin("color.".$buddylist_level{$status});
 ### visual settings for left, right or top and bottom
             my $visual = " ";
             $visual  = $cr if (($position eq "left") || ($position eq "right"));
        $str .= weechat::color($color). "$_" . $visual;
-    }
-    return $str;
 }
 
 sub check_nick{
 my $nick_name = "";
 my $nick_color = "";
 my $nicktest = ();
-   my $bufferlist = weechat::infolist_get("buffer","","");		# get list of buffers
+   my $bufferlist = weechat::infolist_get("buffer","","");			# get list of buffers
 
   foreach ( keys %buddies ){
-  $buddies{$_} = 0;							# set buddy to offline
+  $buddies{$_} = 2;								# set buddy to offline
 
       while (weechat::infolist_next($bufferlist)){
-      $buffer = weechat::infolist_pointer($bufferlist,"pointer");	# get buffer pointer
-      my $name = weechat::infolist_string($bufferlist,"plugin_name");	# get name of plugin
+      $buffer = weechat::infolist_pointer($bufferlist,"pointer");		# get buffer pointer
+      my $name = weechat::infolist_string($bufferlist,"plugin_name");		# get name of plugin
 
-	if ($name eq "irc" and $buffer ne 0){				# irc buffer and not 0?
+	if ($name eq "irc" and $buffer ne 0){					# irc buffer and not 0?
 	  my $found = 0;
-	  $found = weechat::nicklist_search_nick($buffer,"",$_);	# is nick in nicklist? 0 if nick not found
+	  $found = weechat::nicklist_search_nick($buffer,"",$_);		# is nick in nicklist? 0 if nick not found
 	    unless ($found eq ""){
-		$buddies{$_} = 1;					# buddy is online
+		$buddies{$_} = 0;						# buddy is online
 		$nicktest = weechat::infolist_get("nicklist",$buffer,"");	# get list of nick
 
 		while (weechat::infolist_next($nicktest)){
 		  $nick_name = weechat::infolist_string($nicktest,"name");	# get nick
 		  $nick_color = weechat::infolist_string($nicktest,"color");	# get color for nick.
-		  $buddies{$_} = 2 if ($_ eq $nick_name and $nick_color eq "weechat.color.nicklist_away");#buddy is away.
+		  $buddies{$_} = 1 if ($_ eq $nick_name and $nick_color eq "weechat.color.nicklist_away");#buddy is away.
 		}
 		weechat::infolist_free($nicktest);
 	    }
@@ -158,7 +170,7 @@ sub settings{
     if (defined $args) {						# buddy name choosed?
        foreach ( split( / +/, $args ) ) {
 	  if ($cmd eq "add"){
-	      $buddies{$_} = 0;
+	      $buddies{$_} = 2;
 	      buddylist_save();
 	  }
 	  if ($cmd eq "del" and exists $buddies{$_}){
@@ -175,13 +187,12 @@ return weechat::WEECHAT_RC_OK;
 
 ### read the buddylist
 sub buddylist_read {
-    my $val = 0;
     my $buddylist = weechat::config_get_plugin("buddylist");
     return unless -e $buddylist;
     open (WL, "<", $buddylist) || DEBUG("$buddylist: $!");
 	while (<WL>) {
 		chomp;
-		$buddies{$_} = $val if length $_;
+		$buddies{$_} = 2 if length $_;			# offline
 	}
 	close WL;
 }
@@ -204,6 +215,10 @@ sub init{
 if (weechat::config_get_plugin("color.default") eq "")
 {
     weechat::config_set_plugin("color.default", "default");
+}
+if (weechat::config_get_plugin("sort") eq "")
+{
+    weechat::config_set_plugin("sort", "default");
 }
 # get color settings.
   foreach my $level (values %buddylist_level){
