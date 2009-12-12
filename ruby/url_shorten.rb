@@ -40,6 +40,8 @@
 #   Note: 'trim' and 'bitly' shorteners require the 'rubygems' and
 #	  'json' ruby modules.
 #
+# 2009-12-12, FlashCode <flashcode@flashtux.org>
+#     version 1.5: fixed URI encoding bug, added shorteners
 # 2009-11-29, penryu <penryu@gmail.com>
 #     version 1.4: fixed URI encoding bug, added shorteners
 #		   changed default shortener, as qurl is _slow_
@@ -57,7 +59,7 @@ require 'uri'
 SCRIPT_NAME = 'url_shorten'
 SCRIPT_AUTHOR = 'Daniel Bretoi <daniel@bretoi.com>'
 SCRIPT_DESC = 'Shorten url'
-SCRIPT_VERSION = '1.4'
+SCRIPT_VERSION = '1.5'
 SCRIPT_LICENSE = 'BSD'
 
 DEFAULTS = {
@@ -70,7 +72,7 @@ DEFAULTS = {
 
 
 def weechat_init
-  Weechat.register SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_VERSION, SCRIPT_DESC, "", ""
+  Weechat.register SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, "", ""
   Weechat.hook_command SCRIPT_NAME, SCRIPT_DESC, "url", "url: url to shorten", "", SCRIPT_NAME, ""
   #Weechat.hook_signal "*,irc_in2_privmsg", "msg_shorten", ""
   Weechat.hook_print "", "", "://", 1, "msg_shorten", ""
