@@ -1,5 +1,5 @@
 #
-# UrlGrab, version 1.6 for weechat version 0.3 devel
+# UrlGrab, version 1.7 for weechat version 0.3
 #
 #   Listens to all channels for URLs, collects them in a list, and launches
 #   them in your favourite web server on the local host or a remote server.
@@ -68,7 +68,7 @@
 # Requirements:
 #
 #  - Designed to run with weechat version 0.3 or better.
-#      http://weechat.flashtux.org/
+#      http://www.weechat.org/
 #
 # Acknowlegements:
 #
@@ -89,7 +89,7 @@
 #
 #  - V1.4 Just ported it over to weechat 0.2.7  drubin AT smartcube dot co dot za
 #  - V1.5  1) I created a logging feature for urls, Time, Date, buffer, and url.
-#           2) Added selectable urls support, similar to the iset plugin (Thanks flashtux)
+#           2) Added selectable urls support, similar to the iset plugin (Thanks FlashCode)
 #           3) Colors/formats are configuarable.
 #           4) browser now uses hook_process (Please test with remote clients)
 #           5) Added /url open http://url.com functionality
@@ -97,6 +97,7 @@
 #                Thanks to xt of #weechat bassed on on urlbar.py
 #  - V1.6 FlashCode <flashcode@flashtux.org>: Increase timeout for hook_process
 #         (from 1 second to 1 minute)
+#  - V1.7 FlashCode <flashcode@flashtux.org>: Update WeeChat site
 #
 # Copyright (C) 2005 David Rubin <drubin AT smartcube dot co dot za>
 #
@@ -123,7 +124,7 @@ try:
     import_ok = True
 except:
     print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://weechat.flashtux.org/"
+    print "Get WeeChat now at: http://www.weechat.org/"
     import_ok = False
 import subprocess
 import time
@@ -141,7 +142,7 @@ urlRe = re.compile(r'(\w+://(?:%s|%s)(?::\d+)?(?:/[^\])>\s]*)?)' % (domain, ipAd
 
 SCRIPT_NAME    = "urlgrab"
 SCRIPT_AUTHOR  = "David Rubin <drubin [At] smartcube [dot] co [dot] za>"
-SCRIPT_VERSION = "1.6"
+SCRIPT_VERSION = "1.7"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Url functionality Loggin, opening of browser, selectable links"
 CONFIG_FILE_NAME= "urlgrab" 

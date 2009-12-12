@@ -22,9 +22,11 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
-# 2009-11-05, xt <xt@bash.no
+# 2009-12-12, FlashCode <flashcode@flashtux.org>
+#     version 0.8: update WeeChat site
+# 2009-11-05, xt <xt@bash.no>
 #     version 0.7: config option to turn off index
-# 2009-10-20, xt <xt@bash.no
+# 2009-10-20, xt <xt@bash.no>
 #     version 0.6: removed priority on the bar
 # 2009-07-01, xt <xt@bash.no>
 #     version 0.5: changed script command to /urlbar, comma separated ignore list
@@ -32,15 +34,15 @@
 #     version 0.4: added configurable showing of buffer name, nick and time
 # 2009-05-21, xt <xt@bash.no>
 #     version 0.3: bug fixes, add ignore feature from sleo
-# 2009-05-19, xt <xt@bash.no>:
+# 2009-05-19, xt <xt@bash.no>
 #     version 0.2-dev: fixes
-# 2009-05-04, FlashCode <flashcode@flashtux.org>:
+# 2009-05-04, FlashCode <flashcode@flashtux.org>
 #     version 0.1-dev: dev snapshot
 #
 
 SCRIPT_NAME    = "urlbar"
 SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.7"
+SCRIPT_VERSION = "0.8"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Bar with URLs. For easy clicking or selecting."
 SCRIPT_COMMAND = "urlbar"
@@ -63,7 +65,7 @@ try:
     import weechat
 except ImportError:
     print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://weechat.flashtux.org/"
+    print "Get WeeChat now at: http://www.weechat.org/"
     import_ok = False
 
 import re

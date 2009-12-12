@@ -1,4 +1,4 @@
-# TinyUrl, version 3.7, for weechat version 0.3.0 or later
+# TinyUrl, version 3.8, for weechat version 0.3.0 or later
 #
 #   Listens to all channels for long URLs, and submits them to ln-s.net or
 #   tinyurl.com for easier links.
@@ -75,6 +75,10 @@
 # USA.
 #
 # Changelog:
+#
+# Version 3.8, 12 December, 2009
+#   Update WeeChat site
+#   by FlashCode <flashcode@flashtux.org>
 #
 # Version 3.7, 2 May, 2009
 #   Sync with last API changes
@@ -154,7 +158,7 @@ class TryAgain(UserWarning):
 		super(UserWarning, self).__init__(message)
 
 # Register with weechat
-weechat.register( "TinyUrl", "Jim Ramsay", "3.7", "GPL", "Waits for URLs and sends them to 'tinyurl' for you", "tinyurlShutdown", "" )
+weechat.register( "TinyUrl", "Jim Ramsay", "3.8", "GPL", "Waits for URLs and sends them to 'tinyurl' for you", "tinyurlShutdown", "" )
 
 # Global variables
 tinyurlParams = ("urllength","activechans","printall","service","debug")

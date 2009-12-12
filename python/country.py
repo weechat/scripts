@@ -42,11 +42,14 @@
 #     Valid values: on, off
 #
 #   History:
+#   2009-12-12
+#   version 0.3: update WeeChat site.
+#
 #   2009-09-17
 #   version 0.2: added timezone and local time information.
 #
 #   2009-08-24
-#   version 0.1.1: fixed python 2.5 compatibility
+#   version 0.1.1: fixed python 2.5 compatibility.
 #
 #   2009-08-21
 #   version 0.1: initial release.
@@ -55,7 +58,7 @@
 
 SCRIPT_NAME    = "country"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Prints user's country and local time in whois replies"
 SCRIPT_COMMAND = "country"
@@ -66,7 +69,7 @@ try:
 	import_ok = True
 except ImportError:
 	print "This script must be run under WeeChat."
-	print "Get WeeChat now at: http://weechat.flashtux.org/"
+	print "Get WeeChat now at: http://www.weechat.org/"
 	import_ok = False
 try:
 	import pytz, datetime

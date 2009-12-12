@@ -151,7 +151,7 @@
 
 SCRIPT_NAME    = "chanop"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.1.1"
+SCRIPT_VERSION = "0.1.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Helper script for IRC operators"
 
@@ -162,7 +162,7 @@ try:
     import_ok = True
 except ImportError:
     print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://weechat.flashtux.org/"
+    print "Get WeeChat now at: http://www.weechat.org/"
     import_ok = False
 
 import getopt, time, fnmatch
