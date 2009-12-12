@@ -41,7 +41,7 @@
 #	  'json' ruby modules.
 #
 # 2009-12-12, FlashCode <flashcode@flashtux.org>
-#     version 1.5: fixed URI encoding bug, added shorteners
+#     version 1.5: fix wrong license in register()
 # 2009-11-29, penryu <penryu@gmail.com>
 #     version 1.4: fixed URI encoding bug, added shorteners
 #		   changed default shortener, as qurl is _slow_
