@@ -18,6 +18,8 @@
 # Tetris game for WeeChat.
 #
 # History:
+# 2009-12-17, FlashCode <flashcode@flashtux.org>:
+#     version 0.7: add levels, fix bugs with pause
 # 2009-12-16, drubin <drubin [@] smartcube [dot] co[dot]za>:
 #     version 0.6: add key for pause, basic doc and auto jump to buffer
 # 2009-06-21, FlashCode <flashcode@flashtux.org>:
@@ -35,10 +37,12 @@
 
 use strict;
 
-my $version = "0.6";
+my $version = "0.7";
 
 my $weetris_buffer = "";
 my $timer = "";
+my $level = 1;
+my $max_level = 10;
 
 my ($nbx, $nby) = (10, 20);
 my $start_y = 0;
@@ -76,6 +80,7 @@ my @item_y_inc = (3, 3, 3, 3, 2, 2, 2, 2, 1, 1, 1, 1, 0, 0, 0, 0);
 my @item_rotation = (4096, 256, 16, 1, 8192, 512, 32, 2, 16384, 1024, 64, 4, 32768, 2048, 128, 8); 
 
 my $playing = 0;
+my $paused = 0;
 my $lines = 0;
 my ($item_x, $item_y) = (0, 0);
 my $item_number = 0;
@@ -100,7 +105,7 @@ sub display_line
 {
     my $y = $_[0];
     my $str = " │";
-    if ($playing eq 0)
+    if ($paused eq 1)
     {
         if ($y == $nby / 2)
         {
@@ -108,7 +113,6 @@ sub display_line
             my $index = (($nbx * 2) - 6) / 2;
             substr($paused, $index, 6) = "PAUSED";
             $str .= $paused;
-            #$str .= "PAUSED".("  " x ($nbx - 3));
         }
         else
         {
@@ -120,7 +124,6 @@ sub display_line
         for (my $x = 0; $x < $nbx; $x++)
         {
             my $char = substr($matrix[$y], $x, 1);
-            $char = " " if ($playing eq 0);
             if ($char eq " ")
             {
                 $str .= weechat::color(",default");
@@ -134,6 +137,14 @@ sub display_line
     }
     $str .= weechat::color(",default")."│";
     weechat::print_y($weetris_buffer, $start_y + $y + 1, $str);
+}
+
+sub display_level_lines
+{
+    my $plural = "";
+    $plural = "s" if ($lines > 1);
+    my $str = sprintf(" Level %-3d %6d line%s", $level, $lines, $plural);
+    weechat::print_y($weetris_buffer, $start_y + $nby + 2, $str);
 }
 
 sub apply_item
@@ -176,6 +187,14 @@ sub new_form
     $item_y = 0;
 }
 
+sub init_timer
+{
+    weechat::unhook($timer) if ($timer ne "");
+    my $delay = 700 - (($level - 1) * 60);
+    $delay = 100 if ($delay < 100);
+    $timer = weechat::hook_timer($delay, 0, 0, "weetris_timer", "");
+}
+
 sub new_game
 {
     weechat::print_y($weetris_buffer, $start_y + $nby + 2, "");
@@ -185,7 +204,12 @@ sub new_game
     }
     new_form();
     $playing = 1;
+    $paused = 0;
     $lines = 0;
+    $level = 1;
+    init_timer();
+    display_all();
+    display_level_lines();
 }
 
 sub rotation
@@ -248,10 +272,14 @@ sub remove_completed_lines
     }
     if ($lines_removed)
     {
-        my $plural = "";
-        $plural = "s" if ($lines > 1);
-        my $str = sprintf("%7d line%s", $lines, $plural);
-        weechat::print_y($weetris_buffer, $start_y + $nby + 2, $str);
+        my $new_level = int(($lines / 10) + 1);
+        $new_level = $max_level if ($new_level > $max_level);
+        if ($new_level != $level)
+        {
+            $level = $new_level;
+            init_timer();
+        }
+        display_level_lines();
     }
 }
 
@@ -267,7 +295,8 @@ sub end_of_item
     {
         $item_form = 0;
         $playing = 0;
-        weechat::print_y($weetris_buffer, $start_y + $nby + 2, ">> End of game, score: $lines lines (alt-N to restart) <<");
+        $paused = 0;
+        weechat::print_y($weetris_buffer, $start_y + $nby + 2, ">> End of game, score: $lines lines, level $level (alt-N to restart) <<");
     }
 }
 
@@ -288,12 +317,7 @@ sub weetris_init
         weechat::buffer_set($weetris_buffer, "key_bind_meta2-C", "/weetris right");
         weechat::buffer_set($weetris_buffer, "key_bind_meta-n", "/weetris new_game");
         weechat::buffer_set($weetris_buffer, "key_bind_meta-p", "/weetris pause");
-        if ($timer eq "")
-        {
-            $timer = weechat::hook_timer(700, 0, 0, "weetris_timer", "");
-        }
         new_game();
-        display_all();
         weechat::buffer_set($weetris_buffer, "display", "1");
     }
 }
@@ -313,16 +337,18 @@ sub weetris
     if ($args eq "new_game")
     {
         new_game();
-        display_all();
     }
     
     if ($args eq "pause")
     {
-        $playing ^= 1;
-        display_all();
+        if ($playing eq 1)
+        {
+            $paused ^= 1;
+            display_all();
+        }
     }
     
-    if ($playing eq 1)
+    if (($playing eq 1) && ($paused eq 0))
     {
         if ($args eq "up")
         {
@@ -368,7 +394,7 @@ sub weetris
 
 sub weetris_timer
 {
-    if (($weetris_buffer ne "") && ($playing eq 1))
+    if (($weetris_buffer ne "") && ($playing eq 1) && ($paused eq 0))
     {
         if (is_possible($item_x, $item_y + 1, $item_form))
         {
