@@ -22,6 +22,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2009-12-17, FlashCode <flashcode@flashtux.org>
+#     version 0.9: fix option name "show_index" (spaces removed)
 # 2009-12-12, FlashCode <flashcode@flashtux.org>
 #     version 0.8: update WeeChat site
 # 2009-11-05, xt <xt@bash.no>
@@ -42,7 +44,7 @@
 
 SCRIPT_NAME    = "urlbar"
 SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.8"
+SCRIPT_VERSION = "0.9"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Bar with URLs. For easy clicking or selecting."
 SCRIPT_COMMAND = "urlbar"
@@ -56,7 +58,7 @@ settings = {
     "show_timestamp"        : 'on',    # Show timestamp in list
     "show_nick"             : 'on',    # Show nick in list
     "show_buffername"       : 'on',    # Show buffer name in list
-    "show_index     "       : 'on',    # Show url index in list
+    "show_index"            : 'on',    # Show url index in list
     "time_format"           : '%H:%M', # Time format
 }
 
