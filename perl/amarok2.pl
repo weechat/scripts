@@ -13,25 +13,38 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-# v0.3: added option "channel" and made internal changes
-# v0.2: auto completion is now possible
-# v0.1: first release
+# v0.4	: ssh support added
+#	: some options added
+#	: internal changes
+# v0.3	: added option "channel" and made internal changes
+# v0.2	: auto completion is now possible
+# v0.1	: first release
 #
 # This script needs Amarok2 and KDE4 (qdbus)
+# qdbus is part of libqt4-dbus
 #
+# /set plugins.var.perl.amarok2.ssh_status
+# /set plugins.var.perl.amarok2.ssh_host
+# /set plugins.var.perl.amarok2.ssh_port
+# /set plugins.var.perl.amarok2.ssh_user
+# /set plugins.var.perl.amarok2.color_artist
+# /set plugins.var.perl.amarok2.color_title
+# /set plugins.var.perl.amarok2.color_album
 
 use strict;
-# since KDE4 dcop doesn't work anymore. We have to use qdbus instead
-my $qdbus = "qdbus";
-my $amarokcheck = qq($qdbus | grep "amarok");
-
-my $version = "0.3";
+# since KDE4 dcop doesn't work anymore. We have to use qdbus or dbus-send instead
+my $cmd = "qdbus";
+#my $cmd = "dbus-send --type=method_call --dest=";
+my $amarokcheck = qq(ps -e | grep "amarok");
+my $version = "0.4";
 my $description = "Amarok 2 control and now playing script.";
 my $program_name = "amarok2";
 my @array = "";
 my $anzahl_array = "";
 my $buffer = "";
 my $title_name = "";
+my %ssh = (status => "enabled", host => "localhost", port => "22", user => "user");
+
 my $amarok_remote = "org.kde.amarok /Player org.freedesktop.MediaPlayer.GetMetadata | grep";
 my $amarok_com = "org.kde.amarok /Player org.freedesktop.MediaPlayer.";
 
@@ -55,13 +68,17 @@ weechat::hook_command($program_name, $description,
 	"/amarok2 all         => displays artist album and title in current buffer\n".
 	"/amarok2 all channel => displays artist album and title in current channel\n".
 	"This script is very funny using with internet-radio. Most stations sending informations\n",
-	"album|artist|title|all|play|stop|next|prev", "checkargs", "");
+	"album|artist|title|all|play|stop|next|prev|channel", "checkargs", "");
+init();
 return weechat::WEECHAT_RC_OK;
 
+my $amarok_result = "";
 ## my routine to figure out which argument the user selected
 sub checkargs{
   my ($buffer, $args) = ($_[1], $_[2]);				# get argument 
   $args = lc($args);						# switch argument to lower-case
+
+    get_user_settings();
 
   if (check_amarok() eq 0){					# check out if qdbus and Amarok2 exists.
       @array=split(/ /,$args);
@@ -70,7 +87,8 @@ sub checkargs{
 
     my @paramlist = ("album", "artist", "title");
     if (grep(m/$array[0]/, @paramlist)){
-      amarok_get_info($array[0])				# call subroutine with selected argument
+      amarok_get_info($array[0]);				# call subroutine with selected argument
+      print_in_channel($amarok_result);
     }
 
     if ($array[0] eq "all"){
@@ -94,16 +112,21 @@ return weechat::WEECHAT_RC_OK;
 }
 
 sub cmd_all{
-    amarok_get_info("artist");
-    amarok_get_info("album");
-    amarok_get_info("title");
+    my $artist = amarok_get_info("artist");
+    my $album = amarok_get_info("album");
+    my $title = amarok_get_info("title");
+    my $print_string = "$title from $album by $artist";
+    $print_string = "" if ($title eq "0" and $album eq "0" and $artist eq "0");
+  print_in_channel($print_string);
 }
+
 sub print_in_channel{
-  my ($print_string) = ($_[0]);					# get argument
+  my $print_string = ($_[0]);					# get argument
+  $print_string = "Amarok2: Not playing",$array[1] = "" if ($print_string eq ""); # string empty? only print in buffer!
   $buffer = weechat::current_buffer;				# get current buffer
 	if ($anzahl_array == 2){				# does a second argument exists?
 	  if ($array[1] eq "channel"){				# does the second argument is "channel"?
-	    weechat::command($buffer, $print_string);		# print in current channel
+	    weechat::command($buffer, "/me listening to: " . $print_string);	# print in current channel
 	  }
 	else{
 	  weechat::print($buffer,$print_string);		# print in current buffer only
@@ -113,32 +136,98 @@ sub print_in_channel{
 	  weechat::print($buffer,$print_string);		# print in current buffer only
 	}
 }
+my $color = "";
 # routines to control Amarok
 sub amarok_get_info{
-  my ($arg) = ($_[0]);
-    my $amarok_result = (`$qdbus $amarok_remote "$arg":`);	# remote command + arg (album, artist or title)
-#      return weechat::WEECHAT_RC_OK if ($amarok_result eq "");
+  my $arg = ($_[0]);
+    $amarok_result = "";
+	if ($ssh{status} eq "enabled"){
+	  my $cmd2 = sprintf("ssh -p %d %s@%s %s %s %s:",$ssh{port},$ssh{user},$ssh{host},$cmd, $amarok_remote, $arg);	# make it ssh
+	  $amarok_result = `$cmd2`;
+	}else{
+         $amarok_result = `$cmd  $amarok_remote $arg":"`;
+	}
+      return weechat::WEECHAT_RC_OK if ($amarok_result eq "");
       if ($amarok_result eq ($arg . ": \n")){			# check result, if its empty
 	$amarok_result = ($arg . ": unknown");			# than print "unknown"
       }
-  print_in_channel($amarok_result);
-}
+    $amarok_result =~ s/\n//g;					# remove line-feeds
 
+# remove prefix
+    if ($arg eq "artist"){
+      $amarok_result =~ s/artist: //g;
+      $color = get_color("artist");
+      $amarok_result = $color . $amarok_result . weechat::color("reset");
+    } 
+    if ($arg eq "title"){
+      $amarok_result =~ s/title: //g;
+      $color = get_color("title");
+      $amarok_result = $color . $amarok_result . weechat::color("reset");
+    } 
+    if ($arg eq "album"){
+      $amarok_result =~ s/album: //g;
+      $color = get_color("album");
+      $amarok_result = $color . $amarok_result . weechat::color("reset");
+    } 
+
+return $amarok_result;
+}
 sub amarok_pannel{
-  my ($arg) = ($_[0]);
-    my $amarok_rc = (`$qdbus $amarok_com"$arg"`);		# remote command + arg (Play/Pause/Stop/Prev/Next)
+  my $arg = ($_[0]);
+   if ($ssh{status} eq "enabled"){
+      my $cmd2 = sprintf("ssh -p %d %s@%s %s %s%s",$ssh{port},$ssh{user},$ssh{host},$cmd, $amarok_com, $arg);	# make it ssh
+      system("$cmd2 2>/dev/null 1>&2 &");
+   }else{
+    my $amarok_rc = (`$cmd $amarok_com"$arg"`);		# remote command + arg (Play/Pause/Stop/Prev/Next)
+   }
 }
 
 ### check for qdbus and amarok...
 sub check_amarok{
 $buffer = weechat::current_buffer;
-if (!`$qdbus`){							# check for qdbus
-	weechat::print($buffer,"Could not find qdbus. Make sure qdbus is in your PATH or edit qdbus-variable in the script");
+if (!`$cmd`){							# check for qdbus
+	weechat::print($buffer,"Could not find $cmd. Make sure $cmd is in your PATH or edit $cmd-variable in the script ($cmd is part of libqt4-dbus)");
 	return weechat::WEECHAT_RC_ERROR;
 }
+return weechat::WEECHAT_RC_OK if ($ssh{status} eq "enabled");
 if (!`$amarokcheck`){						# is Amarok running?
-	weechat::print($buffer,"Amarok2 ist not running...");
+	weechat::print($buffer,"Amarok2 is not running. Please start Amarok2");
 	return weechat::WEECHAT_RC_ERROR;
 }
 return weechat::WEECHAT_RC_OK;
+}
+sub get_color{
+  my $arg = ($_[0]);
+        $color = weechat::color(weechat::config_get_plugin("color_$arg"));
+return $color;
+}
+sub init{
+  if (weechat::config_get_plugin("ssh_status") eq ""){
+    weechat::config_set_plugin("ssh_status", $ssh{status});
+  }
+  if (weechat::config_get_plugin("ssh_host") eq ""){
+    weechat::config_set_plugin("ssh_host", $ssh{host});
+  }
+  if (weechat::config_get_plugin("ssh_port") eq ""){
+    weechat::config_set_plugin("ssh_port", $ssh{port});
+  }
+  if (weechat::config_get_plugin("ssh_user") eq ""){
+    weechat::config_set_plugin("ssh_user", $ssh{user});
+  }
+  if (weechat::config_get_plugin("color_title") eq ""){
+    weechat::config_set_plugin("color_title", "white");
+  }
+  if (weechat::config_get_plugin("color_album") eq ""){
+    weechat::config_set_plugin("color_album", "white");
+  }
+  if (weechat::config_get_plugin("color_artist") eq ""){
+    weechat::config_set_plugin("color_artist", "white");
+  }
+
+}
+sub get_user_settings{
+  $ssh{status} = weechat::config_get_plugin("ssh_status");
+  $ssh{host} = weechat::config_get_plugin("ssh_host");
+  $ssh{user} = weechat::config_get_plugin("ssh_user");
+  $ssh{port} = weechat::config_get_plugin("ssh_port");
 }
