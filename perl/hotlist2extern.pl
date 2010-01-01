@@ -19,9 +19,11 @@
 # KDE desktop.
 # http://www.kde-look.org/content/show.php/STDIN+Plasmoid?content=92309
 #
-# Script inspirated by LaoLang_cool
+# Script inspirated and tested by LaoLang_cool
 #
-#
+# v0.4	: highlight_char can be set as often as you want
+#	: merged buffer will be displayed once
+#	: more than one metachar-highlight produces a perl error
 # v0.3	: usersettings won't be loaded, sorry! :-(
 #	: added a more complex sort routine (from important to unimportant and also numeric)
 #	: added options: "delimiter", "priority_remove" and "hotlist_remove_format"
@@ -65,10 +67,9 @@ my $lowest_priority		= 0;
 my $priority_remove		= 0;
 my $delimiter			= ",";
 my $prgname	= "Hotlist2Extern";
-my $version	= "0.3";
+my $version	= "0.4";
 my $description	= "Give hotlist to an external file/program";
 my $current_buffer = "";
-
 
 # first function called by a WeeChat-script.
 weechat::register($prgname, "Nils Görs <weechatter\@arcor.de>", $version,
@@ -129,14 +130,14 @@ $table		= "";
 sub create_output{
 	  $res = $hotlist_format;							# save hotlist format
 	  $res2 = $external_command_hotlist;						# save external_hotlist format
+
 	    if ($priority == 3){							# priority is highlight
 	      if (grep (/\%H/,$hotlist_format)){					# check with original!!!
-		$res =~ s/%H/$highlight_char/;
+		$res =~ s/\%H/$highlight_char/g;
 	      }
 	    }else{									# priority != 3
-	      $res =~ s/\%H//;								# remove %H
+		$res =~ s/\%H//g;							# remove all %H
 	    }
-
    if ($priority <= $priority_remove){
 	      $res =~ s/$hotlist_remove_format//;					# remove hotlist_remove_format
 	    if (grep (/\%S/,$hotlist_format)){						# does %S is in sting? (check with original!!!)
@@ -153,8 +154,12 @@ sub create_output{
 	      $res =~ s/%N/$buffer_number/;						# add buffer_number
 	    }
     }
-	    if ($res ne $hotlist_format){						# did $res changed?
-	      push (@table, $res);							# add it to @table
+	    if ($res ne $hotlist_format and $res ne ""){				# did $res changed?
+		my $res2 = $res;							# save search string.
+		$res2=qq(\Q$res2);							# kill metachars, for searching first
+		unless (grep /^$res2$/, @table){					# does we have added $res to @table?
+		push (@table, $res);							# No, then add it to @table
+	      }
 	    }
 
 	    $res=qq(\Q$res);								# kill metachars first

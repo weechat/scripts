@@ -13,6 +13,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# v0.5	: external color code will be used to avoid character missmatch
+#	: added text_output option (%T = title, %C = album, %A = artist) 
 # v0.4	: ssh support added
 #	: some options added
 #	: internal changes
@@ -36,14 +38,20 @@ use strict;
 my $cmd = "qdbus";
 #my $cmd = "dbus-send --type=method_call --dest=";
 my $amarokcheck = qq(ps -e | grep "amarok");
-my $version = "0.4";
-my $description = "Amarok 2 control and now playing script.";
+my $version = "0.5";
+my $description = "Amarok 2 control and now playing script with ssh support";
 my $program_name = "amarok2";
 my @array = "";
 my $anzahl_array = "";
 my $buffer = "";
 my $title_name = "";
 my %ssh = (status => "enabled", host => "localhost", port => "22", user => "user");
+my %ext_colors = (white => "00", black => "01", darkblue => "02", darkgreen => "03", lightred => "04",
+		  darkred => "05", magenta => "06", orange => "07", yellow => "08", lightgreen => "09",
+		  cyan => "10", lightcyan => "11", lightblue => "12", lightmagenta => "13", gray => "14",
+		  lightgray => 15);
+my $ext_color = "";
+my $text_output = "listening to: \%T from \%C by \%A";
 
 my $amarok_remote = "org.kde.amarok /Player org.freedesktop.MediaPlayer.GetMetadata | grep";
 my $amarok_com = "org.kde.amarok /Player org.freedesktop.MediaPlayer.";
@@ -63,11 +71,20 @@ weechat::hook_command($program_name, $description,
 	"play   : Play/Pause current song\n".
 	"next   : play next song\n".
 	"prev   : play previous song\n\n".
+	"The option 'text_output' uses the following place holder:\n".
+	"      '%T' will be replaced with the title name\n".
+	"      '%C' will be replaced with the album name\n".
+	"      '%A' will be replaced with the artist name\n\n".
+	"If you want to use the ssh remote control you have to enable the ssh options:\n".
+	"       /set plugins.var.perl.amarok2.ssh_status enabled (default: disabled)\n".
+	"       /set plugins.var.perl.amarok2.ssh_host <hostname> (default: localhost)\n".
+	"       /set plugins.var.perl.amarok2.ssh_user <username> (default: user)\n".
+	"       /set plugins.var.perl.amarok2.ssh_port <port> (default: 22)\n\n".
 	"Examples:\n".
 	"/amarok2 play        => play / pause current song\n".
 	"/amarok2 all         => displays artist album and title in current buffer\n".
-	"/amarok2 all channel => displays artist album and title in current channel\n".
-	"This script is very funny using with internet-radio. Most stations sending informations\n",
+	"/amarok2 all channel => displays artist album and title in current channel\n\n".
+	"This script is very funny to play internet-radio. Most stations sending informations that can be displayed\n",
 	"album|artist|title|all|play|stop|next|prev|channel", "checkargs", "");
 init();
 return weechat::WEECHAT_RC_OK;
@@ -110,12 +127,18 @@ sub checkargs{
   }
 return weechat::WEECHAT_RC_OK;
 }
-
+# command "all" used. Create output
 sub cmd_all{
     my $artist = amarok_get_info("artist");
     my $album = amarok_get_info("album");
     my $title = amarok_get_info("title");
-    my $print_string = "$title from $album by $artist";
+
+    my $print_string = weechat::config_get_plugin("text_output");
+    $print_string = "%T from %C by %A" if ($print_string eq "");
+    $print_string =~ s/%A/$artist/;
+    $print_string =~ s/%C/$album/;
+    $print_string =~ s/%T/$title/;
+
     $print_string = "" if ($title eq "0" and $album eq "0" and $artist eq "0");
   print_in_channel($print_string);
 }
@@ -126,8 +149,8 @@ sub print_in_channel{
   $buffer = weechat::current_buffer;				# get current buffer
 	if ($anzahl_array == 2){				# does a second argument exists?
 	  if ($array[1] eq "channel"){				# does the second argument is "channel"?
-	    weechat::command($buffer, "/me listening to: " . $print_string);	# print in current channel
-	  }
+	    weechat::command($buffer, "/me " . $print_string);	# print in current channel
+ 	  }
 	else{
 	  weechat::print($buffer,$print_string);		# print in current buffer only
 	}
@@ -137,7 +160,7 @@ sub print_in_channel{
 	}
 }
 my $color = "";
-# routines to control Amarok
+# routines to control Amarok. Also via ssh, if enabled
 sub amarok_get_info{
   my $arg = ($_[0]);
     $amarok_result = "";
@@ -154,22 +177,41 @@ sub amarok_get_info{
     $amarok_result =~ s/\n//g;					# remove line-feeds
 
 # remove prefix
+if ($anzahl_array == 2){				# does a second argument exists?
+  if ($array[1] eq "channel"){				# does the second argument is "channel"?
+    if ($arg eq "artist"){
+      $amarok_result =~ s/artist: //g;
+      $color = get_ext_color("artist");
+      $amarok_result = "\cC" . $color . $amarok_result . "\cC";
+    }
+    if ($arg eq "title"){
+      $amarok_result =~ s/title: //g;
+      $color = get_ext_color("title");
+      $amarok_result = "\cC" . $color . $amarok_result . "\cC";
+    }
+    if ($arg eq "album"){
+      $amarok_result =~ s/album: //g;
+      $color = get_ext_color("album");
+      $amarok_result = "\cC" . $color . $amarok_result . "\cC";
+    }
+  }
+}else{
     if ($arg eq "artist"){
       $amarok_result =~ s/artist: //g;
       $color = get_color("artist");
       $amarok_result = $color . $amarok_result . weechat::color("reset");
-    } 
+    }
     if ($arg eq "title"){
       $amarok_result =~ s/title: //g;
       $color = get_color("title");
       $amarok_result = $color . $amarok_result . weechat::color("reset");
-    } 
+    }
     if ($arg eq "album"){
       $amarok_result =~ s/album: //g;
       $color = get_color("album");
       $amarok_result = $color . $amarok_result . weechat::color("reset");
-    } 
-
+    }
+}
 return $amarok_result;
 }
 sub amarok_pannel{
@@ -198,9 +240,22 @@ return weechat::WEECHAT_RC_OK;
 }
 sub get_color{
   my $arg = ($_[0]);
-        $color = weechat::color(weechat::config_get_plugin("color_$arg"));
-return $color;
+  $color = weechat::color(weechat::config_get_plugin("color_$arg"));
+  return $color;
 }
+
+# get colour name and transform it for external use.
+sub get_ext_color{
+  my $arg = ($_[0]);
+  $ext_color = "";
+  $ext_color = $ext_colors{weechat::config_get_plugin("color_$arg")};		# get colour-code from color_name
+    if (not defined $ext_color){
+      $ext_color = $ext_colors{white};						# use standard colour if something went wrong
+    }
+return $ext_color;
+}
+
+
 sub init{
   if (weechat::config_get_plugin("ssh_status") eq ""){
     weechat::config_set_plugin("ssh_status", $ssh{status});
@@ -223,7 +278,9 @@ sub init{
   if (weechat::config_get_plugin("color_artist") eq ""){
     weechat::config_set_plugin("color_artist", "white");
   }
-
+  if (weechat::config_get_plugin("text_output") eq ""){
+    weechat::config_set_plugin("text_output", $text_output);
+  }
 }
 sub get_user_settings{
   $ssh{status} = weechat::config_get_plugin("ssh_status");
