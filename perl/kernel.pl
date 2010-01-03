@@ -8,7 +8,7 @@ use warnings;
 use strict;
 use IO::Socket;
 
-weechat::register("kernel", "ptitlouis", "0.2", "Public domain", "Display latest stable kernel from kernel.org", "", "");
+weechat::register("kernel", "ptitlouis", "0.3", "Public domain", "Display latest stable kernel from kernel.org", "", "");
 weechat::hook_command("kernel", "Display latest stable kernel from kernel.org", "", "", "", "kernel", "");
 
 sub get_kernel {
@@ -20,7 +20,7 @@ sub get_kernel {
 	my $stable = "";
 	for(@versions) {
 		#Kernel 0 is latest stable, 1 is latest prepatch, 2 is latest snapshot with git
-		if ($_ =~ /^The latest stable.+:\s+(.+)/) { $stable = $1; }
+		if ($_ =~ /^The latest stable.+:\s+(.+)/) { $stable = $1; last; }
 	}
 	close $sock;
         return $stable;
