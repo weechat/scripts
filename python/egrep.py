@@ -54,6 +54,9 @@
 #
 #
 #   History:
+#   2010-01-04
+#   version 0.5.4.1: fix index error when using --after/before-context options.
+#
 #   2010-01-03
 #   version 0.5.4: new features
 #   * added --after-context and --before-context options.
@@ -112,7 +115,7 @@ except ImportError:
 
 SCRIPT_NAME    = "egrep"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.5.4"
+SCRIPT_VERSION = "0.5.4.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Search in buffers and logs"
 SCRIPT_COMMAND = "egrep"
@@ -452,12 +455,18 @@ def grep_file(file, head, tail, after_context, before_context, *args):
 			if before_context:
 				separator()
 				for id in before_context_range:
-					append(file_lines[line_idx - id])
+					try:
+						append(file_lines[line_idx - id])
+					except IndexError:
+						pass
 			append(line)
 			count()
 			if after_context:
 				for id in after_context_range:
-					append(file_lines[line_idx + id])
+					try:
+						append(file_lines[line_idx + id])
+					except IndexError:
+						pass
 				separator()
 			if limit and lines.matches_count >= limit: break
 		line_idx += 1
