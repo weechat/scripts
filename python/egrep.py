@@ -50,9 +50,15 @@
 #
 #   TODO:
 #   * grepping should run in background for big logs
+#   * possibly add option for defining time intervals
 #
 #
 #   History:
+#   2010-01-03
+#   version 0.5.4: new features
+#   * added --after-context and --before-context options.
+#   * added --context as a shortcut for using both -A -B options.
+#
 #   2009-11-06
 #   version 0.5.3: improvements for long grep output
 #   * egrep buffer input accepts the same flags as /egrep for repeat a search with different
@@ -106,7 +112,7 @@ except ImportError:
 
 SCRIPT_NAME    = "egrep"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.5.3"
+SCRIPT_VERSION = "0.5.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Search in buffers and logs"
 SCRIPT_COMMAND = "egrep"
@@ -126,6 +132,13 @@ class linesDict(dict):
 		else:
 			dict.__getitem__(self, key).extend(value)
 
+	def get_matches_count(self):
+		"""Return the sum of total matches stored."""
+		if dict.__len__(self):
+			return sum(map(lambda L: L.matches_count, self.itervalues()))
+		else:
+			return 0
+
 	def __len__(self):
 		"""Return the sum of total lines stored."""
 		if dict.__len__(self):
@@ -142,6 +155,35 @@ class linesDict(dict):
 			return '%s logs' %n
 		else:
 			return ''
+
+	def strip_separator(self):
+		for L in self.itervalues():
+			L.strip_separator()
+
+class linesList(list):
+	"""Class for list of matches, since sometimes I need to add lines that aren't matches, I need an
+	independent counter."""
+	_sep = '...'
+	def __init__(self):
+		self.matches_count = 0
+
+	def append_separator(self):
+		"""adds a separator into the list, makes sure it doen't add two together."""
+		s = self._sep
+		if (self and self[-1] != s) or not self:
+			self.append(s)
+
+	def count_match(self):
+		self.matches_count += 1
+
+	def strip_separator(self):
+		"""removes separators if there are first or/and last in the list."""
+		if self:
+			s = self._sep
+			if self[0] == s:
+				del self[0]
+			if self[-1] == s:
+				del self[-1]
 
 
 ### config
@@ -302,7 +344,7 @@ def get_file_by_name(buffer_name):
 			masks = mask.split('$')
 			masks = map(lambda s: s.lstrip(chars), masks)
 			mask = '*'.join(masks)
-			if not mask.startswith('*'):
+			if mask[0] != '*':
 				mask = '*' + mask
 		#debug('get_file_by_name: using mask %s' %mask)
 		file = get_file_by_pattern(mask)
@@ -373,69 +415,134 @@ def check_string(s, regexp, hilight='', exact=False):
 	elif regexp.search(s):
 		return s
 
-def grep_file(file, head, tail, *args):
+def grep_file(file, head, tail, after_context, before_context, *args):
 	"""Return a list of lines that match 'regexp' in 'file', if no regexp returns all lines."""
-	lines = []
+	#debug(' '.join(map(str, (file, head, tail, after_context, before_context))))
+	lines = linesList()
 	file_object = open(file, 'r')
-	if tail:
-		# instead of searching in the whole file and later pick the last few lines, we read the
-		# log, reverse it, search until count reached and reverse it again, that way is a lot
-		# faster
-		fd = file_object.readlines()
-		fd.reverse()
+	if tail or after_context or before_context:
+		# I need a full list of file's lines for these options, and only for these options, since
+		# it makes the search take a bit more of time
+		file_lines = file_object.readlines()
 	else:
-		fd = file_object
+		file_lines = file_object
+	if tail:
+		# instead of searching in the whole file and later pick the last few lines, we
+		# reverse the log, search until count reached and reverse it again, that way is a lot
+		# faster
+		file_lines.reverse()
 	limit = head or tail
 
+	# define these locally as it makes the loop run slightly faster
 	append = lines.append
+	count = lines.count_match
+	separator = lines.append_separator
 	check = check_string
-	for line in fd:
+	
+	if before_context:
+		before_context_range = range(1, before_context + 1)
+		before_context_range.reverse()
+	if after_context:
+		after_context_range = range(1, after_context + 1)
+
+	line_idx = 0
+	for line in file_lines:
 		line = check(line, *args)
 		if line:
+			if before_context:
+				separator()
+				for id in before_context_range:
+					append(file_lines[line_idx - id])
 			append(line)
-			if limit and len(lines) >= limit: break
+			count()
+			if after_context:
+				for id in after_context_range:
+					append(file_lines[line_idx + id])
+				separator()
+			if limit and lines.matches_count >= limit: break
+		line_idx += 1
+
 	if tail:
 		lines.reverse()
 	return lines
 
-def grep_buffer(buffer, head, tail, *args):
+def grep_buffer(buffer, head, tail, after_context, before_context, *args):
 	"""Return a list of lines that match 'regexp' in 'buffer', if no regexp returns all lines."""
-	lines = []
+	lines = linesList()
 	# Using /grep in grep's buffer can lead to some funny effects
 	# We should take measures if that's the case
-	grep_buffer = weechat.buffer_search('python', SCRIPT_NAME)
-	grep_buffer = buffer == grep_buffer
+	def make_get_line_funcion():
+		"""Returns a function for get lines from the infolist, depending if the buffer is egrep's or
+		not."""
+		string_remove_color = weechat.string_remove_color
+		infolist_string = weechat.infolist_string
+		get_prefix = lambda infolist : string_remove_color(infolist_string(infolist, 'prefix'), '')
+		get_message = lambda infolist : string_remove_color(infolist_string(infolist, 'message'), '')
+		grep_buffer = weechat.buffer_search('python', SCRIPT_NAME)
+		if buffer == grep_buffer:
+			def function(infolist):
+				prefix = get_prefix(infolist)
+				message = get_message(infolist)
+				if script_nick == prefix: # ignore our lines
+					return None
+				return '%s\t%s' %(prefix, message.replace(' ', '\t', 1))
+		else:
+			infolist_time = weechat.infolist_time
+			def function(infolist):
+				prefix = get_prefix(infolist)
+				message = get_message(infolist)
+				date = infolist_time(infolist, 'date')
+				return '%s\t%s\t%s' %(date, prefix, message)
+		return function
+	get_line = make_get_line_funcion()
+
 	infolist = weechat.infolist_get('buffer_lines', buffer, '')
 	if tail:
 		# like with grep_file() if we need the last few matching lines, we move the cursor to
 		# the end and search backwards
 		infolist_next = weechat.infolist_prev
+		infolist_prev = weechat.infolist_next
 	else:
 		infolist_next = weechat.infolist_next
+		infolist_prev = weechat.infolist_prev
 	limit = head or tail
 
+	# define these locally as it makes the loop run slightly faster
 	append = lines.append
+	count = lines.count_match
+	separator = lines.append_separator
 	check = check_string
-	infolist_time = weechat.infolist_time
+
+	if before_context:
+		before_context_range = range(before_context)
+	if after_context:
+		after_context_range = range(after_context)
+
 	while infolist_next(infolist):
-		prefix = weechat.infolist_string(infolist, 'prefix')
-		message = weechat.infolist_string(infolist, 'message')
-		prefix = weechat.string_remove_color(prefix, '')
-		message = weechat.string_remove_color(message, '')
-		if grep_buffer:
-			if script_nick == prefix: # ignore our lines
-				continue
-			date = prefix
-			line = '%s\t%s' %(date, message.replace(' ', '\t', 1))
-		else:
-			date = infolist_time(infolist, 'date')
-			line = '%s\t%s\t%s' %(date, prefix, message)
+		line = get_line(infolist)
+		if line is None: continue
 		line = check(line, *args)
 		if line:
+			if before_context:
+				separator()
+				for id in before_context_range:
+					infolist_prev(infolist)
+				for id in before_context_range:
+					append(get_line(infolist))
+					infolist_next(infolist)
 			append(line)
-			if limit and len(lines) >= limit:
+			count()
+			if after_context:
+				for id in after_context_range:
+					infolist_next(infolist)
+					append(get_line(infolist))
+				for id in after_context_range:
+					infolist_prev(infolist)
+				separator()
+			if limit and lines.matches_count >= limit:
 				break
 	weechat.infolist_free(infolist)
+
 	if tail:
 		lines.reverse()
 	return lines
@@ -447,7 +554,8 @@ def show_matching_lines():
 	Greps buffers in search_in_buffers or files in search_in_files and updates egrep buffer with the
 	result.
 	"""
-	global pattern, matchcase, head, tail, number, count, exact, hilight
+	global pattern, matchcase, number, count, exact, hilight
+	global tail, head, after_context, before_context
 	global search_in_files, search_in_buffers, matched_lines, home_dir
 	global time_start
 	matched_lines = linesDict()
@@ -457,12 +565,13 @@ def show_matching_lines():
 	if search_in_buffers:
 		for buffer in search_in_buffers:
 			buffer_name = weechat.buffer_get_string(buffer, 'name')
-			matched_lines[buffer_name] = grep_buffer(buffer, head, tail, regexp, hilight, exact)
+			matched_lines[buffer_name] = grep_buffer(buffer, head, tail, after_context,
+					before_context, regexp, hilight, exact)
 	if search_in_files:
 		len_home = len(home_dir)
 		for log in search_in_files:
 			log_name = log[len_home:]
-			matched_lines[log_name] = grep_file(log, head, tail, regexp, hilight, exact)
+			matched_lines[log_name] = grep_file(log, head, tail, after_context, before_context, regexp, hilight, exact)
 	buffer_update()
 
 grep_stdout = grep_stderr = ''
@@ -502,9 +611,11 @@ def buffer_update():
 	time_grep = now()
 
 	buffer = buffer_create()
-	len_matched_lines = len(matched_lines)
+	matched_lines.strip_separator() # remove first and last separators of each list
+	len_total_lines = len(matched_lines)
+	len_matched_lines = matched_lines.get_matches_count()
 	max_lines = get_config_int('max_lines')
-	if not count and len_matched_lines > max_lines:
+	if not count and len_total_lines > max_lines:
 		weechat.buffer_clear(buffer)
 
 	# color variables defined locally
@@ -518,20 +629,20 @@ def buffer_update():
 	# formatting functions declared locally.
 	def make_title(name, number):
 		note = ''
-		if len_matched_lines > max_lines and not count:
-			note = ' (only last %s shown)' %max_lines
-		return "Search in %s%s%s | %s lines%s | pattern \"%s%s%s\" | %.4f seconds (%.2f%%)" \
+		if len_total_lines > max_lines and not count:
+			note = ' (last %s lines shown)' %max_lines
+		return "Search in %s%s%s | %s matches%s | pattern \"%s%s%s\" | %.4f seconds (%.2f%%)" \
 				%(c_title, name, c_reset, number, note, c_title, pattern, c_reset, time_total, time_grep_pct)
 
-	def make_summary(name, number, printed=0):
+	def make_summary(name, lines, printed=0):
 		note = ''
-		if printed != number:
+		if printed != len(lines):
 			if printed:
-				note = ' (only last %s shown)' %printed
+				note = ' (last %s lines shown)' %printed
 			else:
 				note = ' (not shown)'
-		return "%s lines matched \"%s%s%s\" in %s%s%s%s" \
-				%(number, c_summary, pattern, c_info, c_summary, name, c_reset, note)
+		return "%s matches \"%s%s%s\" in %s%s%s%s" \
+				%(lines.matches_count, c_summary, pattern, c_info, c_summary, name, c_reset, note)
 
 	global weechat_format
 	weechat_format = True
@@ -539,6 +650,9 @@ def buffer_update():
 	def format_line(s):
 		"""Returns the log line 's' ready for printing in buffer."""
 		global weechat_format
+		if s == linesList._sep:
+			# ignore lines separator
+			return s
 		if weechat_format and s.count('\t') >= 2:
 			date, nick, msg = s.split('\t', 2) # date, nick, message
 		else:
@@ -607,7 +721,7 @@ def buffer_update():
 
 				# summary
 				if count or get_config_boolean('show_summary'):
-					summary = make_summary(log, len(lines), len(print_lines))
+					summary = make_summary(log, lines, len(print_lines))
 					print_info(summary, buffer)
 
 				# separator
@@ -656,7 +770,7 @@ def buffer_input(data, buffer, input_data):
 	"""Repeats last search with 'input_data' as regexp."""
 
 	global search_in_buffers, search_in_files
-	global pattern, matchcase, head, tail, number, count, exact, hilight
+	global pattern
 	try:
 		if pattern and (search_in_files or search_in_buffers):
 			for pointer in search_in_buffers:
@@ -683,18 +797,22 @@ def buffer_close(*args):
 ### commands
 def cmd_init():
 	global home_dir, cache_dir
-	global pattern, matchcase, head, tail, number, count, exact, hilight
+	global pattern, matchcase, number, count, exact, hilight
+	global tail, head, after_context, before_context
 	hilight = ''
-	head = tail = matchcase = count = exact = False
+	head = tail = after_context = before_context = False
+	matchcase = count = exact = False
 	number = None
 	home_dir = get_home()
 	cache_dir = {}
 
 def cmd_grep_parsing(args):
-	global pattern, matchcase, head, tail, number, count, exact, hilight
+	global pattern, matchcase, number, count, exact, hilight
+	global tail, head, after_context, before_context
 	global log_name, buffer_name, only_buffers, all
-	opts, args = getopt.gnu_getopt(args.split(), 'cmHeahtin:b', ['count', 'matchcase', 'hilight',
-		'exact', 'all', 'head', 'tail', 'number=', 'buffer'])
+	opts, args = getopt.gnu_getopt(args.split(), 'cmHeahtin:bA:B:C:', ['count', 'matchcase', 'hilight',
+		'exact', 'all', 'head', 'tail', 'number=', 'buffer', 'after-context=', 'before-context=',
+		'context='])
 	#debug(opts, 'opts: '); debug(args, 'args: ')
 	if len(args) >= 2:
 		if args[0] == 'log':
@@ -708,48 +826,75 @@ def cmd_grep_parsing(args):
 		pattern = args
 	elif not pattern:
 		raise Exception, 'No pattern for grep the logs.'
+
+	def positive_number(opt, val):
+		try:
+			number = int(val)
+			if number < 0:
+				raise ValueError
+			return number
+		except ValueError:
+			if len(opt) == 1:
+				opt = '-' + opt
+			else:
+				opt = '--' + opt
+			raise Exception, "argument for %s must be a positive integer." %opt
+
 	for opt, val in opts:
 		opt = opt.strip('-')
 		if opt in ('c', 'count'):
 			count = not count
-		if opt in ('m', 'matchcase'):
+		elif opt in ('m', 'matchcase'):
 			matchcase = not matchcase
-		if opt in ('H', 'hilight'):
+		elif opt in ('H', 'hilight'):
 			# hilight must be always a string!
 			if hilight:
 				hilight = ''
 			else:
 				hilight = '%s,%s' %(color_hilight, color_reset)
 			# we pass the colors in the variable itself because check_string() must not use
-			# weechat's module when applying the colors
-		if opt in ('e', 'exact'):
+			# weechat's module when applying the colors (this is for grep in a hooked process)
+		elif opt in ('e', 'exact'):
 			exact = not exact
-		if opt in ('a', 'all'):
+		elif opt in ('a', 'all'):
 			all = not all
-		if opt in ('h', 'head'):
+		elif opt in ('h', 'head'):
 			head = not head
-		if opt in ('t', 'tail'):
+			tail = False
+		elif opt in ('t', 'tail'):
 			tail = not tail
-		if opt in ('b', 'buffer'):
+			head = False
+		elif opt in ('b', 'buffer'):
 			only_buffers = True
-		if opt in ('n', 'number'):
-			try:
-				number = int(val)
-				if number < 0:
-					raise ValueError
-			except ValueError:
-				raise Exception, "argument for --number must be a integer positive number."
+		elif opt in ('n', 'number'):
+			number = positive_number(opt, val)
+		elif opt in ('C', 'context'):
+			n = positive_number(opt, val)
+			after_context = n
+			before_context = n
+		elif opt in ('A', 'after-context'):
+			after_context = positive_number(opt, val)
+		elif opt in ('B', 'before-context'):
+			before_context = positive_number(opt, val)
 	# more checks
 	if count:
 		if hilight:
 			hilight = '' # why hilight if we're just going to count?
 		if exact:
 			exact = False # see hilight
+		if after_context:
+			after_context = False
+		if before_context:
+			before_context = False
+	elif exact:
+		# pointless
+		if after_context:
+			after_context = False
+		if before_context:
+			before_context = False
 	if head and tail: # it won't work
 		raise Exception, "can't use --tail and --head simultaneously."
 	if number is not None:
-		#if not head and not tail:
-		#	raise Exception, "--number only works with --tail or --head."
 		if number == 0:
 			# waste of cpu cycles
 			raise Exception, "this humble script refuses to search and return zero lines."
@@ -907,7 +1052,8 @@ def completion_log_files(data, completion_item, buffer, completion):
 	return WEECHAT_RC_OK
 
 def completion_egrep_args(data, completion_item, buffer, completion):
-	for arg in ('count', 'all', 'matchcase', 'hilight', 'exact', 'head', 'tail', 'number', 'buffer'):
+	for arg in ('count', 'all', 'matchcase', 'hilight', 'exact', 'head', 'tail', 'number', 'buffer',
+			'after-context', 'before-context', 'context'):
 		weechat.hook_completion_list_add(completion, '--' + arg, 0, weechat.WEECHAT_LIST_POS_SORT)
 	return WEECHAT_RC_OK
 
@@ -919,7 +1065,8 @@ if __name__ == '__main__' and import_ok and \
 
 	weechat.hook_command(SCRIPT_COMMAND, cmd_grep.__doc__,
 			"[log <file> | buffer <name>] [-a|--all] [-b|--buffer] [-c|--count] [-m|--matchcase] "
-			"[-H|--hilight] [-e|--exact] [(-h|--head)|(-t|--tail) [-n|--number <n>]] <expression>",
+			"[-H|--hilight] [-e|--exact] [(-h|--head)|(-t|--tail) [-n|--number <n>]] "
+			"[-A|--after-context <n>] [-B|--before-context <n>] [-C|--context <n> ] <expression>",
 			# help
 			"     log <file>: Search in one log that matches <file> in the logger path. Use '*' and '?' as jokers.\n"
 			"  buffer <name>: Search in buffer <name>, if there's no buffer with <name> it will try to search for a log file.\n"
@@ -933,6 +1080,9 @@ if __name__ == '__main__' and import_ok and \
 			"      -t --tail: Print the last 10 matching lines.\n"
 			"      -h --head: Print the first 10 matching lines.\n"
 			"-n --number <n>: Overrides default number of lines for --tail or --head.\n"
+			"-A --after-context <n>: Shows <n> lines of trailing context after matching lines.\n"
+			"-B --before-context <n>: Shows <n> lines of leading context before matching lines.\n"
+			"-C --context <n>: Same as using both --after-context and --before-context simultaneously.\n"
 			"   <expression>: Expression to search.\n\n"
 			"egrep buffer:\n"
 			"  Accepts most arguments of /egrep command, It'll repeat last search using the new "
