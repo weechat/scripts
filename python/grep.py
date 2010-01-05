@@ -24,28 +24,28 @@
 #   I got carried away and rewrote everything, so new script.
 #
 #   Commands:
-#   * /egrep
-#     Search in logs or buffers, see /help egrep
+#   * /grep
+#     Search in logs or buffers, see /help grep
 #   * /logs:
 #     Lists logs in ~/.weechat/logs, see /help logs
 #
 #   Settings:
-#   * plugins.var.python.egrep.clear_buffer:
+#   * plugins.var.python.grep.clear_buffer:
 #     Clear the results buffer before each search. Valid values: on, off
 #
-#   * plugins.var.python.egrep.go_to_buffer:
-#     Automatically go to egrep buffer when search is over. Valid values: on, off
+#   * plugins.var.python.grep.go_to_buffer:
+#     Automatically go to grep buffer when search is over. Valid values: on, off
 #
-#   * plugins.var.python.egrep.log_filter:
-#     Coma separated list of patterns that egrep will use for exclude logs, e.g.
+#   * plugins.var.python.grep.log_filter:
+#     Coma separated list of patterns that grep will use for exclude logs, e.g.
 #     if you use '*server/*' any log in the 'server' folder will be excluded
-#     when using the command '/egrep log'
+#     when using the command '/grep log'
 #
-#   * plugins.var.python.egrep.show_summary:
+#   * plugins.var.python.grep.show_summary:
 #     Shows summary for each log. Valid values: on, off
 #
-#   * plugins.var.python.egrep.max_lines:
-#     egrep will only print the last matched lines that don't surpass the value defined here.
+#   * plugins.var.python.grep.max_lines:
+#     grep will only print the last matched lines that don't surpass the value defined here.
 #
 #
 #   TODO:
@@ -54,6 +54,10 @@
 #
 #
 #   History:
+#
+#   2010-01-05
+#   version 0.5.5: rename script to 'grep.py' (FlashCode <flashcode@flashtux.org>).
+#
 #   2010-01-04
 #   version 0.5.4.1: fix index error when using --after/before-context options.
 #
@@ -64,10 +68,10 @@
 #
 #   2009-11-06
 #   version 0.5.3: improvements for long grep output
-#   * egrep buffer input accepts the same flags as /egrep for repeat a search with different
+#   * grep buffer input accepts the same flags as /grep for repeat a search with different
 #     options.
-#   * tweaks in egrep's output.
-#   * max_lines option added for limit egrep's output.
+#   * tweaks in grep's output.
+#   * max_lines option added for limit grep's output.
 #   * code in update_buffer() optimized.
 #   * time stats in buffer title.
 #   * added go_to_buffer config option.
@@ -96,7 +100,7 @@
 #   * added config option for clear the buffer before a search
 #   * added config option for filter logs we don't want to grep
 #   * added the posibility to repeat last search with another regexp by writing
-#     it in egrep's buffer
+#     it in grep's buffer
 #   * changed spaces for tabs in the code, which is my preference
 #
 ###
@@ -113,12 +117,12 @@ try:
 except ImportError:
     import_ok = False
 
-SCRIPT_NAME    = "egrep"
+SCRIPT_NAME    = "grep"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.5.4.1"
+SCRIPT_VERSION = "0.5.5"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Search in buffers and logs"
-SCRIPT_COMMAND = "egrep"
+SCRIPT_COMMAND = "grep"
 
 script_nick    = '***'
 
@@ -481,7 +485,7 @@ def grep_buffer(buffer, head, tail, after_context, before_context, *args):
 	# Using /grep in grep's buffer can lead to some funny effects
 	# We should take measures if that's the case
 	def make_get_line_funcion():
-		"""Returns a function for get lines from the infolist, depending if the buffer is egrep's or
+		"""Returns a function for get lines from the infolist, depending if the buffer is grep's or
 		not."""
 		string_remove_color = weechat.string_remove_color
 		infolist_string = weechat.infolist_string
@@ -560,7 +564,7 @@ def grep_buffer(buffer, head, tail, after_context, before_context, *args):
 hook_file_grep = None
 def show_matching_lines():
 	"""
-	Greps buffers in search_in_buffers or files in search_in_files and updates egrep buffer with the
+	Greps buffers in search_in_buffers or files in search_in_files and updates grep buffer with the
 	result.
 	"""
 	global pattern, matchcase, number, count, exact, hilight
@@ -610,7 +614,7 @@ def grep_file_callback(data, command, rc, stdout, stderr):
 def get_grep_file_status():
 	global search_in_files, matched_lines, time_start
 	elapsed = now() - time_start
-	return 'There\'s a search in progress (running for %.4f seconds) interrupt it with /egrep stop'\
+	return 'There\'s a search in progress (running for %.4f seconds) interrupt it with /grep stop'\
 			%elapsed
 
 ### output buffer
@@ -768,7 +772,7 @@ def buffer_create():
 		buffer = weechat.buffer_new(SCRIPT_NAME, 'buffer_input', '', 'buffer_close', '')
 		weechat.buffer_set(buffer, 'time_for_each_line', '0')
 		weechat.buffer_set(buffer, 'nicklist', '0')
-		weechat.buffer_set(buffer, 'title', 'egrep output buffer')
+		weechat.buffer_set(buffer, 'title', 'grep output buffer')
 		weechat.buffer_set(buffer, 'localvar_set_no_log', '1')
 	else:
 		if get_config_boolean('clear_buffer'):
@@ -1060,7 +1064,7 @@ def completion_log_files(data, completion_item, buffer, completion):
 		weechat.hook_completion_list_add(completion, log[len(home_dir):], 0, weechat.WEECHAT_LIST_POS_SORT)
 	return WEECHAT_RC_OK
 
-def completion_egrep_args(data, completion_item, buffer, completion):
+def completion_grep_args(data, completion_item, buffer, completion):
 	for arg in ('count', 'all', 'matchcase', 'hilight', 'exact', 'head', 'tail', 'number', 'buffer',
 			'after-context', 'before-context', 'context'):
 		weechat.hook_completion_list_add(completion, '--' + arg, 0, weechat.WEECHAT_LIST_POS_SORT)
@@ -1093,25 +1097,25 @@ if __name__ == '__main__' and import_ok and \
 			"-B --before-context <n>: Shows <n> lines of leading context before matching lines.\n"
 			"-C --context <n>: Same as using both --after-context and --before-context simultaneously.\n"
 			"   <expression>: Expression to search.\n\n"
-			"egrep buffer:\n"
-			"  Accepts most arguments of /egrep command, It'll repeat last search using the new "
+			"grep buffer:\n"
+			"  Accepts most arguments of /grep command, It'll repeat last search using the new "
 			"arguments.\n"
 			"  --all, --count, --tail, --head, --hilight, --matchcase and --exact switches are "
 			"toggleable\n\n"
 			"see http://docs.python.org/lib/re-syntax.html for documentation about python regular expressions.\n",
 			# completion template
-			"buffer %(buffers_names) %(egrep_arguments)|%*"
-			"||log %(egrep_log_files) %(egrep_arguments)|%*"
-			"||%(egrep_arguments)|%*",
+			"buffer %(buffers_names) %(grep_arguments)|%*"
+			"||log %(grep_log_files) %(grep_arguments)|%*"
+			"||%(grep_arguments)|%*",
 			'cmd_grep' ,'')
 	weechat.hook_command('logs', cmd_logs.__doc__, "[-s|--size] [<filter>]",
 			"-s|--size: Sort logs by size.\n"
 			" <filter>: Only show logs that match <filter>. Use '*' and '?' as jokers.", '--size', 'cmd_logs', '')
 
-	weechat.hook_completion('egrep_log_files', "list of log files",
+	weechat.hook_completion('grep_log_files', "list of log files",
 			'completion_log_files', '')
-	weechat.hook_completion('egrep_arguments', "list of arguments",
-			'completion_egrep_args', '')
+	weechat.hook_completion('grep_arguments', "list of arguments",
+			'completion_grep_args', '')
 
 	# settings
 	for opt, val in settings.iteritems():
