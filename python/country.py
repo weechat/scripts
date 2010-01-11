@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 ###
-# Copyright (c) 2009 by Elián Hanisch <lambdae2@gmail.com>
+# Copyright (c) 2009-2010 by Elián Hanisch <lambdae2@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -42,6 +42,11 @@
 #     Valid values: on, off
 #
 #   History:
+#
+#   2010-01-11
+#   version 0.3.1: bug fix
+#   * irc_nick infolist wasn't freed in get_host_by_nick()
+#
 #   2009-12-12
 #   version 0.3: update WeeChat site.
 #
@@ -58,7 +63,7 @@
 
 SCRIPT_NAME    = "country"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.3"
+SCRIPT_VERSION = "0.3.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Prints user's country and local time in whois replies"
 SCRIPT_COMMAND = "country"
@@ -84,34 +89,18 @@ database_url = 'http://geolite.maxmind.com/download/geoip/database/GeoIPCountryC
 database_file = 'GeoIPCountryWhois.csv'
 
 ### config
-class ValidValuesDict(dict):
-	"""
-	Dict that returns the default value defined by 'defaultKey' key if __getitem__ raises
-	KeyError. 'defaultKey' must be in the supplied dict.
-	"""
-	def _error_msg(self, key):
-		error("'%s' is an invalid option value, allowed: %s. Defaulting to '%s'" \
-				%(key, ', '.join(map(repr, self.keys())), self.default))
+settings = {'show_in_whois': 'on', 'show_localtime': 'on'}
 
-	def __init__(self, dict, defaultKey):
-		self.update(dict)
-		assert defaultKey in self
-		self.default = defaultKey
-
-	def __getitem__(self, key):
-		try:
-			return dict.__getitem__(self, key)
-		except KeyError:
-			# user set a bad value
-			self._error_msg(key)
-			return dict.__getitem__(self, self.default)
-
-settings = (('show_in_whois', 'on'), ('show_localtime', 'on'))
-
-boolDict = ValidValuesDict({'on':True, 'off':False}, 'off')
+boolDict = {'on':True, 'off':False}
 def get_config_boolean(config):
-	"""Gets our config value, returns a sane default if value is wrong."""
-	return boolDict[weechat.config_get_plugin(config)]
+    value = weechat.config_get_plugin(config)
+    try:
+        return boolDict[value]
+    except KeyError:
+        default = settings[config]
+        error("Error while fetching config '%s'. Using default value '%s'." %(config, default))
+        error("'%s' is invalid, allowed: 'on', 'off'" %value)
+        return boolDict[default]
 
 ### messages
 def say(s, prefix=SCRIPT_NAME, buffer=''):
@@ -274,25 +263,29 @@ def is_host(host):
 	"""A valid host must have at least one dot an no slashes."""
 	# This is a very poor check
 	# I will fix it when it fails
-	if '/' in host:
+	assert host
+	if '/' in host \
+			or not host[0].isalnum() or not host[-1].isalnum():
 		return False
 	elif '.' in host:
 		return True
 	return False
 
-def get_host_by_nick(nick, buffer):
-	"""Gets host from a given nick, for code simplicity we only search in current buffer."""
+def get_host_by_nick(buffer, nick):
+	"""Return host of a given nick in buffer."""
 	channel = weechat.buffer_get_string(buffer, 'localvar_channel')
 	server = weechat.buffer_get_string(buffer, 'localvar_server')
 	if channel and server:
 		infolist = weechat.infolist_get('irc_nick', '', '%s,%s' %(server, channel))
 		if infolist:
-			while weechat.infolist_next(infolist):
-				name = weechat.infolist_string(infolist, 'name')
-				if nick == name:
-					host = weechat.infolist_string(infolist, 'host')
-					return host[host.find('@')+1:] # strip everything in front of '@'
-			weechat.infolist_free(infolist)
+			try:
+				while weechat.infolist_next(infolist):
+					name = weechat.infolist_string(infolist, 'name')
+					if nick == name:
+						host = weechat.infolist_string(infolist, 'host')
+						return host[host.find('@')+1:] # strip everything in front of '@'
+			finally:
+				weechat.infolist_free(infolist)
 	return ''
 
 def sum_ip(ip):
@@ -366,7 +359,7 @@ def print_country(host, buffer, quiet=False, broken=False, nick=''):
 		get_ip_process(host)
 		return
 	else:
-		# probably a cloak
+		# probably a cloak or ipv6
 		code, country = '--', 'cloaked'
 	reply_country(code, country)
 
@@ -394,7 +387,7 @@ def cmd_country(data, buffer, args):
 					"using this script.", buffer=buffer)
 			return WEECHAT_RC_OK
 		#check if is a nick
-		host = get_host_by_nick(args, buffer)
+		host = get_host_by_nick(buffer, args)
 		if not host:
 			host = args
 		print_country(host, buffer)
@@ -422,7 +415,7 @@ if import_ok and weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SC
 			"nick, ip, uri: Gets country and local time for a given ip, domain or nick.",
 			'update||%(nick)', 'cmd_country', '')
 	# settings
-	for opt, val in settings:
+	for opt, val in settings.iteritems():
 		if not weechat.config_is_set_plugin(opt):
 			weechat.config_set_plugin(opt, val)
 	if not check_database():
