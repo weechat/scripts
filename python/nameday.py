@@ -23,6 +23,8 @@
 #
 # History:
 #
+# 2010-01-14, FlashCode <flashcode@flashtux.org>:
+#     version 0.9: add color options and options to display dates in bar item
 # 2010-01-13, FlashCode <flashcode@flashtux.org>:
 #     version 0.8: conversion to python (script renamed to nameday.py),
 #                  conversion to WeeChat 0.3.0+
@@ -46,14 +48,20 @@ from datetime import date
 
 SCRIPT_NAME    = "nameday"
 SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.8"
+SCRIPT_VERSION = "0.9"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Display name days in bar item and buffer"
 
 # script options
 nameday_settings = {
-    "country" : "fr", # country, only 'fr' (french) is currently available
-    "days"    : "1",  # number of days after current one to display in bar item
+    "country"               : "fr",      # country, only 'fr' (french) is currently available
+    "days"                  : "1",       # number of days after current one to display in bar item
+    "item_date_today"       : "on",      # display date for today in bar item
+    "item_date_next"        : "off",     # display dates for tomorrow and next days in bar item
+    "item_color_date_today" : "white",   # color for today's date in item
+    "item_color_name_today" : "green",   # color for today's name in item
+    "item_color_date_next"  : "default", # color for date of next days in item
+    "item_color_name_next"  : "brown",   # color for name of next days in item
 }
 
 nameday_item = ""
@@ -321,8 +329,20 @@ def nameday_item_cb(data, buffer, args):
 
 def nameday_build_item():
     global nameday_item
+    nameday_item = ""
+    display_date_today = weechat.config_get_plugin("item_date_today").lower() == "on"
+    display_date_next = weechat.config_get_plugin("item_date_next").lower() == "on"
+    color_date_today = weechat.color(weechat.config_get_plugin("item_color_date_today"))
+    color_name_today = weechat.color(weechat.config_get_plugin("item_color_name_today"))
+    color_date_next = weechat.color(weechat.config_get_plugin("item_color_date_next"))
+    color_name_next = weechat.color(weechat.config_get_plugin("item_color_name_next"))
+    color_default = weechat.color("default")
     today = date.today()
-    nameday_item = "%s" % nameday_get_date(today)
+    if display_date_today:
+        nameday_item += "%s%02d/%02d%s: " % (color_date_today,
+                                             today.day, today.month,
+                                             color_default)
+    nameday_item += "%s%s" % (color_name_today, nameday_get_date(today))
     days = 0
     try:
         days = int(weechat.config_get_plugin("days"))
@@ -333,14 +353,18 @@ def nameday_build_item():
     if days > 10:
         days = 10
     if days > 0:
-        nameday_item += " ("
+        nameday_item += "%s (" % color_default
         current_time = time.time()
         for i in range(1, days + 1):
             if i > 1:
                 nameday_item += ", "
             date2 = date.fromtimestamp(current_time + ((3600 * 24) * i))
-            nameday_item += "%s" % nameday_get_date(date2)
-        nameday_item += ")"
+            if display_date_next:
+                nameday_item += "%s%02d/%02d%s: " % (color_date_next,
+                                                     date2.day, date2.month,
+                                                     color_default)
+            nameday_item += "%s%s" % (color_name_next, nameday_get_date(date2))
+        nameday_item += "%s)" % color_default
     return nameday_item
 
 def nameday_timer_cb(data, remaining_calls):
