@@ -67,6 +67,7 @@
 #
 #   History:
 #   2010-01-17
+#   version 0.6.2: removed 2.6-ish code
 #   version 0.6.1: fixed bug when grepping in grep's buffer
 #
 #   2010-01-14
@@ -147,7 +148,7 @@ except ImportError:
 
 SCRIPT_NAME    = "grep"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.6.1"
+SCRIPT_VERSION = "0.6.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Search in buffers and logs"
 SCRIPT_COMMAND = "grep"
@@ -859,8 +860,9 @@ def show_matching_lines():
 
 # defined here for commodity
 grep_proccess_cmd = """python -c "
-import sys, tempfile, cPickle
-sys.path.append('%(home)s/python/dev') # add WeeChat script dir so we can import grep
+import sys, cPickle
+sys.path.append('%(home)s/python') # add WeeChat script dir so we can import grep
+sys.path.append('%(home)s/python/autoload')
 from grep import make_regexp, grep_file, strip_home, SCRIPT_VERSION
 logs = (%(logs)s, )
 try:
@@ -873,8 +875,10 @@ try:
         lines = grep_file(log, %(head)s, %(tail)s, %(after_context)s, %(before_context)s,
         %(count)s, regexp, '%(hilight)s', %(exact)s)
         d[log_name] = lines
-    fd = tempfile.NamedTemporaryFile('wb', delete=False)
-    print fd.name
+    #fd = tempfile.NamedTemporaryFile('wb', delete=False)
+    fdname = '/tmp/grep_search.tmp'
+    fd = open(fdname, 'wb')
+    print fdname
     cPickle.dump(d, fd, -1)
     fd.close()
 except Exception, e:
