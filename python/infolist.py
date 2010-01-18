@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2008-2009 by FlashCode <flashcode@flashtux.org>
+# Copyright (c) 2008-2010 by FlashCode <flashcode@flashtux.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,6 +18,9 @@
 # Display infolist in a buffer.
 #
 # History:
+# 2010-01-18, FlashCode <flashcode@flashtux.org>:
+#     version 0.2: use tag "no_filter" for lines displayed, fix display bug
+#                  when infolist is empty
 # 2009-11-30, FlashCode <flashcode@flashtux.org>:
 #     version 0.1: first version
 # 2008-12-12, FlashCode <flashcode@flashtux.org>:
@@ -25,7 +28,7 @@
 
 SCRIPT_NAME    = "infolist"
 SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Display infolist in a buffer"
 
@@ -69,15 +72,17 @@ def infolist_display(buffer, args):
     
     infolist = weechat.infolist_get(items[0], "", infolist_args)
     if infolist == "":
-        weechat.prnt(buffer,
-                     "%sInfolist '%s' not found."
-                     % (weechat.prefix("error"), items[0]))
+        weechat.prnt_date_tags(buffer, 0, "no_filter",
+                               "%sInfolist '%s' not found."
+                               % (weechat.prefix("error"), items[0]))
         return weechat.WEECHAT_RC_OK
     
     item_count = 0
     weechat.buffer_clear(buffer)
-    weechat.prnt(buffer, "Infolist '%s', with arguments '%s':" % (items[0], infolist_args))
+    weechat.prnt_date_tags(buffer, 0, "no_filter",
+                           "Infolist '%s', with arguments '%s':" % (items[0], infolist_args))
     weechat.prnt(buffer, "")
+    count = 0
     while weechat.infolist_next(infolist):
         item_count += 1
         if item_count > 1:
@@ -88,7 +93,6 @@ def infolist_display(buffer, args):
                                    weechat.color("chat_buffer"),
                                    item_count,
                                    weechat.color("chat_delimiters"))
-        count = 0
         for field in fields:
             (type, name) = field.split(":", 1)
             value = ""
@@ -103,17 +107,18 @@ def infolist_display(buffer, args):
             elif type == "t":
                 value = weechat.infolist_time(infolist, name)
             name_end = "." * (30 - len(name))
-            weechat.prnt(buffer, "%s%s%s: %s%s%s %s%s%s%s%s%s" %
-                         (prefix, name, name_end,
-                          weechat.color("brown"), infolist_var_type[type],
-                          weechat.color("chat"), 
-                          weechat.color("chat"), quote,
-                          weechat.color("cyan"), value,
-                          weechat.color("chat"), quote))
+            weechat.prnt_date_tags(buffer, 0, "no_filter",
+                                   "%s%s%s: %s%s%s %s%s%s%s%s%s" %
+                                   (prefix, name, name_end,
+                                    weechat.color("brown"), infolist_var_type[type],
+                                    weechat.color("chat"), 
+                                    weechat.color("chat"), quote,
+                                    weechat.color("cyan"), value,
+                                    weechat.color("chat"), quote))
             prefix = ""
             count += 1
-        if count == 0:
-            weechat.prnt(buffer, "Empty infolist.")
+    if count == 0:
+        weechat.prnt_date_tags(buffer, 0, "no_filter", "Empty infolist.")
     weechat.infolist_free(infolist)
     return weechat.WEECHAT_RC_OK
 
