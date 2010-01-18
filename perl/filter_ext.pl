@@ -30,6 +30,11 @@
 # -----------------------------------------------------------------------------
 # Changelog:
 #
+# Version 0.02 2010-01-18
+#   added hints to filter more aggressive
+#   usefull for SPAM like this:
+#   -- | CTCP requested by ntba: VERSION To find out more visit http://wiredside.com/page.ext
+#
 # Version 0.01 2010-01-17
 # initial version
 
@@ -41,7 +46,7 @@ use 5.006;
 use strict;
 use warnings;
 
-my $Version = 0.01;
+my $Version = 0.02;
 
 sub version {
     $Version;
@@ -61,6 +66,11 @@ Quick access to filters on spam invasion via prefixes for filter-names.
 
 First you should define an alias like
   /alias /f /filter add SPAM\$1 irc. * \$1
+
+Sometimes the filter above will not work, eg for ctcp requests, then a more aggressive filter can help:
+  /alias /fa /filter add SPAMAGR\$1 * * \$1
+
+  Note y'll never see lines with regex (\$1) again!
 
 With this alias you can simply add filters for spam with copy and paste. 
   /f copy_and_pasted_string
@@ -86,7 +96,13 @@ To be more quick define aliases like:
   /alias /fl     /filter_ext list SPAM
   /alias /fd     /filter_ext disable SPAM
   /alias /fe     /filter_ext enable SPAM
+for aggressive filters:
+  /alias /faddel  /filter_ext del ^SPAMAGR
+  /alias /fal     /filter_ext list SPAMAGR
+  /alias /fad     /filter_ext disable SPAMAGR
+  /alias /fae     /filter_ext enable SPAMAGR
 
+See /help filter for details. If y're using weechat > 0.3.0 take a look at irc.look.display_ctcp*
 EO_HELP
 
 my $DEBUG=0;
