@@ -30,6 +30,11 @@
 # -----------------------------------------------------------------------------
 # Changelog:
 #
+# Version 0.03 2010-01-18
+#
+#   FIX: use weechat::print_date_tags() to list filters
+#        otherwise if filter was enabled for all plugins even output of this script was filtered
+#
 # Version 0.02 2010-01-18
 #   added hints to filter more aggressive
 #   usefull for SPAM like this:
@@ -46,7 +51,7 @@ use 5.006;
 use strict;
 use warnings;
 
-my $Version = 0.02;
+my $Version = 0.03;
 
 sub version {
     $Version;
@@ -107,7 +112,7 @@ EO_HELP
 
 my $DEBUG=0;
 sub DEBUG {weechat::print('', "***\t" . $SCRIPT . ": $_[0]") if $DEBUG;}
-sub wprint {weechat::print('', "\t $_[0]");}
+sub wprint { weechat::print_date_tags("", 0, "no_filter", , "\t $_[0]");}
 sub werror {weechat::print('', weechat::prefix("error")."$COMMAND: $_[0]");}
 
 my $Input_buffer;
