@@ -76,7 +76,11 @@
 # -----------------------------------------------------------------------------
 #
 # Changelog:
-##########################
+#
+# Version 0.07 2010-01-18
+#
+#   * newsbar: ignore private highlights if current buffer is private buffer for
+#     nick sending message
 #
 # Version 0.06 2010-01-14
 #   * fixes
@@ -143,7 +147,7 @@ use POSIX qw(strftime);
 use strict;
 use warnings;
 
-my $Version = 0.06;
+my $Version = 0.07;
 
 # constants
 #
@@ -522,8 +526,7 @@ sub highlights_public {
         } elsif ( $btype eq 'private' ) {
             $channel = '';
             $fmt     = weechat::config_get_plugin('format_private');
-            _beep($Beep_freq_pr, weechat::config_get_plugin('beep_duration') );
-
+            _beep( $Beep_freq_pr, weechat::config_get_plugin('beep_duration') );
         } elsif ( $btype eq 'server' ) {
             if ( weechat::config_get_plugin('show_priv_server_msg') eq 'on' ) {
                 #TODO check for #channel == $server FIXME needed?
@@ -550,9 +553,16 @@ sub highlights_private {
     if ( weechat::config_get_plugin('show_priv_msg') eq "on"
         and $nick ne '--' )
     {
-        _beep( $Beep_freq_msg, weechat::config_get_plugin('beep_duration') );
-        _print_formatted( $fmt, $message, $nick,
-            weechat::color('red') . "[privmsg]", undef );
+        my ( $bufferp, $buffer_name );
+        $bufferp     = weechat::current_buffer();
+        $buffer_name = weechat::buffer_get_string( $bufferp, "short_name" )
+          if $bufferp;
+
+        unless ( $buffer_name and $buffer_name eq $nick) {
+            _beep( $Beep_freq_msg, weechat::config_get_plugin('beep_duration') );
+            _print_formatted( $fmt, $message, $nick,
+                weechat::color('red') . "[privmsg]", undef );
+        }
     }
 
     return weechat::WEECHAT_RC_OK;
