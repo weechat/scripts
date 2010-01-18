@@ -21,6 +21,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2010-01-18, xt
+#  version 0.4: only update servers that are connected
 # 2009-11-30, xt <xt@bash.no>
 #  version 0.3: do not touch servers that are manually set away
 # 2009-11-27, xt <xt@bash.no>
@@ -34,7 +36,7 @@ import os
 
 SCRIPT_NAME    = "screen_away"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.3"
+SCRIPT_VERSION = "0.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Set away status on screen detach"
 
@@ -89,7 +91,8 @@ def get_servers():
     while w.infolist_next(infolist):
         if not w.infolist_integer(infolist, 'is_away') or \
                w.infolist_string(infolist, 'away_message') == \
-               w.config_get_plugin('message'):
+               w.config_get_plugin('message') and \
+               w.infolist_integer(infolist, 'is_connected') == 1:
             buffers.append(w.infolist_pointer(infolist, 'buffer'))
     w.infolist_free(infolist)
     return buffers
