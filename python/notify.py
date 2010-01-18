@@ -6,6 +6,9 @@
 # Requires Weechat 0.3.0
 # Released under GNU GPL v2
 #
+# 2010-01-19, Didier Roche <didrocks@ubuntu.com>
+#     version 0.0.4: add smart notification:
+#     be notified only if you're not in the current channel/pv window (off by default)
 # 2009-06-16, kba <unixprog@gmail.com.org>:
 #     version 0.0.3: added config options for icon and urgency
 # 2009-05-02, FlashCode <flashcode@flashtux.org>:
@@ -13,7 +16,7 @@
 
 import weechat, pynotify, string
 
-weechat.register("notify", "lavaramano", "0.0.3", "GPL", "notify: A real time notification system for weechat", "", "")
+weechat.register("notify", "lavaramano", "0.0.4", "GPL", "notify: A real time notification system for weechat", "", "")
 
 # script options
 settings = {
@@ -21,6 +24,7 @@ settings = {
     "show_priv_msg"             : "on",
     "icon"                      : "/usr/share/pixmaps/weechat.xpm",
     "urgency"                   : "normal",
+    "smart_notification"        : "off",
 }
 
 # Init everything
@@ -30,27 +34,23 @@ for option, default_value in settings.items():
 
 # Hook privmsg/hilights
 weechat.hook_print("", "", "", 1, "nofify_show_hi", "")
-weechat.hook_signal("weechat_pv", "nofify_show_priv", "")
 
 # Functions
 def nofify_show_hi( data, bufferp, uber_empty, tagsn, isdisplayed, ishilight, prefix, message ):
     """Sends highlighted message to be printed on notification"""
-    if ishilight == "1" and weechat.config_get_plugin('show_hilights') == "on":
-        if not weechat.buffer_get_string(bufferp, "short_name"):
-            buffer = weechat.buffer_get_string(bufferp, "name")
+    if bufferp != weechat.current_buffer() or weechat.config_get_plugin('smart_notification') == "off" :
+        if weechat.buffer_get_string(bufferp, "localvar_type") == "private" and weechat.config_get_plugin('show_priv_msg') == "on":
+            show_notification("Private message: " , message)
         else:
-            buffer = weechat.buffer_get_string(bufferp, "short_name")
+            if ishilight == "1" and weechat.config_get_plugin('show_hilights') == "on":
+                if not weechat.buffer_get_string(bufferp, "short_name"):
+                    buffer = weechat.buffer_get_string(bufferp, "name")
+                else:
+                    buffer = weechat.buffer_get_string(bufferp, "short_name")
+                show_notification(buffer , "<b>"+prefix+"</b>: "+message)
+                if weechat.config_get_plugin('debug') == "on":
+                    print prefix
 
-        show_notification(buffer , "<b>"+prefix+"</b>: "+message)
-        if weechat.config_get_plugin('debug') == "on":
-            print prefix
-
-    return weechat.WEECHAT_RC_OK
-
-def nofify_show_priv( data, signal, message ):
-    """Sends private message to be printed on notification"""
-    if weechat.config_get_plugin('show_priv_msg') == "on":
-        show_notification("Private message: ",  message)
     return weechat.WEECHAT_RC_OK
 
 def show_notification(chan,message):
