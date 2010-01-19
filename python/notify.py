@@ -7,6 +7,8 @@
 # Released under GNU GPL v2
 #
 # 2010-01-19, Didier Roche <didrocks@ubuntu.com>
+#     version 0.0.4.1: add private message sender name
+# 2010-01-19, Didier Roche <didrocks@ubuntu.com>
 #     version 0.0.4: add smart notification:
 #     be notified only if you're not in the current channel/pv window (off by default)
 # 2009-06-16, kba <unixprog@gmail.com.org>:
@@ -16,7 +18,7 @@
 
 import weechat, pynotify, string
 
-weechat.register("notify", "lavaramano", "0.0.4", "GPL", "notify: A real time notification system for weechat", "", "")
+weechat.register("notify", "lavaramano", "0.0.4.1", "GPL", "notify: A real time notification system for weechat", "", "")
 
 # script options
 settings = {
@@ -40,7 +42,7 @@ def nofify_show_hi( data, bufferp, uber_empty, tagsn, isdisplayed, ishilight, pr
     """Sends highlighted message to be printed on notification"""
     if bufferp != weechat.current_buffer() or weechat.config_get_plugin('smart_notification') == "off" :
         if weechat.buffer_get_string(bufferp, "localvar_type") == "private" and weechat.config_get_plugin('show_priv_msg') == "on":
-            show_notification("Private message: " , message)
+            show_notification("Private message:" , "<b>"+prefix+"</b>: "+message)
         else:
             if ishilight == "1" and weechat.config_get_plugin('show_hilights') == "on":
                 if not weechat.buffer_get_string(bufferp, "short_name"):
