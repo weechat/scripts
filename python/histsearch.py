@@ -24,6 +24,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2010-01-19, xt <xt@bash.no>
+#     version 0.2: return max 9 commands
 # 2009-06-10, xt <xt@bash.no>
 #     version 0.1: initial release
 
@@ -33,7 +35,7 @@ weechat = w
 
 SCRIPT_NAME    = "histsearch"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Quick search in command history (think ctrl-r in bash)"
 SCRIPT_COMMAND = 'histsearch'
@@ -126,6 +128,7 @@ def get_matching_commands(input):
     clist = []
     if len(input) == 0:
         commands_pos = 0
+        return []
     input = input.lower()
     infolist = w.infolist_get("history", "", "")
     while w.infolist_next(infolist):
@@ -133,6 +136,9 @@ def get_matching_commands(input):
         matching = input in text
         #if not matching and input.isdigit():
         #    matching = str(number).startswith(input)
+        if len(clist) > 9:
+           # Return max 10 commands
+            break
         if len(input) == 0 or matching:
             if not text in clist:
                 clist.append(text)

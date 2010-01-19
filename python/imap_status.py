@@ -3,6 +3,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2010-01-19, xt
+#   version 0.4: only run check when timer expired
 # 2009-11-03, xt
 #   version 0.3: multiple mailbox support
 # 2009-11-02, xt
@@ -33,13 +35,17 @@ Warning: If you have a slow imap server, weechat might "freeze" while doing oper
 
 import weechat as w
 import imaplib as i
+from time import time as now
 import re
 
 SCRIPT_NAME    = "imap_status"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.3"
+SCRIPT_VERSION = "0.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Bar item with unread imap messages count"
+
+
+LAST_RUN = 0
 
 # script options
 settings = {
@@ -94,6 +100,12 @@ class Imap(object):
 def imap_cb(*kwargs):
     ''' Callback for the bar item with unread count '''
 
+    global LAST_RUN
+
+    # Check LAST RUN if we need to run again 
+    if (now() - LAST_RUN) < int(w.config_get_plugin('interval'))*60:
+        return ''
+
     imap = Imap()
 
     output = '%s%s: ' % (\
@@ -112,6 +124,8 @@ def imap_cb(*kwargs):
                 unreadCount)
     imap.logout()
     output += w.color('reset')
+
+    LAST_RUN = now()
 
     if any_with_unread:
         return output

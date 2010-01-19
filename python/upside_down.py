@@ -24,6 +24,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2010-01-14, xt
+#   version 0.3: steal more chars from m4v
 # 2010-01-06, xt <xt@bash.no>
 #   version 0.2: fix idiotic programming
 # 2009-11-12, xt <xt@bash.no>
@@ -34,13 +36,33 @@ import re
 
 SCRIPT_NAME    = "upside_down"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Replaces text you write with upside down text"
 
 settings = {}
 
 replacements = {
+# Upper case
+    u'A' : u'\N{FOR ALL}',
+    u'B' : u'\N{GREEK SMALL LETTER XI}',
+    u'C' : u'\N{ROMAN NUMERAL REVERSED ONE HUNDRED}',
+    u'D' : u'\N{LEFT HALF BLACK CIRCLE}',
+    u'E' : u'\N{LATIN CAPITAL LETTER REVERSED E}',
+    u'F' : u'\N{TURNED CAPITAL F}',
+    u'G' : u'\N{TURNED SANS-SERIF CAPITAL G}',
+    u'J' : u'\N{LATIN SMALL LETTER LONG S}',
+    u'K' : u'\N{RIGHT NORMAL FACTOR SEMIDIRECT PRODUCT}',
+    u'L' : u'\ua780',
+    u'M' : u'W',
+    u'N' : u'\N{LATIN LETTER SMALL CAPITAL REVERSED N}',
+    u'P' : u'\N{CYRILLIC CAPITAL LETTER KOMI DE}',
+    u'Q' : u'\N{GREEK CAPITAL LETTER OMICRON WITH TONOS}',
+    u'R' : u'\N{LATIN LETTER SMALL CAPITAL TURNED R}',
+    u'T' : u'\N{UP TACK}',
+    u'U' : u'\N{INTERSECTION}',
+    u'V' : u'\u0245',
+    u'Y' : u'\N{TURNED SANS-SERIF CAPITAL Y}',
      'a' : u"\u0250",
      'b' : u'q',
      'c' : u"\u0254",

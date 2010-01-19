@@ -58,6 +58,9 @@
 #  debug:                  Show some debug/warning messages on failture
 #
 # -----------------------------------------------------------------------------
+# Download:
+# http://github.com/rettub/weechat-plugins/raw/master/perl/newsbar.pl
+# -----------------------------------------------------------------------------
 # XXX Known bugs:
 #     Bar must be redrawed if terminal size has changed (wrapping)
 #     Wrapping starts to early if some locale/utf chars contained in message string
@@ -72,10 +75,25 @@
 #      (I use festival for it)
 # TODO exclude nicks, channels, servers, ... by eg. user defined whitelists
 #      and/or blacklists
-# TODO newsbeuter
 # -----------------------------------------------------------------------------
 #
 # Changelog:
+#
+# Version 0.09 2010-01-19
+#
+#   * FIX remove old debug code creating files in /tmp
+#
+# Version 0.08 2010-01-19
+#
+#   * protection for 'nick-flood'
+#     new options: nick_flood_protection, nick_flood_max_nicks
+#
+#     It's annoying if bots enter channels printing all nicks.
+#     newsbar can ignore those bots, for that
+#      set nick_flood_protection 'on'
+#
+#   * added direkt download url
+#   * newsbar: update TODO
 #
 # Version 0.07 2010-01-18
 #
@@ -147,7 +165,7 @@ use POSIX qw(strftime);
 use strict;
 use warnings;
 
-my $Version = 0.07;
+my $Version = 0.09;
 
 # constants
 #
@@ -177,6 +195,8 @@ my %SETTINGS = (
     "bar_seperator"          => "off",
     "bar_title"              => "Highlights",
     "colored_help"           => "on",
+    "nick_flood_protection"  => 'off',
+    "nick_flood_max_nicks"   => '4',
     "debug"                  => "on",
 );
 
@@ -312,6 +332,13 @@ Config settings:
                               /set plugins.var.perl.newsbar.colored_help off
                             then reload the script.
                             default: '$SETTINGS{colored_help}'
+    nick_flood_protection:  Don't act on messages starting with mutiple nicks.
+                            It's annoying if bots enter channels printing all
+                            nicks.
+                            default: '$SETTINGS{nick_flood_protection}'
+    nick_flood_max_nicks:   If messages starts with #nick_flood_max_nicks or
+                            more nicks, then it's assumed as nick_flood
+                            default: '$SETTINGS{nick_flood_max_nicks}'
     debug:                  Show some debug/warning messages on failture. ('on'/'off').
                             default: '$SETTINGS{debug}'
 
@@ -334,6 +361,8 @@ my $Beep_freq_ch = 1000;
 my $Beep_freq_pr = 1000;
 my $Beep_freq_msg = 1000;
 my $Beep_remote = '';
+my $Nick_flood_protection;
+my $Nick_flood_max_nicks;
 
 # helper functions {{{
 # XXX track changes for irc_nick_find_color(),  be ready for 256 colors
@@ -501,6 +530,19 @@ sub _print_formatted {
 # }}}
 
 # weechat stuff {{{
+
+sub check_nick_flood {
+    my ( $bufferp, $message ) = @_;
+
+    my @n = split( '\s+', $message, $Nick_flood_max_nicks + 1 );
+    my $is_nick = undef;
+    for ( my $i = 0 ; $i < $Nick_flood_max_nicks ; $i++ ) {
+        last if not defined $n[$i];    # messages has less words
+        $is_nick++ if weechat::nicklist_search_nick( $bufferp, '', $n[$i] );
+    }
+    return $is_nick == $Nick_flood_max_nicks;
+}
+
 # colored output of hilighted text to bar
 sub highlights_public {
     my ( undef, $bufferp, undef, undef, undef, $ishilight, $nick, $message ) = @_;
@@ -521,8 +563,12 @@ sub highlights_public {
         );
 
         if ( $btype eq 'channel' ) {
+            return weechat::WEECHAT_RC_OK
+              if $Nick_flood_protection eq 'on'
+                  and check_nick_flood( $bufferp, $message );
+
             $fmt = weechat::config_get_plugin('format_public');
-            _beep($Beep_freq_ch, weechat::config_get_plugin('beep_duration') );
+            _beep( $Beep_freq_ch, weechat::config_get_plugin('beep_duration') );
         } elsif ( $btype eq 'private' ) {
             $channel = '';
             $fmt     = weechat::config_get_plugin('format_private');
@@ -659,6 +705,8 @@ sub init_config {
     $Beep_freq_pr  = weechat::config_get_plugin('beep_freq_private');
     $Beep_freq_msg = weechat::config_get_plugin('beep_freq_msg');
     $Beeps         = weechat::config_get_plugin('beeps');
+    $Nick_flood_protection = weechat::config_get_plugin('nick_flood_protection');
+    $Nick_flood_max_nicks  = weechat::config_get_plugin('nick_flood_max_nicks');
 }
 
 sub beepfreq_config_changed {
@@ -717,6 +765,16 @@ sub beep_remote_config_changed {
         $Beep_remote = $c eq 'on' ? weechat::config_get_plugin('ssh_host') : 'local';
         weechat::bar_item_update($Bar_title_name);
     }
+
+    return weechat::WEECHAT_RC_OK;
+}
+sub config_changed_nick_flood {
+    my $datap  = shift;
+    my $option = shift;
+    my $value  = shift;
+
+    $Nick_flood_protection = $value if $option =~ /protection/;
+    $Nick_flood_max_nicks  = $value if $option =~ /max_nicks/;
 
     return weechat::WEECHAT_RC_OK;
 }
@@ -805,11 +863,8 @@ sub init_bar {
     if ( $c = weechat::config_string( weechat::config_get('weechat.bar.newsbar.color_bg') ) )
     {
         $c = weechat::config_string(weechat::config_get('weechat.bar.title.color_bg'));
-        `echo "c: $c" >/tmp/title.color_bg`;
     }
-    else {
-        `echo "c: $c" >/tmp/newsbar.color_bg`;
-    }
+
     unless (defined $Bar_title) {
         weechat::bar_item_new( $Bar_title_name, "build_bar_title", "" );
         weechat::bar_new(
@@ -973,6 +1028,7 @@ if ( weechat::register(  $SCRIPT,  $AUTHOR, $Version, $LICENCE, $DESCRIPTION, "u
     weechat::hook_config( "plugins.var.perl." . $SCRIPT . ".beep_freq_*", 'beepfreq_config_changed', "" );
     weechat::hook_config( "plugins.var.perl." . $SCRIPT . ".beeps", 'beeps_config_changed', "" );
     weechat::hook_config( "plugins.var.perl." . $SCRIPT . ".beep_remote", 'beep_remote_config_changed', "" );
+    weechat::hook_config( "plugins.var.perl." . $SCRIPT . ".nick_flood*", 'config_changed_nick_flood', "" );
 }
 
 # vim: ai ts=4 sts=4 et sw=4 foldmethod=marker :
