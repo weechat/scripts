@@ -25,37 +25,7 @@
 #
 #
 # Usage:
-#
-#  Simply load the script, and all highlights in all channels will be sent to a
-#  bar.
-#
-#  Simple commands:
-#  /newsbar always         enable highlights to bar always.
-#  /newsbar away_only      enable highlights to bar if away only
-#  /newsbar clear [regexp] clears the bar optional with perl regexp
-#  /newsbar memo [text]    writes text into the script's bar
-#  /newsbar add text       text formatted the script's bar
-#
-# Configuration:
-#
-#  away_only:              collect hihlights only if away isn't set
-#  show_highlights         Enable/disable handling of public messages
-#  show_priv_msg           Enable/disable handling of private messages
-#  show_priv_server_msg    Enable/disable handling of private server messages
-#  format_public :         format-string for public highlights
-#  format_private:         format-string for private highlights
-#                          %n : nick,    %N : colored nick
-#                          %c : channel, %C : colored channel
-#                          %s : server
-#  memo_tag_color          Color of '[memo]'
-#  remove_bar_on_unload    Remove bar when script will be unloaded. 
-#  bar_auto_hide           Hide bar if empty.
-#  bar_hidden_on_start     Start with a hidden bar.
-#  bar_visible_lines       lines visible if bar is shown.
-#  bar_seperator           Show bar separator line.
-#  bar_title               Title of info bar
-#
-#  debug:                  Show some debug/warning messages on failture
+#     see /help newsbar
 #
 # -----------------------------------------------------------------------------
 # Download:
@@ -78,6 +48,15 @@
 # -----------------------------------------------------------------------------
 #
 # Changelog:
+#
+# Version 0.10 2010-01-20
+#
+#   * FIX warning about undefined var
+#   * examples for key bindings
+#     - add 'bind'
+#     - typo,
+#     - new example
+#   * remove usage in comments (not in sync)
 #
 # Version 0.09 2010-01-19
 #
@@ -165,7 +144,7 @@ use POSIX qw(strftime);
 use strict;
 use warnings;
 
-my $Version = 0.09;
+my $Version = "0.10";
 
 # constants
 #
@@ -248,6 +227,11 @@ Arguments:
                     # XXX This script assumes that only one weechat-client is runnig on that host
                     # XXX depends on pgrep
                     #
+                    # Example key binding to delete lines containing [RSS] and to
+                    # hide newsbar at once:
+                    #   key: </> on numeric keypad (check it for you with meta-k)
+                    #   meta-Oo => /newsbar clear \[RSS\]; /newsbar hide
+                    #
                     # related example settings in ~/.newsbeuter/config
                     # notify-format  "%d new articles (%n unread articles, %f unread feeds)"
                     # notify-program "~/bin/nb2newsbar.sh"
@@ -260,17 +244,19 @@ Arguments:
     scroll_home,    scroll_end,
     scroll_page_up, scroll_page_down,
     scroll_up,      scroll_down:
-                    Usefull for simple key bindings.
+                    Useful simple key bindings.
 
-                    Example key bindings (all on numeric keypad):
-                    <Return> /key meta-OM /newsbar <c>toggle</c>
-                    <7>      /key meta-OU /newsbar <c>scroll_home</c>
-                    <1>      /key meta-O\\ /newsbar <c>scroll_end</c>
-                    <9>      /key meta-OZ /newsbar <c>scroll_page_up</c>
-                    <3>      /key meta-O[ /newsbar <c>scroll_page_down</c>
-                    <8>      /key meta-OW /newsbar <c>scroll_up</c>
-                    <2>      /key meta-OY /newsbar <c>scroll_down</c>
-                    <alt-,>  /key meta-meta-O_ /input delete_beginning_of_line; /input insert /newsbar <c>clear</c>
+                    Example key bindings (all on numeric keypad, NUMLOCK := off):
+                    <Return> /key bind meta-OM /newsbar <c>toggle</c>
+                    <7>      /key bind meta-OU /newsbar <c>scroll_home</c>
+                    <1>      /key bind meta-O\\ /newsbar <c>scroll_end</c>
+                    <9>      /key bind meta-OZ /newsbar <c>scroll_page_up</c>
+                    <3>      /key bind meta-O[ /newsbar <c>scroll_page_down</c>
+                    <8>      /key bind meta-OW /newsbar <c>scroll_up</c>
+                    <2>      /key bind meta-OY /newsbar <c>scroll_down</c>
+                    <Alt><Return> /key bind meta-OM => /newsbar <c>clear</c>  (clear and hide)
+
+                    Check for your keys with <alt>-k (meta-k)!
 
 Config settings:
 
@@ -540,7 +526,7 @@ sub check_nick_flood {
         last if not defined $n[$i];    # messages has less words
         $is_nick++ if weechat::nicklist_search_nick( $bufferp, '', $n[$i] );
     }
-    return $is_nick == $Nick_flood_max_nicks;
+    return defined $is_nick and $is_nick == $Nick_flood_max_nicks;
 }
 
 # colored output of hilighted text to bar
