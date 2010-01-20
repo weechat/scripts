@@ -33,6 +33,11 @@
 #       remind user color
 # 2009-09-27, fauno:
 #       help definition
+# 2009-10-11, fauno:
+#       hability to check up to 20 updates from users (/sn updates <username> <quantity>)
+# 2010-01-20, fauno:
+#       fixed int to str error caused by api changes.
+#       default regexp's for @names, etc. includes trailing space
 
 # PLANNED FEATURES
 # 	- @autocompletion (if it's really possible!)
@@ -49,7 +54,7 @@ from random import randint
 
 SCRIPT_NAME    = "identica"
 SCRIPT_AUTHOR  = "fauno <fauno@kiwwwi.com.ar>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.2.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Formats identi.ca's bot messages"
 
@@ -60,6 +65,7 @@ settings = {
 		"scheme"                  : "https",
 		"channel"                 : "localhost.update",
 		"re"                      : "^(?P<update>\w+)(?P<separator>\W+?)(?P<username>\w+): (?P<dent>.+)$",
+		"me"                      : "^(?P<update>\w+)(?P<separator>\W+?)(?P<username>\w+): \/me (?P<dent>.+)$",
 
 		"nick_color"              : "green",
 		"hashtag_color"           : "blue",
@@ -69,9 +75,9 @@ settings = {
 		"hashtag_color_identifier": "green",
 		"group_color_identifier"  : "green",
 
-		"nick_re"                 : "(@)([a-zA-Z0-9]+)",
-		"hashtag_re"              : "(#)([a-zA-Z0-9]+)",
-		"group_re"                : "(!)([a-zA-Z0-9]+)"
+		"nick_re"                 : "(@)([a-zA-Z0-9]+ )",
+		"hashtag_re"              : "(#)([a-zA-Z0-9]+ )",
+		"group_re"                : "(!)([a-zA-Z0-9]+ )"
 		}
 
 users = {}
@@ -142,7 +148,6 @@ def subscribe (username):
 	elif response == False:
 		weechat.prnt(weechat.current_buffer(), ('%sYou\'re already suscribed to %s' % (weechat.prefix('error'), username)))
 	else:
-		weechat.prnt(weechat.current_buffer(), response)
 		weechat.prnt(weechat.current_buffer(), ('%sSuscribed to %s updates' % (weechat.prefix('join'), username)))
 
 	return weechat.WEECHAT_RC_OK
@@ -176,9 +181,16 @@ def whois (username):
 	else:
 		whois = json.load(response)
 
-		for property in ['name', 'description', 'url', 'location']:
+		whois['summary'] = ' '.join([u'\u00B5', str(whois['statuses_count']),
+		                             u'\u2764', str(whois['favourites_count']),
+									 'subscribers', str(whois['followers_count']),
+									 'subscriptions', str(whois['friends_count'])])
+
+		for property in ['name', 'description', 'url', 'location', 'profile_image_url', 'summary']:
 			if whois[property] != None:
-				weechat.prnt(weechat.current_buffer(), ('%s[%s] %s' % (weechat.prefix('network'), username, whois[property].encode('utf-8'))))
+				weechat.prnt(weechat.current_buffer(), ('%s[%s] %s' % (weechat.prefix('network'),
+				                                                       username,
+																	   whois[property].encode('utf-8'))))
 		
 	return weechat.WEECHAT_RC_OK
 
@@ -215,6 +227,28 @@ def unblock (username):
 		
 	return weechat.WEECHAT_RC_OK
 
+def updates (username, quantity):
+	'''Shows user updates'''
+	if len(username) == 0 or quantity > 20:
+		return weechat.WEECHAT_RC_ERROR
+
+	if quantity < 1:
+		quantity = 1
+
+	response = statusnet_handler.handle_request(statusnet_handler.build_request('statuses', 'user_timeline', username))
+
+	if response == None:
+		pass
+	elif response == False:
+		weechat.prnt(weechat.current_buffer(), ('%sCan\'t retrieve %s\'s updates' % (weechat.prefix('error'), username)))
+	else:
+		statuses = json.load(response)[:quantity]
+		while quantity > 0:
+			quantity -= 1
+			weechat.prnt_date_tags(weechat.buffer_search('', weechat.config_get_plugin('channel')), 0, 'irc_privmsg', 'update\t%s: %s' % (username, statuses[quantity]['text'].encode('utf-8')))
+
+	return weechat.WEECHAT_RC_OK
+
 
 def colorize (message):
 	"""Colorizes replies, hashtags and groups"""
@@ -249,12 +283,19 @@ def nick_color (nick):
 	nick = ''.join([weechat.color(users[nick]['color']), nick, weechat.color('reset')])
 	return nick
 
+def clean (message):
+	'''Cleans URLs added by bot'''
+	return re.sub(r''.join([' \(http://', service, '/[a-zA-Z0-9/\-_#]+\)']), '', message)
+
 def parse (server, modifier, data, the_string):
 	"""Parses weechat_print modifier on update@identi.ca pv"""
 
+	#weechat.prnt("", the_string)
+	#weechat.prnt("", data)
 	plugin, channel, flags = data.split(';')
+	flag = flags.split(',')
 
-	if channel == weechat.config_get_plugin('channel'):
+	if channel == weechat.config_get_plugin('channel') and 'irc_privmsg' in flag:
 		the_string = weechat.string_remove_color(the_string, "")
 		matcher = re.compile(weechat.config_get_plugin('re'), re.UNICODE)
 
@@ -262,10 +303,10 @@ def parse (server, modifier, data, the_string):
 
 		if not m: return colorize(the_string)
 
-		dent = colorize(m.group('dent'))
+		dent = colorize(clean(m.group('dent')))
 		username = nick_color(m.group('username'))
 
-		the_string = ''.join([ weechat.color('cyan'), username, weechat.color('reset'), m.group('separator'), dent ])
+		the_string = ''.join([ username, m.group('separator'), dent ])
 
 	return the_string
 
@@ -280,7 +321,7 @@ def sn (data, buffer, args):
 		weechat.command("", "/help sn")
 		return weechat.WEECHAT_RC_OK
 	
-	argv = args.strip().split(' ', 1)
+	argv = args.strip().split(' ')
 
 	if argv[0] == 'subscribe':
 		subscribe(argv[1])
@@ -292,6 +333,8 @@ def sn (data, buffer, args):
 		block(argv[1])
 	elif argv[0] == 'unblock':
 		unblock(argv[1])
+	elif argv[0] == 'updates':
+		updates(argv[1], int(argv[2]))
 
 	return weechat.WEECHAT_RC_OK
 	
@@ -318,13 +361,13 @@ if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
 	else:
 		statusnet_handler = StatusNet(username, password, scheme, service)
 
-    # hook incoming messages
+    # hook incoming messages for parsing
 	weechat.hook_modifier('weechat_print', 'parse', '')
 
     # /sn
 	weechat.hook_command('sn',
 	                     'StatusNet manager',
-						 'whois | subscribe | unsubscribe | block | unblock <username>',
+						 'whois | subscribe | unsubscribe | block | unblock | updates <username>',
 						 '        whois: retrieves profile information from <username>'
 						 "\n"
 						 '    subscribe: subscribes to <username>'
@@ -333,8 +376,10 @@ if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
 						 "\n"
 						 '        block: blocks <username>'
 						 "\n"
-						 '      unblock: unblocks <username>',
-						 'whois %(sn_nicklist) || sub %(sn_nicklist) || unsub %(sn_nicklist) || block %(sn_nicklist) || unblock %(sn_nicklist)',
+						 '      unblock: unblocks <username>'
+						 "\n"
+						 '      updates: updates <username> <quantity (<20)>',
+						 'whois %(sn_nicklist) || subscribe %(sn_nicklist) || unsubscribe %(sn_nicklist) || block %(sn_nicklist) || unblock %(sn_nicklist) || updates %(sn_nicklist)',
 						 'sn',
 						 '')
 
