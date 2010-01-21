@@ -67,6 +67,7 @@
 #
 #   History:
 #   2010-01-19
+#   version 0.6.4: bug fix
 #   version 0.6.3: added options --invert --only-match (replaces --exact, which is still available
 #   but removed from help)
 #   * use new 'irc_nick_color' info
@@ -155,7 +156,7 @@ except ImportError:
 
 SCRIPT_NAME    = "grep"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.6.3"
+SCRIPT_VERSION = "0.6.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Search in buffers and logs"
 SCRIPT_COMMAND = "grep"
@@ -1160,7 +1161,7 @@ def format_options():
             append(after_context)
 
     s = ''.join(map(str, options)).strip()
-    if s[0] != '-':
+    if s and s[0] != '-':
         s = '-' + s
     return s
 
