@@ -18,6 +18,8 @@
 # Display infolist in a buffer.
 #
 # History:
+# 2010-01-23, m4v <lambdae2@gmail.com>:
+#     version 0.3: user can give a pointer as argument
 # 2010-01-18, FlashCode <flashcode@flashtux.org>:
 #     version 0.2: use tag "no_filter" for lines displayed, fix display bug
 #                  when infolist is empty
@@ -28,7 +30,7 @@
 
 SCRIPT_NAME    = "infolist"
 SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Display infolist in a buffer"
 
@@ -67,10 +69,15 @@ def infolist_display(buffer, args):
     
     items = args.split(" ", 1)
     infolist_args = ""
+    infolist_pointer = ""
     if len(items) >= 2:
         infolist_args = items[1]
+        if infolist_args[:2] == "0x":
+            infolist_pointer, sep, infolist_args = infolist_args.partition(" ")
+        elif infolist_args[:3] == "\"\" ":
+            infolist_args = infolist_args[3:]
     
-    infolist = weechat.infolist_get(items[0], "", infolist_args)
+    infolist = weechat.infolist_get(items[0], infolist_pointer, infolist_args)
     if infolist == "":
         weechat.prnt_date_tags(buffer, 0, "no_filter",
                                "%sInfolist '%s' not found."
@@ -80,7 +87,8 @@ def infolist_display(buffer, args):
     item_count = 0
     weechat.buffer_clear(buffer)
     weechat.prnt_date_tags(buffer, 0, "no_filter",
-                           "Infolist '%s', with arguments '%s':" % (items[0], infolist_args))
+                           "Infolist '%s', with pointer '%s' and arguments '%s':" % (items[0],
+                               infolist_pointer, infolist_args))
     weechat.prnt(buffer, "")
     count = 0
     while weechat.infolist_next(infolist):
@@ -163,8 +171,9 @@ if __name__ == "__main__" and import_ok:
     if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
                         SCRIPT_DESC, "", ""):
         weechat.hook_command("infolist", "Display infolist in a buffer",
-                             "[infolist [arguments]]",
+                             "[infolist [pointer] [arguments]]",
                              " infolist: name of infolist\n"
+                             "  pointer: optional pointer for infolist (\"\" for none)\n"
                              "arguments: optional arguments for infolist\n\n"
                              "Command without argument will open buffer used "
                              "to display infolists.\n\n"
