@@ -6,6 +6,8 @@
 # Requires Weechat 0.3.0
 # Released under GNU GPL v2
 #
+# 2010-01-24, David Rubin <davidrub+weechat@gmail.com>
+#     version 0.0.4.2 Fixed issue with self notifications when used with out "smart_notification"
 # 2010-01-19, Didier Roche <didrocks@ubuntu.com>
 #     version 0.0.4.1: add private message sender name
 # 2010-01-19, Didier Roche <didrocks@ubuntu.com>
@@ -18,7 +20,7 @@
 
 import weechat, pynotify, string
 
-weechat.register("notify", "lavaramano", "0.0.4.1", "GPL", "notify: A real time notification system for weechat", "", "")
+weechat.register("notify", "lavaramano", "0.0.4.2", "GPL", "notify: A real time notification system for weechat", "", "")
 
 # script options
 settings = {
@@ -41,17 +43,16 @@ weechat.hook_print("", "", "", 1, "nofify_show_hi", "")
 def nofify_show_hi( data, bufferp, uber_empty, tagsn, isdisplayed, ishilight, prefix, message ):
     """Sends highlighted message to be printed on notification"""
     if bufferp != weechat.current_buffer() or weechat.config_get_plugin('smart_notification') == "off" :
-        if weechat.buffer_get_string(bufferp, "localvar_type") == "private" and weechat.config_get_plugin('show_priv_msg') == "on":
-            show_notification("Private message:" , "<b>"+prefix+"</b>: "+message)
-        else:
-            if ishilight == "1" and weechat.config_get_plugin('show_hilights') == "on":
-                if not weechat.buffer_get_string(bufferp, "short_name"):
-                    buffer = weechat.buffer_get_string(bufferp, "name")
-                else:
-                    buffer = weechat.buffer_get_string(bufferp, "short_name")
-                show_notification(buffer , "<b>"+prefix+"</b>: "+message)
-                if weechat.config_get_plugin('debug') == "on":
-                    print prefix
+        if ishilight == "1" and weechat.config_get_plugin('show_hilights') == "on":
+            if weechat.buffer_get_string(bufferp, "localvar_type") == "private" and weechat.config_get_plugin('show_priv_msg') == "on":
+                show_notification("Private message:" , "<b>"+prefix+"</b>: "+message)
+            elif not weechat.buffer_get_string(bufferp, "short_name"):
+                buffer = weechat.buffer_get_string(bufferp, "name")
+            else:
+                buffer = weechat.buffer_get_string(bufferp, "short_name")
+            show_notification(buffer , "<b>"+prefix+"</b>: "+message)
+            if weechat.config_get_plugin('debug') == "on":
+                print prefix
 
     return weechat.WEECHAT_RC_OK
 
