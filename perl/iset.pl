@@ -17,6 +17,8 @@
 # Set WeeChat and plugins options interactively.
 #
 # History:
+# 2010-01-24, FlashCode <flashcode@flashtux.org>:
+#     version 0.7: display iset bar only on iset buffer
 # 2010-01-22, nils_2 <weechatter@arcor.de> and drubin:
 #     version 0.6: add description in a bar, fix singular/plural bug in title bar,
 #                  fix selected line when switching buffer
@@ -37,7 +39,7 @@
 
 use strict;
 
-my $version = "0.6";
+my $version = "0.7";
 
 my $iset_buffer = "";
 my @options_names = ();
@@ -560,6 +562,21 @@ sub iset_get_help
     return $description;
 }
 
+sub iset_check_condition_isetbar_cb
+{
+    my ($data, $modifier, $modifier_data, $string) = ($_[0], $_[1], $_[2], $_[3]);
+    my $buffer = weechat::window_get_pointer($modifier_data, "buffer");
+    if ($buffer ne "")
+    {
+        if ((weechat::buffer_get_string($buffer, "plugin") eq "perl")
+            && (weechat::buffer_get_string($buffer, "name") eq "iset"))
+        {
+            return "1";
+        }
+    }
+    return "0";
+}
+
 sub iset_show_bar
 {
     my $show = $_[0];
@@ -631,6 +648,7 @@ weechat::bar_item_new("isetbar_help", "iset_item_cb", "");
 weechat::bar_new("isetbar", "on", "0", "window", "", "top", "horizontal",
                  "vertical", "3", "3", "default", "cyan", "default", "1",
                  "isetbar_help");
+weechat::hook_modifier("bar_condition_isetbar", "iset_check_condition_isetbar_cb", "");
 iset_init_config();
 $iset_buffer = weechat::buffer_search("perl", "iset");
 iset_init() if ($iset_buffer ne "");
