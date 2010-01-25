@@ -1,6 +1,6 @@
 #
 # highmon.pl - Highlight monitor for weechat 0.3.0
-# Version 1.6
+# Version 1.7
 #
 # Add 'Highlight Monitor' buffer to log all highlights in one spot
 #
@@ -26,7 +26,17 @@
 # Setting this to 'on' will only put messages in the highmon buffer when
 # you set your status to away
 #
+# /set plugins.var.perl.highmon.nick_prefix
+# /set plugins.var.perl.highmon.nick_suffix
+# Sets the prefix and suffix chars in the chanmon buffer
+# (Defaults to <> if nothing set, and blank if there is)
+#
 # History:
+# 2010-01-25, KenjiE20 <longbow@longbowslair.co.uk>:
+#	v1.7:	-fixture: Let highmon be aware of nick_prefix/suffix
+#			and allow custom prefix/suffix for chanmon buffer
+#			(Defaults to <> if nothing set, and blank if there is)
+#		(Thanks to m4v for these)
 # 2009-09-07, KenjiE20 <longbow@longbowslair.co.uk>:
 #	v1.6:	-feature: colored buffer names
 #		-change: version sync with chanmon
@@ -65,7 +75,7 @@ to change how the monitor appears
 The 'schannel' value will only show the buffer number as opposed to 'server#channel'
 
 ".weechat::color("bold")."/set plugins.var.perl.highmon.short_names".weechat::color("-bold")."
-Setting this to 'on' will trim the network name from chanmon, ala buffers.pl
+Setting this to 'on' will trim the network name from highmon, ala buffers.pl
 
 ".weechat::color("bold")."/set plugins.var.perl.highmon.color_buf".weechat::color("-bold")."
 This turns colored buffer names on or off, you can also set a single fixed color by using a weechat color name.
@@ -75,7 +85,12 @@ This ".weechat::color("bold")."must".weechat::color("-bold")." be a valid color 
 Setting this to 'on' will let the highmon buffer appear in hotlists (status bar/buffer.pl)
 
 ".weechat::color("bold")."/set plugins.var.perl.highmon.away_only".weechat::color("-bold")."
-Setting this to 'on' will only put messages in the highmon buffer when you set your status to away";
+Setting this to 'on' will only put messages in the highmon buffer when you set your status to away
+
+".weechat::color("bold")."/set plugins.var.perl.highmon.nick_prefix".weechat::color("-bold")."
+".weechat::color("bold")."/set plugins.var.perl.highmon.nick_suffix".weechat::color("-bold")."
+Sets the prefix and suffix chars in the chanmon buffer
+(Defaults to <> if nothing set, and blank if there is)";
 
 sub highmon_new_message
 {
@@ -120,7 +135,7 @@ sub highmon_new_message
 				if (!($cb_prefix =~ / \*/) && !($cb_prefix =~ /--/))
 				{
 					$uncolnick = weechat::string_remove_color($cb_prefix, "");
-					$nick = " <".weechat::color("chat_highlight").$uncolnick.weechat::color("reset").">";
+					$nick = " ".weechat::config_get_plugin("nick_prefix").weechat::color("chat_highlight").$uncolnick.weechat::color("reset").weechat::config_get_plugin("nick_suffix");
 				}
 				else
 				{
@@ -239,7 +254,7 @@ sub print_help
 	return weechat::WEECHAT_RC_OK;
 }
 
-weechat::register("highmon", "KenjiE20", "1.6", "GPL3", "Highlight Monitor", "", "");
+weechat::register("highmon", "KenjiE20", "1.7", "GPL3", "Highlight Monitor", "", "");
 weechat::hook_print("", "", "", 0, "highmon_new_message", "");
 weechat::hook_command("highmon", "Highmon help", "", $highmonhelp, "", "print_help", "");
 
@@ -267,6 +282,37 @@ if (!(weechat::config_is_set_plugin ("hotlist_show")))
 if (!(weechat::config_is_set_plugin ("away_only")))
 {
 	weechat::config_set_plugin("away_only", "off");
+}
+
+# Check for exisiting prefix/suffix chars, and setup accordingly
+
+$prefix = weechat::config_get("irc.look.nick_prefix");
+$prefix = weechat::config_string($prefix);
+$suffix = weechat::config_get("irc.look.nick_suffix");
+$suffix = weechat::config_string($suffix);
+
+if (!(weechat::config_is_set_plugin("nick_prefix")))
+{
+	if ($prefix eq "" && $suffix eq "")
+	{
+		weechat::config_set_plugin("nick_prefix", "<");
+	}
+	else
+	{
+		weechat::config_set_plugin("nick_prefix", "");
+	}
+}
+
+if (!(weechat::config_is_set_plugin("nick_suffix")))
+{
+	if ($prefix eq "" && $suffix eq "")
+	{
+		weechat::config_set_plugin("nick_suffix", ">");
+	}
+	else
+	{
+		weechat::config_set_plugin("nick_suffix", "");
+	}
 }
 
 highmon_buffer_open();
