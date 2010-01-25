@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2009 by FlashCode <flashcode@flashtux.org>
+# Copyright (c) 2009-2010 by FlashCode <flashcode@flashtux.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2010-01-25, FlashCode <flashcode@flashtux.org>:
+#     version 0.9: fix "running" status of scripts with /weeget check
 # 2009-09-30, FlashCode <flashcode@flashtux.org>:
 #     version 0.8: fix bugs and add missing info in "/weeget show",
 #                  display warning if url for plugins.xml.gz is old site
@@ -45,7 +47,7 @@
 
 SCRIPT_NAME    = "weeget"
 SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.8"
+SCRIPT_VERSION = "0.9"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "WeeChat scripts manager"
 
@@ -242,8 +244,11 @@ def wg_get_loaded_scripts():
 def wg_is_local_script_loaded(filename):
     """ Check if a script filename (like 'python/weeget.py') is loaded. """
     global wg_loaded_scripts
+    filename2 = filename
+    if filename2.startswith("autoload/"):
+        filename2 = filename2[9:]
     for name, path in wg_loaded_scripts.iteritems():
-        if path.endswith(filename):
+        if path.endswith(filename) or path.endswith(filename2):
             return True
     return False
 
@@ -277,11 +282,11 @@ def wg_get_local_scripts():
     with autoloaded scripts at beginning of list, for example:
       { 'perl':   [ 'autoload/buffers.pl',
                     'autoload/weetris.pl',
-                    'buffers.pl',
-                    'weetris.pl' ],
+                    'beep.pl',
+                    'launcher.pl' ],
         'python': [ 'autoload/weeget.py',
-                    'weeget.py',
-                    'go.py' ]
+                    'go.py',
+                    'vdm.py' ]
       }
     """
     files = {}
