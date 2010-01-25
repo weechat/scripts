@@ -1,4 +1,3 @@
-#!/bin/sh
 # Remote Notification Script
 # by Gotisch <gotisch@gmail.com>
 #
