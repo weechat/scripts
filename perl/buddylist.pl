@@ -17,6 +17,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# v0.6: nick wasn't set to offline, if user leave channel
 # v0.5: server information will be used now instead of nicklist
 #	reduction of cpu load (reported by ArcAngel and tigrmesh)
 #	bar will be removed if you unload the script. (requested by bazerka)
@@ -29,7 +30,7 @@
 
 use strict;
 my $prgname	= "buddylist";
-my $version	= "0.5";
+my $version	= "0.6";
 my $description	= "Simple buddylist that shows the status of your buddies.";
 
 my $buffer	= "";
@@ -50,14 +51,16 @@ weechat::register($prgname, "Nils Görs <weechatter\@arcor.de>", $version,
 init();
 buddylist_read();
 
- weechat::bar_item_new($prgname, "build_buffer", "");
- weechat::bar_new($prgname, "0", "0", "root", "", "left", "horizontal",
+weechat::bar_item_new($prgname, "build_buffer", "");
+weechat::bar_new($prgname, "0", "0", "root", "", "left", "horizontal",
 					    "vertical", "0", "0", "default", "default", "default", "1",
 					    $prgname);
- weechat::command("", "/bar show " . $prgname);
+weechat::command("", "/bar show " . $prgname);
 
 weechat::hook_signal("*,irc_in2_352", "from_hook_who","");			# RFC command with user channel status etc..
-weechat::hook_config("*.$prgname.*", "config_signal", "");
+weechat::hook_signal("*,irc_in_part", "remove_nick", "");
+weechat::hook_signal("*,irc_in_quit", "remove_nick", "");
+weechat::hook_config("*.$prgname.*", "config_signal", "");			# settings changed?
 
 weechat::hook_command($prgname, $description,
 
@@ -74,7 +77,7 @@ weechat::hook_command($prgname, $description,
 	"'plugins.var.perl.buddylist.sort'         : sort method for buddylist.\n".
 	"                                  default : $prgname will be sort by nickname\n".
 	"                                  status  : $prgname will be sort by status (online, away, offline)\n\n".
-	"If $prgname won't be refresh, check the following WeeChat options:\n".
+	"If $prgname won't refresh, check the following WeeChat options:\n".
 	"'irc.network.away_check'          : interval between two checks, in minutes. (has to be >= 1 (default:0)).\n".
 	"'irc.network.away_check_max_nicks': channels with high number of nicks will not be checked (default: 25).\n".
 	"\n".
@@ -127,13 +130,23 @@ sub createoutput{
 	$visual  = $cr if (($position eq "left") || ($position eq "right"));
 	$str .= weechat::color($color). "$_" . $visual;
 }
-
+sub remove_nick{
+#($nick,$name,$ip,$action,$channel) = ($args =~ /\:(.*)\!n=(.*)@(.*?)\s(.*)\s(.*)/; # maybe for future use
+	my $args = $_[2];							# save callback
+	my ($nickname) = ($args =~ /\:(.*)\!/);
+	$args =~ /\:(.*)\!/;
+	if (exists $buddies{$nickname}){					# nick in buddylist?
+		$buddies{$nickname} = 2;					# set buddy to offline
+		weechat::bar_item_update($prgname);
+	}
+}
 sub from_hook_who{
-	my $args = $_[2];							# save callback from hook_signal
+	my $args = $_[2];
+
 		my @words= split(" ",$args);
 	if (exists $buddies{$words[7]}){					# nick in buddylist?
 		$buddies{$words[7]} = 0;					# buddy is online
-			$buddies{$words[7]} = 1 if (substr($words[8],0,1) eq "G");
+			$buddies{$words[7]} = 1 if (substr($words[8],0,1) eq "G");# buddy is away
 		weechat::bar_item_update($prgname);
 	}
 
