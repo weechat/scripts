@@ -17,6 +17,11 @@
 # Set WeeChat and plugins options interactively.
 #
 # History:
+# 2010-02-02, rettub <rettub@gmx.net>:
+#     version 0.9: turn all the help stuff off if option 'show_help_bar' is 'off',
+#                  new key binding <alt>-<v> to toggle help_bar and help stuff on/off
+# 2010-01-30, nils_2 <weechatter@arcor.de>:
+#     version 0.8: fix error when option does not exist
 # 2010-01-24, FlashCode <flashcode@flashtux.org>:
 #     version 0.7: display iset bar only on iset buffer
 # 2010-01-22, nils_2 <weechatter@arcor.de> and drubin:
@@ -39,7 +44,7 @@
 
 use strict;
 
-my $version = "0.7";
+my $version = "0.9";
 
 my $iset_buffer = "";
 my @options_names = ();
@@ -148,6 +153,7 @@ sub iset_init
         weechat::buffer_set($iset_buffer, "key_bind_meta-ctrl-M",   "/iset **set");
         weechat::buffer_set($iset_buffer, "key_bind_meta-meta2-1~", "/iset **scroll_top");
         weechat::buffer_set($iset_buffer, "key_bind_meta-meta2-4~", "/iset **scroll_bottom");
+        weechat::buffer_set($iset_buffer, "key_bind_meta-v",        "/iset **toggle_help");
     }
 }
 
@@ -190,6 +196,7 @@ sub iset_refresh_line
         my $y = $_[0];
         if ($y <= $#options_names)
         {
+            return if (! defined($options_types[$y]));
             my $format = sprintf("%%s%%-%ds %%s %%-7s %%s %%s%%s%%s", $option_max_length);
             my $around = "";
             $around = "\"" if ((!$options_is_null[$y]) && ($options_types[$y] eq "string"));
@@ -238,7 +245,7 @@ sub iset_refresh
             iset_refresh_line($y);
         }
     }
-    weechat::bar_item_update("isetbar_help");
+    weechat::bar_item_update("isetbar_help") if weechat::config_get_plugin('show_help_bar')  eq 'on';
 }
 
 sub iset_full_refresh
@@ -263,7 +270,7 @@ sub iset_set_current_line
     {
         iset_refresh_line($old_current_line);
         iset_refresh_line($current_line);
-        weechat::bar_item_update("isetbar_help");
+        weechat::bar_item_update("isetbar_help") if weechat::config_get_plugin('show_help_bar') eq 'on';
     }
 }
 
@@ -486,6 +493,17 @@ sub iset_cmd_cb
         {
             iset_unset_option($options_names[$current_line]);
         }
+        if ($args eq "**toggle_help")
+        {
+            if (weechat::config_get_plugin("show_help_bar") eq "on")
+            {
+                weechat::config_set_plugin("show_help_bar", "off");
+            }
+            else
+            {
+                weechat::config_set_plugin("show_help_bar", "on");
+            }
+        }
         if ($args eq "**set")
         {
             my $quote = "";
@@ -501,12 +519,14 @@ sub iset_cmd_cb
             weechat::buffer_set($iset_buffer, "input", "/set ".$options_names[$current_line]." ".$quote.$value.$quote);
         }
     }
-    weechat::bar_item_update("isetbar_help");
+    weechat::bar_item_update("isetbar_help") if weechat::config_get_plugin('show_help_bar') eq 'on';
     return weechat::WEECHAT_RC_OK;
 }
 
 sub iset_get_help
 {
+    return '' unless weechat::config_get_plugin('show_help_bar') eq 'on';
+
     if (not defined $options_names[$current_line])
     {
         return "No option selected. Set a new filter using command line (use '*' to see all options)";
@@ -639,7 +659,8 @@ weechat::hook_command("iset", "Interactive set", "[f file] [s section] [text]",
                       "alt+'I',alt+'R': reset value of option\n".
                       "alt+'I',alt+'U': unset option\n".
                       "alt+enter      : set new value for option (edit it with command line)\n".
-                      "text,enter     : set a new filter using command line (use '*' to see all options)\n",
+                      "text,enter     : set a new filter using command line (use '*' to see all options)\n".
+                      "alt+'V'        : toggle help bar\n",
                       "", "iset_cmd_cb", "");
 weechat::hook_signal("window_scrolled", "iset_signal_window_scrolled_cb", "");
 weechat::hook_signal("buffer_switch", "iset_signal_buffer_switch_cb","");
