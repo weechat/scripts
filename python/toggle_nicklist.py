@@ -19,6 +19,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2010-02-03, Alex Barrett <al.barrett@gmail.com>
+#     version 0.5: support wildcards in buffers list
 # 2009-06-23, FlashCode
 #     version 0.4: use modifier to show/hide nicklist on a buffer
 # 2009-06-23, xt
@@ -32,7 +34,7 @@ import weechat as w
 
 SCRIPT_NAME    = "toggle_nicklist"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.4"
+SCRIPT_VERSION = "0.5"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Auto show and hide nicklist depending on buffer name"
 
@@ -97,19 +99,37 @@ def check_nicklist_cb(data, modifier, modifier_data, string):
     
     buffer = w.window_get_pointer(modifier_data, "buffer")
     if buffer:
-        current_buffer_name = w.buffer_get_string(buffer, 'plugin') + '.' + w.buffer_get_string(buffer, 'name')
+        buffer_name = w.buffer_get_string(buffer, 'plugin') + '.' + w.buffer_get_string(buffer, 'name')
         buffers_list = w.config_get_plugin('buffers')
         if w.config_get_plugin('action') == 'show':
-            for buffer_name in buffers_list.split(','):
-                if unicode(current_buffer_name) == unicode(buffer_name):
+            for buffer_mask in buffers_list.split(','):
+                if string_match(unicode(buffer_name), unicode(buffer_mask)):
                     return "1"
             return "0"
         else:
-            for buffer_name in buffers_list.split(','):
-                if unicode(current_buffer_name) == unicode(buffer_name):
+            for buffer_mask in buffers_list.split(','):
+                if string_match(unicode(buffer_name), unicode(buffer_mask)):
                     return "0"
             return "1"
     return "1"
+
+def string_match(value, mask):
+    """Tests whether a string matches a mask.
+
+    A mask can start or end with * representing wildcards. Any other * are
+    matched as literal characters. An empty mask will never match.
+    """
+
+    if mask == '':
+        return False
+    if mask[0] == '*' and mask[-1] == '*':
+        return value.find(mask[1:-1]) > -1
+    if mask[0] == '*':
+         index = value.rfind(mask[1:])
+         return len(value[index:]) == len(mask[1:])
+    if mask[-1] == '*':
+        return value.find(mask[:-1]) == 0
+    return value == mask
 
 if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, "", ""):
     for option, default_value in settings.iteritems():
@@ -124,7 +144,8 @@ if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT
                    "   add: add current buffer to list\n"
                    "remove: remove current buffer from list\n\n"
                    "Instead of using add/remove, you can set buffers list with: "
-                   "/set plugins.var.python.%s.buffers \"xxx\""
+                   "/set plugins.var.python.%s.buffers \"xxx\". Buffers set in this "
+                   "manner can start or end with * as wildcards to match multiple buffers."
                    % SCRIPT_NAME,
                    "show|hide|add|remove",
                    "nicklist_cmd_cb", "")
