@@ -27,7 +27,7 @@
 # * Based on idea of the script screen_away.pl for irssi written by
 #   Andreas 'ads' Scherbaum
 # * Idea for "Don't touch away stats for servers which have user defined 'away'"
-#   shamelessly stolen from Xt's script screen_away.py fpr weechat.
+#   shamelessly stolen from Xt's script screen_away.py for weechat.
 # 
 # * This script extends those scripts mentioned above by various errorchecks,
 #   emitting Signals, command queue executed on attach/detach, and a simple command
@@ -40,6 +40,16 @@
 #
 # Changelog
 #
+# Version v0.03 04.02.2010
+#
+#   * enable arg 'switch2window' for tmux
+#
+# Version v0.02 04.02.2010
+#
+#   * FIX: use '-S' to check for TMUX socket
+#   * added 'Known issues' for two TMUX sessions impossible to get detached state
+#   * whitespace fixes,typo
+#
 # Version v0.01 02.02.2010
 #
 #   * initial version 
@@ -51,7 +61,7 @@ use strict;
 use warnings;
 use Data::Dumper;
 
-my $Version   = '0.01';
+my $Version   = '0.03';
 my $SCRIPT    = 'mplex';
 my $AUTHOR    = 'rettub';
 my $LICENSE   = "GPL3";
@@ -142,6 +152,13 @@ sub help {
     ."\n"
     ."If a user has set the status 'away' for a server, this status wll not be touched! (Idea stolen from XTs screen_away) \n"
     ."\n"
+    ."\n"
+    ."Known issues:\n"
+    ."  Don't know TMUX as well, I considered that starting a weechat within a (new and only) tmux session, then starting an \n"
+    ."  second session in an other xterminal, detaching the first one (running weechat) - then there's no way to get the detached state \n"
+    ."  for the 'weechat' session. The socket file /var/run//tmux/tmux-UID/default keeps its executable state. Sorry don't have any clue for\n"
+    ."  a workaround. If any TMUX user can help - please tell me\n"
+    ."\n"
     ."have fun...\n"
     ;
 }
@@ -174,7 +191,11 @@ sub mp_switch2window {
     if ( $Socket{mp} eq 'screen' ) {
         `screen -S $Socket{session} -X select $w`;
     } else {
-        _error("Sorry, Dave I can't do that...  (switch2window isn't implemented for $Socket{mp})");
+        my $err = `tmux selectw -t $Socket{'session_id'}:$w`;
+        chomp $err;
+        if ( length($err) ) {
+            _error("Sorry, Dave I can't do that, $Socket{mp} throws an error: '" . weechat::color('red') . $err . weechat::color('reset') . "'");
+        }
     }
 }
 
@@ -184,7 +205,7 @@ my $mp_stat_old = undef;
 sub remove_timer {
     if ( $_[0] ) {
         _error( $_[0] );
-        _error( "check for" . ( defined $Socket{mp} ? $Socket{mp} : 'multiplexer' ) . "detach/attach disabled" );
+        _error( "check for " . ( defined $Socket{mp} ? $Socket{mp} : 'multiplexer' ) . " detach/attach disabled" );
     }
 
     if ( $Hooks{timer} ) {
@@ -283,8 +304,9 @@ sub get_mp_socket {
             $Socket{session} = $ENV{'STY'};
             $Socket{path}    = $chk_cmd;
             $Socket{path} =~ s/^.+\d+ Sockets? in ([^\n]+)\.\n.+$/$1/s;
-
             $Socket{'socket'} = $Socket{path} . '/' . $Socket{session};
+
+            # GNU screen uses a named pipe
             if ( -p $Socket{'socket'} ) {
 
                 $ret = 1;
@@ -293,18 +315,19 @@ sub get_mp_socket {
                 $chk_cmd =~ s/\s+/ /gm;
 
                 #		$chk_cmd =~ s/\n/ -- /gm;
-                remove_timer( "error accessing  screen socket from: '" . weechat::color('cyan') . $chk_cmd . weechat::color('reset') . "'" );
+                remove_timer( "error accessing screen socket from: '" . weechat::color('cyan') . $chk_cmd . weechat::color('reset') . "'" );
             }
         }
     } elsif ( $ENV{'TMUX'} ) {
         $Socket{mp} = 'tmux';
-        ( $Socket{'socket'} ) = $ENV{'TMUX'} =~ /(.*?),/;
+        ( $Socket{'socket'}, $Socket{'server_pid'}, $Socket{'session_id'} ) = $ENV{'TMUX'} =~ /(.*?),(\d+?),(.*)/; # XXX session_id: contains digits only?
         ( $Socket{'path'}, $Socket{'session'} ) = ( $Socket{'socket'} =~ /(.*)\/(.*)/ );
-        if ( -p $Socket{'socket'} ) {
 
+        # TMUX uses a socket
+        if ( -S $Socket{'socket'} ) {
             $ret = 1;
         } else {
-            remove_timer("error accessing  TMUX  socket");
+            remove_timer("error accessing TMUX socket");
         }
     }
     return $ret;
