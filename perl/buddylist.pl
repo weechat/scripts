@@ -17,7 +17,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-# v0.6: nick wasn't set to offline, if user leave channel
+# v0.7: nick change will be recognize
+# v0.6: nick wasn't set to offline, if buddy leave channel
 # v0.5: server information will be used now instead of nicklist
 #	reduction of cpu load (reported by ArcAngel and tigrmesh)
 #	bar will be removed if you unload the script. (requested by bazerka)
@@ -27,15 +28,17 @@
 #     : hook_config when settings changed.
 # v0.2: work-around for crash when searching nick in buffer without nicklist (function nicklist_search_nick) removed 
 # v0.1: initial release
+#
+# TODO: If you leave a channel the status of your buddies will be checked, too.
 
 use strict;
 my $prgname	= "buddylist";
-my $version	= "0.6";
+my $version	= "0.7";
 my $description	= "Simple buddylist that shows the status of your buddies.";
 
 my $buffer	= "";
 my $default_buddylist = "buddylist.txt";
-my %buddies = ();					# to store the buddylist
+my %buddies = ();					# to store the buddylist with status for each nick
 
 my %buddylist_level = (0 => "online", 1 => "away", 2 => "offline");
 my %default_color_buddylist = ("online" => "yellow",
@@ -57,17 +60,18 @@ weechat::bar_new($prgname, "0", "0", "root", "", "left", "horizontal",
 					    $prgname);
 weechat::command("", "/bar show " . $prgname);
 
-weechat::hook_signal("*,irc_in2_352", "from_hook_who","");			# RFC command with user channel status etc..
+weechat::hook_signal("*,irc_in2_352", "from_hook_who","");			# RFC command with use,channel,status etc..
 weechat::hook_signal("*,irc_in_part", "remove_nick", "");
 weechat::hook_signal("*,irc_in_quit", "remove_nick", "");
-weechat::hook_config("*.$prgname.*", "config_signal", "");			# settings changed?
+weechat::hook_signal("*,irc_in_nick", "nick_changed", "");
+weechat::hook_config("*.$prgname.*", "config_signal", "");			# buddylist settings changed?
 
 weechat::hook_command($prgname, $description,
 
 	"<add>[nick_1 [... nick_n]] | <del>[nick_1 [... nick_n]]", 
 
 	"<add> [nick(s)] add nick(s) to the buddylist\n".
-	"<del> [nick(s)] delete nick(s) from the buffylist\n".
+	"<del> [nick(s)] delete nick(s) from the buddylist\n".
 	"\n".
 	"Options:\n".
 	"'plugins.var.perl.buddylist.buddylist'    : path/file-name to store your buddies.\n".
@@ -130,11 +134,22 @@ sub createoutput{
 	$visual  = $cr if (($position eq "left") || ($position eq "right"));
 	$str .= weechat::color($color). "$_" . $visual;
 }
+sub nick_changed{
+	my $args = $_[2];
+	$args =~ /\:(.*)\!(.*)\:(.*)/;
+	my $old_nickname = $1;
+	my $new_nickname = $3;
+	if (exists $buddies{$old_nickname}){					# nick in buddylist?
+	  delete $buddies{$old_nickname};					# delete old buddyname
+	  $buddies{$new_nickname} = 0;						# add new buddyname with status online
+	  weechat::bar_item_update($prgname);
+	}
+}
+
 sub remove_nick{
 #($nick,$name,$ip,$action,$channel) = ($args =~ /\:(.*)\!n=(.*)@(.*?)\s(.*)\s(.*)/; # maybe for future use
 	my $args = $_[2];							# save callback
 	my ($nickname) = ($args =~ /\:(.*)\!/);
-	$args =~ /\:(.*)\!/;
 	if (exists $buddies{$nickname}){					# nick in buddylist?
 		$buddies{$nickname} = 2;					# set buddy to offline
 		weechat::bar_item_update($prgname);
@@ -169,7 +184,7 @@ sub settings{
 			}
 		}
 	}else{
-		weechat::command("", "/help $prgname");
+		weechat::command("", "/help $prgname");				# no arguments given. Print help
 	}
 	weechat::bar_item_update($prgname);
 	return weechat::WEECHAT_RC_OK;
