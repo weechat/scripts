@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
-# Copyright (c) 2009 by xt <xt@bash.no>
+# Copyright (c) 2009-2010 by xt <xt@bash.no>
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
 #
+# 2010-02-08, bazerka <bazerka@quakenet.org>
+#   version 0.4: fix "[Act:]" being shown with no activity, when delimiter
+#                is set to " ".
 # 2009-05-26, xt <xt@bash.no>
 #   version 0.3: only update keydict when key bindings change
 # 2009-05-16, xt <xt@bash.no>
@@ -40,7 +43,7 @@ import weechat as w
 
 SCRIPT_NAME    = "chanact"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.3"
+SCRIPT_VERSION = "0.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Hotlist replacement, use names and keybindings instead of numbers"
 
@@ -100,8 +103,7 @@ def chanact_cb(*kwargs):
     ''' Callback ran on hotlist changes '''
     global keydict
 
-
-    result = w.config_get_plugin('message')
+    result = ''
     hotlist = w.infolist_get('hotlist', '', '')
     while w.infolist_next(hotlist):
         priority = w.infolist_integer(hotlist, 'priority')
@@ -138,10 +140,9 @@ def chanact_cb(*kwargs):
                     w.color(reset))
         result += w.config_get_plugin('delimiter')
 
-    result = result.rstrip(w.config_get_plugin('delimiter'))
     w.infolist_free(hotlist)
-    if result == w.config_get_plugin('message'):
-        return ''
+    if result:
+        result = '%s%s' % (w.config_get_plugin('message'), result.rstrip(w.config_get_plugin('delimiter')))
     return result
 
 def chanact_update(*kwargs):
