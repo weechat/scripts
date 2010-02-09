@@ -37,7 +37,7 @@
 #     version 1.5: initial release / port to weechat 0.3.0
 #
 
-SCRIPT_NAME    = "moc-control"
+SCRIPT_NAME    = "moc_control"
 SCRIPT_AUTHOR  = "SuperTux88 (Benjamin Neff) <info@benjaminneff.ch>"
 SCRIPT_VERSION = "1.7.3"
 SCRIPT_LICENSE = "GPL2"
@@ -201,11 +201,11 @@ def moc_infobar_updater(data,cals):
     return weechat.WEECHAT_RC_OK
 
 def _add_infobar():
-    """add the infobar for moc-control"""
+    """add the infobar for moc_control"""
     weechat.bar_new(SCRIPT_NAME, "off", "750", "window", "", "bottom", "horizontal", "vertical", "1", "0", "default", "blue", "cyan", "off", "[moc_infobar]")
     
 def _remove_infobar():
-    """remove the infobar for moc-control"""
+    """remove the infobar for moc_control"""
     weechat.bar_remove(weechat.bar_search(SCRIPT_NAME))
 
 # ==============================[ now playing ]===============================
@@ -331,7 +331,7 @@ def _execute_command(cmd):
 if __name__ == "__main__" and import_ok:
     if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, "moc_unload", ""):
         load_settings('', '', '')
-        weechat.hook_config('plugins.var.python.moc-control.*', 'load_settings', '')
+        weechat.hook_config('plugins.var.python.moc_control.*', 'load_settings', '')
 
         weechat.bar_item_new('moc_infobar', 'moc_infobar_update', '')
         weechat.hook_timer(infobar['update']*1000,0,0,'moc_infobar_updater','')
@@ -367,7 +367,7 @@ if __name__ == "__main__" and import_ok:
             '  %rate%       - Replaced with the rate of the song.\n'
             '  %C##         - Make ## the number code of the color you want to use. Use %C by itself to end the color.\n'
             '\n'
-            'To see all available settings, please check /set *moc-control*\n',
+            'To see all available settings, please check /set *moc_control*\n',
             'play|pause|pp|stop|prev|next|infobar|help',
             'moc_command',
             ''

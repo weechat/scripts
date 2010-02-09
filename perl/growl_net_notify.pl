@@ -49,7 +49,7 @@
 #
 # The script can be laoded into WeeChat by executing:
 #
-# /perl load growl-net-notify.pl
+# /perl load growl_net_notify.pl
 #
 # The script may also be auto-loaded by WeeChat.  See the
 # WeeChat manual for instructions about how to do this.
@@ -73,7 +73,7 @@
 use Net::Growl;
 use integer;
 
-my $growl_app = "growl-net-notify";				# name given to Growl for configuration
+my $growl_app = "growl_net_notify";				# name given to Growl for configuration
 my $growl_active = 1;
 
 sub message_process_init {
