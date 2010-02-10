@@ -25,19 +25,31 @@
 #
 # time in hours to store config file(s) (0 means off):
 # /set plugins.var.perl.config_autosave.period <hours>
+#
+# mute (don't print output when config was saved):
+# /set plugins.var.perl.config_autosave.mute <on|off>
+#
+# v0.3: using the new "version_number" function to get the version number
+# v0.2: supports "/mute" command (weechat v0.3.2-dev and higher required!)
+# v0.1: initial release
+
 
 use strict;
 my $prgname	= "config_autosave";
-my $version	= "0.1";
+my $version	= "0.3";
 my $description	= "saves your config after a specified time.";
 # default values
 my $period	= 1;  			# hours between /save
 my $files	= "all";		# /save all config-files
+my $mute	= "on";			# hide output?
 my %Hooks	= ();
+my $min_version = "";
 
 # first function called by a WeeChat-script.
 weechat::register($prgname, "Nils Görs <weechatter\@arcor.de>", $version,
                   "GPL3", $description, "", "");
+
+check_version();
 
 # check config, if exists
 if (!weechat::config_is_set_plugin("period")){
@@ -45,9 +57,11 @@ if (!weechat::config_is_set_plugin("period")){
 }else{
   $period = weechat::config_get_plugin("period");
 }
-
 if(!weechat::config_is_set_plugin("files")){
    weechat::config_set_plugin("files", $files);
+}
+if(!weechat::config_is_set_plugin("mute")){
+   weechat::config_set_plugin("mute", $mute);
 }
 
 weechat::hook_config( "plugins.var.perl.$prgname.period", 'toggle_period', "" );
@@ -102,11 +116,26 @@ if (!weechat::config_is_set_plugin("files")){
   return weechat::WEECHAT_RC_OK;
 }
 
+my $cmd_save = "/save";
+
+$mute = weechat::config_get_plugin("mute");
+if ($mute eq "on" and $min_version == 0){
+    $cmd_save = "/mute " . $cmd_save;
+}
+
 $files = weechat::config_get_plugin("files");
   if ($files eq "all"){
-	weechat::command("", "/save");
+	weechat::command("", $cmd_save);
   }else{
       $files =~ tr/\,/ /;
-	weechat::command("", "/save " . $files);
+	weechat::command("", $cmd_save . " " . $files);
+  }
+}
+sub check_version{
+  my $version_number = weechat::info_get("version_number", "");
+  if (($version_number ne "") && ($version_number >= 0x00030200)){	# v0.3.2
+	  $min_version = 0;						# current version is same or higher
+  }else{
+	  $min_version = 1;						# current version is older
   }
 }
