@@ -1,6 +1,6 @@
 #
 # chanmon.pl - Channel Monitoring for weechat 0.3.0
-# Version 1.7
+# Version 1.7.1
 #
 # Add 'Channel Monitor' buffer that you can position to show IRC channel
 # messages in a single location without constantly switching buffers
@@ -49,6 +49,9 @@
 # /set weechat.bar.input.conditions "active"
 #
 # History:
+# 2010-02-10, m4v <lambdae2@gmail.com>:
+#	v1.7.1:	-fix: chanmon was leaking infolists, changed how chanmon
+#			detects if the buffer is displayed or not.
 # 2010-01-25, KenjiE20 <longbow@longbowslair.co.uk>:
 # 	v1.7:	-fixture: Let chanmon be aware of nick_prefix/suffix
 # 			and allow custom prefix/suffix for chanmon buffer
@@ -157,8 +160,8 @@ sub chanmon_new_message
 	my $chan = "";
 	my $nick = "";
 	my $outstr = "";
-	my $curbuf = "";
-	my $dyncheck = "1";
+	my $window_displayed = "";
+	my $dyncheck = "0";
 
 #	DEBUG point
 #	$string = "\t"."0: ".$_[0]." 1: ".$_[1]." 2: ".$_[2]." 3: ".$_[3]." 4: ".$_[4]." 5: ".$_[5]." 6: ".$_[6]." 7: ".$_[7];
@@ -186,23 +189,11 @@ sub chanmon_new_message
 			{
 				if (weechat::config_get_plugin("dynamic") eq "on")
 				{
-					@dynwindow = ();
-					$infolist = weechat::infolist_get("window", "","");
-					while (weechat::infolist_next($infolist))
+					$window_displayed = weechat::buffer_get_integer($cb_bufferp, "num_displayed");
+					if ($window_displayed eq 0)
 					{
-						push (@dynwindow, weechat::infolist_pointer($infolist, "buffer"));
+						$dyncheck = "1";
 					}
-
-					if (grep $_ eq $cb_bufferp, @dynwindow)
-					{
-						$dyncheck = "0";
-					}
-
-#					$curbuf = weechat::buffer_get_string(weechat::current_buffer(), 'name');
-#					if ($bufname ne $curbuf)
-#					{
-#						$dyncheck = "1";
-#					}
 				}
 
 				$bufname = $1.$2.$3;
@@ -291,23 +282,11 @@ sub chanmon_new_message
 			{
 				if (weechat::config_get_plugin("dynamic") eq "on")
 				{
-					@dynwindow = ();
-					$infolist = weechat::infolist_get("window", "","");
-					while (weechat::infolist_next($infolist))
+					$window_displayed = weechat::buffer_get_integer($cb_bufferp, "num_displayed");
+					if ($window_displayed eq 0)
 					{
-						push (@dynwindow, weechat::infolist_pointer($infolist, "buffer"));
+						$dyncheck = "1";
 					}
-
-					if (grep $_ eq $cb_bufferp, @dynwindow)
-					{
-						$dyncheck = "0";
-					}
-
-#					$curbuf = weechat::buffer_get_string(weechat::current_buffer(), 'name');
-#					if ($bufname ne $curbuf)
-#					{
-#						$dyncheck = "1";
-#					}
 				}
 
 				$bufname = $1.$2.$3;
@@ -517,7 +496,7 @@ sub print_help
 	return weechat::WEECHAT_RC_OK;
 }
 
-weechat::register("chanmon", "KenjiE20", "1.7", "GPL3", "Channel Monitor", "", "");
+weechat::register("chanmon", "KenjiE20", "1.7.1", "GPL3", "Channel Monitor", "", "");
 weechat::hook_print("", "", "", 0, "chanmon_new_message", "");
 weechat::hook_command("monitor", "Toggles monitoring for a channel (must be used in the channel buffer itself)", "", "", "", "chanmon_toggle", "");
 weechat::hook_command("dynmon", "Toggles 'dynamic' monitoring (auto-disable monitoring for current channel)", "", "", "", "chanmon_dyn_toggle", "");
