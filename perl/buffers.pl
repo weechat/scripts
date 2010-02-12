@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2008-2009 by FlashCode <flashcode@flashtux.org>
+# Copyright (c) 2008-2010 by FlashCode <flashcode@flashtux.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@
 # Display sidebar with list of buffers.
 #
 # History:
+# 2010-02-12, FlashCode <flashcode@flashtux.org>:
+#     v1.5: add optional nick prefix for buffers like IRC channels
 # 2009-09-30, FlashCode <flashcode@flashtux.org>:
 #     v1.4: remove spaces for indenting when bar position is top/bottom
 # 2009-06-14, FlashCode <flashcode@flashtux.org>:
@@ -68,57 +70,39 @@
 
 use strict;
 
-my $version = "1.4";
+my $version = "1.5";
 
 # -------------------------------[ config ]-------------------------------------
 
-my $default_short_names         = "off";
-my $default_indenting           = "off";
-my $default_hide_merged_buffers = "off";
-
+my %default_options = ("short_names"             => "on",
+                       "indenting"               => "on",
+                       "hide_merged_buffers"     => "off",
+                       "show_prefix"             => "off",
+                       "color_hotlist_low"       => "white",
+                       "color_hotlist_message"   => "yellow",
+                       "color_hotlist_private"   => "lightgreen",
+                       "color_hotlist_highlight" => "magenta",
+                       "color_current"           => "lightcyan,red",
+                       "color_default"           => "default",
+                       "color_number"            => "lightgreen",
+    );
+my %options;
 my %hotlist_level = (0 => "low", 1 => "message", 2 => "private", 3 => "highlight");
-my %default_color_hotlist = ("low"       => "white",
-                             "message"   => "yellow",
-                             "private"   => "lightgreen",
-                             "highlight" => "magenta");
-my $default_color_number = "lightgreen";
 
 # --------------------------------[ init ]--------------------------------------
 
 weechat::register("buffers", "FlashCode <flashcode\@flashtux.org>", $version,
                   "GPL3", "Sidebar with list of buffers", "", "");
-if (weechat::config_get_plugin("short_names") eq "")
+
+foreach my $option (keys %default_options)
 {
-    weechat::config_set_plugin("short_names", $default_short_names);
-}
-if (weechat::config_get_plugin("indenting") eq "")
-{
-    weechat::config_set_plugin("indenting", $default_indenting);
-}
-if (weechat::config_get_plugin("hide_merged_buffers") eq "")
-{
-    weechat::config_set_plugin("hide_merged_buffers", $default_hide_merged_buffers);
-}
-if (weechat::config_get_plugin("color_number") eq "")
-{
-    weechat::config_set_plugin("color_number", $default_color_number);
-}
-if (weechat::config_get_plugin("color_default") eq "")
-{
-    weechat::config_set_plugin("color_default", "default");
-}
-foreach my $level (values %hotlist_level)
-{
-    if (weechat::config_get_plugin("color_hotlist_".$level) eq "")
+    if (!weechat::config_is_set_plugin($option))
     {
-        weechat::config_set_plugin("color_hotlist_".$level,
-                                   $default_color_hotlist{$level});
+        weechat::config_set_plugin($option, $default_options{$option});
     }
 }
-if (weechat::config_get_plugin("color_current") eq "")
-{
-    weechat::config_set_plugin("color_current", "lightcyan,red");
-}
+buffers_read_options();
+
 weechat::bar_item_new("buffers", "build_buffers", "");
 weechat::bar_new("buffers", "0", "0", "root", "", "left", "horizontal",
                  "vertical", "0", "0", "default", "default", "default", "1",
@@ -130,16 +114,24 @@ weechat::bar_item_update("buffers");
 
 # ------------------------------------------------------------------------------
 
+sub buffers_read_options
+{
+    foreach my $option (keys %default_options)
+    {
+        $options{$option} = weechat::config_get_plugin($option);
+    }
+}
+
 sub build_buffers
 {
     my $str = "";
     
     # get bar position (left/right/top/bottom)
     my $position = "left";
-    my $option = weechat::config_get("weechat.bar.buffers.position");
-    if ($option ne "")
+    my $option_position = weechat::config_get("weechat.bar.buffers.position");
+    if ($option_position ne "")
     {
-        $position = weechat::config_string($option);
+        $position = weechat::config_string($option_position);
     }
     
     # read hotlist
@@ -196,37 +188,34 @@ sub build_buffers
     
     # build string with buffers
     $old_number = -1;
-    my $hide_merged_buffers = weechat::config_get_plugin("hide_merged_buffers");
     for my $buffer (@buffers)
     {
-        if (($hide_merged_buffers eq "on") && (! $buffer->{"active"}))
+        if (($options{"hide_merged_buffers"} eq "on") && (! $buffer->{"active"}))
         {
             next;
         }
-        my $color = weechat::config_get_plugin("color_default");
+        my $color = $options{"color_default"};
         $color = "default" if ($color eq "");
         my $bg = "";
         if (exists $hotlist{$buffer->{"pointer"}})
         {
-            $color = weechat::config_get_plugin("color_hotlist_"
-                                                .$hotlist_level{$hotlist{$buffer->{"pointer"}}});
+            $color = $options{"color_hotlist_".$hotlist_level{$hotlist{$buffer->{"pointer"}}}};
         }
         if ($buffer->{"current_buffer"})
         {
-            $color = weechat::config_get_plugin("color_current");
+            $color = $options{"color_current"};
             $bg = $1 if ($color =~ /.*,(.*)/);
         }
         my $color_bg = "";
         $color_bg = weechat::color(",".$bg) if ($bg ne "");
         if ($old_number ne $buffer->{"number"})
         {
-            $str .= weechat::color(weechat::config_get_plugin("color_number"))
+            $str .= weechat::color($options{"color_number"})
                 .$color_bg
                 .$buffer->{"number"}
                 .weechat::color("default")
                 .$color_bg
-                ."."
-                .weechat::color($color);
+                .".";
         }
         else
         {
@@ -234,10 +223,9 @@ sub build_buffers
             $indent = ((" " x length($buffer->{"number"}))." ") if (($position eq "left") || ($position eq "right"));
             $str .= weechat::color("default")
                 .$color_bg
-                .$indent
-                .weechat::color($color);
+                .$indent;
         }
-        if ((weechat::config_get_plugin("indenting") eq "on")
+        if (($options{"indenting"} eq "on")
             && (($position eq "left") || ($position eq "right")))
         {
             my $type = weechat::buffer_get_string($buffer->{"pointer"}, "localvar_type");
@@ -246,7 +234,35 @@ sub build_buffers
                 $str .= "  ";
             }
         }
-        if (weechat::config_get_plugin("short_names") eq "on")
+        if ($options{"show_prefix"} eq "on")
+        {
+            my $nickname = weechat::buffer_get_string($buffer->{"pointer"}, "localvar_nick");
+            if ($nickname ne "")
+            {
+                # with version >= 0.3.2, this infolist will return only nick
+                # with older versions, whole nicklist is returned for buffer, and this can be very slow
+                my $infolist_nick = weechat::infolist_get("nicklist", $buffer->{"pointer"}, "nick_".$nickname);
+                if ($infolist_nick ne "")
+                {
+                    while (weechat::infolist_next($infolist_nick))
+                    {
+                        if ((weechat::infolist_string($infolist_nick, "type") eq "nick")
+                            && (weechat::infolist_string($infolist_nick, "name") eq $nickname))
+                        {
+                            my $prefix = weechat::infolist_string($infolist_nick, "prefix");
+                            $str .= weechat::color(weechat::config_color(
+                                                       weechat::config_get(
+                                                           weechat::infolist_string($infolist_nick, "prefix_color"))))
+                                .$prefix;
+                            last;
+                        }
+                    }
+                    weechat::infolist_free($infolist_nick);
+                }
+            }
+        }
+        $str .= weechat::color($color);
+        if ($options{"short_names"} eq "on")
         {
             $str .= $buffer->{"short_name"};
         }
@@ -276,6 +292,7 @@ sub buffers_signal_hotlist
 
 sub buffers_signal_config
 {
+    buffers_read_options();
     weechat::bar_item_update("buffers");
     return weechat::WEECHAT_RC_OK;
 }
