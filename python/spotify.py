@@ -24,6 +24,8 @@
 # 
 #
 # History:
+# 2010-01-12, xt
+#   version 0.5: add option to use notice instead of message
 # 2009-12-02, xt
 #   version 0.4 small bugfix with some songs and popularity
 # 2009-10-29, xt
@@ -41,7 +43,7 @@ import urllib2
 
 SCRIPT_NAME    = "spotify"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.4"
+SCRIPT_VERSION = "0.5"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Look up spotify urls"
 
@@ -54,6 +56,7 @@ except:
 
 settings = {
     "buffers"        : 'freenode.#mychan,',     # comma separated list of buffers
+    "emit_notice"    : 'off',                   # on or off, use notice or msg
 }
 
 gateway =  'http://ws.spotify.com/lookup/1/'  # http spotify gw address
@@ -128,7 +131,7 @@ def spotify_process_cb(data, command, rc, stdout, stderr):
             minutes = int(length)/60
             seconds =  int(length)%60
 
-            reply = '%s - %s / %s %s:%s %2d%%' %(artist_name, name,
+            reply = '%s - %s / %s %s:%.2d %2d%%' %(artist_name, name,
                     album_name, minutes, seconds, popularity)
         elif lookup_type == 'album':
             album_name = soup.find('album').find('name').string
@@ -146,7 +149,10 @@ def spotify_process_cb(data, command, rc, stdout, stderr):
         splits = buffer_name.split('.') #FIXME bad code
         server = splits[0]
         buffer = '.'.join(splits[1:])
-        w.command('', '/msg -server %s %s %s' %(server, buffer, reply))
+        emit_command = 'msg'
+        if weechat.config_get_plugin('emit_notice') == 'on':
+            emit_command = 'notice'
+        w.command('', '/%s -server %s %s %s' %(emit_command, server, buffer, reply))
 
     return weechat.WEECHAT_RC_OK
 
