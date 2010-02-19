@@ -2,6 +2,7 @@
 #
 # Copyright (c) 2009 by xt <xt@bash.no>
 # Copyright (c) 2009 by penryu <penryu@gmail.com>
+# Copyright (c) 2010 by Blake Winton <bwinton@latte.ca>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,6 +22,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2010-02-19, Blake Winton <bwinton@latte.ca>
+#  version 0.5: add option to change nick when away
 # 2010-01-18, xt
 #  version 0.4: only update servers that are connected
 # 2009-11-30, xt <xt@bash.no>
@@ -36,13 +39,14 @@ import os
 
 SCRIPT_NAME    = "screen_away"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.4"
+SCRIPT_VERSION = "0.5"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Set away status on screen detach"
 
 settings = {
         'message': 'Detached from screen',
-        'interval': '60' # How often in seconds to check screen status
+        'interval': '60', # How often in seconds to check screen status
+        'away_suffix': '' # What to append to your nick when you're away.
 }
 
 IS_AWAY = False
@@ -93,7 +97,8 @@ def get_servers():
                w.infolist_string(infolist, 'away_message') == \
                w.config_get_plugin('message') and \
                w.infolist_integer(infolist, 'is_connected') == 1:
-            buffers.append(w.infolist_pointer(infolist, 'buffer'))
+            buffers.append((w.infolist_pointer(infolist, 'buffer'),
+                w.infolist_string(infolist, 'nick')))
     w.infolist_free(infolist)
     return buffers
 
@@ -108,21 +113,28 @@ def screen_away_timer_cb(buffer, args):
         return w.WEECHAT_RC_OK
 
     servers = get_servers()
+    suffix = w.config_get_plugin('away_suffix')
 
     if os.access(socket, os.X_OK):
         # Screen is attached
         if IS_AWAY:
             # Only remove away status if it was set by this script
             w.prnt('', '%s: Detected screen attach. Clearing away status' %SCRIPT_NAME)
-            for server in servers:
+            for server, nick in servers:
+		if nick.endswith(suffix):
+                    nick = nick[:-len(suffix)]
+                if suffix:
+                    w.command(server,  "/nick %s" % (nick,))
                 w.command(server,  "/away")
             IS_AWAY = False
     else:
         # if it has X bit set screen is attached 
         if not IS_AWAY: # Do not set away if we are already set away
             w.prnt('', '%s: Detected screen detach. Setting away status' %SCRIPT_NAME)
-            for server in servers:
-                w.command(server, "/away %s" %w.config_get_plugin('message') );
+            for server, nick in servers:
+                if suffix:
+                    w.command(server, "/nick %s%s" % (nick, suffix) );
+                w.command(server, "/away %s" % (w.config_get_plugin('message'),) );
             IS_AWAY = True
 
     return w.WEECHAT_RC_OK
