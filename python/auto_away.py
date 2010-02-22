@@ -29,8 +29,16 @@
 #   inactivity. Returns from away when you start typing, but not when
 #   you change buffer or scroll. 
 #
+# Configuration:
 #
-# Configuration options:
+#   /autoaway [time|off] [message]
+#
+#      time: minutes of inactivity to set away
+#       off: disable auto-away (0 also disables)
+#   message: away message (optional)
+#
+#
+# Configuration options via /set:
 #
 # 'idletime'
 #   description: Period in minutes (n) of keyboard inactivity until 
@@ -61,18 +69,52 @@
 #   2010-02-15 - 0.2.2  - Use hook_config to check idletime and
 #                         enable/disable hook_timer.
 #   2010-02-15 - 0.2.3  - Removed away_status.  
-#   2010-02-17 - 0.2.4  - Implemented better code logic.                        
+#   2010-02-17 - 0.2.4  - Implemented better code logic.
+#   2010-02-20 - 0.2.5  - "import weechat as w", better feedback 
+#                         messages format mimicks away local messages.
+#   2010-02-21 - 0.3    - Implemented /autoaway command.                           
 
 try:
-    import weechat
+    import weechat as w
 except:
     print "This script must be run under WeeChat."
     print "Get WeeChat now at: http://www.weechat.org/"
     quit()
 
 # Script registration
-weechat.register("auto_away", "Specimen", "0.2.4", "GPL3", 
-                 "Simple auto-away script in Python", "", "")
+w.register("auto_away",
+           "Specimen",
+           "0.3",
+           "GPL3", 
+           "Simple auto-away script in Python", "", "")
+
+
+# AutoawayCommand
+w.hook_command("autoaway", 
+               "Set away status automatically after a period of "
+               "inactivity.", 
+               "[time|off] [message]", 
+               "      time: minutes of inactivity to set away\n"
+               "       off: disable auto-away (0 also disables)\n"
+               "   message: away message (optional)\n"
+               "\n"
+               "Examples:\n"
+               "\n"
+               "/autoaway 20 I'm away\n"
+               "Sets auto-away to 20 minutes, and away message to "
+               "'I'm away'.\n"
+               "\n"
+               "/autoaway 30\n"
+               "Sets auto-away to 30 minutes, and uses the previously "
+               "set, or default, away message.\n"
+               "\n"
+               "/autoaway off\n"
+               "/autoaway 0\n"
+               "Disables auto-away.\n"
+               "\n",
+               "", 
+               "autoaway_cmd", "")
+
 
 # Default Settings
 idletime = "20"
@@ -80,35 +122,63 @@ message = "Idle"
 hookinterval = "10"
 
 # Register configuration	
-if not weechat.config_get_plugin('idletime'): 
-    weechat.config_set_plugin('idletime', idletime)
+if not w.config_get_plugin('idletime'): 
+    w.config_set_plugin('idletime', idletime)
 	
-if not weechat.config_get_plugin('message'): 
-    weechat.config_set_plugin('message', message)
+if not w.config_get_plugin('message'): 
+    w.config_set_plugin('message', message)
 
-if not weechat.config_get_plugin('hookinterval'): 
-    weechat.config_set_plugin('hookinterval', hookinterval)
+if not w.config_get_plugin('hookinterval'): 
+    w.config_set_plugin('hookinterval', hookinterval)
 
+
+# autoaway command
+def autoaway_cmd(data, buffer, args):
+
+    value_arg = str(args.split(' ')[0])
+    message_arg = str(args.strip(value_arg).strip(' '))
+    
+    if args == "":
+        w.command("", "/help autoaway")
+
+    else:
+        w.config_set_plugin('idletime', value_arg)
+        if message_arg != "":
+            w.config_set_plugin('message', message_arg)
+            w.prnt(w.current_buffer(), 
+                   "%s[%saway message is: %s %s]"
+                   % (w.color("green"), w.color("chat"),
+                   message_arg, w.color("green")))
+        
+    return w.WEECHAT_RC_OK
 
 # Run/Check autoaway enable/disabled/value
 def away_chk():
 
     try:
-        if int(weechat.config_get_plugin('idletime')) > 0:
-            weechat.prnt(weechat.current_buffer(), 
-                         "[auto_away.py] auto-away is set to %s minute(s)."
-                          % int(weechat.config_get_plugin('idletime')))
+        int_idletime = int(w.config_get_plugin('idletime'))
+        
+        if int_idletime > 0:
+            w.prnt(w.current_buffer(), 
+                   "%s[%s%sauto-away%s is set to %s%s%s minute(s)%s]"
+                   % (w.color("green"), w.color("chat"), 
+                   w.color("bold"), w.color("-bold"), w.color("bold"),
+                   int_idletime, w.color("-bold"), w.color("green")))
             timer_func()
-            return weechat.WEECHAT_RC_OK
+            return w.WEECHAT_RC_OK
             
     except ValueError:
-        weechat.prnt(weechat.current_buffer(), 
-                     "[auto_away.py] auto-away is disabled.")
-        return weechat.WEECHAT_RC_OK
+        w.prnt(w.current_buffer(),
+               "%s[%s%sauto-away%s is disabled%s]"
+               % (w.color("green"), w.color("chat"),w.color("bold"),
+               w.color("-bold"),w.color("green")))
+        return w.WEECHAT_RC_OK
 
-    weechat.prnt(weechat.current_buffer(), 
-                 "[auto_away.py] auto-away is disabled.")
-    return weechat.WEECHAT_RC_OK
+    w.prnt(w.current_buffer(),
+           "%s[%s%sauto-away%s is disabled%s]"
+           % (w.color("green"), w.color("chat"),w.color("bold"),
+           w.color("-bold"),w.color("green")))
+    return w.WEECHAT_RC_OK
 
 
 # On idletime change reset hooks, rerun away_chk
@@ -117,14 +187,14 @@ def switch_chk(data, option, value):
     global timer_hook, input_hook
 
     try:
-        weechat.unhook(timer_hook)
-        weechat.unhook(input_hook)
+        w.unhook(timer_hook)
+        w.unhook(input_hook)
         away_chk()
         
     except NameError:
         away_chk()
         
-    return weechat.WEECHAT_RC_OK
+    return w.WEECHAT_RC_OK
 
 
 # Define hooks
@@ -132,19 +202,18 @@ def timer_func():
 
     global timer_hook
 
-    timer_hook = weechat.hook_timer(int(weechat.config_get_plugin
-                                    ('hookinterval')) * 1000, 60,
-                                    0, "idle_chk", "")
-    return weechat.WEECHAT_RC_OK
+    timer_hook = w.hook_timer(int(w.config_get_plugin('hookinterval'))
+                              * 1000, 60, 0, "idle_chk", "")
+    return w.WEECHAT_RC_OK
 
 
 def input_func():
 
     global input_hook
 
-    input_hook = weechat.hook_signal("input_text_changed",
-                                     "typing_chk", "")
-    return weechat.WEECHAT_RC_OK
+    input_hook = w.hook_signal("input_text_changed",
+                               "typing_chk", "")
+    return w.WEECHAT_RC_OK
     
 
 # Inactivity check routine
@@ -152,31 +221,32 @@ def idle_chk(data, remaining_calls):
 
     global timer_hook
     
-    if int(weechat.config_get_plugin('idletime')) > 0:
-        if int(weechat.info_get("inactivity", "")) >= \
-            int(weechat.config_get_plugin('idletime')) * 60:
-            weechat.unhook(timer_hook)
-            weechat.command("", "/away -all %s" 
-                            % weechat.config_get_plugin('message'))
+    int_idletime = int(w.config_get_plugin('idletime'))
+    
+    if int_idletime > 0:
+        if int(w.info_get("inactivity", "")) >= int_idletime * 60:
+            w.unhook(timer_hook)
+            w.command("", "/away -all %s" 
+                      % w.config_get_plugin('message'))
             input_func()
 
-    return weechat.WEECHAT_RC_OK
+    return w.WEECHAT_RC_OK
 
 # Return from away routine
 def typing_chk(data, signal, signal_data):
 
     global input_hook
 
-    weechat.unhook(input_hook)
-    weechat.command("", "/away -all")
+    w.unhook(input_hook)
+    w.command("", "/away -all")
     timer_func()
 
-    return weechat.WEECHAT_RC_OK
+    return w.WEECHAT_RC_OK
 
 
 # Check idletime value
-weechat.hook_config("plugins.var.python.auto_away.idletime",
-                    "switch_chk", "")
+w.hook_config("plugins.var.python.auto_away.idletime",
+              "switch_chk", "")
 
 # Start timer hook
 away_chk()
