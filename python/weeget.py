@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2010-02-22, Blake Winton <bwinton@latte.ca>:
+#     version 1.0: add option "listinstalled" for command /weeget
 # 2010-01-25, FlashCode <flashcode@flashtux.org>:
 #     version 0.9: fix "running" status of scripts with /weeget check
 # 2009-09-30, FlashCode <flashcode@flashtux.org>:
@@ -47,7 +49,7 @@
 
 SCRIPT_NAME    = "weeget"
 SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.9"
+SCRIPT_VERSION = "1.0"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "WeeChat scripts manager"
 
@@ -348,9 +350,10 @@ def wg_search_scripts(search):
            scripts_matching[id] = script
     return scripts_matching
 
-def wg_list_scripts(search):
+def wg_list_scripts(search, installed=False):
     """
     List all scripts (with optional search string).
+    If installed == True, then list only installed scripts.
     For each script, display status (installed/running/new version available),
     name of script, language and description.
     For example:
@@ -366,12 +369,18 @@ def wg_list_scripts(search):
     else:
         weechat.prnt("", "")
         if search != "":
-            weechat.prnt("", "Scripts for WeeChat %s matching \"%s\":"
-                         % (weechat.info_get("version", ""),
-                            search))
+            if installed:
+                weechat.prnt("", "Scripts installed matching \"%s\":" % search)
+            else:
+                weechat.prnt("", "Scripts for WeeChat %s matching \"%s\":"
+                             % (weechat.info_get("version", ""),
+                                search))
         else:
-            weechat.prnt("", "Scripts for WeeChat %s:"
-                         % weechat.info_get("version", ""))
+            if installed:
+                weechat.prnt("", "Scripts installed:")
+            else:
+                weechat.prnt("", "Scripts for WeeChat %s:"
+                             % weechat.info_get("version", ""))
         sorted_scripts = sorted(scripts_matching.iteritems(),
                                 key=lambda(k,v):v["name"])
         length_max_name = 0
@@ -387,6 +396,8 @@ def wg_list_scripts(search):
             str_running = " "
             str_obsolete = " "
             status = wg_get_local_script_status(script)
+            if installed and not status["installed"]:
+                continue
             if status["installed"]:
                 str_installed = "i"
             if status["running"]:
@@ -654,6 +665,8 @@ def wg_execute_action():
         wg_get_loaded_scripts()
         if wg_action == "list":
             wg_list_scripts(wg_action_args)
+        elif wg_action == "listinstalled":
+            wg_list_scripts(wg_action_args, installed=True)
         elif wg_action == "show":
             wg_show_script(wg_action_args)
         elif wg_action == "install":
@@ -867,16 +880,17 @@ if __name__ == "__main__" and import_ok:
         str_obsolete = wg_config_color("obsolete") + "N" + weechat.color("chat")
         weechat.hook_command(SCRIPT_COMMAND,
                              "WeeChat scripts manager",
-                             "[list [<text>] | show <script> | "
+                             "[list [<text>] | listinstalled [<text>] | show <script> | "
                              "install <script> [<script>...] | check | update | "
                              "upgrade | remove <script> [<script>...]]",
-                             "   list: list scripts (search text if given)\n"
-                             "   show: show detailed information about a script (in repository)\n"
-                             "install: install/upgrade script(s)\n"
-                             "  check: check if local scripts needs upgrade\n"
-                             " update: update local scripts cache\n"
-                             "upgrade: upgrade all local scripts if they are obsolete\n"
-                             " remove: remove script(s)\n\n"
+                             "         list: list scripts (search text if given)\n"
+                             "listinstalled: list installed scripts (search text if given)\n"
+                             "         show: show detailed information about a script (in repository)\n"
+                             "      install: install/upgrade script(s)\n"
+                             "        check: check if local scripts needs upgrade\n"
+                             "       update: update local scripts cache\n"
+                             "      upgrade: upgrade all local scripts if they are obsolete\n"
+                             "       remove: remove script(s)\n\n"
                              "Indicators in lists (first column):\n"
                              "  " + str_installed + "  script is installed\n"
                              "  " + str_unknown   + "  unknown script\n"
@@ -888,6 +902,7 @@ if __name__ == "__main__" and import_ok:
                              "  /" + SCRIPT_COMMAND + " install weetris => install script weetris.pl\n"
                              "  /" + SCRIPT_COMMAND + " remove weetris  => remove script weetris.pl",
                              "list %(weeget_scripts)"
+                             " || listinstalled %(weeget_scripts)"
                              " || show %(weeget_scripts)"
                              " || install %(weeget_scripts)|%*"
                              " || check"
