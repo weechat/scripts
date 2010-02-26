@@ -19,6 +19,8 @@
 # Display sidebar with list of buffers.
 #
 # History:
+# 2010-02-25, m4v <lambdae2@gmail.com>:
+#     v1.6: add option to hide empty prefixes
 # 2010-02-12, FlashCode <flashcode@flashtux.org>:
 #     v1.5: add optional nick prefix for buffers like IRC channels
 # 2009-09-30, FlashCode <flashcode@flashtux.org>:
@@ -70,7 +72,7 @@
 
 use strict;
 
-my $version = "1.5";
+my $version = "1.6";
 
 # -------------------------------[ config ]-------------------------------------
 
@@ -78,6 +80,7 @@ my %default_options = ("short_names"             => "on",
                        "indenting"               => "on",
                        "hide_merged_buffers"     => "off",
                        "show_prefix"             => "off",
+                       "show_prefix_empty"       => "on",
                        "color_hotlist_low"       => "white",
                        "color_hotlist_message"   => "yellow",
                        "color_hotlist_private"   => "lightgreen",
@@ -250,10 +253,13 @@ sub build_buffers
                             && (weechat::infolist_string($infolist_nick, "name") eq $nickname))
                         {
                             my $prefix = weechat::infolist_string($infolist_nick, "prefix");
-                            $str .= weechat::color(weechat::config_color(
-                                                       weechat::config_get(
-                                                           weechat::infolist_string($infolist_nick, "prefix_color"))))
-                                .$prefix;
+                            if (($prefix ne " ") or ($options{"show_prefix_empty"} eq "on"))
+                            {
+                                $str .= weechat::color(weechat::config_color(
+                                                           weechat::config_get(
+                                                               weechat::infolist_string($infolist_nick, "prefix_color"))))
+                                    .$prefix;
+                            }
                             last;
                         }
                     }
