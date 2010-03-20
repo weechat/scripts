@@ -85,13 +85,16 @@
 #
 #
 #   TODO
-#   replace fnmatch by re (?)
-#   fix notify actions
 #   add commands for configure ignores
 #   add more notifications methods (?)
 #
 #
 #   History:
+#   2010-03-10:
+#   version 0.1.1: fixes
+#   * improved shell escapes when using hook_process
+#   * fix ACTION messages
+#
 #   2010-02-24
 #   version 0.1: release!
 #
@@ -99,7 +102,7 @@
 
 SCRIPT_NAME    = "inotify"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.1.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Notifications for WeeChat."
 SCRIPT_COMMAND = "inotify"
@@ -341,8 +344,18 @@ class Server(object):
 
     def _send_rpc_process(self, *args):
         def quoted(s):
+            """
+            Is important to escape quotes properly so hook_process doesn't break or sends stuff
+            outside single quotes."""
+            if '\\' in s:
+                # escape any backslashes
+                s = s.replace('\\', '\\\\')
             if '"' in s:
                 s = s.replace('"', '\\"')
+            if "'" in s:
+                # I must escape single quotes with \'\\\'\' because they will be within single
+                # quotes in the command string. Awesome.
+                s = s.replace("'", "'\\''")
             return  '"""%s"""' %s
 
         args = ', '.join(map(quoted, args))
@@ -372,6 +385,8 @@ def msg_flush(*args):
     server.flush()
     return WEECHAT_RC_OK
 
+# command MUST be within single quotes, otherwise the shell would try to expand stuff and it might
+# be real nasty, somebody could run arbitrary code with a highlight.
 rpc_process_cmd = """
 python -c '
 import xmlrpclib
@@ -406,7 +421,7 @@ def color_tag(nick):
     #generic_nick = nick.strip('_`').lower()
     id = (sum(map(ord, nick))%n)
     #debug('%s:%s' %(nick, id))
-    return '<font color=%s>%s</font>' %(color_table[id], nick)
+    return '<font color=%s>&lt;%s&gt;</font>' %(color_table[id], nick)
 
 def format(s, nick=''):
     if '<' in s:
@@ -419,8 +434,7 @@ def format(s, nick=''):
         s = s.replace('\n', '<br/>')
     if nick:
         if get_config_boolean('color_nick'):
-            nick_color = color_tag(nick)
-            nick = nick_color.replace(nick, '&lt;%s&gt;' %nick) #put the <> inside the color tag
+            nick = color_tag(nick)
         else:
             nick = '&lt;%s&gt;' %nick
         s = '<b>%s</b> %s' %(nick, s)
@@ -465,35 +479,27 @@ def get_nick(s):
     return s
 
 def notify_msg(workaround, buffer, time, tags, display, hilight, prefix, msg):
-    if workaround and 'notify_message' not in tags:
+    if workaround and 'notify_message' not in tags and 'notify_private' not in tags:
         # weechat 0.3.0 bug
         return WEECHAT_RC_OK
-    #debug('  '.join((data, buffer, time, tags, display, hilight, prefix, 'msg_len:%s' %len(msg))),
+    #debug('  '.join((buffer, time, tags, display, hilight, prefix, 'msg_len:%s' %len(msg))),
     #        prefix='MESSAGE')
-    if hilight == '1' and display == '1':
-        channel = weechat.buffer_get_string(buffer, 'short_name')
+    private = 'notify_private' in tags
+    if (hilight == '1' or private) and display == '1':
+        if 'irc_action' in tags:
+            prefix, _, msg = msg.partition(' ')
+            msg = '%s %s' %(config_string('weechat.look.prefix_action'), msg)
         prefix = get_nick(prefix)
         if prefix not in ignore_nick \
-                and channel not in ignore_channel \
                 and msg not in ignore_text \
                 and not is_displayed(buffer):
             #debug('%sSending notification: %s' %(weechat.color('lightgreen'), channel), prefix='NOTIFY')
-            send_notify(msg, channel=channel, nick=prefix)
-    return WEECHAT_RC_OK
-
-def notify_priv(workaround, buffer, time, tags, display, hilight, prefix, msg):
-    if workaround and 'notify_private' not in tags:
-        # weechat 0.3.0 bug
-        return WEECHAT_RC_OK
-    #debug('  '.join((data, buffer, time, tags, display, hilight, prefix, 'msg_len:%s' %len(msg))),
-    #        prefix='PRIVATE')
-    prefix = get_nick(prefix)
-    if display == '1' \
-            and prefix not in ignore_nick \
-            and msg not in ignore_text \
-            and not is_displayed(buffer):
-        #debug('%sSending notification: %s' %(weechat.color('lightgreen'), prefix), prefix='NOTIFY')
-        send_notify(msg, channel=prefix)
+            if not private:
+                channel = weechat.buffer_get_string(buffer, 'short_name')
+                if channel not in ignore_channel:
+                    send_notify(msg, channel=channel, nick=prefix)
+            else:
+                send_notify(msg, channel=prefix)
     return WEECHAT_RC_OK
 
 def cmd_notify(data, buffer, args):
@@ -594,7 +600,7 @@ Daemon:
     weechat.hook_config('plugins.var.python.%s.server_*' %SCRIPT_NAME, 'server_update', '')
 
     weechat.hook_print('', 'notify_message', '', 1, 'notify_msg', workaround)
-    weechat.hook_print('', 'notify_private', '', 1, 'notify_priv', workaround)
+    weechat.hook_print('', 'notify_private', '', 1, 'notify_msg', workaround)
 
 
 # vim:set shiftwidth=4 tabstop=4 softtabstop=4 expandtab textwidth=100:
