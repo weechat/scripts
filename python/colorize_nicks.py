@@ -21,16 +21,19 @@
 # 
 #
 # History:
+# 2010-03-24, xt
+#   version 0.2: use ignore_channels when populating to increase performance.
 # 2010-02-03, xt
 #   version 0.1: initial
 
 import weechat
 import re
+from time import time as now
 w = weechat
 
 SCRIPT_NAME    = "colorize_nicks"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Use the weechat nick colors in the chat area"
 
@@ -52,6 +55,9 @@ PREFIX_COLORS = {
 }
 ignore_channels = []
 ignore_nicks = []
+
+# Time of last run
+LAST_RUN = 0
 
 # Dict with every nick on every channel with its color as lookup value
 colored_nicks = {}
@@ -91,7 +97,12 @@ def colorize_cb(data, modifier, modifier_data, line):
 def populate_nicks(*kwargs):
     ''' Fills entire dict with all nicks weechat can see and what color it has
     assigned to it. '''
-    global colored_nicks
+    global colored_nicks, LAST_RUN
+
+
+    # Only run max once per second
+    if (now() - LAST_RUN) < 1:
+        return w.WEECHAT_RC_OK
 
     colored_nicks = {}
 
@@ -104,6 +115,10 @@ def populate_nicks(*kwargs):
         while w.infolist_next(channels):
             nicklist = w.infolist_get('nicklist', w.infolist_pointer(channels, 'buffer'), '')
             channelname = w.infolist_string(channels, 'name')
+
+            if channelname in ignore_channels:
+                continue
+
             colored_nicks[servername][channelname] = {}
             while w.infolist_next(nicklist):
                 nick = w.infolist_string(nicklist, 'name')
@@ -121,6 +136,10 @@ def populate_nicks(*kwargs):
         w.infolist_free(channels)
 
     w.infolist_free(servers)
+
+    # Update last run
+    LAST_RUN = now()
+
     return w.WEECHAT_RC_OK
 
 if __name__ == "__main__":
