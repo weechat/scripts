@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2010-03-25, m4v <lambdae2@gmail.com>:
+#     version 1.1: use a space for match the end of a string
 # 2009-11-16, FlashCode <flashcode@flashtux.org>:
 #     version 1.0: add new option for displaying short names
 # 2009-06-15, FlashCode <flashcode@flashtux.org>:
@@ -49,7 +51,7 @@ import weechat
 
 SCRIPT_NAME    = "go"
 SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "1.0"
+SCRIPT_VERSION = "1.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Quick jump to buffers"
 
@@ -158,6 +160,8 @@ def get_matching_buffers(input):
             name = weechat.infolist_string(infolist, "name")
         number = weechat.infolist_integer(infolist, "number")
         matching = name.lower().find(input) >= 0
+        if not matching and input[-1] == ' ':
+            matching = name.lower().endswith(input.strip())
         if not matching and input.isdigit():
             matching = str(number).startswith(input)
         if len(input) == 0 or matching:
@@ -206,14 +210,14 @@ def input_modifier(data, modifier, modifier_data, string):
         return ""
     names = ""
     input = weechat.string_remove_color(string, "")
-    input = input.strip()
+    input = input.lstrip()
     if old_input == None or input != old_input:
         old_buffers = buffers
         buffers = get_matching_buffers(input)
         if buffers != old_buffers and len(input) > 0:
             buffers_pos = 0
         old_input = input
-    names = buffers_to_string(buffers, buffers_pos, input)
+    names = buffers_to_string(buffers, buffers_pos, input.strip())
     return weechat.config_get_plugin("message") + string + names
 
 def command_run_input(data, buffer, command):
