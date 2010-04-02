@@ -19,6 +19,8 @@
 # Display sidebar with list of buffers.
 #
 # History:
+# 2010-04-02, FlashCode <flashcode@flashtux.org>:
+#     v1.8: fix bug with background color and option indenting_number
 # 2010-04-02, Helios <helios@efemes.de>:
 #     v1.7: add indenting_number option
 # 2010-02-25, m4v <lambdae2@gmail.com>:
@@ -61,6 +63,13 @@
 #      /set plugins.var.perl.buffers.short_names on
 #   use indenting for some buffers like IRC channels:
 #      /set plugins.var.perl.buffers.indenting on
+#   use indenting for numbers:
+#      /set plugins.var.perl.buffers.indenting_number on
+#   hide merged buffers:
+#      /set plugins.var.perl.buffers.hide_merged_buffers on
+#   show prefix:
+#      /set plugins.var.perl.buffers.show_prefix on
+#      /set plugins.var.perl.buffers.show_prefix_empty on
 #   change colors:
 #      /set plugins.var.perl.buffers.color_number color
 #      /set plugins.var.perl.buffers.color_default color
@@ -74,7 +83,7 @@
 
 use strict;
 
-my $version = "1.7";
+my $version = "1.8";
 
 # -------------------------------[ config ]-------------------------------------
 
@@ -228,7 +237,8 @@ sub build_buffers
         if (($options{"indenting_number"} eq "on")
             && (($position eq "left") || ($position eq "right")))
         {
-            $str .= (" " x ($max_number_digits - int(log($buffer->{"number"})/log(10))));
+            $str .= weechat::color("default").$color_bg
+                .(" " x ($max_number_digits - int(log($buffer->{"number"})/log(10))));
         }
         if ($old_number ne $buffer->{"number"})
         {
