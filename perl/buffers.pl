@@ -19,6 +19,8 @@
 # Display sidebar with list of buffers.
 #
 # History:
+# 2010-04-02, Helios <helios@efemes.de>:
+#     v1.7: add indenting_number option
 # 2010-02-25, m4v <lambdae2@gmail.com>:
 #     v1.6: add option to hide empty prefixes
 # 2010-02-12, FlashCode <flashcode@flashtux.org>:
@@ -72,12 +74,13 @@
 
 use strict;
 
-my $version = "1.6";
+my $version = "1.7";
 
 # -------------------------------[ config ]-------------------------------------
 
 my %default_options = ("short_names"             => "on",
                        "indenting"               => "on",
+                       "indenting_number"        => "on",
                        "hide_merged_buffers"     => "off",
                        "show_prefix"             => "off",
                        "show_prefix_empty"       => "on",
@@ -152,6 +155,8 @@ sub build_buffers
     my @current1 = ();
     my @current2 = ();
     my $old_number = -1;
+    my $max_number = 0;
+    my $max_number_digits = 0;
     my $active_seen = 0;
     $infolist = weechat::infolist_get("buffer", "", "");
     while (weechat::infolist_next($infolist))
@@ -164,6 +169,10 @@ sub build_buffers
             @current1 = ();
             @current2 = ();
             $active_seen = 0;
+        }
+        if ($number > $max_number)
+        {
+            $max_number = $number;
         }
         $old_number = $number;
         my $active = weechat::infolist_integer($infolist, "active");
@@ -186,9 +195,14 @@ sub build_buffers
             push(@current1, $buffer);
         }
     }
+    if ($max_number >= 1)
+    {
+        $max_number_digits = int(log($max_number)/log(10));
+    }
     @buffers = (@buffers, @current2, @current1);
     weechat::infolist_free($infolist);
-    
+        
+
     # build string with buffers
     $old_number = -1;
     for my $buffer (@buffers)
@@ -211,6 +225,11 @@ sub build_buffers
         }
         my $color_bg = "";
         $color_bg = weechat::color(",".$bg) if ($bg ne "");
+        if (($options{"indenting_number"} eq "on")
+            && (($position eq "left") || ($position eq "right")))
+        {
+            $str .= (" " x ($max_number_digits - int(log($buffer->{"number"})/log(10))));
+        }
         if ($old_number ne $buffer->{"number"})
         {
             $str .= weechat::color($options{"color_number"})
