@@ -1,4 +1,4 @@
-# Copyright (c) 2009 by Nils Görs <weechatter@arcor.de>
+# Copyright (c) 2010 by Nils Görs <weechatter@arcor.de>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# v0.6  : added text_output option (%Z = current play time, %M (max play time, %S = sample rate)
 # v0.5	: external color code will be used to avoid character missmatch
 #	: added text_output option (%T = title, %C = album, %A = artist) 
 # v0.4	: ssh support added
@@ -38,7 +39,7 @@ use strict;
 my $cmd = "qdbus";
 #my $cmd = "dbus-send --type=method_call --dest=";
 my $amarokcheck = qq(ps -e | grep "amarok");
-my $version = "0.5";
+my $version = "0.6";
 my $description = "Amarok 2 control and now playing script with ssh support";
 my $program_name = "amarok2";
 my @array = "";
@@ -51,7 +52,7 @@ my %ext_colors = (white => "00", black => "01", darkblue => "02", darkgreen => "
 		  cyan => "10", lightcyan => "11", lightblue => "12", lightmagenta => "13", gray => "14",
 		  lightgray => 15);
 my $ext_color = "";
-my $text_output = "listening to: \%T from \%C by \%A";
+my $text_output = "listening to: ♬  \%T from \%C by \%A [\%Z of \%M @ \%S kbps] ♬";
 
 my $amarok_remote = "org.kde.amarok /Player org.freedesktop.MediaPlayer.GetMetadata | grep";
 my $amarok_com = "org.kde.amarok /Player org.freedesktop.MediaPlayer.";
@@ -74,7 +75,10 @@ weechat::hook_command($program_name, $description,
 	"The option 'text_output' uses the following place holder:\n".
 	"      '%T' will be replaced with the title name\n".
 	"      '%C' will be replaced with the album name\n".
-	"      '%A' will be replaced with the artist name\n\n".
+	"      '%A' will be replaced with the artist name\n".
+	"      '%Z' will be replaced with current play time\n".
+	"      '%M' will be replaced with time of song\n".
+	"      '%S' will be replaced with sample rate\n\n".
 	"If you want to use the ssh remote control you have to enable the ssh options:\n".
 	"       /set plugins.var.perl.amarok2.ssh_status enabled (default: disabled)\n".
 	"       /set plugins.var.perl.amarok2.ssh_host <hostname> (default: localhost)\n".
@@ -102,7 +106,7 @@ sub checkargs{
       $anzahl_array=@array;
       return weechat::WEECHAT_RC_OK if ($anzahl_array == 0);	# no arguments are given
 
-    my @paramlist = ("album", "artist", "title");
+    my @paramlist = ("album", "artist", "title", "time", "mtime", "bitrate");
     if (grep(m/$array[0]/, @paramlist)){
       amarok_get_info($array[0]);				# call subroutine with selected argument
       print_in_channel($amarok_result);
@@ -132,14 +136,23 @@ sub cmd_all{
     my $artist = amarok_get_info("artist");
     my $album = amarok_get_info("album");
     my $title = amarok_get_info("title");
+    my $sample_rate = amarok_get_info("audio-bitrate");
+    my $mtime = amarok_get_info("mtime");
+
+     my $time = millisecs_to_time( `$cmd  org.kde.amarok /Player PositionGet` );
+     $mtime = millisecs_to_time($mtime);			# max. time
 
     my $print_string = weechat::config_get_plugin("text_output");
     $print_string = "%T from %C by %A" if ($print_string eq "");
     $print_string =~ s/%A/$artist/;
     $print_string =~ s/%C/$album/;
     $print_string =~ s/%T/$title/;
+    $print_string =~ s/%Z/$time/;
+    $print_string =~ s/%M/$mtime/;
+    $print_string =~ s/%S/$sample_rate/;
 
     $print_string = "" if ($title eq "0" and $album eq "0" and $artist eq "0");
+
   print_in_channel($print_string);
 }
 
@@ -212,6 +225,12 @@ if ($anzahl_array == 2){				# does a second argument exists?
       $amarok_result = $color . $amarok_result . weechat::color("reset");
     }
 }
+    if ($arg eq "audio-bitrate"){
+      $amarok_result =~ s/audio-bitrate: //g;
+    }
+    if ($arg eq "mtime"){
+      $amarok_result =~ s/mtime: //g;
+    }
 return $amarok_result;
 }
 sub amarok_pannel{
@@ -287,4 +306,26 @@ sub get_user_settings{
   $ssh{host} = weechat::config_get_plugin("ssh_host");
   $ssh{user} = weechat::config_get_plugin("ssh_user");
   $ssh{port} = weechat::config_get_plugin("ssh_port");
+}
+
+sub millisecs_to_time{
+  my $sec = ($_[0]);
+
+  my $s = int $sec / 1000;
+  $sec = sprintf("%0.2f", $s);
+  my $m = int $sec / 60;
+  $s = $sec - ($m * 60);
+  my $h = int $m / 60;
+  $m = $m - ($h * 60);
+
+  $h="0$h" if (length($h) == 1);
+  $m="0$m" if (length($m) == 1);
+  $s="0$s" if (length($s) == 1);
+  my $timestring = "";
+  if ($h eq "00"){
+    $timestring = sprintf("%02d:%02d", $m, $s);
+  }else {
+    $timestring = sprintf("%03d:%02d:%02d", $h, $m, $s);
+  }
+return $timestring;
 }
