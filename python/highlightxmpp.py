@@ -1,6 +1,6 @@
 # HighlightXMPP for IRC. Requires WeeChat >= 0.3.0.
 # 
-# Copyright (c) 2009 Jacob Peddicord <jpeddicord@ubuntu.com>
+# Copyright (c) 2009-2010 Jacob Peddicord <jpeddicord@ubuntu.com>
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,13 +25,14 @@
 #   JID messages are sent *to* (if not set, defaults to the same jid):
 #     /set plugins.var.python.highlightxmpp.jid myid@jabber.org
 
+from time import sleep
 import weechat as w
 import xmpp
 
 info = (
     'highlightxmpp',
     'Jacob Peddicord <jpeddicord@ubuntu.com>',
-    '0.1',
+    '0.2',
     'GPL3',
     "Relay highlighted & private IRC messages over XMPP (Jabber)",
     '',
@@ -61,12 +62,12 @@ def connect_xmpp():
         client.connect()
         client.auth(jid.getNode(), password)
     except:
-        w.prnt('', "Could not connect or authenticate to XMPP server.")
+        w.prnt('', "XMPP: Could not connect or authenticate to server.")
         client = None
         return False
     return True
 
-def send_xmpp(data, signal, msg):
+def send_xmpp(data, signal, msg, trial=1):
     global client
     # connect to xmpp if we need to
     if not connect_xmpp():
@@ -77,7 +78,18 @@ def send_xmpp(data, signal, msg):
         jid_to = w.config_get_plugin('jid')
     # send the message
     msg = xmpp.protocol.Message(jid_to, msg)
-    client.send(msg)
+    try:
+        client.send(msg)
+    except IOError:
+        # every now and then the connection will still exist but a send will
+        # fail. catch that here and try to reconnect. isConnected() should
+        # start to realize that once this exception is triggered.
+        if trial > 3:
+            w.prnt('', "XMPP: Could not send to server.")
+        else:
+            w.prnt('', "XMPP: Sending failed. Trying again...")
+            sleep(0.5)
+            send_xmpp(data, signal, msg, trial + 1)
     return w.WEECHAT_RC_OK
 
 # register with weechat
@@ -89,3 +101,4 @@ if w.register(*info):
     # and finally our hooks
     w.hook_signal('weechat_highlight', 'send_xmpp', '')
     w.hook_signal('weechat_pv', 'send_xmpp', '')
+
