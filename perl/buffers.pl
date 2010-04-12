@@ -19,6 +19,8 @@
 # Display sidebar with list of buffers.
 #
 # History:
+# 2010-04-12, FlashCode <flashcode@flashtux.org>:
+#     v1.9: replace call to log() by length() to align buffer numbers
 # 2010-04-02, FlashCode <flashcode@flashtux.org>:
 #     v1.8: fix bug with background color and option indenting_number
 # 2010-04-02, Helios <helios@efemes.de>:
@@ -83,7 +85,7 @@
 
 use strict;
 
-my $version = "1.8";
+my $version = "1.9";
 
 # -------------------------------[ config ]-------------------------------------
 
@@ -206,7 +208,7 @@ sub build_buffers
     }
     if ($max_number >= 1)
     {
-        $max_number_digits = int(log($max_number)/log(10));
+        $max_number_digits = length(int($max_number));
     }
     @buffers = (@buffers, @current2, @current1);
     weechat::infolist_free($infolist);
@@ -238,7 +240,7 @@ sub build_buffers
             && (($position eq "left") || ($position eq "right")))
         {
             $str .= weechat::color("default").$color_bg
-                .(" " x ($max_number_digits - int(log($buffer->{"number"})/log(10))));
+                .(" " x ($max_number_digits - length(int($buffer->{"number"}))));
         }
         if ($old_number ne $buffer->{"number"})
         {
