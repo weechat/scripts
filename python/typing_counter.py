@@ -15,11 +15,16 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-# 0.1:  initial release
-# 0.2:  fixed display bug when buffer changes <weechatter@arcor.de>
-#       added cursor position
-#       colour of number changes if a specified number of chars are reached
-#       reverse counting added
+# 0.1:   initial release
+# 0.2:   fixed display bug when buffer changes <weechatter@arcor.de>
+#        added cursor position
+#        colour of number changes if a specified number of chars are reached
+#        reverse counting added
+# 0.2.2: update settings instantly when changed rather than require reload
+#        fix display bug when loading the script and nothing is typed yet
+#
+# Note: As of version 0.2 this script requires a version of weechat
+#       from git 2010-01-25 or newer, or at least 0.3.2 stable.
 #
 # usage:
 # add [tc] to your weechat.bar.status.items
@@ -54,7 +59,7 @@ except Exception:
 
 SCRIPT_NAME    = "typing_counter"
 SCRIPT_AUTHOR  = "fauno <fauno@kiwwwi.com.ar>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.2.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Bar item showing typing count and cursor position. Add 'tc' to a bar."
 
@@ -67,8 +72,9 @@ warn_colour     = "red"
 max_chars       = "200"
 count_over      = "0"
 
-def tc_bar_item_update (data, modifier, modifier_data): #data, modifier, modifier_data, string
+def tc_bar_item_update (data=None, signal=None, signal_data=None):
     '''Updates bar item'''
+    '''May be used as a callback or standalone call.'''
     global laenge, cursor_pos, tc_input_text
 
     current_buffer = w.current_buffer()
@@ -105,24 +111,35 @@ def tc_bar_item (data, item, window):
     tc_input_text = out_format
     return tc_input_text
 
+def tc_config_update(data=None, option=None, value=None):
+    '''Read configuration settings into local variables.'''
+    '''May be used as a callback or standalone call.'''
+    global format, max_chars, warn, warn_colour
+
+    format = w.config_get_plugin('format')
+    max_chars = w.config_get_plugin('max_chars')
+    warn = w.config_get_plugin('warn')
+    warn_colour = w.config_get_plugin('warn_colour')
+    return w.WEECHAT_RC_OK
+
 if __name__ == "__main__":
     if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION,
                   SCRIPT_LICENSE, SCRIPT_DESC,
                   "", ""):
         if not w.config_get_plugin('format'): 
             w.config_set_plugin('format', format)
-        format = w.config_get_plugin('format')
         if not w.config_get_plugin('warn'): 
             w.config_set_plugin('warn', warn)
-        warn = w.config_get_plugin('max_chars')
         if not w.config_get_plugin('max_chars'): 
             w.config_set_plugin('max_chars', max_chars)
-        warn = w.config_get_plugin('warn')
         if not w.config_get_plugin('warn_colour'): 
             w.config_set_plugin('warn_colour', warn_colour)
-        warn_colour = w.config_get_plugin('warn_colour')
+
+        tc_config_update() # read configuration
+        tc_bar_item_update() # update status bar display
 
         w.hook_signal('input_text_changed', 'tc_bar_item_update', '')
         w.hook_signal('input_text_cursor_moved','tc_bar_item_update','')
         w.hook_signal('buffer_switch','tc_bar_item_update','')
+        w.hook_config('plugins.var.python.' + SCRIPT_NAME + ".*", "tc_config_update", "")
         w.bar_item_new('tc', 'tc_bar_item', '')
