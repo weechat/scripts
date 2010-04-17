@@ -22,7 +22,16 @@
 # Usage: Add "gweather" to weechat.bar.status.items or other bar you like.
 #        Specify city: "/set plugins.var.python.gweather.city Tokyo".
 #
+#        Formatting: "/set plugins.var.python.gweather.format %C: %D°%U, %O".
+#            Where: %C - city
+#                   %D - temperature degrees
+#                   %U - temperature unit
+#                   %O - current condition
+#
 # History:
+# 2010-04-15, jkesanen <jani.kesanen@gmail.com>
+#   version 0.3: - added output formatting
+#                - removed output and city color related options
 # 2010-04-09, jkesanen <jani.kesanen@gmail.com>
 #   version 0.2.1: - added support for different languages
 # 2010-04-07, jkesanen <jani.kesanen@gmail.com>
@@ -40,35 +49,35 @@ from sys import version_info
 
 SCRIPT_NAME    = "gweather"
 SCRIPT_AUTHOR  = "Jani Kesänen <jani.kesanen@gmail.com>"
-SCRIPT_VERSION = "0.2.1"
+SCRIPT_VERSION = "0.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Bar item with current Google weather"
 
 # Script options
 settings = {
     # City to monitor (ex. "Tokyo", "Austin, Texas", ...)
-    'city'              : '',
+    'city'           : '',
     # Language of the conditions (ex. en, ja, fi, fr, ...)
-    'language'          : 'en',
+    'language'       : 'en',
     # Temperature units (C or F)
-    'unit'              : 'C',
+    'unit'           : 'C',
     # Update interval in minutes
-    'interval'          : '10',
+    'interval'       : '10',
     # Timeout in seconds for fetching weather data
-    'timeout'           : '10',
-    # Visual settings
-    'city_color'        : 'default',
-    'condition_color'   : 'white',
-    'display_city'      : 'on',
-    'display_condition' : 'on',
+    'timeout'        : '10',
+    # The color of the output
+    'output_color'   : 'white',
+    # Formatting (%C = city, %D = degrees, %U = unit, %O = condition)
+    'format'         : '%C: %D%U, %O',
 }
 
 # Timestamp for the last update
 last_run = 0
 
-# Which city's conditions were fetched the last and in which language
+# The last city, language and format for the need of refresh
 last_city = ''
 last_lang = ''
+last_format = ''
 
 # Cached copy of the last successful output
 gweather_output = 'WAIT'
@@ -104,7 +113,7 @@ def parse_google_weather(xml_response):
         tmp_conditions = {}
         for tag2 in list_of_tags2:
             try:
-                tmp_conditions[tag2] = weather_dom.getElementsByTagName(tag)[0].getElementsByTagName(tag2)[0].getAttribute('data')
+                tmp_conditions[tag2] = weather_dom.getElementsByTagName(tag)[0].getElementsByTagName(tag2)[0].getAttribute('data').strip()
             except IndexError:
                 pass
         weather_data[tag] = tmp_conditions
@@ -121,27 +130,25 @@ def format_weather(weather_data):
     Returns:
       output: a string of formatted weather data.
     '''
-    output = ''
+    output = weechat.color(weechat.config_get_plugin('output_color')) + weechat.config_get_plugin('format')
+    output = output.replace('%C', weechat.config_get_plugin('city'))
 
-    if weechat.config_get_plugin('display_city') == 'on':
-        output += '%s%s: ' % (\
-                 weechat.color(weechat.config_get_plugin('city_color')),
-                 weechat.config_get_plugin('city'))
-
-    weather = 'N/A'
+    temp = 'N/A'
+    condition = 'N/A'
 
     if weather_data:
         if len(weather_data['current_conditions']):
             if weechat.config_get_plugin('unit') == 'F':
-                weather = '%sF' % (weather_data['current_conditions']['temp_f'].encode('utf-8'))
+                temp = weather_data['current_conditions']['temp_f'].encode('utf-8')
             else:
-                weather = '%sC' % (weather_data['current_conditions']['temp_c'].encode('utf-8'))
+                temp = weather_data['current_conditions']['temp_c'].encode('utf-8')
 
-            if weechat.config_get_plugin('display_condition') == 'on' and \
-                   weather_data['current_conditions']['condition']:
-                weather += ', %s' % (weather_data['current_conditions']['condition'].encode('utf-8'))
+            if weather_data['current_conditions'].has_key('condition'):
+                condition = weather_data['current_conditions']['condition'].encode('utf-8')
 
-    output += '%s%s' % (weechat.color(weechat.config_get_plugin('condition_color')), weather)
+    output = output.replace('%D', temp)
+    output = output.replace('%O', condition)
+    output = output.replace('%U', weechat.config_get_plugin('unit'))
 
     output += weechat.color('reset')
 
@@ -152,8 +159,8 @@ def gweather_data_cb(data, command, rc, stdout, stderr):
     '''
     Callback for the data fetching process.
     '''
-    global last_city, last_lang, last_run, gweather_output
-    global gweather_hook_process, gweather_stdout
+    global last_city, last_lang, last_run, last_format
+    global gweather_hook_process, gweather_stdout, gweather_output
 
     if rc == weechat.WEECHAT_HOOK_PROCESS_ERROR or stderr != '':
         weechat.prnt('', '%sgweather: Weather information fetching failed: %s' % (\
@@ -167,10 +174,12 @@ def gweather_data_cb(data, command, rc, stdout, stderr):
         # Process not ready
         return weechat.WEECHAT_RC_OK
 
-    gweather_hook_process = ''
+    # Update status variables for succesful run
     last_run = time()
     last_city = weechat.config_get_plugin('city')
     last_lang = weechat.config_get_plugin('language')
+    last_format = weechat.config_get_plugin('format')
+    gweather_hook_process = ''
 
     if not gweather_stdout:
         return weechat.WEECHAT_RC_OK
@@ -207,7 +216,8 @@ def gweather_data_cb(data, command, rc, stdout, stderr):
 
 def gweather_cb(*kwargs):
     ''' Callback for the Google weather bar item. '''
-    global last_run, gweather_output, last_city, last_lang, gweather_hook_process
+    global last_run, last_city, last_lang, last_format
+    global gweather_output, gweather_hook_process
 
     # Nag if user has not specified the city
     if not weechat.config_get_plugin('city'):
@@ -220,6 +230,7 @@ def gweather_cb(*kwargs):
     # Use cached copy if it is updated recently enough
     if weechat.config_get_plugin('city') == last_city and \
        weechat.config_get_plugin('language') == last_lang and \
+       weechat.config_get_plugin('format') == last_format and \
        (time() - last_run) < (int(weechat.config_get_plugin('interval')) * 60):
         return gweather_output
 
@@ -260,5 +271,6 @@ if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
             weechat.config_set_plugin(option, default_value)
 
     weechat.bar_item_new('gweather', 'gweather_cb', '')
+    weechat.bar_item_update('gweather')
     weechat.hook_timer(int(weechat.config_get_plugin('interval')) * 1000 * 60,
             0, 0, 'gweather_update', '')
