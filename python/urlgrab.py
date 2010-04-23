@@ -1,5 +1,5 @@
 #
-# UrlGrab, version 1.7 for weechat version 0.3
+# UrlGrab, version 1.8 for weechat version 0.3
 #
 #   Listens to all channels for URLs, collects them in a list, and launches
 #   them in your favourite web server on the local host or a remote server.
@@ -98,6 +98,10 @@
 #  - V1.6 FlashCode <flashcode@flashtux.org>: Increase timeout for hook_process
 #         (from 1 second to 1 minute)
 #  - V1.7 FlashCode <flashcode@flashtux.org>: Update WeeChat site
+#  - V1.8 drubin <drubin [at] smartcube . co.za>: 
+#           - Changed remote cmd to be single option
+#           - Added scrolling on up and down arrow keys for /url show
+#           - Changed remotecmd to include options with public/private keys password auth doesn't work
 #
 # Copyright (C) 2005 David Rubin <drubin AT smartcube dot co dot za>
 #
@@ -142,7 +146,7 @@ urlRe = re.compile(r'(\w+://(?:%s|%s)(?::\d+)?(?:/[^\])>\s]*)?)' % (domain, ipAd
 
 SCRIPT_NAME    = "urlgrab"
 SCRIPT_AUTHOR  = "David Rubin <drubin [At] smartcube [dot] co [dot] za>"
-SCRIPT_VERSION = "1.7"
+SCRIPT_VERSION = "1.8"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Url functionality Loggin, opening of browser, selectable links"
 CONFIG_FILE_NAME= "urlgrab" 
@@ -222,14 +226,14 @@ class UrlGrabSettings(UserDict):
         self.data['historysize']=weechat.config_new_option(
             self.config_file, section_default,
             "historysize", "integer", "Max number of urls to store per buffer", 
-            "", 0, 99999, "10", "10", 0, "", "", "", "", "", "") 
+            "", 0, 999, "10", "10", 0, "", "", "", "", "", "") 
         
         self.data['method']=weechat.config_new_option(
             self.config_file, section_default,
             "method", "string", """Where to launch URLs
             If 'local', runs %localcmd%.
             If 'remote' runs the following command:
-            '%remotessh% %remotehost% %remotecmd'""", "", 0, 0,
+            '%remodecmd%'""", "", 0, 0,
             "local", "local", 0, "", "", "", "", "", "") 
             
             
@@ -238,22 +242,11 @@ class UrlGrabSettings(UserDict):
             "localcmd", "string", """Local command to execute""", "", 0, 0,
             "firefox %s", "firefox %s", 0, "", "", "", "", "", "") 
         
-        self.data['remotessh']=weechat.config_new_option(
-            self.config_file, section_default,
-            "remotessh", "string", """Command (and arguments) to connect to a remote machine.
-                Default 'ssh -x'""", "", 0, 0,
-            "ssh -x", "ssh -x", 0, "", "", "", "", "", "") 
-            
-        self.data['remotehost']=weechat.config_new_option(
-            self.config_file, section_default,
-            "remotehost", "string", """Command (and arguments) to connect to a remote machine.
-                Default 'ssh -x'""", "", 0, 0,
-            "localhost", "localhost", 0, "", "", "", "", "", "") 
-
+        remotecmd="ssh -x localhost -i ~/.ssh/id_rsa -C \"export DISPLAY=\":0.0\" &&  firefox %s\""
         self.data['remotecmd']=weechat.config_new_option(
             self.config_file, section_default,
-            "remotecmd", "string", """bash -c \"DISPLAY=:0.0 firefox %s\"""", "", 0, 0,
-            "bash -c \"DISPLAY=:0.0 firefox %s\"", "bash -c \"DISPLAY=:0.0 firefox %s\"", 0, "", "", "", "", "", "")
+            "remotecmd", "string", remotecmd, "", 0, 0,
+            remotecmd, remotecmd, 0, "", "", "", "", "", "")
             
         self.data['url_log']=weechat.config_new_option(
             self.config_file, section_default,
@@ -290,13 +283,12 @@ class UrlGrabSettings(UserDict):
             self.prnt(key, verbose = False)
 
     def createCmd(self, url):
+        str =""
         if self['method'] == 'remote':
-            tmplist = self['remotessh'].split(" ")
-            tmplist.append(self['remotehost'])
-            tmplist.append(self['remotecmd'] % url)
+            str = self['remotecmd']  % url
         else:
-            tmplist =  self['localcmd']  % url
-        return tmplist
+            str =  self['localcmd']  % url
+        return str
 
 class UrlGrabber:
     def __init__(self, historysize):
@@ -519,11 +511,13 @@ def keyEvent (data, bufferp, args):
             current_line = current_line -1
             refresh_line (current_line + 1)
             refresh_line (current_line)
+            ugCheckLineOutsideWindow()
     elif args == "down":
          if current_line < len(urlGrab.globalUrls) - 1:
             current_line = current_line +1
             refresh_line (current_line - 1)
             refresh_line (current_line)
+            ugCheckLineOutsideWindow()
     elif args == "scroll_top":
         temp_current = current_line
         current_line =  0
@@ -577,6 +571,20 @@ def refresh_line (y):
                     color3, 
                     urlGrab.globalUrls[y]['url'] )
     weechat.prnt_y(urlgrab_buffer,y,text)
+    
+def ugCheckLineOutsideWindow():
+    global urlGrab , urlGrabSettings, urlgrab_buffer, current_line, max_buffer_length   
+    if (urlgrab_buffer):
+        infolist = weechat.infolist_get("window", "", "current")
+        if (weechat.infolist_next(infolist)):
+            start_line_y = weechat.infolist_integer(infolist, "start_line_y")
+            chat_height = weechat.infolist_integer(infolist, "chat_height")
+            if(start_line_y > current_line):
+                weechat.command(urlgrab_buffer, "/window scroll -%i" %(start_line_y - current_line))
+            elif(start_line_y <= current_line - chat_height):
+                weechat.command(urlgrab_buffer, "/window scroll +%i"%(current_line - start_line_y - chat_height + 1))
+        weechat.infolist_free(infolist)
+    
 
 def refresh():
     global urlGrab
