@@ -1,6 +1,6 @@
 #
 # nickregain.pl - Automatically regain your nick when avaiable, for weechat 0.3.0
-# Version 1.0.2
+# Version 1.1
 #
 # Automatically checks every x mins to see if your prefered nicks are available
 # and issues either /nick or a custom nickserv command
@@ -19,7 +19,11 @@
 # You WILL need to add the '/nick' command to this
 # Use $nick to mark the nick, Commands can be separated using ;
 # e.g /msg nickserv ghost $nick;/nick $nick;/msg nickserv identify password
-# See '/msg nickserv help' for exact syntax\n
+# See '/msg nickserv help' for exact syntax
+#
+# /set plugins.var.perl.nickregain.<servername>_command_delay
+# This sets the delay between the server connection and the command being triggered
+# Default: 0
 #
 # /set plugins.var.perl.nickregain.<servername>_delay
 # This sets the delay between each /ison check
@@ -27,6 +31,11 @@
 # Default: 60
 #
 # History:
+# 2009-04-24, KenjiE20 <longbow@longbowslair.co.uk>:
+#	v1.1	-feature: Add server_command_delay option to add a delay to server_command
+#		-fix: Broken quit/nick change detection
+#		-fix: Close off leaking infolists
+#		-fix: Hooks unhook properly now
 # 2009-10-27, KenjiE20 <longbow@longbowslair.co.uk>:
 #	v1.0.2	-fix: Make ison nicks check quote better, didn't always work
 #			Give /nickregain now it's own sub, to trigger ison
@@ -69,6 +78,9 @@ $helpstr = "  on: Enables regain for current server
  Use \$nick to mark the nick, Commands can be separated using ;
  e.g /msg nickserv ghost \$nick;/nick \$nick;/msg nickserv identify password
  See '/msg nickserv help' for exact syntax\n
+ ".weechat::color("bold")."/set plugins.var.perl.nickregain.<servername>_command_delay".weechat::color("-bold")."
+ This sets the delay between the server connection and the command being triggered
+ Default: ".weechat::color("bold")."0".weechat::color("-bold")."\n
  ".weechat::color("bold")."/set plugins.var.perl.nickregain.<servername>_enabled".weechat::color("-bold")."
  This sets whether the nickregain is will run on a server\n
  ".weechat::color("bold")."/set plugins.var.perl.nickregain.<servername>_delay".weechat::color("-bold")."
@@ -76,7 +88,7 @@ $helpstr = "  on: Enables regain for current server
  Used incase you can't see the old nick quit or nick change
  Default: ".weechat::color("bold")."60".weechat::color("-bold");
 
-weechat::register("nickregain", "KenjiE20", "1.0.2", "GPL3", "Auto Nick Regaining", "", "");
+weechat::register("nickregain", "KenjiE20", "1.1", "GPL3", "Auto Nick Regaining", "", "");
 
 regain_setup();
 
@@ -106,6 +118,10 @@ sub regain_setup
 		{
 			weechat::config_set_plugin($name."_command", "");
 		}
+		if (!weechat::config_is_set_plugin($name."_command_delay"))
+		{
+			weechat::config_set_plugin($name."_command_delay", "0");
+		}
 		if (!weechat::config_is_set_plugin($name."_enabled"))
 		{
 			weechat::config_set_plugin($name."_enabled", "off");
@@ -114,6 +130,7 @@ sub regain_setup
 		# Set / update internal vars
 		$config{$name}{'enabled'} = weechat::config_get_plugin($name."_enabled");
 		$config{$name}{'command'} = weechat::config_get_plugin($name."_command");
+		$config{$name}{'command_delay'} = weechat::config_get_plugin($name."_command_delay");
 		$config{$name}{'delay'} = weechat::config_get_plugin($name."_delay");
 		$config{$name}{'curnick'} = weechat::infolist_string($infolist, "nick");
 		$config{$name}{'nicks'} = weechat::infolist_string($infolist, "nicks");
@@ -123,6 +140,11 @@ sub regain_setup
 		if (!exists $config{$name}{'active'})
 		{
 			$config{$name}{'active'} = 0;
+			# Init hook vars
+			$nhook{$name} = 0;
+			$qhook{$name} = 0;
+			$thook{$name} = 0;
+			$ihook{$name} = 0;
 		}
 	}
 	weechat::infolist_free($infolist);
@@ -138,10 +160,26 @@ sub regain_disconn
 	# Are we configured to run on this server
 	if ($config{$name}{'enabled'} ne 'off')
 	{
-		# Unhook any timers, as they can't do anything now
-		if (exists $thook{$name})
+		# Unhook any hooks, as they can't do anything now
+		if ($nhook{$name})
+		{
+			weechat::unhook($nhook{$name});
+			$nhook{$name} = 0;
+		}
+		if ($qhook{$name})
+		{
+			weechat::unhook($qhook{$name});
+			$qhook{$name} = 0;
+		}
+		if ($thook{$name})
 		{
 			weechat::unhook($thook{$name});
+			$thook{$name} = 0;
+		}
+		if ($ihook{$name})
+		{
+			weechat::unhook($ihook{$name});
+			$ihook{$name} = 0;
 		}
 	}
 #DEBUG	regain_info();
@@ -175,45 +213,61 @@ sub regain_conn
 			if ($config{$name}{'command'} ne "")
 			{
 #DEBUG				weechat::print($bufferp, "nickregain.pl: Server has command, using");
-
-				# Split command by ;
-				undef @cmds;
-				@cmds = split(/;/, $config{$name}{'command'});
-				# Run commands
-				foreach (@cmds)
+				if ($config{$name}{'command_delay'} ne "0")
 				{
-					# Sub config nick
-					$_ =~ s/\$nick/$nick/;
-					# Send commands
-					weechat::command($bufferp, $_);
+					weechat::hook_timer( $config{$name}{'command_delay'} * 1000, 0, 1, "regain_conn_command", $name);
 				}
-				# Deactivate and stop
-				$config{$name}{'active'} = 0;
+				else
+				{
+					regain_conn_command($name);
+				}
 				return weechat::WEECHAT_RC_OK;
 			}
 			# If not, hook quit catcher, and timer
 			else
 			{
 				weechat::print($bufferp, "nickregain.pl: Server has no regain command set, hooking QUIT, NICK and timer");
-				if (!exists $qhook{$name})
+				if (!$qhook{$name})
 				{
 					$qhook{$name} = weechat::hook_signal("$name,irc_in_quit", "regain_quit_nick_cb", "");
 				}
-				if (!exists $nhook{$name})
+				if (!$nhook{$name})
 				{
 					$nhook{$name} = weechat::hook_signal("$name,irc_in_nick", "regain_quit_nick_cb", "");
 				}
-				if (!exists $thook{$name})
+				if (!$thook{$name})
 				{
-					$thook{$name} = weechat::hook_timer( $config{$name}{'delay'} * 1000, 0, 0, regain_timer_handle, $name);
+					$thook{$name} = weechat::hook_timer( $config{$name}{'delay'} * 1000, 0, 0, "regain_timer_handle", $name);
 				}
-				if (!exists $ihook{$name})
+				if (!$ihook{$name})
 				{
 					$ihook{$name} = weechat::hook_signal("$name,irc_in_303", "regain_isoncb", "");
 				}
 			}
 		}
 	}
+	return weechat::WEECHAT_RC_OK;
+}
+
+sub regain_conn_command
+{
+	$name = $_[0];
+	$bufferp = weechat::info_get("irc_buffer", $name);
+#DEBUG	weechat::print($bufferp, "nickregain.pl: Sending commands");
+	#Split command by ;
+	undef @cmds;
+	@cmds = split(/;/, $config{$name}{'command'});
+	
+	# Run commands
+	foreach (@cmds)
+	{
+		# Sub config nick
+		$_ =~ s/\$nick/$nick/;
+		# Send commands
+		weechat::command($bufferp, $_);
+	}
+	# Deactivate and stop
+	$config{$name}{'active'} = 0;
 	return weechat::WEECHAT_RC_OK;
 }
 
@@ -282,7 +336,7 @@ sub regain_quit_nick_cb
 		$bufferp = weechat::info_get("irc_buffer", $server);
 
 		# Get newly freed nick and nickchange nick
-		if ($cb_data =~ /:(.*) QUIT :(.*)/ || $cb_data =~ /:(.*) NICK :(.*)/)
+		if ($cb_data =~ /:(.*) QUIT :?(.*)/ || $cb_data =~ /:(.*) NICK :?(.*)/)
 		{
 			$freenick = weechat::info_get("irc_nick_from_host", $1);
 			$nickchanged = weechat::info_get("irc_nick_from_host", $2);
@@ -349,9 +403,13 @@ sub regain_better_nick
 			{
 				weechat::print($bufferp, "nickregain.pl: Regaining primary nick, stopping regain");
 				weechat::unhook($nhook{$name});
+				$nhook{$name} = 0;
 				weechat::unhook($qhook{$name});
+				$qhook{$name} = 0;
 				weechat::unhook($thook{$name});
+				$thook{$name} = 0;
 				weechat::unhook($ihook{$name});
+				$ihook{$name} = 0;
 				$config{$name}{'active'} = 0;
 			}
 			# No need to test further
@@ -461,9 +519,13 @@ sub regain_isoncb
 					# Unhook everything
 					weechat::print($bufferp, "nickregain.pl: Regaining primary nick, stopping regain");
 					weechat::unhook($nhook{$name});
+					$nhook{$name} = 0;
 					weechat::unhook($qhook{$name});
+					$qhook{$name} = 0;
 					weechat::unhook($thook{$name});
+					$thook{$name} = 0;
 					weechat::unhook($ihook{$name});
+					$ihook{$name} = 0;
 					$config{$name}{'active'} = 0;
 				}
 				# No need to test further
@@ -503,6 +565,7 @@ sub regain_command
 				regain_conn("","",$name);
 			}
 		}
+		weechat::infolist_free($infolist);
 		return weechat::WEECHAT_RC_OK;
 	}
 	
@@ -529,10 +592,26 @@ sub regain_command
 	{
 		weechat::config_set_plugin($name."_enabled", "off");
 
-		weechat::unhook($nhook{$name}) if (exists $nhook{$name});
-		weechat::unhook($qhook{$name}) if (exists $qhook{$name});
-		weechat::unhook($thook{$name}) if (exists $thook{$name});
-		weechat::unhook($ihook{$name}) if (exists $ihook{$name});
+		if ($nhook{$name})
+		{
+			weechat::unhook($nhook{$name});
+			$nhook{$name} = 0;
+		}
+		if ($qhook{$name})
+		{
+			weechat::unhook($qhook{$name});
+			$qhook{$name} = 0;
+		}
+		if ($thook{$name})
+		{
+			weechat::unhook($thook{$name});
+			$thook{$name} = 0;
+		}
+		if ($ihook{$name})
+		{
+			weechat::unhook($ihook{$name});
+			$ihook{$name} = 0;
+		}
 		return weechat::WEECHAT_RC_OK;
 	}
 	elsif ($args eq 'now')
@@ -544,7 +623,7 @@ sub regain_command
 		}
 		else
 		{
-                        weechat::print ($buffer, weechat::prefix("error")."nickregain not enabled for this server, try \"/nickregain on\" to enable");
+			weechat::print ($buffer, weechat::prefix("error")."nickregain not enabled for this server, try \"/nickregain on\" to enable");
 		}
 		return weechat::WEECHAT_RC_OK;
 	}
@@ -555,7 +634,7 @@ sub regain_now
 {
 	$name = $_[0];
 	
-        # Update all settings
+	# Update all settings
 	regain_setup();
 	
 	# Are we configured to run on this server & check we are connected for manual commands
@@ -617,4 +696,5 @@ sub regain_info
 		weechat::print("", $name.": Current Nick: ".$config{$name}{'curnick'});
 		weechat::print("", $name.": Regain Nicks: ".$config{$name}{'nicks'});
 	}
+	weechat::infolist_free($infolist);
 }
