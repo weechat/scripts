@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2010-04-28, FlashCode <flashcode@flashtux.org>:
+#     version 0.8: switch to vdm buffer if already opened
 # 2009-10-13, FlashCode <flashcode@flashtux.org>:
 #     version 0.7: use "q" to close vdm buffer
 # 2009-06-12, FlashCode <flashcode@flashtux.org>:
@@ -43,7 +45,7 @@ import weechat, xml.dom.minidom
 
 SCRIPT_NAME    = "vdm"
 SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.7"
+SCRIPT_VERSION = "0.8"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Display content of viedemerde.fr/fmylife.com website"
 
@@ -130,7 +132,7 @@ def vdm_buffer_set_title():
 
 def vdm_display(vdm):
     """ Display VDMs in buffer. """
-    global vdm_buffer, vdm_switch_to_buffer
+    global vdm_buffer
     weechat.buffer_set(vdm_buffer, "unread", "1")
     if weechat.config_get_plugin("number_as_prefix") == "on":
         separator = "\t"
@@ -154,8 +156,6 @@ def vdm_display(vdm):
             weechat.prnt(vdm_buffer, "------")
         elif weechat.config_get_plugin("blank_line") == "on":
             weechat.prnt(vdm_buffer, "")
-    if vdm_switch_to_buffer:
-        weechat.buffer_set(vdm_buffer, "display", "1")
 
 def vdm_parse(string):
     """ Parse XML output from HTTP output string. """
@@ -188,6 +188,8 @@ def vdm_process_cb(data, command, rc, stdout, stderr):
             vdm_buffer_set_title()
             vdm_display(list)
             vdm_oldlist = list[:]
+        if vdm_switch_to_buffer:
+            weechat.buffer_set(vdm_buffer, "display", "1")
         vdm_switch_to_buffer = False
         vdm_hook_process = ""
     return weechat.WEECHAT_RC_OK
