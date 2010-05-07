@@ -4,6 +4,7 @@
 # Copyright (c) 2009 by penryu <penryu@gmail.com>
 # Copyright (c) 2010 by Blake Winton <bwinton@latte.ca>
 # Copyright (c) 2010 by Aron Griffis <agriffis@n01se.net>
+# Copyright (c) 2010 by Jani Kesänen <jani.kesanen@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,6 +24,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2010-05-07, Jani Kesänen <jani.kesanen@gmail.com>
+#  version 0.7: add command on detach feature
 # 2010-03-07, Aron Griffis <agriffis@n01se.net>
 #  version 0.6: move socket check to register,
 #               add hook_config for interval,
@@ -44,14 +47,15 @@ import os
 
 SCRIPT_NAME    = "screen_away"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.6"
+SCRIPT_VERSION = "0.7"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Set away status on screen detach"
 
 settings = {
         'message': 'Detached from screen',
-        'interval': '5',  # How often in seconds to check screen status
-        'away_suffix': '' # What to append to your nick when you're away.
+        'interval': '5',        # How often in seconds to check screen status
+        'away_suffix': '',      # What to append to your nick when you're away.
+        'command_on_detach': '' # Command to execute on detach
 }
 
 TIMER = None
@@ -112,6 +116,8 @@ def screen_away_timer_cb(buffer, args):
                 w.command(server, "/nick %s%s" % (nick, suffix));
             w.command(server, "/away %s" % w.config_get_plugin('message'));
         AWAY = True
+        if w.config_get_plugin("command_on_detach"):
+            w.command("", w.config_get_plugin("command_on_detach"))
 
     return w.WEECHAT_RC_OK
 
@@ -138,4 +144,3 @@ if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
         set_timer()
         w.hook_config("plugins.var.python." + SCRIPT_NAME + ".*",
             "screen_away_config_cb", "")
-
