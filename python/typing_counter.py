@@ -22,6 +22,7 @@
 #        reverse counting added
 # 0.2.2: update settings instantly when changed rather than require reload
 #        fix display bug when loading the script and nothing is typed yet
+# 0.2.3: fix display bug with count_over. Wasn't set to 0
 #
 # Note: As of version 0.2 this script requires a version of weechat
 #       from git 2010-01-25 or newer, or at least 0.3.2 stable.
@@ -59,7 +60,7 @@ except Exception:
 
 SCRIPT_NAME    = "typing_counter"
 SCRIPT_AUTHOR  = "fauno <fauno@kiwwwi.com.ar>"
-SCRIPT_VERSION = "0.2.2"
+SCRIPT_VERSION = "0.2.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Bar item showing typing count and cursor position. Add 'tc' to a bar."
 
@@ -86,12 +87,12 @@ def tc_bar_item_update (data=None, signal=None, signal_data=None):
 def tc_bar_item (data, item, window):
     '''Item constructor'''
     global laenge, cursor_pos, tc_input_text, count_over
+    count_over = "0"
 
     # reverse check for max_chars
     reverse_chars = (int(max_chars) - laenge)
     if reverse_chars == 0:
         reverse_chars = "%s" % ("0")
-        count_over = "0"
     else:
         if reverse_chars < 0:
             count_over = "%s%s%s" % (w.color(warn_colour),str(reverse_chars*-1), w.color('default'))

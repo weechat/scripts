@@ -21,10 +21,12 @@
 # 
 # refresh rate in seconds:
 # /set plugins.var.perl.beat.refresh <sec>
+# history:
+# 0.2 wrong string was set to config
 
 use strict;
 my $prgname	= "beat";
-my $version	= "0.1";
+my $version	= "0.2";
 my $description	= "Shows you the Beat-Internet-Time in Bar-Item";
 # default values
 my $refresh	= "60";	#seconds
@@ -58,6 +60,7 @@ sub show_beat {
     return sprintf "@%d", ( ( $time+3600 ) % 86400 ) / 86.4;
 }
 
+# check out config settings
 sub toggle_refresh{
 	$refresh = $_[2];
 
@@ -79,7 +82,7 @@ sub toggle_refresh{
 		}
 	}else{
 		if (not defined $Hooks{timer}){
-			weechat::config_set_plugin($refresh, "0") unless hook_timer();		# fall back to '0', if hook fails
+			weechat::config_set_plugin("refresh", "0") unless hook_timer();		# fall back to '0', if hook fails
 		}
 	}
 return weechat::WEECHAT_RC_OK;
