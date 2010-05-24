@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# v0.7: quakenet uses another JOIN format (JOIN #channelname instead of JOIN :#channelname)
 # v0.6: newsbar support
 #     : internal changes (thanks to rettub)
 #     : added option 'block_all_buffers'
@@ -51,12 +52,12 @@ my $extern_command = qq(echo -en "\a");
 # playing a sound
 # my $extern_command = qq(play -q $HOME/sounds/hello.wav);
 # write to an output file.
-# $extern_command = qq('echo "\"%C\" \"neuer User: %N\"">>/tmp/jnotify-`date +"%Y%m%d"`.log');
+# my $extern_command = qq('echo "\"%C\" \"neuer User: %N\"">>/tmp/jnotify-`date +"%Y%m%d"`.log');
 # this is my favorite. Displays weechat-logo + channel + nick using system-notification.
 # my $extern_command = qq(notify-send -t 9000 -i $HOME/.weechat/120px-Weechat_logo.png "\"%C\" \"neuer User: %N\");
 
 # default values in setup file (~/.weechat/plugins.conf)
-my $version		= "0.6";
+my $version		= "0.7";
 my $prgname 		= "jnotify";
 my $description 	= "starts an external program if a user or one of your buddies JOIN a channel you are in";
 my $status		= "status";
@@ -139,27 +140,28 @@ sub unhook{
 sub _notify {
     my ( $server_name, $newnick, $channelname ) = @_;
 
-    if ( weechat::config_get_plugin("use_newsbar") eq "on" and newsbar() ) {    # option "use_newsbar" is on and newsbar is running!
+    if ( weechat::config_get_plugin("use_newsbar") eq "on" and newsbar() ) {	# option "use_newsbar" is on and newsbar is running!
         info2newsbar( 'lightgreen', '[JNOTIFY]', $server_name, $newnick, $channelname );
     } else {
-        my $external_command = weechat::config_get_plugin('cmd');               # get external command (user settings)
-        $external_command =~ s/%C/$channelname/;                                # replace string '%C' with $channelname
-        $external_command =~ s/%N/$newnick/;                                    # replace string '%N' with $newnick
-        $external_command =~ s/%S/$server_name/;                                # replace string '%S' with $server_name
+        my $external_command = weechat::config_get_plugin('cmd');		# get external command (user settings)
+        $external_command =~ s/%C/$channelname/;				# replace string '%C' with $channelname
+        $external_command =~ s/%N/$newnick/;					# replace string '%N' with $newnick
+        $external_command =~ s/%S/$server_name/;				# replace string '%S' with $server_name
 
-        system( $external_command . "&" );                                      # start external program
+        system( $external_command . "&" );					# start external program
     }
 }
 
 sub notify_me {
-    my ( undef, $buffer, $args ) = @_;    # save callback from hook_signal
+    my ( undef, $buffer, $args ) = @_;						# save callback from hook_signal
 
-    my $mynick = weechat::info_get( "irc_nick", split( /,/, $buffer ) );    # get current nick on a server
-    my $newnick = weechat::info_get( "irc_nick_from_host", $args );         # get nickname from new user
-    my ($channelname) = ( $args =~ m!.*:(.*)! );                            # extract channel name from hook_signal
-    my ($server_name) = split( /,/, $buffer );                              # extract internal server name from hook_signal
+    my $mynick = weechat::info_get( "irc_nick", split( /,/, $buffer ) );	# get current nick on a server
+    my $newnick = weechat::info_get( "irc_nick_from_host", $args );		# get nickname from new user
+    my ($channelname) = ( $args =~ m!.*JOIN (.*)! );				# extract channel name from hook_signal
+    ($channelname)  = ($channelname =~ m!.*:(.*)!) if ($channelname =~ m!.*:(.*)!); # ":" in channelname?
+    my ($server_name) = split( /,/, $buffer );					# extract internal server name from hook_signal
 
-    return weechat::WEECHAT_RC_OK if ( $mynick eq $newnick );               # did i join the channel?
+    return weechat::WEECHAT_RC_OK if ( $mynick eq $newnick );			# did i join the channel?
 
     # If user setting "block_current_buffer" is "on"
     if ( weechat::config_get_plugin("block_current_buffer") eq "on" ) {
@@ -200,7 +202,7 @@ sub toggled_by_set{
 		if (not defined $Hooks{notify_me}) {
 			weechat::print("","$prgname enabled");
 			weechat::config_set_plugin($status, "off")
-				unless  hook();					# fall back to 'off' if hook fails
+				unless  hook();									# fall back to 'off' if hook fails
 						}
 						}
 						return weechat::WEECHAT_RC_OK;
@@ -436,6 +438,3 @@ sub init{
 	list_read('blacklist', \%Disallowed);
 }
 sub DEBUG {weechat::print('', "***\t" . $_[0]);}
-
-# :set equalprg=perltidy\ -q\ -l=160    # <- for copy&paste
-# vim: ai ts=4 sts=4 et sw=4 tw=0 foldmethod=marker :
