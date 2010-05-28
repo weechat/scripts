@@ -1,5 +1,6 @@
 #
-# Copyright (c) 2009 by FlashCode <flashcode@flashtux.org>
+# Copyright (c) 2009-2010 by FlashCode <flashcode@flashtux.org>
+# Copyright (c) 2010 James Campos <james.r.campos@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,6 +22,8 @@
 #
 # History:
 #
+# 2010-05-28, FlashCode <flashcode@flashtux.org>:
+#     version 0.3: add "$signal_data" in command (thanks to James Campos)
 # 2009-05-02, FlashCode <flashcode@flashtux.org>:
 #     version 0.2: sync with last API changes
 # 2009-02-03, FlashCode <flashcode@flashtux.org>:
@@ -29,23 +32,28 @@
 
 use strict;
 
-my $version = "0.2";
-my $command_suffix = " >/dev/null 2>&1 &";
+my $version = "0.3";
+my $command_suffix = " &";
 
 weechat::register("launcher", "FlashCode <flashcode\@flashtux.org>", $version, "GPL3",
                   "Launch external commands for signals", "", "");
 weechat::hook_command("launcher", "Associate external commands to signals",
                       "[signal command] | [-del signal]",
                       " signal: name of signal, may begin or end with \"*\" to catch many signals (common signals are: \"weechat_highlight\", \"weechat_pv\")\n"
-                      ."command: command to launch when this signal is received (you can separate many commands with \";\")\n"
+                      ."command: command to launch when this signal is received (see below)\n"
                       ."   -del: delete commande associated to a signal\n\n"
+                      ."Notes about command:\n"
+                      ."- you can separate many commands with \";\"\n"
+                      ."- string \"\$signal_data\" is replaced by signal data.\n\n"
                       ."Examples:\n"
                       ."  play a sound for highlights:\n"
                       ."    /launcher weechat_highlight alsaplay -i text ~/sound_highlight.wav\n"
                       ."  play a sound for private messages:\n"
                       ."    /launcher weechat_pv alsaplay -i text ~/sound_pv.wav\n"
                       ."  delete command for signal \"weechat_highlight\":\n"
-                      ."    /launcher -del weechat_highlight\n\n"
+                      ."    /launcher -del weechat_highlight\n"
+                      ."  show messages in popups (requires Awesome):\n"
+                      ."    /launcher weechat_highlight echo '\$signal_data' | sed 's/\\t/\" \"/' | xargs notify-send\n\n"
                       ."For advanced users: it's possible to change commands with /set command:\n"
                       ."  /set plugins.var.perl.launcher.signal.weechat_highlight \"my command here\"",
                       "", "launcher_cmd", "");
@@ -92,7 +100,13 @@ sub launcher_cmd
 
 sub signal
 {
+    my ($signal, $signal_data) = ($_[1], $_[2]);
+    
     my $command = weechat::config_get_plugin("signal.$_[1]");
-    system($command.$command_suffix) if ($command ne "");
+    if ($command ne "")
+    {
+        $command =~ s/\$signal_data/$signal_data/g;
+        system($command.$command_suffix);
+    }
     return weechat::WEECHAT_RC_OK;
 }
