@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2010-05-29, FlashCode <flashcode@flashtux.org>:
+#     version 0.4: escape quotes in $signal_data, fix example with notify-send
 # 2010-05-28, FlashCode <flashcode@flashtux.org>:
 #     version 0.3: add "$signal_data" in command (thanks to James Campos)
 # 2009-05-02, FlashCode <flashcode@flashtux.org>:
@@ -32,7 +34,7 @@
 
 use strict;
 
-my $version = "0.3";
+my $version = "0.4";
 my $command_suffix = " &";
 
 weechat::register("launcher", "FlashCode <flashcode\@flashtux.org>", $version, "GPL3",
@@ -44,7 +46,7 @@ weechat::hook_command("launcher", "Associate external commands to signals",
                       ."   -del: delete commande associated to a signal\n\n"
                       ."Notes about command:\n"
                       ."- you can separate many commands with \";\"\n"
-                      ."- string \"\$signal_data\" is replaced by signal data.\n\n"
+                      ."- string \"\$signal_data\" is replaced by signal data, enclosed with quotes (special chars are escaped)\n\n"
                       ."Examples:\n"
                       ."  play a sound for highlights:\n"
                       ."    /launcher weechat_highlight alsaplay -i text ~/sound_highlight.wav\n"
@@ -53,7 +55,7 @@ weechat::hook_command("launcher", "Associate external commands to signals",
                       ."  delete command for signal \"weechat_highlight\":\n"
                       ."    /launcher -del weechat_highlight\n"
                       ."  show messages in popups (requires Awesome):\n"
-                      ."    /launcher weechat_highlight echo '\$signal_data' | sed 's/\\t/\" \"/' | xargs notify-send\n\n"
+                      ."    /launcher weechat_highlight echo \$signal_data | sed 's/\\t/\" \"/' | xargs notify-send\n\n"
                       ."For advanced users: it's possible to change commands with /set command:\n"
                       ."  /set plugins.var.perl.launcher.signal.weechat_highlight \"my command here\"",
                       "", "launcher_cmd", "");
@@ -105,7 +107,9 @@ sub signal
     my $command = weechat::config_get_plugin("signal.$_[1]");
     if ($command ne "")
     {
-        $command =~ s/\$signal_data/$signal_data/g;
+        $signal_data =~ s/([\$`"])/\\$1/g;
+        $signal_data =~ s/\n/ /g;
+        $command =~ s/\$signal_data/"$signal_data"/g;
         system($command.$command_suffix);
     }
     return weechat::WEECHAT_RC_OK;
