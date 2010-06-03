@@ -18,7 +18,7 @@ nicksToRename = set()
 import weechat
 import re
 
-weechat.register("facebook_rename", "crwl", "1.0", "Public Domain", "Renames Facebook usernames when using Bitlbee", "", "")
+weechat.register("facebook_rename", "crwl", "1.0.1", "Public Domain", "Renames Facebook usernames when using Bitlbee", "", "")
 
 def message_join(data, signal, signal_data):
   signal_data = signal_data.split()
@@ -28,7 +28,7 @@ def message_join(data, signal, signal_data):
   username = hostmask[hostmask.index('!')+1:hostmask.index('@')]
   server = hostmask[hostmask.index('@')+1:]
   
-  if channel == bitlbeeChannel and nick == username and nick[0] == 'u' and server == facebookhostname: 
+  if channel == bitlbeeChannel and nick == username and nick[0] == '-' and server == facebookhostname: 
     nicksToRename.add(nick)
     weechat.command(weechat.buffer_search("irc", bitlbeeBuffer), "/whois " + nick)
   
