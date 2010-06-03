@@ -1,8 +1,7 @@
 #
 # Copyright (c) 2010 by Nils Görs <weechatter@arcor.de>
 #
-# just a simple buddylist using the nicklist from channels you are in.
-# it also works if nicklist is hidden.
+# display the status of your buddies in a buddylist bar
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,6 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 0.9.1	: bar could not be hidden (detrate-)
+#	: error message for old datafile (bazerka)
 # 0.9: servername without nicks will not be displayed in buddylist
 #	servername will be displayed in different colour or will be hidden if not connected (option "color.server.offline")
 #	buddylist bar will be hidden if you are not connected to a server (option "hide.bar")
@@ -41,7 +42,7 @@
 use strict;
 
 my $prgname		= "buddylist";
-my $version		= "0.9";
+my $version		= "0.9.1";
 my $description		= "Simple buddylist that shows the status of your buddies.";
 
 my $buffer		= "";
@@ -85,7 +86,6 @@ weechat::hook_signal("*,irc_in_part", "remove_nick", "");
 weechat::hook_signal("*,irc_in_quit", "remove_nick", "");
 weechat::hook_signal("*,irc_in_nick", "nick_changed", "");
 weechat::hook_config("*.$prgname.*", "config_signal", "");			# buddylist settings changed?
-weechat::hook_signal("*,irc_in_part", "remove_nick", "");
 weechat::hook_signal("irc_server_connected", "server_connected", "");
 weechat::hook_signal("irc_server_disconnected", "server_disconnected", "");
 
@@ -104,7 +104,8 @@ weechat::hook_command($prgname, $description,
 	"'plugins.var.perl.buddylist.color.server'        : colour for servername.\n".
 	"'plugins.var.perl.buddylist.color.server.offline : colour for disconnected server (default: hide).\n".
 	"'plugins.var.perl.buddylist.hide.bar             : hide buddylist-bar when all servers with buddies are offline (default: on).\n".
-	"'plugins.var.perl.buddylist.sort'                : sort method for buddylist.\n".
+	"                                                   using this option you can not manually hide the buddylist bar.\n".
+	"'plugins.var.perl.buddylist.sort'                : sort method for buddylist (default or status).\n".
 	"                                         default : $prgname will be sort by nickname\n".
 	"                                         status  : $prgname will be sort by status (online, away, offline)\n\n".
 	"If $prgname don't refresh buddylist, check the following WeeChat options:\n".
@@ -123,13 +124,14 @@ server_check();
 
 return weechat::WEECHAT_RC_OK;
 
-
+# weechat connected to a server (irc_server_connected)
 sub server_connected{
   server_check();
   weechat::bar_item_update($prgname);
   return weechat::WEECHAT_RC_OK;
 }
 
+# weechat disconnected from server (irc_server_disconnected)
 sub server_disconnected{
   server_check();
   weechat::bar_item_update($prgname);
@@ -180,8 +182,8 @@ sub build_buddylist{
 		}
 	      }
 
-
 	    $str .= weechat::color($color) . $s . ":" . $visual;		# add servername ($s ;) to buddylist
+
 # sorted by value first and nick case insensitiv as second
 	  foreach my $n (sort { $nick_structure{$s}{$a} cmp $nick_structure{$s}{$b}} (sort {uc($a) cmp uc($b)} (sort keys(%{$nick_structure{$s}})))){
 			createoutput($s,$n);
@@ -202,7 +204,7 @@ sub build_buddylist{
 		}
 	  }
     if ($str eq ""){
-	$str = "buddylist is empty for connected server or you are not connected to a server.";
+	$str = "no buddies added for connected server or you are not connected to a server.";
     }
 	  return $str;
 }
@@ -223,7 +225,7 @@ sub createoutput{
 	$str .= weechat::color($color) . $mover . "$nick" . $visual;
  }
 
-# buddy changed his nick
+# buddy changed his nick (irc_in_nick)
 sub nick_changed{
     my ($blank, $servername, $args) = @_;
 	my ($server) = split(/,/, $servername);					# get name from server
@@ -237,9 +239,9 @@ sub nick_changed{
 	  weechat::bar_item_update($prgname);
 	}
 }
-# buddy leaves channel
+# buddy leaves channel (irc_in_part / irc_in_quit)
 sub remove_nick{
-#($nick,$name,$ip,$action,$channel) = ($args =~ /\:(.*)\!n=(.*)@(.*?)\s(.*)\s(.*)/; # maybe for future use
+#($nick,$name,$ip,$action,$channel) = ($args =~ /\:(.*)\!n=(.*)@(.*?)\s(.*)\s(.*)/); # maybe for future use
     my ( $data, $servername, $args ) = @_;
 	my ($server) = split(/,/, $servername);					# get name from server
 	my ($nickname) = ($args =~ /\:(.*)\!/);
@@ -248,7 +250,7 @@ sub remove_nick{
 		weechat::bar_item_update($prgname);
 	}
 }
-# get information from who command
+# get information from who command (irc_in2_352)
 sub from_hook_who{
     my ( $data, $servername, $args ) = @_;
 
@@ -257,7 +259,7 @@ sub from_hook_who{
 	my $nickname = $words[7];
 	if (exists $nick_structure{$servername}{$nickname}){			# nick in buddylist?
 		my $status = 0;
-		$status = 1 if (substr($words[8],0,1) eq "G");# buddy is away
+		$status = 1 if (substr($words[8],0,1) eq "G");			# buddy is away
 		add_to_nicktable($servername, $nickname, $status);
 		weechat::bar_item_update($prgname);
 	}
@@ -315,7 +317,7 @@ return 0;									# in core buffer
 sub server_check{
   if (weechat::config_get_plugin("hide.bar") eq "off"){				# get user settings
   $hide_bar = "off";								# don't hide bar
-  weechat::command("", "/bar show " . $prgname);
+#  weechat::command("", "/bar show " . $prgname);
   return;
   }
  foreach my $s ( sort keys %nick_structure ) {					# sortiert die Server alphabetisch
@@ -344,7 +346,7 @@ sub buddylist_read {
         my ( $servername, $nickname ) = split /,/;				# servername,nickname
 	  if (not defined $nickname){
 	    close WL;
-	  weechat::print("",weechat::prefix("error")."$prgname: $buddylist is not valid.");
+	  weechat::print("",weechat::prefix("error")."$prgname: $buddylist is not valid or uses old format (new format: servername,nickname).");
 	    return;
 	  }
 		$nick_structure{$servername}{$nickname} = 2  if length $_;	# offline

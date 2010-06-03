@@ -19,6 +19,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2010-06-03, Nils Görs <weechatter@arcor.de>
+#     version 0.6: option "toggle" added
 # 2010-02-03, Alex Barrett <al.barrett@gmail.com>
 #     version 0.5: support wildcards in buffers list
 # 2009-06-23, FlashCode
@@ -34,7 +36,7 @@ import weechat as w
 
 SCRIPT_NAME    = "toggle_nicklist"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.5"
+SCRIPT_VERSION = "0.6"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Auto show and hide nicklist depending on buffer name"
 
@@ -65,6 +67,14 @@ def nicklist_cmd_cb(data, buffer, args):
         display_buffers()
     else:
         current_buffer_name = w.buffer_get_string(buffer, 'plugin') + '.' + w.buffer_get_string(buffer, 'name')
+        if args == 'toggle':
+	    toggle = w.config_get_plugin('action')
+	    if toggle == 'show':
+		w.config_set_plugin('action', 'hide')
+		w.command('', '/window refresh')
+	    elif toggle == 'hide':
+		w.config_set_plugin('action', 'show')
+		w.command('', '/window refresh')
         if args == 'show':
             w.config_set_plugin('action', 'show')
             #display_action()
@@ -138,15 +148,16 @@ if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT
     
     w.hook_command(SCRIPT_COMMAND,
                    "Show or hide nicklist on some buffers",
-                   "[show|hide|add|remove]",
+                   "[show|hide|toggle|add|remove]",
                    "  show: show nicklist for buffers in list (hide nicklist for other buffers by default)\n"
                    "  hide: hide nicklist for buffers in list (show nicklist for other buffers by default)\n"
+                   "toggle: show/hide nicklist for buffers in list\n"
                    "   add: add current buffer to list\n"
                    "remove: remove current buffer from list\n\n"
                    "Instead of using add/remove, you can set buffers list with: "
                    "/set plugins.var.python.%s.buffers \"xxx\". Buffers set in this "
                    "manner can start or end with * as wildcards to match multiple buffers."
                    % SCRIPT_NAME,
-                   "show|hide|add|remove",
+                   "show|hide|toggle|add|remove",
                    "nicklist_cmd_cb", "")
     w.hook_modifier('bar_condition_nicklist', 'check_nicklist_cb', '')
