@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
-#
-# Copyright (c) 2010 by John Anderson <sontek@gmail.com>
+#!/usr/bin/env python
+# Copyright (c) 2009 by John Anderson <sontek@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,7 +22,7 @@ from urllib2 import urlopen
 
 SCRIPT_NAME    = "shortenurl"
 SCRIPT_AUTHOR  = "John Anderson <sontek@gmail.com>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Shorten long incoming and outgoing URLs"
 
@@ -39,6 +38,7 @@ settings = {
     "color": "red",
     "urllength": "30",
     "shortener": "isgd",
+    "public": "off",
 }
 
 octet = r'(?:2(?:[0-4]\d|5[0-5])|1\d\d|\d{1,2})'
@@ -89,8 +89,10 @@ def match_url(message, buffer, from_self):
     for url in urlRe.findall(message):
         if len(url) > int(weechat.config_get_plugin('urllength')):
             if from_self:
-                short_url = tiny_url(url, None)
-                new_message = new_message.replace(url, short_url)
+                public = weechat.config_get_plugin('public')
+                if public == 'on':
+                    short_url = tiny_url(url, None)
+                    new_message = new_message.replace(url, short_url)
             else:
                 tiny_url(url, buffer)
 
