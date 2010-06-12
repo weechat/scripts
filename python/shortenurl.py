@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-# Copyright (c) 2009 by John Anderson <sontek@gmail.com>
+# Copyright (c) 2010 by John Anderson <sontek@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
