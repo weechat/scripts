@@ -9,7 +9,7 @@
     This script shows the currently played song in mpd 
 
   Usage:
-    /mnp - Displays the songname 
+    /weempd - Displays the songname 
 
   Released under GNU GPL v3 or newer
 """
@@ -19,7 +19,7 @@ import re
 from os.path import basename, splitext
 from os import popen
 
-wc.register("weempd", "Apprentice", "0.1", "GPL3", "np for mpd", "", "")
+wc.register("weempd", "Apprentice", "0.1.1", "GPL3", "np for mpd", "", "")
 
 def subst(text, values):
   out = ""
@@ -43,8 +43,9 @@ def np(data, buffer, args):
   spacer = wc.config_get_plugin("spacer")
   msg_head = wc.config_get_plugin("msg_head")
   tempinfo = popen('mpc').readline().rstrip()
-  all = '/me ' + msg_head + spacer + tempinfo 
-  wc.command(wc.current_buffer(), all)
+  if tempinfo.find("volume:") == -1:
+    all = '/me ' + msg_head + spacer + tempinfo 
+    wc.command(wc.current_buffer(), all)
   return 0
   
 wc.hook_command("weempd", "now playing", "", np.__doc__, "", "np", "")
