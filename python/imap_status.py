@@ -3,6 +3,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2010-07-12, TenOfTen
+#   version 0.6: beautify notification area
 # 2010-03-17, xt
 #   version 0.5: fix caching of return message
 # 2010-01-19, xt
@@ -28,7 +30,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-'''  
+'''
 Usage: put [imap] in your status bar items.  (Or any other bar to your liking)
 "/set weechat.bar.status.items".
 
@@ -42,7 +44,7 @@ import re
 
 SCRIPT_NAME    = "imap_status"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.5"
+SCRIPT_VERSION = "0.6"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Bar item with unread imap messages count"
 
@@ -54,14 +56,13 @@ LAST_MESSAGE = ''
 settings = {
     "username"          : '',
     "password"          : '',
-    "hostname"          : '',
+    "hostname"          : '', # gmail uses imap.gmail.com
     "port"              : '993',
-    'mailboxes'         : 'INBOX', #comma separated list of mailboxes
+    'mailboxes'         : 'INBOX', #comma separated list of mailboxes. "Inbox" works fine too with gmail.
     'message'           : 'Mail: ',
     'message_color'     : 'default',
     'count_color'       : 'default',
     'interval'          : '5',
-    'time_format'       : '%H:%M',
 }
 
 class Imap(object):
@@ -98,22 +99,25 @@ class Imap(object):
             self.conn.close()
         except Exception, e:
             self.conn.logout()
-            
+
 
 def imap_cb(*kwargs):
     ''' Callback for the bar item with unread count '''
 
     global LAST_RUN, LAST_MESSAGE
 
-    # Check LAST RUN if we need to run again 
+    # Check LAST RUN if we need to run again
     if (now() - LAST_RUN) < int(w.config_get_plugin('interval'))*60:
         return LAST_MESSAGE
 
     imap = Imap()
 
-    output = '%s%s: ' % (\
-             w.color(w.config_get_plugin('message_color')),
-             w.config_get_plugin('message'))
+    if not w.config_get_plugin('message'):
+        output = ""
+    else:
+        output = '%s%s: ' % (\
+            w.color(w.config_get_plugin('message_color')),
+            w.config_get_plugin('message'))
     any_with_unread = False
     mailboxes = w.config_get_plugin('mailboxes').split(',')
     for mailbox in mailboxes:
@@ -126,6 +130,8 @@ def imap_cb(*kwargs):
                 w.color(w.config_get_plugin('count_color')),
                 unreadCount)
     imap.logout()
+    if output:
+        output = output[:-1]
     output += w.color('reset')
 
     LAST_RUN = now()
