@@ -21,6 +21,8 @@
 # 
 #
 # History:
+# 2010-07-19, xt
+#   version 0.5: fix bug with incorrect coloring of own nick
 # 2010-06-02, xt
 #   version 0.4: update to reflect API changes
 # 2010-03-26, xt
@@ -36,7 +38,7 @@ w = weechat
 
 SCRIPT_NAME    = "colorize_nicks"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.4"
+SCRIPT_VERSION = "0.5"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Use the weechat nick colors in the chat area"
 
@@ -59,7 +61,6 @@ PREFIX_COLORS = {
 ignore_channels = []
 ignore_nicks = []
 
-# Time of last run
 # Dict with every nick on every channel with its color as lookup value
 colored_nicks = {}
 
@@ -145,7 +146,21 @@ def add_nick(data, signal, type_data):
     if not pointer in colored_nicks:
         colored_nicks[pointer] = {}
 
-    colored_nicks[pointer][nick] = w.info_get('irc_nick_color', nick)
+    servername = w.infolist_get('buffer', pointer, '')
+    w.infolist_next(servername)
+    server = w.infolist_string(servername, 'name')
+    w.infolist_free(servername)
+    servername = server.split('.')[0]
+    my_nick = w.info_get('irc_nick', servername)
+
+    if nick == my_nick:
+        nick_color = w.color(\
+        w.config_string(\
+        w.config_get('weechat.color.chat_nick_self')))
+    else:
+        nick_color = w.info_get('irc_nick_color', nick)
+
+    colored_nicks[pointer][nick] = nick_color
 
     return w.WEECHAT_RC_OK
 
