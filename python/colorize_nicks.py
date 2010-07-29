@@ -21,6 +21,8 @@
 # 
 #
 # History:
+# 2010-07-29, xt
+#   version 0.6: compile regexp as per patch from Chris quigybo@hotmail.com
 # 2010-07-19, xt
 #   version 0.5: fix bug with incorrect coloring of own nick
 # 2010-06-02, xt
@@ -38,7 +40,7 @@ w = weechat
 
 SCRIPT_NAME    = "colorize_nicks"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.5"
+SCRIPT_VERSION = "0.6"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Use the weechat nick colors in the chat area"
 
@@ -50,6 +52,7 @@ settings = {
 
 
 VALID_NICK = r'([@~&!%+])?([-a-zA-Z0-9\[\]\\`_^\{|\}]+)'
+valid_nick_re = re.compile(VALID_NICK)
 PREFIX_COLORS = {
         '@' : 'nicklist_prefix1',
         '~' : 'nicklist_prefix1',
@@ -86,7 +89,7 @@ def colorize_cb(data, modifier, modifier_data, line):
     if not buffer in colored_nicks:
         return line
 
-    for words in re.findall(VALID_NICK, line):
+    for words in valid_nick_re.findall(line):
         prefix, nick = words[0], words[1]
         # Check that nick is not ignored and longer than minimum length
         if len(nick) < min_length or nick in ignore_nicks:
