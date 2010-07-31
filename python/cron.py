@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2010-07-31, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 0.2: add keyword "commands" to run many commands
 # 2010-07-26, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.1: initial release
 # 2010-07-20, Sebastien Helleu <flashcode@flashtux.org>:
@@ -30,7 +32,7 @@
 
 SCRIPT_NAME    = "cron"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Time-based scheduler, like cron and at"
 
@@ -68,6 +70,7 @@ cron_commands = {
     "print_hl"  : "print a message on buffer with \"highlight\" notify on line",
     "print_msg" : "print a message on buffer with \"message\" notify on line",
     "command"   : "execute a command (starting with \"/\") or send text to buffer (like input)",
+    "commands"  : "execute many commands separated by \";\"",
     "python"    : "evaluate python code",
 }
 
@@ -215,6 +218,10 @@ class CronJob(object):
                     weechat.prnt_date_tags(buf, 0, "notify_message", "%s" % argv[1])
                 elif argv[0] == "command":
                     weechat.command(buf, "%s" % argv[1])
+                elif argv[0] == "commands":
+                    cmds = argv[1].split(";")
+                    for cmd in cmds:
+                        weechat.command(buf, "%s" % cmd)
                 elif argv[0] == "python":
                     eval(argv[1])
             elif display_error:
