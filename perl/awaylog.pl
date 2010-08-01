@@ -19,8 +19,12 @@
 ###############################################################################
 #
 # Log highlights msg to core buffer
+# You need to set "notify" to "yes" and "command" to proper command to run
+# external command. You also need "shell" script to run external command.
 #
 # History:
+#   2010-06-20, GolemJ <golemj@gmail.com>
+#       version 0.8, add posibility to execute command for notification
 #   2010-02-14, Emmanuel Bouthenot <kolter@openics.org>
 #       version 0.7, add colors and notifications support
 #   2009-05-02, FlashCode <flashcode@flashtux.org>:
@@ -32,7 +36,7 @@
 
 use strict;
 
-weechat::register( "awaylog", "Jiri Golembiovsky", "0.7", "GPL", "Prints highlights to core buffer", "", "" );
+weechat::register( "awaylog", "Jiri Golembiovsky", "0.8", "GPL", "Prints highlights to core buffer", "", "" );
 weechat::hook_print( "", "", "", 1, "highlight_cb", "" );
 
 if( weechat::config_get_plugin( "on_away_only" ) eq "" ) {
@@ -51,24 +55,43 @@ if( weechat::config_get_plugin( "notify" ) eq "" ) {
   weechat::config_set_plugin( "notify", "off" );
 }
 
+if( weechat::config_get_plugin( "command" ) eq "") {
+  weechat::config_set_plugin( "command", "" );
+}
+
 sub highlight_cb {
   if( $_[5] == 1 ) {
     my $away = weechat::buffer_get_string($_[1], "localvar_away");
     if (($away ne "") || (weechat::config_get_plugin( "on_away_only" ) ne "on"))
     {
-        my $buffer =  weechat::color(weechat::config_get_plugin( "plugin_color"))
+        my $buffer_color =  weechat::color(weechat::config_get_plugin( "plugin_color"))
                     . weechat::buffer_get_string($_[1], "plugin")
                     . "."
                     . weechat::buffer_get_string($_[1], "name")
                     . weechat::color("default");
-        my $name   =  weechat::color(weechat::config_get_plugin( "name_color"))
+        my $buffer = weechat::buffer_get_string($_[1], "plugin")
+                    . "."
+                    . weechat::buffer_get_string($_[1], "name");
+        my $name_color =  weechat::color(weechat::config_get_plugin( "name_color"))
                     . $_[6]
                     . weechat::color("default");
+        my $name   = $_[6];
+        my $message_color = "${buffer_color} -- ${name_color} :: $_[7]";
+        my $message = "${buffer} -- ${name} :: $_[7]";
         if( weechat::config_get_plugin( "notify" ) ne "on" ) {
-            weechat::print("", "${buffer} -- ${name} :: $_[7]");
-        }
-        else {
-            weechat::print_date_tags("", 0, "notify_highlight", "${buffer} -- ${name} :: $_[7]");
+          my $command = weechat::config_get_plugin( "command" );
+          if( $command ne "" ) {
+            if( $command =~ /\$msg/ ) {
+              $command =~ s/\$msg/\'$message\'/;
+            } else {
+              $command = "$command '$message'";
+            }
+            weechat::command( "", "/shell $command" );
+          } else {
+            weechat::print("", $message_color);
+          }
+        } else {
+            weechat::print_date_tags("", 0, "notify_highlight", $message_color);
         }
     }
   }
