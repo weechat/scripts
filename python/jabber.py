@@ -25,6 +25,9 @@
 # Happy chat, enjoy :)
 #
 # History:
+# 2010-08-02, Aleksey V. Zapparov <ixti@member.fsf.org>:
+#     version 0.2:
+#     add priority and away_priority of resource
 # 2010-08-02, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.1: first official version
 # 2010-08-01, ixti <ixti@member.fsf.org>:
@@ -45,7 +48,7 @@
 
 SCRIPT_NAME    = "jabber"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Jabber/XMPP protocol for WeeChat"
 SCRIPT_COMMAND = SCRIPT_NAME
@@ -87,6 +90,28 @@ jabber_server_options = {
                        "string_values": "",
                        "default"      : "",
                        "value"        : "",
+                       "check_cb"     : "",
+                       "change_cb"    : "",
+                       "delete_cb"    : "",
+                       },
+    "priority"     : { "type"         : "integer",
+                       "desc"         : "Default resource priority",
+                       "min"          : 0,
+                       "max"          : 65535,
+                       "string_values": "",
+                       "default"      : "8",
+                       "value"        : "8",
+                       "check_cb"     : "",
+                       "change_cb"    : "",
+                       "delete_cb"    : "",
+                       },
+    "away_priority": { "type"         : "integer",
+                       "desc"         : "Resource priority on away",
+                       "min"          : 0,
+                       "max"          : 65535,
+                       "string_values": "",
+                       "default"      : "0",
+                       "value"        : "0",
                        "check_cb"     : "",
                        "change_cb"    : "",
                        "delete_cb"    : "",
@@ -443,6 +468,11 @@ class Server:
                 weechat.buffer_set(self.buffer, "highlight_words", self.buddy.username)
                 weechat.buffer_set(self.buffer, "localvar_set_nick", self.buddy.username);
                 hook_away = weechat.hook_command_run("/away -all*", "jabber_away_command_run_cb", "")
+
+                # setting resource priority
+                priority = weechat.config_integer(self.options['priority'])
+                self.client.send(xmpp.protocol.Presence(priority=priority))
+
                 self.ping_up = True
             else:
                 weechat.prnt(self.buffer, "%sjabber: could not authenticate"
@@ -631,15 +661,17 @@ class Server:
         if message:
             show = 'xa'
             status = message
+            priority = weechat.config_integer(self.options['away_priority'])
             self.buddy.set_status(away=True, status=message)
         else:
             show = None
             status = None
+            priority = weechat.config_integer(self.options['priority'])
             self.buddy.set_status(away=False)
         for buddy in self.buddies:
             if buddy.jid == self.buddy.jid:
                 continue
-            pres = xmpp.protocol.Presence(to=buddy.jid, show=show, status=status)
+            pres = xmpp.protocol.Presence(to=buddy.jid, show=show, status=status, priority=priority)
             id = self.client.send(pres)
 
     def add_buddy(self, jid=None):
