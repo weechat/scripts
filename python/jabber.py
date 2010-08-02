@@ -26,6 +26,10 @@
 #
 # History:
 # 2010-08-02, Aleksey V. Zapparov <ixti@member.fsf.org>:
+#     version 0.2.1:
+#     fix prexence is set for current resource instead of sending
+#         special presences for all buddies
+# 2010-08-02, Aleksey V. Zapparov <ixti@member.fsf.org>:
 #     version 0.2:
 #     add priority and away_priority of resource
 # 2010-08-02, Sebastien Helleu <flashcode@flashtux.org>:
@@ -48,7 +52,7 @@
 
 SCRIPT_NAME    = "jabber"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.2.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Jabber/XMPP protocol for WeeChat"
 SCRIPT_COMMAND = SCRIPT_NAME
@@ -668,11 +672,9 @@ class Server:
             status = None
             priority = weechat.config_integer(self.options['priority'])
             self.buddy.set_status(away=False)
-        for buddy in self.buddies:
-            if buddy.jid == self.buddy.jid:
-                continue
-            pres = xmpp.protocol.Presence(to=buddy.jid, show=show, status=status, priority=priority)
-            id = self.client.send(pres)
+
+        presence = xmpp.protocol.Presence(show=show, status=status, priority=priority)
+        self.client.send(presence)
 
     def add_buddy(self, jid=None):
         buddy = Buddy(jid=jid, server=self)
