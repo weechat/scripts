@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2008-2010 by FlashCode <flashcode@flashtux.org>
+# Copyright (C) 2008-2010 Sebastien Helleu <flashcode@flashtux.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,34 +17,36 @@
 # Set WeeChat and plugins options interactively.
 #
 # History:
+# 2010-08-03, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 1.0: move misplaced call to infolist_free()
 # 2010-02-02, rettub <rettub@gmx.net>:
 #     version 0.9: turn all the help stuff off if option 'show_help_bar' is 'off',
 #                  new key binding <alt>-<v> to toggle help_bar and help stuff on/off
 # 2010-01-30, nils_2 <weechatter@arcor.de>:
 #     version 0.8: fix error when option does not exist
-# 2010-01-24, FlashCode <flashcode@flashtux.org>:
+# 2010-01-24, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.7: display iset bar only on iset buffer
 # 2010-01-22, nils_2 <weechatter@arcor.de> and drubin:
 #     version 0.6: add description in a bar, fix singular/plural bug in title bar,
 #                  fix selected line when switching buffer
-# 2009-06-21, FlashCode <flashcode@flashtux.org>:
+# 2009-06-21, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.5: fix bug with iset buffer after /upgrade
-# 2009-05-02, FlashCode <flashcode@flashtux.org>:
+# 2009-05-02, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.4: sync with last API changes
-# 2009-01-04, FlashCode <flashcode@flashtux.org>:
+# 2009-01-04, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.3: open iset buffer when /iset command is executed
-# 2009-01-04, FlashCode <flashcode@flashtux.org>:
+# 2009-01-04, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.2: use null values for options, add colors, fix refresh bugs,
 #                  use new keys to reset/unset options, sort options by name,
 #                  display number of options in buffer's title
-# 2008-11-05, FlashCode <flashcode@flashtux.org>:
+# 2008-11-05, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.1: first official version
-# 2008-04-19, FlashCode <flashcode@flashtux.org>:
+# 2008-04-19, Sebastien Helleu <flashcode@flashtux.org>:
 #     script creation
 
 use strict;
 
-my $version = "0.9";
+my $version = "1.0";
 
 my $iset_buffer = "";
 my @options_names = ();
@@ -358,13 +360,13 @@ sub iset_config_cb
                     $options_types[$index] = weechat::infolist_string($infolist, "type");
                     $options_values[$index] = weechat::infolist_string($infolist, "value");
                     $options_is_null[$index] = weechat::infolist_integer($infolist, "value_is_null");
-                    weechat::infolist_free($infolist);
                     iset_refresh_line($index);
                 }
                 else
                 {
                     iset_full_refresh();
                 }
+                weechat::infolist_free($infolist);
             }
         }
         else
@@ -644,7 +646,8 @@ sub iset_end()
     iset_show_bar(0);
 }
 
-weechat::register("iset", "FlashCode <flashcode\@flashtux.org>", $version, "GPL3", "Interactive Set for configuration options", "iset_end", "");
+weechat::register("iset", "Sebastien Helleu <flashcode\@flashtux.org>", $version, "GPL3",
+                  "Interactive Set for configuration options", "iset_end", "");
 weechat::hook_command("iset", "Interactive set", "[f file] [s section] [text]",
                       "f file    : show options for a file (for example: 'f weechat' or 'f irc')\n".
                       "s section : show options for a section (for example: 's look')\n".
