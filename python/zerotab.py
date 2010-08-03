@@ -4,12 +4,14 @@
 # Alternate Contact: Freenode IRC nick i686
 #
 # 2010-08-03, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 1.2: fix bug with nick prefixes (op/halfop/..)
+# 2010-08-03, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 1.1: fix bug with self nick
 
 
 SCRIPT_NAME='zerotab'
 SCRIPT_AUTHOR='Lucian Adamson <lucian.adamson@yahoo.com>'
-SCRIPT_VERSION='1.1'
+SCRIPT_VERSION='1.2'
 SCRIPT_LICENSE='GPL'
 SCRIPT_DESC='Will tab complete the last nick in channel without typing anything first. This is good for rapid conversations.'
 
@@ -41,7 +43,7 @@ def hook_print_cb(data, buffer, date, tags, displayed, highlight, prefix, messag
             nick = nick[1:]
         local_nick = weechat.buffer_get_string(buffer, "localvar_nick")
         if nick != local_nick:
-            latest_speaker[buffer] = prefix
+            latest_speaker[buffer] = nick
     return weechat.WEECHAT_RC_OK
 
 if __name__ == "__main__" and import_ok:
