@@ -25,6 +25,11 @@
 # Happy chat, enjoy :)
 #
 # History:
+# 2010-08-03, Aleksey V. Zapparov <ixti@member.fsf.org>:
+#     version 0.3:
+#     add /jabber priority [priority]
+#     add /jabber status [message]
+#     add /jabber presence [online|chat|away|xa|dnd]
 # 2010-08-02, Aleksey V. Zapparov <ixti@member.fsf.org>:
 #     version 0.2.1:
 #     fix prexence is set for current resource instead of sending
@@ -52,7 +57,7 @@
 
 SCRIPT_NAME    = "jabber"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.2.1"
+SCRIPT_VERSION = "0.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Jabber/XMPP protocol for WeeChat"
 SCRIPT_COMMAND = SCRIPT_NAME
@@ -400,6 +405,7 @@ class Server:
         self.ping_timer = None              # weechat.hook_timer for sending pings
         self.ping_timeout_timer = None      # weechat.hook_timer for monitoring ping timeout
         self.ping_up = False                # Connection status as per pings.
+        self.presence = xmpp.protocol.Presence()
 
     def option_string(self, option_name):
         """ Return a server option, as string. """
@@ -473,9 +479,9 @@ class Server:
                 weechat.buffer_set(self.buffer, "localvar_set_nick", self.buddy.username);
                 hook_away = weechat.hook_command_run("/away -all*", "jabber_away_command_run_cb", "")
 
-                # setting resource priority
+                # setting initial presence
                 priority = weechat.config_integer(self.options['priority'])
-                self.client.send(xmpp.protocol.Presence(priority=priority))
+                self.set_presence(show="",priority=priority)
 
                 self.ping_up = True
             else:
@@ -663,18 +669,22 @@ class Server:
         If no message, then status is set to 'online'.
         """
         if message:
-            show = 'xa'
+            show = "xa"
             status = message
             priority = weechat.config_integer(self.options['away_priority'])
             self.buddy.set_status(away=True, status=message)
         else:
-            show = None
+            show = ""
             status = None
             priority = weechat.config_integer(self.options['priority'])
             self.buddy.set_status(away=False)
+        self.set_presence(show, status, priority)
 
-        presence = xmpp.protocol.Presence(show=show, status=status, priority=priority)
-        self.client.send(presence)
+    def set_presence(self, show=None, status=None, priority=None):
+        if not show == None: self.presence.setShow(show)
+        if not status == None: self.presence.setStatus(status)
+        if not priority == None: self.presence.setPriority(priority)
+        self.client.send(self.presence)
 
     def add_buddy(self, jid=None):
         buddy = Buddy(jid=jid, server=self)
@@ -1095,6 +1105,7 @@ def jabber_hook_commands_and_completions():
     weechat.hook_command(SCRIPT_COMMAND, "List, add, remove, connect to Jabber servers",
                          "[ list | add name jid password [server[:port]] | connect server | "
                          "disconnect | del server | alias [add|del] | away [message] | buddies | "
+                         "priority [priority] | status [message] | presence [online|chat|away|xa|dnd] | "
                          "debug | set server setting [value] ]",
                          "      list: list servers and chats\n"
                          "       add: add a server"
@@ -1103,6 +1114,9 @@ def jabber_hook_commands_and_completions():
                          "       del: delete server\n"
                          "     alias: manage jid aliases\n"
                          "      away: set away with a message (if no message, away is unset)\n"
+                         "  priority: set priority\n"
+                         "    status: set status message\n"
+                         "  presence: set presence status\n"
                          "   buddies: display buddies on server\n"
                          "     debug: toggle jabber debug on/off (for all servers)\n"
                          "\n"
@@ -1130,6 +1144,9 @@ def jabber_hook_commands_and_completions():
                          " || del %(jabber_servers)"
                          " || alias add|del %(jabber_jid_aliases)"
                          " || away"
+                         " || priority"
+                         " || status"
+                         " || presence online|chat|away|xa|dnd"
                          " || buddies"
                          " || debug",
                          "jabber_cmd_jabber", "")
@@ -1260,6 +1277,35 @@ def jabber_cmd_jabber(data, buffer, args):
             context = jabber_search_context(buffer)
             if context["server"]:
                 context["server"].set_away(argv1eol)
+        elif argv[0] == "priority":
+            context = jabber_search_context(buffer)
+            if context["server"]:
+                if len(argv) == 1:
+                    weechat.prnt("", "jabber: priority = %d" % int(context["server"].presence.getPriority()))
+                elif len(argv) == 2 and argv[1].isdigit():
+                    context["server"].set_presence(priority=int(argv[1]))
+                else:
+                    weechat.prnt("", "jabber: you need to specify priority as positive integer between 0 and 65535")
+        elif argv[0] == "status":
+            context = jabber_search_context(buffer)
+            if context["server"]:
+                if len(argv) == 1:
+                    weechat.prnt("", "jabber: status = %s" % context["server"].presence.getStatus())
+                else:
+                    context["server"].set_presence(status=argv1eol)
+        elif argv[0] == "presence":
+            context = jabber_search_context(buffer)
+            if context["server"]:
+                if len(argv) == 1:
+                    show =  context["server"].presence.getShow()
+                    if show == "": show = "online"
+                    weechat.prnt("", "jabber: presence = %s" % show)
+                elif not re.match(r'^(?:online|chat|away|xa|dnd)$', argv[1]):
+                    weechat.prnt("", "jabber: Presence should be one of: online, chat, away, xa, dnd")
+                else:
+                    if argv[1] == "online": show = ""
+                    else: show = argv[1]
+                    context["server"].set_presence(show=show)
         elif argv[0] == "buddies":
             context = jabber_search_context(buffer)
             if context["server"]:
@@ -1319,7 +1365,6 @@ def jabber_away_command_run_cb(data, buffer, command):
     for server in jabber_servers:
         server.set_away(message)
     return weechat.WEECHAT_RC_OK
-
 
 class AliasCommand(object):
     """Class representing a jabber alias command, ie /jabber alias ..."""
