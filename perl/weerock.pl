@@ -19,24 +19,21 @@
 #  DESCRIPTION:  WeeChat Pluging to show others youre good taste in music
 #                
 #                Supported Players:
+#                   audacious
+#                   banshee
+#                   exaile
+#                   moc
 #                   mpc
 #                   ncmpcpp
-#                   moc
-#                   rhytmbox(requires Net::DBus)
-#                   audacious
-#                   exaile
 #                   pytone
 #                   quod libet
+#                   rhytmbox(requires Net::DBus)
 #
-#      OPTIONS:  ---
-# REQUIREMENTS:  weechat 3.1,one of the above players
-#         BUGS:  ---
-#        NOTES:  ---
+# REQUIREMENTS:  weechat 0.3.0, one of the above players
 #       AUTHOR:  Sebastian Köhler (sk), sebkoehler@whoami.org.uk
 #      WEBSITE:  http://hg.whoami.org.uk/weerock
-#      VERSION:  0.2
+#      VERSION:  0.3
 #      CREATED:  31.01.2010 04:17:41
-#     REVISION:  ---
 #===============================================================================
 
 use strict;
@@ -44,99 +41,198 @@ use strict;
 my $description = "Rock this chat!";
 my $helptext = "Use this command to show your current song in the channel\n\n";
 
-weechat::register('weerock','Sebstian Köhler','0.2','Apache 2.0',$description,'','');
+weechat::register('weerock','Sebastian Köhler','0.3','Apache 2.0',
+                   $description,'','');
 
+weechat::hook_command('audacious',$description,"","$helptext","","audacious",
+                      "");
 
-weechat::hook_command('mpc',$description,
-                      "",
+weechat::hook_command('banshee',$description,"","$helptext","","banshee","");
+
+weechat::hook_command('exaile',$description,"","$helptext","","exaile","");
+
+weechat::hook_command('moc',$description,"","$helptext","","moc","");
+
+weechat::hook_command('mpc',$description,"",
                       "$helptext".
                       "SETTINGS\n".
                       "    /set plugins.var.perl.weerock.mpc_host PASSWORD\@IP\n".
                       "        Default: localhost\n".
                       "    /set plugins.var.perl.weerock.mpc_port PORT\n".
                       "        Default: 6600\n",
-                      "",
-                      "mpc",
-                      "");
+                      "","mpc","");
 
-weechat::hook_command('ncmpcpp',$description,
-                      "",
+weechat::hook_command('ncmpcpp',$description,"",
                       "$helptext".
                       "SETTINGS".
                       "    /set plugins.var.perl.weerock.ncmpcpp_host PASSWORD\@IP\n".
                       "        Default: localhost\n".
                       "    /set plugins.var.perl.weerock.ncmpcpp_port PORT\n".
                       "        Default: 6600\n",
-                      "",
-                      "ncmpcpp",
+                      "","ncmpcpp","");
+
+weechat::hook_command('pytone',$description,"","$helptext","","pytone","");
+
+weechat::hook_command('quodlibet',$description,"","$helptext","","quodlibet",
                       "");
 
-weechat::hook_command('moc',$description,
-                      "",
-                      "$helptext",
-                      "",
-                      "moc",
+weechat::hook_command('rhythmbox',$description,"","$helptext","","rhythmbox",
                       "");
 
-weechat::hook_command('rhythmbox',$description,
-                      "",
-                      "$helptext",
-                      "",
-                      "rhythmbox",
-                      "");
-
-weechat::hook_command('audacious',$description,
-                      "",
-                      "$helptext",
-                      "",
-                      "audacious",
-                      "");
-
-weechat::hook_command('weerock',$description,
-                      "",
-                      "Show Help for weeRock",
-                      "",
-                      "weerock",
-                      "");
-
-weechat::hook_command('exaile',$description,
-                      "",
-                      "$helptext",
-                      "",
-                      "exaile",
-                      "");
-
-weechat::hook_command('pytone',$description,
-                      "",
-                      "$helptext",
-                      "",
-                      "pytone",
-                      "");
-
-weechat::hook_command('quodlibet',$description,
-                      "",
-                      "$helptext",
-                      "",
-                      "quodlibet",
-                      "");
+weechat::hook_command('weerock',$description,"","Show help for weerock","",
+                      "weerock","");
 
 return weechat::WEECHAT_RC_OK;
 
-sub quodlibet {
-    loadDefaults();
-    my $artist = (`quodlibet --print-playing \"<artist>\"`);
-    my $album  = `quodlibet --print-playing \"<album>\"`;
-    my $title  = `quodlibet --print-playing \"<title>\"`;
+sub audacious {
+    load_defaults();
+    my $cmd = "audtool2 --current-song-tuple-data artist ".
+                       "--current-song-tuple-data album ".
+                       "--current-song-tuple-data title ".
+                       "--current-song-output-length-seconds ".
+                       "--current-song-length-seconds 2> /dev/null";
+    my $exp = "(.*)\n(.*)\n(.*)\n(.*)\n(.*)";
+    my ($artist,$album,$title,$ct,$tt) = ("","","","","");
     
-    echoToChannel(buildMessage($artist,$album,$title,"",""));
+    if(`pgrep audacious`) {
+        ($artist,$album,$title,$ct,$tt) = `$cmd` =~ /$exp/;
+    
+        $ct = sec_to_min($ct); 
+        $tt = sec_to_min($tt);
+    }
+    echo_to_channel(build_message($artist,$album,$title,$ct,$tt));
+}
+
+sub banshee {
+    load_defaults();
+    my $cmd = "banshee --query-artist --query-album --query-title ".
+                      "--query-position --query-duration 2> /dev/null";
+    my $exp = "artist: (.*)\nalbum:\ (.*)\ntitle: (.*)\nposition: ".
+              "(.*),.*\nduration: (.*),.*";
+    my ($artist,$album,$title,$ct,$tt) = ("","","","","");
+    
+    if(`pgrep banshee`) {
+        ($artist,$album,$title,$ct,$tt) = `$cmd` =~ /$exp/;
+    
+        $ct = sec_to_min($ct);
+        $tt = sec_to_min($tt);
+    }
+    echo_to_channel(build_message($artist,$album,$title,$ct,$tt));
+}
+
+sub exaile {
+    load_defaults();
+    my $cmd = "exaile --get-artist --get-album --get-title ".
+              "--current-position --get-length 2>/dev/null";
+    my $exp = "(.*)\n(.*)\n(.*)\n(.*)\n(.*)";
+    my ($artist,$album,$title,$ct,$tt) = ("","","","","");
+
+    if(`pgrep exaile`) {
+        ($album,$artist,$title,$tt,$ct) = `$cmd` =~ /$exp/;
+        
+        $tt = sec_to_min(int($tt));
+    }   
+    echo_to_channel(build_message($artist,$album,$title,$ct,$tt));
+}
+
+sub moc {
+    load_defaults();
+    my $cmd = "mocp -i 2> /dev/null";
+    my $exp = "Artist: (.*)\n.*: (.*)\n.*: (.*)\n.*: (.*)\n.*\n.*\n.*: (.*)";
+    
+    my ($artist,$album,$title,$ct,$tt) = ("","","","","");
+    if(`pgrep mocp`) {
+        ($artist,$title,$album,$tt,$ct) = `cmd` =~ /$exp/;
+    }
+    echo_to_channel(build_message($artist,$album,$title,$ct,$tt));
+}
+
+sub mpc {
+    load_defaults();
+    my $host = weechat::config_get_plugin("mpc_host");
+    my $port = weechat::config_get_plugin("mpc_port");
+    my $cmd = "mpc status -h $host -p $port -f \"%artist% #| ".
+              "%album% #| %title%\"";
+    my $exp = '(.*) \| (.*) \| (.*)\n.*(\d+:\d{2})/(\d+:\d{2})';
+    my ($artist,$album,$title,$ct,$tt) = ("","","","","");
+    
+    if(`pgrep mpd`) {
+        ($artist,$album,$title,$ct,$tt) = `$cmd` =~ /$exp/;
+    }
+        echo_to_channel(build_message($artist,$album,$title,$ct,$tt));
+}
+
+sub ncmpcpp {
+    load_defaults();
+    my $host = weechat::config_get_plugin("ncmpcpp_host");
+    my $port = weechat::config_get_plugin("ncmpcpp_port");
+    my $cmd = "ncmpcpp -h $host -p $port --now-playing ".
+              "'%a ^ %b ^ %t' 2> /dev/null";
+    my $exp = '(.*) \^ (.*) \^ (.*)';
+    
+    my ($artist,$album,$title) = ("","","");
+
+    if(`pgrep mpd`) {
+        ($artist,$album,$title) = `$cmd` =~ /$exp/;
+    }
+    echo_to_channel(build_message($artist,$album,$title,"",""));
 }
 
 sub pytone {
-    loadDefaults();
-    my $string = `pytonectl getplayerinfo`;
-    if($string =~ /(.*) - (.*) \( (\d?\d:\d\d)\/ (\d?\d:\d\d)\)/) {
-        echoToChannel(buildMessage($1,"",$2,$3,$4));     
+    load_defaults();
+    my $cmd = "pytonectl getplayerinfo 2> /dev/null";
+    my $exp = '(.*) - (.*) \( (\d?\d:\d\d)\/ (\d?\d:\d\d)\)';
+    my ($artist,$title,$ct,$tt) = ("","","","");
+
+    if(`pgrep pytone`) {
+        ($artist,$title,$ct,$tt) = `$cmd` =~ /$exp/;
     }
+    echo_to_channel(build_message($1,"",$2,$3,$4));
+}
+
+sub quodlibet {
+    load_defaults();
+    my $cmd = "quodlibet --print-playing 2> /dev/null";
+    my $exp = "(.*) \- (.*) \- .* \- (.*)";
+    my ($artist,$album,$title) = ("","","");
+
+    if(`pgrep quodlibet`) {
+        ($artist,$album,$title) = `$cmd` =~ /$exp/;
+    }
+    echo_to_channel(build_message($artist,$album,$title,"",""));
+}
+
+sub rhythmbox {
+    require Net::DBus;
+    
+    load_defaults();
+
+    my ($artist,$album,$title,$ct,$tt) = ("","","","","");
+
+    if(`pgrep rhythmbox`) {
+        my $bus = Net::DBus->session;
+        my $rboxservice = $bus->get_service("org.gnome.Rhythmbox");
+        my $rboxplayer = $rboxservice->get_object("/org/gnome/Rhythmbox/Player");
+        my $rboxshell = $rboxservice->get_object("/org/gnome/Rhythmbox/Shell");
+        
+        if($rboxplayer->getPlaying()) {
+            my $song = $rboxshell->getSongProperties($rboxplayer->getPlayingUri());
+            my $ct = sec_to_min($rboxplayer->getElapsed());
+            if(exists $song->{'artist'}) {
+                $artist = $song->{'artist'};
+            }
+            if(exists $song->{'title'}) {
+                $title = $song->{'title'};
+            }
+            if(exists $song->{'album'}) {
+                $album = $song->{'album'};
+            }
+            if(exists $song->{'duration'}) {
+                $tt = sec_to_min($song->{'duration'});
+            }
+        }
+    }
+    echo_to_channel(build_message($artist,$album,$title,$ct,$tt));
 }
 
 sub weerock {
@@ -144,7 +240,7 @@ sub weerock {
     my $unbold = weechat::color("-bold");
     
     my $help = "%bold%NAME%unbold%\n".
-               "    weeRock - $description\n".
+               "    weerock - $description\n".
                "%bold%COMMANDS%unbold%\n".
                "    /mpc\n".
                "    /moc\n".
@@ -171,113 +267,7 @@ sub weerock {
     
     $help =~ s/%bold%/$bold/g;
     $help =~ s/%unbold%/$unbold/g;
-    echoToBuffer($help);
-}
-
-sub audacious {
-    loadDefaults();
-    my $artist = `audtool2 current-song-tuple-data artist`;
-    my $album  = `audtool2 current-song-tuple-data album`;
-    my $title  = `audtool2 current-song-tuple-data title`;
-    my $ct     = `audtool2 current-song-output-length-seconds`;
-    my $tt     = `audtool2 current-song-length-seconds`;
-
-    if($ct) {
-       $ct = secToMin($ct); 
-    }
-    if($tt) {
-        $tt = secToMin($tt);
-    }
-    
-    echoToChannel(buildMessage($artist,$album,$title,$ct,$tt));
-}
-
-sub exaile {
-    loadDefaults();
-    if(`pgrep exaile`) {
-        my $artist = `exaile --get-artist`;
-        my $album  = `exaile --get-album`;
-        my $title  = `exaile --get-title`;
-        my $ct     = `exaile --current-position`;
-        my $tt     = secToMin(int(`exaile --get-length`));
-
-        echoToChannel(buildMessage($artist,$album,$title,$ct,$tt));
-    }
-}
-
-sub rhythmbox {
-    loadDefaults();
-    require Net::DBus;
-    if(`pgrep rhythmbox`) { #check if rbox is running
-        my $bus         = Net::DBus->session;
-        my $rboxservice = $bus->get_service("org.gnome.Rhythmbox");
-        my $rboxplayer  = $rboxservice->get_object("/org/gnome/Rhythmbox/Player");
-        my $rboxshell   = $rboxservice->get_object("/org/gnome/Rhythmbox/Shell");
-        
-        my $artist = "";
-        my $album  = "";
-        my $title  = "";
-        my $ct     = "";
-        my $tt     = "";
-
-        if($rboxplayer->getPlaying()) {
-            my $song = $rboxshell->getSongProperties($rboxplayer->getPlayingUri());
-            my $ct = secToMin($rboxplayer->getElapsed());
-            if(exists $song->{'artist'}) {
-                $artist = $song->{'artist'};
-            }
-            if(exists $song->{'title'}) {
-                $title = $song->{'title'};
-            }
-            if(exists $song->{'album'}) {
-                $album = $song->{'album'};
-            }
-            if(exists $song->{'duration'}) {
-                $tt = secToMin($song->{'duration'});
-            }
-            
-            echoToChannel(buildMessage($artist,$album,$title,$ct,$tt));
-        }
-    } 
-}
-
-
-sub moc {
-    loadDefaults();
-    my $artist = `mocp -Q %artist`;
-    my $album  = `mocp -Q %album`;
-    my $title  = `mocp -Q %title`;
-    my $ct     = `mocp -Q %ct`;
-    my $tt     = `mocp -Q %tt`;
-    
-    echoToChannel(buildMessage($artist,$album,$title,$ct,$tt));
-}
-
-sub ncmpcpp {
-    loadDefaults();
-    my $host = weechat::config_get_plugin("ncmpcpp_host");
-    my $port = weechat::config_get_plugin("ncmpcpp_port");
-    my $cmd  = "ncmpcpp -h $host -p $port --now-playing";
-
-    my $artist = `$cmd %a`;
-    my $album  = `$cmd %b`;
-    my $title  = `$cmd %t`;
-    my $ct     = "";
-    my $tt     = "";
-
-    echoToChannel(buildMessage($artist,$album,$title,$ct,$tt));
-}
-
-sub mpc {
-    loadDefaults();
-        
-    my $host    = weechat::config_get_plugin("mpc_host");
-    my $port    = weechat::config_get_plugin("mpc_port");
-    my $string  = `mpc status -h $host -p $port -f \"%artist% #| %album% #| %title%\"`;
-    
-    if( $string =~ /(.*) \| (.*) \| (.*)\s\[.*(\d?\d?\d:\d\d)\/(\d?\d?\d:\d\d)/) {
-        echoToChannel(buildMessage($1,$2,$3,$4,$5));
-    }
+    echo_to_buffer($help);
 }
 
 #
@@ -285,26 +275,27 @@ sub mpc {
 ### Basic functions
 ##
 #
-sub echoToChannel {
+sub echo_to_channel {
     my ($string) = @_;
     my $buffer = weechat::current_buffer;
     my $left_string = weechat::config_get_plugin("left_string");
     my $right_string = weechat::config_get_plugin("right_string" eq "");
-    weechat::command($buffer, "$left_string " . $string . " $right_string");
+    weechat::command($buffer, "$left_string" . $string . "$right_string");
 }
 
-sub echoToBuffer {
+sub echo_to_buffer {
     my ($string) = @_;
     my $buffer = weechat::current_buffer;
     weechat::print($buffer,$string);
 }
 
-sub secToMin {
+sub sec_to_min {
     my ($sec) = @_;
+    if(! $sec) { return 0; }
     return int($sec/60).":".sprintf("%02d",$sec%60);
 }
 
-sub buildMessage {
+sub build_message {
     my ($artist, $album, $title, $ct, $tt) = @_;
     my $message = weechat::config_get_plugin("format");
 
@@ -319,7 +310,7 @@ sub buildMessage {
 }
 
 
-sub loadDefaults() {
+sub load_defaults {
     if(weechat::config_get_plugin("mpc_host") eq "") {
         weechat::config_set_plugin("mpc_host", "localhost");
     }
@@ -339,7 +330,7 @@ sub loadDefaults() {
         weechat::config_set_plugin("right_string", "");
     }
     if(weechat::config_get_plugin("format") eq "") {
-        weechat::config_set_plugin("format", "%artist%(%album%) - %title% [%ct%/%tt%]");
+        weechat::config_set_plugin("format", "%artist%(%album%) ".
+                                             "- %title% [%ct%/%tt%]");
     }
 }
-
