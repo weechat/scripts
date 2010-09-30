@@ -1,6 +1,6 @@
 #
 # highmon.pl - Highlight Monitoring for weechat 0.3.0
-# Version 2.1
+# Version 2.1.2
 #
 # Add 'Highlight Monitor' buffer/bar to log all highlights in one spot
 #
@@ -58,6 +58,9 @@
 #
 
 # History:
+# 2010-09-30, KenjiE20 <longbow@longbowslair.co.uk>:
+#	v2.1.2:	-fix: logging config was not correctly toggling back on (thanks to sleo for noticing)
+#			-version sync w/ chanmon
 # 2010-08-27, KenjiE20 <longbow@longbowslair.co.uk>:
 #	v2.1: -feature: Add 'nchannel' option to alignment to display buffer and name
 # 2010-04-25, KenjiE20 <longbow@longbowslair.co.uk>:
@@ -487,7 +490,7 @@ sub highmon_config_cb
 		}
 		else
 		{
-			weechat::buffer_set($highmon_buffer, "localvar_set_no_log", "0");
+			weechat::buffer_set($highmon_buffer, "localvar_del_no_log", "");
 		}
 	}
 	# Output changer
@@ -926,7 +929,7 @@ sub format_buffer_name
 }
 
 # Check result of register, and attempt to behave in a sane manner
-if (!weechat::register("highmon", "KenjiE20", "2.1", "GPL3", "Highlight Monitor", "", ""))
+if (!weechat::register("highmon", "KenjiE20", "2.1.2", "GPL3", "Highlight Monitor", "", ""))
 {
 	# Double load
 	weechat::print ("", "\tHighmon is already loaded");

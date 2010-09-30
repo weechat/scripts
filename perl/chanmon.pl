@@ -1,6 +1,6 @@
 #
 # chanmon.pl - Channel Monitoring for weechat 0.3.0
-# Version 2.1.1
+# Version 2.1.2
 #
 # Add 'Channel Monitor' buffer/bar that you can position to show IRC channel
 # messages in a single location without constantly switching buffers
@@ -66,6 +66,8 @@
 # /set weechat.bar.input.conditions "active"
 
 # History:
+# 2010-09-30, KenjiE20 <longbow@longbowslair.co.uk>:
+#	v2.1.2:	-fix: logging config was not correctly toggling back on (thanks to sleo for noticing)
 # 2010-09-20, m4v <lambdae2@gmail.com>:
 #	v2.1.1:	-fix: chanmon wasn't detecting buffers displayed on more than one window
 # 2010-08-27, KenjiE20 <longbow@longbowslair.co.uk>:
@@ -548,7 +550,7 @@ sub chanmon_config_cb
 		}
 		else
 		{
-			weechat::buffer_set($chanmon_buffer, "localvar_set_no_log", "0");
+			weechat::buffer_set($chanmon_buffer, "localvar_del_no_log", "");
 		}
 	}
 	# Output changer
@@ -1035,7 +1037,7 @@ sub format_buffer_name
 }
 
 # Check result of register, and attempt to behave in a sane manner
-if (!weechat::register("chanmon", "KenjiE20", "2.1.1", "GPL3", "Channel Monitor", "", ""))
+if (!weechat::register("chanmon", "KenjiE20", "2.1.2", "GPL3", "Channel Monitor", "", ""))
 {
 	# Double load
 	weechat::print ("", "\tChanmon is already loaded");
