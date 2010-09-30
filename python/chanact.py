@@ -3,7 +3,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
-#
+# 2010-10-21, xt
+#   version 0.5: use ^ for ctrl
 # 2010-02-08, bazerka <bazerka@quakenet.org>
 #   version 0.4: fix "[Act:]" being shown with no activity, when delimiter
 #                is set to " ".
@@ -43,7 +44,7 @@ import weechat as w
 
 SCRIPT_NAME    = "chanact"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.4"
+SCRIPT_VERSION = "0.5"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Hotlist replacement, use names and keybindings instead of numbers"
 
@@ -85,6 +86,7 @@ def keydict_update(*kwargs):
             if 'j' in key:
                 continue
             key = key.replace('meta-', '')
+            key = key.replace('ctrl-', '^')
             if w.config_get_plugin('skip_number_binds') == 'on':
                 # skip entries where buffer number = key, typically entries below 11
                 if key.isdigit():

@@ -25,6 +25,8 @@
 # 
 #
 # History:
+# 2010-08-25, xt
+#   version 0.6: notice some buffers instead of msg
 # 2009-12-08, Chaz6
 #   version 0.5: only announce for specified channels
 # 2009-12-08, Chaz6 <chaz@chaz6.com>
@@ -45,13 +47,14 @@ from time import time as now
 
 SCRIPT_NAME    = "announce_url_title"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.5"
+SCRIPT_VERSION = "0.6"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Look up URL title"
 
 settings = {
     "buffers"        : 'freenode.#testing,',     # comma separated list of buffers
-    'title_max_length': '100',
+    "buffers_notice" : 'freenode.#testing,',     # comma separated list of buffers
+    'title_max_length': '80',
     'url_ignore'     : '', # comma separated list of strings in url to ignore
     'reannounce_wait': '5', # 5 minutes delay
     'prefix':   '',
@@ -92,11 +95,17 @@ def url_print_cb(data, buffer, time, tags, displayed, highlight, prefix, message
     msg_buffer_name = get_buffer_name(buffer)
     # Skip ignored buffers
     found = False
+    notice = False
     if w.config_get_plugin('global') == 'on':
         found = True
         buffer_name = msg_buffer_name
     else:
         for active_buffer in w.config_get_plugin('buffers').split(','):
+            if active_buffer.lower() == msg_buffer_name.lower():
+                found = True
+                buffer_name = msg_buffer_name
+                break
+        for active_buffer in w.config_get_plugin('buffers_notice').split(','):
             if active_buffer.lower() == msg_buffer_name.lower():
                 found = True
                 buffer_name = msg_buffer_name
@@ -116,7 +125,7 @@ def url_print_cb(data, buffer, time, tags, displayed, highlight, prefix, message
                     ignore = True
                     w.prnt('', '%s: Found %s in URL: %s, ignoring.' %(SCRIPT_NAME, ignore_part, url))
                     break
-                
+
         if ignore:
             continue
 
@@ -150,7 +159,7 @@ def url_process_cb(data, command, rc, stdout, stderr):
         title = re.search('(?i)\<title\>(.*?)\</title\>', head)
         if title:
             title = unescape(title.group(1))
-        
+
             max_len = int(w.config_get_plugin('title_max_length'))
             if len(title) > max_len:
                 title = "%s [...]" % title[0:max_len]
@@ -166,6 +175,10 @@ def url_process_cb(data, command, rc, stdout, stderr):
                     if active_buffer.lower() == buffer_name.lower():
                         w.command('', '/msg -server %s %s %s' %(server, buffer, output))
                         found = True
+                for active_buffer in w.config_get_plugin('buffers_notice').split(','):
+                    if active_buffer.lower() == buffer_name.lower():
+                        w.command('', '/notice -server %s %s %s' %(server, buffer, output))
+                        found = True
                 if found == False:
                     w.prnt(w.buffer_search('', buffer_name), 'URL title\t' +output)
             else:
@@ -178,7 +191,7 @@ def purge_cb(*args):
     ''' Purge the url list on configured intervals '''
 
     global urls
-    
+
     t_now = now()
     for url in urls.keys():
         if (t_now - urls[url]) > \

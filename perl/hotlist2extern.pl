@@ -21,9 +21,10 @@
 #
 # Script inspirated and tested by LaoLang_cool
 #
+# v0.5	: lot of internal changes
 # v0.4	: highlight_char can be set as often as you want
 #	: merged buffer will be displayed once
-#	: more than one metachar-highlight produces a perl error
+#	: more than one metachar-highlight produced a perl error
 # v0.3	: usersettings won't be loaded, sorry! :-(
 #	: added a more complex sort routine (from important to unimportant and also numeric)
 #	: added options: "delimiter", "priority_remove" and "hotlist_remove_format"
@@ -61,25 +62,15 @@ use strict;
 my $hotlist_format		= "%H%N:%S";
 my $hotlist_remove_format	= ":%S";
 my $external_command_hotlist	= "echo \'WeeChat Act: %X\' >~/.weechat/hotlist_output.txt";
-my $external_command_hotist_empty	= "echo \'WeeChat: no activity \' >~/.weechat/hotlist_output.txt";
+my $external_command_hotlist_empty	= "echo \'WeeChat: no activity \' >~/.weechat/hotlist_output.txt";
 my $highlight_char		= "*";
 my $lowest_priority		= 0;
 my $priority_remove		= 0;
 my $delimiter			= ",";
-my $prgname	= "Hotlist2Extern";
-my $version	= "0.4";
+my $prgname	= "hotlist2extern";
+my $version	= "0.5";
 my $description	= "Give hotlist to an external file/program";
 my $current_buffer = "";
-
-# first function called by a WeeChat-script.
-weechat::register($prgname, "Nils Görs <weechatter\@arcor.de>", $version,
-                  "GPL3", $description, "", "");
-
-     init();				# get user settings
-
-     my $hotlist_hook = weechat::hook_signal("hotlist_changed", "hotlist_changed", "");
- 
-return weechat::WEECHAT_RC_OK;
 
 my $plugin_name		= "";
 my $buffer_name		= "";
@@ -99,7 +90,6 @@ $table		= "";
 
   $current_buffer = weechat::current_buffer;				# get current buffer
   my $hotlist = weechat::infolist_get("hotlist","","");			# Pointer to Infolist
-  get_user_settings();
 
    while (weechat::infolist_next($hotlist))
     {
@@ -120,8 +110,8 @@ $table		= "";
   weechat::infolist_free($hotlist);
 	    $table = @table;
 	    if ($table eq 0){
-	      unless ($external_command_hotist_empty eq ""){				# does we have a command for empty string?
-		system($external_command_hotist_empty);
+	      unless ($external_command_hotlist_empty eq ""){				# does we have a command for empty string?
+		system($external_command_hotlist_empty);
 	      }
 	    }
   return weechat::WEECHAT_RC_OK;
@@ -190,37 +180,90 @@ sub _extern{
 
 sub init{
 # set value of script (for example starting script the first time)
-weechat::config_set_plugin('external_command_hotlist', $external_command_hotlist)
-	if (weechat::config_get_plugin('external_command_hotlist') eq "");
-
-weechat::config_set_plugin('external_command_hotlist_empty', $external_command_hotist_empty)
-	if (weechat::config_get_plugin('external_command_hotlist_empty') eq "");
-
-weechat::config_set_plugin('highlight_char', $highlight_char)
-	if (weechat::config_get_plugin('highlight_char') eq "");
-
-weechat::config_set_plugin('lowest_priority', $lowest_priority)
-	if (weechat::config_get_plugin('lowest_priority') eq "");
-
-weechat::config_set_plugin('hotlist_format', $hotlist_format)
-	if (weechat::config_get_plugin('hotlist_format') eq "");
-
-weechat::config_set_plugin('hotlist_remove_format', $hotlist_remove_format)
-	if (weechat::config_get_plugin('hotlist_remove_format') eq "");
-
-weechat::config_set_plugin('priority_remove', $priority_remove)
-	if (weechat::config_get_plugin('priority_remove') eq "");
-weechat::config_set_plugin('delimiter', $delimiter)
-	if (weechat::config_get_plugin('delimiter') eq "");
-
+  if (!weechat::config_is_set_plugin("external_command_hotlist")){
+    weechat::config_set_plugin("external_command_hotlist", $external_command_hotlist);
+  }else{
+    $external_command_hotlist = weechat::config_get_plugin("external_command_hotlist");
+  }
+  if (!weechat::config_is_set_plugin("external_command_hotlist_empty")){
+    weechat::config_set_plugin("external_command_hotlist_empty", $external_command_hotlist_empty);
+  }else{
+    $external_command_hotlist_empty = weechat::config_get_plugin("external_command_hotlist_empty");
+  }
+  if (!weechat::config_is_set_plugin("highlight_char")){
+    weechat::config_set_plugin("highlight_char", $highlight_char);
+  }else{
+    $highlight_char = weechat::config_get_plugin("highlight_char");
+  }
+  if (!weechat::config_is_set_plugin("lowest_priority")){
+    weechat::config_set_plugin("lowest_priority", $lowest_priority);
+  }else{
+    $lowest_priority = weechat::config_get_plugin("lowest_priority");
+  }
+  if (!weechat::config_is_set_plugin("hotlist_format")){
+    weechat::config_set_plugin("hotlist_format", $hotlist_format);
+  }else{
+    $hotlist_format = weechat::config_get_plugin("hotlist_format");
+  }
+  if (!weechat::config_is_set_plugin("hotlist_remove_format")){
+    weechat::config_set_plugin("hotlist_remove_format", $hotlist_remove_format);
+  }else{
+    $hotlist_remove_format = weechat::config_get_plugin("hotlist_remove_format");
+  }
+  if (!weechat::config_is_set_plugin("priority_remove")){
+    weechat::config_set_plugin("priority_remove", $priority_remove);
+  }else{
+    $priority_remove = weechat::config_get_plugin("priority_remove");
+  }
+  if (!weechat::config_is_set_plugin("delimiter")){
+    weechat::config_set_plugin("delimiter", $delimiter);
+  }else{
+    $delimiter = weechat::config_get_plugin("delimiter");
+  }
 }
-sub get_user_settings{
-	  $hotlist_format = weechat::config_get_plugin('hotlist_format');
-	  $highlight_char = weechat::config_get_plugin('highlight_char');
-	  $lowest_priority = weechat::config_get_plugin('lowest_priority');
-	  $external_command_hotlist = weechat::config_get_plugin('external_command_hotlist');
-	  $external_command_hotist_empty = weechat::config_get_plugin('external_command_hotlist_empty');
-	  $hotlist_remove_format = weechat::config_get_plugin('hotlist_remove_format');
-	  $priority_remove = weechat::config_get_plugin('priority_remove');
-	  $delimiter = weechat::config_get_plugin('delimiter');
+
+sub toggle_config_by_set{
+my ( $pointer, $name, $value ) = @_;
+
+  if ($name eq "plugins.var.perl.$prgname.external_command_hotlist"){
+    $external_command_hotlist = $value;
+    return weechat::WEECHAT_RC_OK;
+  }
+  if ($name eq "plugins.var.perl.$prgname.external_command_hotlist_empty"){
+    $external_command_hotlist_empty = $value;
+    return weechat::WEECHAT_RC_OK;
+  }
+  if ($name eq "plugins.var.perl.$prgname.highlight_char"){
+    $highlight_char = $value;
+    return weechat::WEECHAT_RC_OK;
+  }
+  if ($name eq "plugins.var.perl.$prgname.lowest_priority"){
+    $lowest_priority = $value;
+    return weechat::WEECHAT_RC_OK;
+  }
+  if ($name eq "plugins.var.perl.$prgname.hotlist_format"){
+    $hotlist_format = $value;
+    return weechat::WEECHAT_RC_OK;
+  }
+  if ($name eq "plugins.var.perl.$prgname.hotlist_remove_format"){
+    $hotlist_remove_format = $value;
+    return weechat::WEECHAT_RC_OK;
+  }
+  if ($name eq "plugins.var.perl.$prgname.priority_remove"){
+    $priority_remove = $value;
+    return weechat::WEECHAT_RC_OK;
+  }
+  if ($name eq "plugins.var.perl.$prgname.delimiter"){
+    $delimiter = $value;
+    return weechat::WEECHAT_RC_OK;
+  }
 }
+
+# first function called by a WeeChat-script.
+weechat::register($prgname, "Nils Görs <weechatter\@arcor.de>", $version,
+                  "GPL3", $description, "", "");
+
+     init();				# get user settings
+
+      weechat::hook_signal("hotlist_changed", "hotlist_changed", "");
+      weechat::hook_config( "plugins.var.perl.$prgname.*", "toggle_config_by_set", "" );
