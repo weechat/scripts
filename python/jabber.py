@@ -2,6 +2,7 @@
 #
 # Copyright (C) 2009-2010 Sebastien Helleu <flashcode@flashtux.org>
 # Copyright (C) 2010 xt <xt@bash.no>
+# Copyright (C) 2010 Aleksey V. Zapparov <ixti@member.fsf.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,6 +26,9 @@
 # Happy chat, enjoy :)
 #
 # History:
+# 2010-10-01, xt, <xt@bash.no>
+#     version 0.4:
+#     add kick and invite
 # 2010-08-03, Aleksey V. Zapparov <ixti@member.fsf.org>:
 #     version 0.3:
 #     add /jabber priority [priority]
@@ -57,7 +61,7 @@
 
 SCRIPT_NAME    = "jabber"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.3"
+SCRIPT_VERSION = "0.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Jabber/XMPP protocol for WeeChat"
 SCRIPT_COMMAND = SCRIPT_NAME
@@ -471,8 +475,7 @@ class Server:
                 self.client.RegisterHandler("presence", self.presence_handler)
                 self.client.RegisterHandler("iq", self.iq_handler)
                 self.client.RegisterHandler("message", self.message_handler)
-                self.client.sendInitPresence(requestRoster=0)
-                #client.SendInitPresence(requestRoster=0)
+                self.client.sendInitPresence(requestRoster=1)
                 self.sock = self.client.Connection._sock.fileno()
                 self.hook_fd = weechat.hook_fd(self.sock, 1, 0, 0, "jabber_fd_cb", "")
                 weechat.buffer_set(self.buffer, "highlight_words", self.buddy.username)
@@ -508,6 +511,16 @@ class Server:
         chat = Chat(self, buddy, switch_to_buffer=False)
         self.chats.append(chat)
         return chat
+
+    def add_buddy(self, jid):
+        """ Add a new buddy """
+        self.client.Roster.Authorize(jid)
+        self.client.Roster.Subscribe(jid)
+
+    def del_buddy(self, jid):
+        """ Remove a buddy and/or deny authorization request """
+        self.client.Roster.Unauthorize(jid)
+        self.client.Roster.Unsubscribe(jid)
 
     def print_debug_server(self, message):
         """ Print debug message on server buffer. """
@@ -1136,6 +1149,8 @@ def jabber_hook_commands_and_completions():
                          "\n"
                          "Other jabber commands:\n"
                          "  /jchat  chat with a buddy (in private buffer)\n"
+                         "  /invite add a buddy to roster\n"
+                         "  /kick   remove buddy from roster\n"
                          "  /jmsg   send message to a buddy",
                          "list %(jabber_servers)"
                          " || add %(jabber_servers)"
@@ -1161,6 +1176,16 @@ def jabber_hook_commands_and_completions():
                          "     buddy: buddy id",
                          "",
                          "jabber_cmd_jmsg", "")
+    weechat.hook_command("invite", "Add a buddy to your roster",
+                         "buddy",
+                         "buddy: buddy id",
+                         "",
+                         "jabber_cmd_invite", "")
+    weechat.hook_command("kick", "Remove a buddy from your roster, or deny auth",
+                         "buddy",
+                         "buddy: buddy id",
+                         "",
+                         "jabber_cmd_kick", "")
     weechat.hook_completion("jabber_servers", "list of jabber servers",
                             "jabber_completion_servers", "")
     weechat.hook_completion("jabber_jid_aliases", "list of jabber jid aliases",
@@ -1351,6 +1376,22 @@ def jabber_cmd_jmsg(data, buffer, args):
             buddy = context['server'].search_buddy_list(recipient, by='alias')
             context["server"].send_message(buddy, message)
 
+    return weechat.WEECHAT_RC_OK
+
+def jabber_cmd_invite(data, buffer, args):
+    """ Command '/invite'. """
+    if args:
+        context = jabber_search_context(buffer)
+        if context["server"]:
+            context["server"].add_buddy(args)
+    return weechat.WEECHAT_RC_OK
+
+def jabber_cmd_kick(data, buffer, args):
+    """ Command '/kick'. """
+    if args:
+        context = jabber_search_context(buffer)
+        if context["server"]:
+            context["server"].del_buddy(args)
     return weechat.WEECHAT_RC_OK
 
 def jabber_away_command_run_cb(data, buffer, command):
