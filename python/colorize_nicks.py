@@ -21,6 +21,8 @@
 # 
 #
 # History:
+# 2010-10-01, xt
+#   version 0.7: changes to support non-irc-plugins
 # 2010-07-29, xt
 #   version 0.6: compile regexp as per patch from Chris quigybo@hotmail.com
 # 2010-07-19, xt
@@ -40,7 +42,7 @@ w = weechat
 
 SCRIPT_NAME    = "colorize_nicks"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.6"
+SCRIPT_VERSION = "0.7"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Use the weechat nick colors in the chat area"
 
@@ -71,23 +73,21 @@ def colorize_cb(data, modifier, modifier_data, line):
     ''' Callback that does the colorizing, and returns new line if changed '''
 
     global ignore_nicks, ignore_channels, colored_nicks
-    if not 'irc_privmsg' in modifier_data:
-        return line
 
     full_name = modifier_data.split(';')[1]
     server = full_name.split('.')[0]
     channel = '.'.join(full_name.split('.')[1:])
-    # Check that privmsg is in a channel and that that channel is not ignored
-    if not w.info_get('irc_is_channel', channel) or channel in ignore_channels:
-        return line
-
-    min_length = int(w.config_get_plugin('min_nick_length'))
-    reset = w.color('reset')
 
     buffer = w.buffer_search('', full_name)
     # Check if buffer has colorized nicks
     if not buffer in colored_nicks:
         return line
+
+    if channel in ignore_channels:
+        return line
+
+    min_length = int(w.config_get_plugin('min_nick_length'))
+    reset = w.color('reset')
 
     for words in valid_nick_re.findall(line):
         prefix, nick = words[0], words[1]
@@ -149,12 +149,8 @@ def add_nick(data, signal, type_data):
     if not pointer in colored_nicks:
         colored_nicks[pointer] = {}
 
-    servername = w.infolist_get('buffer', pointer, '')
-    w.infolist_next(servername)
-    server = w.infolist_string(servername, 'name')
-    w.infolist_free(servername)
-    servername = server.split('.')[0]
-    my_nick = w.info_get('irc_nick', servername)
+    servername = w.buffer_get_string(pointer, 'localvar_server')
+    my_nick = w.buffer_get_string(pointer, 'localvar_nick')
 
     if nick == my_nick:
         nick_color = w.color(\
@@ -188,7 +184,8 @@ if __name__ == "__main__":
 
         for key, value in PREFIX_COLORS.iteritems():
             PREFIX_COLORS[key] = w.color(w.config_string(w.config_get('weechat.look.%s'%value)))
-        ignore_channels = w.config_get_plugin('blacklist_channels').split(',')
+        if w.config_get_plugin('blacklist_channels'):
+            ignore_channels = w.config_get_plugin('blacklist_channels').split(',')
         ignore_nicks = w.config_get_plugin('blacklist_nicks').split(',')
 
         populate_nicks() # Run it once to get data ready 
