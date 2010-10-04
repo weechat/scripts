@@ -1,5 +1,5 @@
 #
-# UrlGrab, version 1.8 for weechat version 0.3
+# UrlGrab, version 1.9 for weechat version 0.3
 #
 #   Listens to all channels for URLs, collects them in a list, and launches
 #   them in your favourite web server on the local host or a remote server.
@@ -63,7 +63,7 @@
 #
 #   default
 #     The command that will be run if no arguemnts to /url are given.
-#     Default is help
+#     Default is show
 #
 # Requirements:
 #
@@ -102,6 +102,9 @@
 #           - Changed remote cmd to be single option
 #           - Added scrolling on up and down arrow keys for /url show
 #           - Changed remotecmd to include options with public/private keys password auth doesn't work
+#  - V1.9 Specimen <spinifer [at] gmail . com>: 
+#           - Changed the default command when /url is run with no arguments to 'show'
+#           - Removed '/url help' command, because /help <command> is the standard way 
 #
 # Copyright (C) 2005 David Rubin <drubin AT smartcube dot co dot za>
 #
@@ -146,7 +149,7 @@ urlRe = re.compile(r'(\w+://(?:%s|%s)(?::\d+)?(?:/[^\])>\s]*)?)' % (domain, ipAd
 
 SCRIPT_NAME    = "urlgrab"
 SCRIPT_AUTHOR  = "David Rubin <drubin [At] smartcube [dot] co [dot] za>"
-SCRIPT_VERSION = "1.8"
+SCRIPT_VERSION = "1.9"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Url functionality Loggin, opening of browser, selectable links"
 CONFIG_FILE_NAME= "urlgrab" 
@@ -463,15 +466,13 @@ def urlGrabMain(data, bufferp, args):
         largs.remove('')
     while ' ' in largs:
         largs.remove(' ')
-    if len(largs) == 0 or largs[0] == 'help':
-        weechat.command('', '/help url')
-    elif largs[0] == 'open' and len(largs) == 2:
-        urlGrabOpenUrl(largs[1])
-    elif largs[0] == "show":
+    if len(largs) == 0 or largs[0] == "show":
         if not urlgrab_buffer:
             init()
         refresh()
         weechat.buffer_set(urlgrab_buffer, "display", "1")
+    elif largs[0] == 'open' and len(largs) == 2:
+        urlGrabOpenUrl(largs[1])
     elif largs[0] == 'list':
         urlGrabList( largs[1:] )
     elif largs[0] == 'copy':
