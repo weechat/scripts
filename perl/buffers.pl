@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2008-2010 by FlashCode <flashcode@flashtux.org>
+# Copyright (c) 2008-2010 by Sebastien Helleu <flashcode@flashtux.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,45 +19,47 @@
 # Display sidebar with list of buffers.
 #
 # History:
-# 2010-04-12, FlashCode <flashcode@flashtux.org>:
+# 2010-10-05, Sebastien Helleu <flashcode@flashtux.org>:
+#     v2.0: add options "sort" and "show_number"
+# 2010-04-12, Sebastien Helleu <flashcode@flashtux.org>:
 #     v1.9: replace call to log() by length() to align buffer numbers
-# 2010-04-02, FlashCode <flashcode@flashtux.org>:
+# 2010-04-02, Sebastien Helleu <flashcode@flashtux.org>:
 #     v1.8: fix bug with background color and option indenting_number
 # 2010-04-02, Helios <helios@efemes.de>:
 #     v1.7: add indenting_number option
 # 2010-02-25, m4v <lambdae2@gmail.com>:
 #     v1.6: add option to hide empty prefixes
-# 2010-02-12, FlashCode <flashcode@flashtux.org>:
+# 2010-02-12, Sebastien Helleu <flashcode@flashtux.org>:
 #     v1.5: add optional nick prefix for buffers like IRC channels
-# 2009-09-30, FlashCode <flashcode@flashtux.org>:
+# 2009-09-30, Sebastien Helleu <flashcode@flashtux.org>:
 #     v1.4: remove spaces for indenting when bar position is top/bottom
-# 2009-06-14, FlashCode <flashcode@flashtux.org>:
+# 2009-06-14, Sebastien Helleu <flashcode@flashtux.org>:
 #     v1.3: add option "hide_merged_buffers"
-# 2009-06-14, FlashCode <flashcode@flashtux.org>:
+# 2009-06-14, Sebastien Helleu <flashcode@flashtux.org>:
 #     v1.2: improve display with merged buffers
-# 2009-05-02, FlashCode <flashcode@flashtux.org>:
+# 2009-05-02, Sebastien Helleu <flashcode@flashtux.org>:
 #     v1.1: sync with last API changes
-# 2009-02-21, FlashCode <flashcode@flashtux.org>:
+# 2009-02-21, Sebastien Helleu <flashcode@flashtux.org>:
 #     v1.0: remove timer used to update bar item first time (not needed any more)
-# 2009-02-17, FlashCode <flashcode@flashtux.org>:
+# 2009-02-17, Sebastien Helleu <flashcode@flashtux.org>:
 #     v0.9: fix bug with indenting of private buffers
-# 2009-01-04, FlashCode <flashcode@flashtux.org>:
+# 2009-01-04, Sebastien Helleu <flashcode@flashtux.org>:
 #     v0.8: update syntax for command /set (comments)
 # 2008-10-20, Jiri Golembiovsky <golemj@gmail.com>:
 #     v0.7: add indenting option
-# 2008-10-01, FlashCode <flashcode@flashtux.org>:
+# 2008-10-01, Sebastien Helleu <flashcode@flashtux.org>:
 #     v0.6: add default color for buffers, and color for current active buffer
-# 2008-09-18, FlashCode <flashcode@flashtux.org>:
+# 2008-09-18, Sebastien Helleu <flashcode@flashtux.org>:
 #     v0.5: fix color for "low" level entry in hotlist
-# 2008-09-18, FlashCode <flashcode@flashtux.org>:
+# 2008-09-18, Sebastien Helleu <flashcode@flashtux.org>:
 #     v0.4: rename option "show_category" to "short_names",
 #           remove option "color_slash"
-# 2008-09-15, FlashCode <flashcode@flashtux.org>:
+# 2008-09-15, Sebastien Helleu <flashcode@flashtux.org>:
 #     v0.3: fix bug with priority in hotlist (var not defined)
-# 2008-09-02, FlashCode <flashcode@flashtux.org>:
+# 2008-09-02, Sebastien Helleu <flashcode@flashtux.org>:
 #     v0.2: add color for buffers with activity and config options for
 #           colors, add config option to display/hide categories
-# 2008-03-15, FlashCode <flashcode@flashtux.org>:
+# 2008-03-15, Sebastien Helleu <flashcode@flashtux.org>:
 #     v0.1: script creation
 #
 # Help about settings:
@@ -85,7 +87,7 @@
 
 use strict;
 
-my $version = "1.9";
+my $version = "2.0";
 
 # -------------------------------[ config ]-------------------------------------
 
@@ -93,8 +95,10 @@ my %default_options = ("short_names"             => "on",
                        "indenting"               => "on",
                        "indenting_number"        => "on",
                        "hide_merged_buffers"     => "off",
+                       "show_number"             => "on",
                        "show_prefix"             => "off",
                        "show_prefix_empty"       => "on",
+                       "sort"                    => "number",  # "number" or "name"
                        "color_hotlist_low"       => "white",
                        "color_hotlist_message"   => "yellow",
                        "color_hotlist_private"   => "lightgreen",
@@ -108,7 +112,7 @@ my %hotlist_level = (0 => "low", 1 => "message", 2 => "private", 3 => "highlight
 
 # --------------------------------[ init ]--------------------------------------
 
-weechat::register("buffers", "FlashCode <flashcode\@flashtux.org>", $version,
+weechat::register("buffers", "Sebastien Helleu <flashcode\@flashtux.org>", $version,
                   "GPL3", "Sidebar with list of buffers", "", "");
 
 foreach my $option (keys %default_options)
@@ -172,7 +176,7 @@ sub build_buffers
     $infolist = weechat::infolist_get("buffer", "", "");
     while (weechat::infolist_next($infolist))
     {
-        my $buffer = {};
+        my $buffer;
         my $number = weechat::infolist_integer($infolist, "number");
         if ($number ne $old_number)
         {
@@ -212,12 +216,35 @@ sub build_buffers
     }
     @buffers = (@buffers, @current2, @current1);
     weechat::infolist_free($infolist);
-        
-
+    
+    # sort buffers by number, name or shortname
+    my %sorted_buffers;
+    if (1)
+    {
+        my $number = 0;
+        for my $buffer (@buffers)
+        {
+            my $key;
+            if ($options{"sort"} eq "name")
+            {
+                my $name = $buffer->{"name"};
+                $name = $buffer->{"short_name"} if ($options{"short_names"} eq "on");
+                $key = sprintf("%s%08d", lc($name), $buffer->{"number"});
+            }
+            else
+            {
+                $key = sprintf("%08d", $number);
+            }
+            $sorted_buffers{$key} = $buffer;
+            $number++;
+        }
+    }
+    
     # build string with buffers
     $old_number = -1;
-    for my $buffer (@buffers)
+    foreach my $key (sort keys %sorted_buffers)
     {
+        my $buffer = $sorted_buffers{$key};
         if (($options{"hide_merged_buffers"} eq "on") && (! $buffer->{"active"}))
         {
             next;
@@ -236,28 +263,31 @@ sub build_buffers
         }
         my $color_bg = "";
         $color_bg = weechat::color(",".$bg) if ($bg ne "");
-        if (($options{"indenting_number"} eq "on")
-            && (($position eq "left") || ($position eq "right")))
+        if ($options{"show_number"} eq "on")
         {
-            $str .= weechat::color("default").$color_bg
-                .(" " x ($max_number_digits - length(int($buffer->{"number"}))));
-        }
-        if ($old_number ne $buffer->{"number"})
-        {
-            $str .= weechat::color($options{"color_number"})
-                .$color_bg
-                .$buffer->{"number"}
-                .weechat::color("default")
-                .$color_bg
-                .".";
-        }
-        else
-        {
-            my $indent = "";
-            $indent = ((" " x length($buffer->{"number"}))." ") if (($position eq "left") || ($position eq "right"));
-            $str .= weechat::color("default")
-                .$color_bg
-                .$indent;
+            if (($options{"indenting_number"} eq "on")
+                && (($position eq "left") || ($position eq "right")))
+            {
+                $str .= weechat::color("default").$color_bg
+                    .(" " x ($max_number_digits - length(int($buffer->{"number"}))));
+            }
+            if ($old_number ne $buffer->{"number"})
+            {
+                $str .= weechat::color($options{"color_number"})
+                    .$color_bg
+                    .$buffer->{"number"}
+                    .weechat::color("default")
+                    .$color_bg
+                    .".";
+            }
+            else
+            {
+                my $indent = "";
+                $indent = ((" " x length($buffer->{"number"}))." ") if (($position eq "left") || ($position eq "right"));
+                $str .= weechat::color("default")
+                    .$color_bg
+                    .$indent;
+            }
         }
         if (($options{"indenting"} eq "on")
             && (($position eq "left") || ($position eq "right")))
