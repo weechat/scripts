@@ -26,6 +26,8 @@
 # Happy chat, enjoy :)
 #
 # History:
+# 2010-10-05, xt, <xt@bash.no>
+#     version 0.5: no highlight for status/presence messages
 # 2010-10-01, xt, <xt@bash.no>
 #     version 0.4:
 #     add kick and invite
@@ -61,7 +63,7 @@
 
 SCRIPT_NAME    = "jabber"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.4"
+SCRIPT_VERSION = "0.5"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Jabber/XMPP protocol for WeeChat"
 SCRIPT_COMMAND = SCRIPT_NAME
@@ -402,7 +404,6 @@ class Server:
         self.sock = None
         self.hook_fd = None
         self.buffer = ""
-        self.nick = ""
         self.chats = []
         self.buddies = []
         self.buddy = None
@@ -620,7 +621,7 @@ class Server:
 
     def print_status(self, nickname, status):
         ''' Print a status in server window and in chat '''
-        weechat.prnt(self.buffer, "%s%s has status %s" % (\
+        weechat.prnt_date_tags(self.buffer, 0, 'no_highlight', "%s%s has status %s" % (\
                 weechat.prefix("action"),
                 nickname,
                 status))
