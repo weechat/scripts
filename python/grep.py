@@ -66,6 +66,11 @@
 #
 #
 #   History:
+#   2010-10-06
+#   version 0.6.7: by xt <xt@bash.no> 
+#   * better temporary file:
+#    use tempfile.mkstemp. to create a temp file in log dir, 
+#    makes it safer with regards to write permission and multi user
 #   2010-04-08
 #   version 0.6.6: bug fixes
 #   * use WEECHAT_LIST_POS_END in log file completion, makes completion faster
@@ -166,7 +171,7 @@ except ImportError:
 
 SCRIPT_NAME    = "grep"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.6.6"
+SCRIPT_VERSION = "0.6.7"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Search in buffers and logs"
 SCRIPT_COMMAND = "grep"
@@ -914,7 +919,7 @@ def show_matching_lines():
 
 # defined here for commodity
 grep_proccess_cmd = """python -%(bytecode)sc '
-import sys, cPickle
+import sys, cPickle, tempfile, os
 sys.path.append("%(script_path)s") # add WeeChat script dir so we can import grep
 from grep import make_regexp, grep_file, strip_home
 logs = (%(logs)s, )
@@ -926,8 +931,9 @@ try:
         lines = grep_file(log, %(head)s, %(tail)s, %(after_context)s, %(before_context)s,
         %(count)s, regexp, "%(hilight)s", %(exact)s, %(invert)s)
         d[log_name] = lines
-    fdname = "/tmp/grep_search.tmp"
-    fd = open(fdname, "wb")
+    #fdname = "/tmp/grep_search.tmp"
+    fd, fdname = tempfile.mkstemp(prefix="grep", dir="%(home_dir)s")
+    fd = os.fdopen(fd, "wb")
     print fdname
     cPickle.dump(d, fd, -1)
     fd.close()
