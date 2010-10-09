@@ -1,5 +1,7 @@
 #
-# Copyright (c) 2008-2009 by FlashCode <flashcode@flashtux.org>
+# Copyright (C) 2008-2010 Sebastien Helleu <flashcode@flashtux.org>
+# Copyright (C) 2009 drubin <drubin [@] smartcube [dot] co[dot]za>
+# Copyright (C) 2010 Trashlord <dornenreich666@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,26 +20,28 @@
 # Tetris game for WeeChat.
 #
 # History:
-# 2009-12-17, FlashCode <flashcode@flashtux.org>:
+# 2010-10-08, Trashlord <dornenreich666@gmail.com>:
+#     version 0.8: add best score and best level statistics
+# 2009-12-17, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.7: add levels, fix bugs with pause
 # 2009-12-16, drubin <drubin [@] smartcube [dot] co[dot]za>:
 #     version 0.6: add key for pause, basic doc and auto jump to buffer
-# 2009-06-21, FlashCode <flashcode@flashtux.org>:
+# 2009-06-21, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.5: fix bug with weetris buffer after /upgrade
-# 2009-05-02, FlashCode <flashcode@flashtux.org>:
+# 2009-05-02, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.4: sync with last API changes, fix problem with key alt-n
-# 2008-11-14, FlashCode <flashcode@flashtux.org>:
+# 2008-11-14, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.3: minor code cleanup
-# 2008-11-12, FlashCode <flashcode@flashtux.org>:
+# 2008-11-12, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.2: hook timer only when weetris buffer is open
-# 2008-11-05, FlashCode <flashcode@flashtux.org>:
+# 2008-11-05, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.1: first official version
-# 2008-04-30, FlashCode <flashcode@flashtux.org>:
+# 2008-04-30, Sebastien Helleu <flashcode@flashtux.org>:
 #     script creation
 
 use strict;
 
-my $version = "0.7";
+my $version = "0.8";
 
 my $weetris_buffer = "";
 my $timer = "";
@@ -86,7 +90,8 @@ my ($item_x, $item_y) = (0, 0);
 my $item_number = 0;
 my $item_form = 0;
 my $title = "WeeTris.pl $version - enjoy!  |  Keys: arrows: move/rotate, alt-N: new game, alt-P: pause";
-
+my $mlevel = 1;
+my $mlines = 0;
 
 sub buffer_close
 {
@@ -142,9 +147,13 @@ sub display_line
 sub display_level_lines
 {
     my $plural = "";
+    my $dash = "-" x 22;
     $plural = "s" if ($lines > 1);
     my $str = sprintf(" Level %-3d %6d line%s", $level, $lines, $plural);
     weechat::print_y($weetris_buffer, $start_y + $nby + 2, $str);
+    weechat::print_y($weetris_buffer, $start_y + $nby + 3, " $dash");
+    weechat::print_y($weetris_buffer, $start_y + $nby + 4, " Highest level: $mlevel");
+    weechat::print_y($weetris_buffer, $start_y + $nby + 5, " Max lines: $mlines");
 }
 
 sub apply_item
@@ -262,8 +271,14 @@ sub remove_completed_lines
                     $matrix[$i] = $matrix[$i - 1];
                 }
             }
-            $lines++;
+            # Removes the line and increases the number of lines made in the game in $lines
+            $lines++; 
             $lines_removed = 1;
+            if ($lines > $mlines)
+            {
+                set_best("max_lines", $lines);
+                $mlines = $lines;
+            }
         }
         else
         {
@@ -276,7 +291,13 @@ sub remove_completed_lines
         $new_level = $max_level if ($new_level > $max_level);
         if ($new_level != $level)
         {
+            # Next level
             $level = $new_level;
+            if ($level > $mlevel)
+            {
+                set_best("max_level", $level);
+                $mlevel = $level;
+            }
             init_timer();
         }
         display_level_lines();
@@ -408,7 +429,7 @@ sub weetris_timer
     }
     return weechat::WEECHAT_RC_OK;
 }
-weechat::register("weetris", "FlashCode <flashcode\@flashtux.org>",
+weechat::register("weetris", "Sebastien Helleu <flashcode\@flashtux.org>",
                   $version, "GPL3", "Tetris game for WeeChat, yeah!", "", "");
 weechat::hook_command("weetris", "Run WeeTris", "", 
                       "Keys:\n".
@@ -423,3 +444,20 @@ if ($weetris_buffer ne "")
 {
     weetris_init();
 }
+
+# Best level statistics and max lines achieved
+
+sub get_best
+{
+    my $arg = shift;
+    return weechat::config_get_plugin($arg);
+}
+
+sub set_best
+{
+    my ($arg, $value) = @_;
+    weechat::config_set_plugin($arg, $value);
+}
+
+$mlines = get_best("max_lines") || 0;
+$mlevel = get_best("max_level") || 1;
