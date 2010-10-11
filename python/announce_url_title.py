@@ -25,6 +25,10 @@
 # 
 #
 # History:
+# 2010-10-11, xt
+#   version 0.8: support multiple concurrent url lookups
+# 2010-10-11, xt
+#   version 0.7: do not trigger on notices
 # 2010-08-25, xt
 #   version 0.6: notice some buffers instead of msg
 # 2009-12-08, Chaz6
@@ -47,7 +51,7 @@ from time import time as now
 
 SCRIPT_NAME    = "announce_url_title"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.6"
+SCRIPT_VERSION = "0.8"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Look up URL title"
 
@@ -71,9 +75,7 @@ label = r'[0-9a-z][-0-9a-z]*[0-9a-z]?'
 domain = r'%s(?:\.%s)*\.[a-z][-0-9a-z]*[a-z]?' % (label, label)
 urlRe = re.compile(r'(\w+://(?:%s|%s)(?::\d+)?(?:/[^\])>\s]*)?)' % (domain, ipAddr), re.I)
 
-url_hook_process = ''
 buffer_name = ''
-url_stdout = ''
 
 urls = {}
 
@@ -90,7 +92,11 @@ def unescape(s):
 
 def url_print_cb(data, buffer, time, tags, displayed, highlight, prefix, message):
 
-    global url_hook_process, buffer_name, url_stdout, urls
+    global buffer_name, urls
+
+    # Do not trigger on notices
+    if prefix == '--':
+        return w.WEECHAT_RC_OK
 
     msg_buffer_name = get_buffer_name(buffer)
     # Skip ignored buffers
@@ -132,30 +138,40 @@ def url_print_cb(data, buffer, time, tags, displayed, highlight, prefix, message
         if url in urls:
             continue
         else:
-            urls[url] = now()
+            urls[url] = {}
+    url_process_launcher()
 
-        if url_hook_process != "":
-            w.unhook(url_hook_process)
-            url_hook_process = ""
-        url_stdout = ""
-        # Read 8192
-        url_hook_process = w.hook_process(
-            "python -c \"import urllib2; print urllib2.urlopen('" + url + "').read(8192)\"",
-            30 * 1000, "url_process_cb", "")
+    return w.WEECHAT_RC_OK
+
+def url_process_launcher():
+    ''' Iterate found urls, fetch title if hasn't been launched '''
+
+    global urls
+
+    for url, url_d in urls.items():
+        if not url_d: # empty dict means not launched
+            url_d['launched'] = now()
+
+            # Read 8192
+            url_d['stdout'] = ''
+            url_d['url_hook_process'] = w.hook_process(
+                "python -c \"import urllib2; print urllib2.urlopen('" + url + "').read(8192)\"",
+                30 * 1000, "url_process_cb", "")
 
     return w.WEECHAT_RC_OK
 
 def url_process_cb(data, command, rc, stdout, stderr):
     """ Callback parsing html for title """
 
-    global url_hook_process, buffer_name, url_stdout
+    global buffer_name, urls
 
 
+    url = command.split("'")[1]
     if stdout != "":
-        url_stdout += stdout
+        urls[url]['stdout'] += stdout
     if int(rc) >= 0:
 
-        head = re.sub("[\r\n\t ]"," ", url_stdout)
+        head = re.sub("[\r\n\t ]"," ", urls[url]['stdout'])
         title = re.search('(?i)\<title\>(.*?)\</title\>', head)
         if title:
             title = unescape(title.group(1))
@@ -183,8 +199,8 @@ def url_process_cb(data, command, rc, stdout, stderr):
                     w.prnt(w.buffer_search('', buffer_name), 'URL title\t' +output)
             else:
                 w.prnt(w.buffer_search('', buffer_name), 'URL title\t' +output)
+        urls[url]['stdout'] = ''
 
-        url_hook_process = ''
     return w.WEECHAT_RC_OK
 
 def purge_cb(*args):
@@ -193,8 +209,8 @@ def purge_cb(*args):
     global urls
 
     t_now = now()
-    for url in urls.keys():
-        if (t_now - urls[url]) > \
+    for url, url_d in urls.items():
+        if (t_now - url_d['launched']) > \
             int(w.config_get_plugin('reannounce_wait'))*60:
                 del urls[url]
 
