@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2010 by FlashCode <flashcode@flashtux.org>
+# Copyright (c) 2010 by Sebastien Helleu <flashcode@flashtux.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,13 +22,16 @@
 #
 # History:
 #
-# 2010-04-19, FlashCode <flashcode@flashtux.org>:
+# 2010-10-11, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 0.2: add example in /help autosetbuffer with new buffer
+#                  property "no_highlight_nicks"
+# 2010-04-19, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.1: initial release
 #
 
 SCRIPT_NAME    = "buffer_autoset"
-SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Auto-set buffer properties when a buffer is opened"
 
@@ -188,7 +191,9 @@ if __name__ == "__main__" and import_ok:
                                  "  disable timestamp on channel #weechat:\n"
                                  "    /" + SCRIPT_COMMAND + " add irc.freenode.#weechat time_for_each_line 0\n"
                                  "  add word \"weechat\" in highlight list on channel #savannah:\n"
-                                 "    /" + SCRIPT_COMMAND + " add irc.freenode.#savannah highlight_words_add weechat",
+                                 "    /" + SCRIPT_COMMAND + " add irc.freenode.#savannah highlight_words_add weechat\n"
+                                 "  disable highlights from nick \"mike\" on freenode server (all channels) (requires WeeChat >= 0.3.4):\n"
+                                 "    /" + SCRIPT_COMMAND + " add irc.freenode.* no_highlight_nicks_add mike",
                                  "add %(buffers_plugins_names)|%(buffer_autoset_current_buffer) %(buffer_properties_set)"
                                  " || del %(buffer_autoset_options)",
                                  "bas_cmd", "")
