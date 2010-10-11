@@ -26,40 +26,45 @@
 # * allows for manual shortening of urls
 # * set config variable 'shortener' to one of:
 #
-#	Value		Service used
-#	-----		------------
-#	qurl	http://qurl.com/
-#	tinyurl	http://tinyurl.com/
-#	isgd	http://is.gd/
-#	trim	http://tr.im/
-#	bitly	http://bit.ly/
+# Value   Service used
+# -----   ------------
+# qurl  http://qurl.com/
+# tinyurl http://tinyurl.com/
+# isgd  http://is.gd/
+# trim  http://tr.im/
+# bitly http://bit.ly/
 #
 #   Note: attempting to use the bitly shortener without setting the
-#	  bitly_login and bitly_key config variables will fail.
+#   bitly_login and bitly_key config variables will fail.
 #
 #   Note: 'trim' and 'bitly' shorteners require the 'rubygems' and
-#	  'json' ruby modules.
+#   'json' ruby modules.
 #
+# 2010-10-11, Daniel
+#     version 1.7: google use comma in URL so make them acceptable too
+# 2010-08-05, Derek Carter <goozbach@friocorte.com>
+#     version 1.6: add support for yourls
 # 2009-12-12, FlashCode <flashcode@flashtux.org>
 #     version 1.5: fix wrong license in register()
 # 2009-11-29, penryu <penryu@gmail.com>
 #     version 1.4: fixed URI encoding bug, added shorteners
-#		   changed default shortener, as qurl is _slow_
+#      changed default shortener, as qurl is _slow_
 # 2009-11-29, penryu <penryu@gmail.com>
 #     version 1.3: add bit.ly shortener routine
-#		   add ability to choose shortener from config
+#      add ability to choose shortener from config
 # 2009-05-02, FlashCode <flashcode@flashtux.org>:
 #     version 1.2: sync with last API changes
 # 2008-11-11, FlashCode <flashcode@flashtux.org>:
 #     version 1.1: conversion to WeeChat 0.3.0+
 
 require 'net/http'
+require 'net/https'
 require 'uri'
 
 SCRIPT_NAME = 'url_shorten'
 SCRIPT_AUTHOR = 'Daniel Bretoi <daniel@bretoi.com>'
 SCRIPT_DESC = 'Shorten url'
-SCRIPT_VERSION = '1.5'
+SCRIPT_VERSION = '1.7'
 SCRIPT_LICENSE = 'BSD'
 
 DEFAULTS = {
@@ -68,6 +73,7 @@ DEFAULTS = {
   'shortener'   => 'tinyurl',
   'bitly_login' => '',
   'bitly_key'   => '',
+  'yourls_url' => '',
 }
 
 
@@ -93,16 +99,41 @@ def weechat_init
     end
   end
 
+  if Weechat.config_get_plugin("shortener").eql?('yourls')
+    # not quite ready for key based auth
+    # should be researched http://code.google.com/p/yourls/wiki/PasswordlessAPI
+    cfg_yourls_url   = Weechat.config_get_plugin("yourls_url")
+    if cfg_yourls_url.empty?
+      yellow = Weechat.color("yellow")
+      Weechat.print("", "#{yellow}WARNING: The yourls shortener requires a valid API.")
+      Weechat.print("", "#{yellow}WARNING: Please configure the `yourls_url' option before using this script.")
+    end
+  end
+
   return Weechat::WEECHAT_RC_OK
 end
 
 def fetch(uri_str, limit = 10)
   raise ArgumentError, 'HTTP redirect too deep' if limit == 0
   
-  response = Net::HTTP.get_response(URI.parse(uri_str))
+  req_url = URI.parse(uri_str)
+
+
+  http = Net::HTTP.new(req_url.host, req_url.port)
+  http.use_ssl = (req_url.port == 443)
+  http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+  http.open_timeout = 3 # in seconds
+  http.read_timeout = 3 # in seconds
+
+  response = Net::HTTP.get_response(req_url)
+
   case response
-  when Net::HTTPSuccess     then response.body
-  when Net::HTTPRedirection then fetch(response['location'], limit - 1)
+  when Net::HTTPSuccess
+    then 
+      response.body
+  when Net::HTTPRedirection
+    then 
+      fetch(response['location'], limit - 1)
   else
     response.error!
   end
@@ -141,6 +172,24 @@ def trim_shorten(url)
   end
 end
 
+def yourls_shorten(url)
+  # use yourls shortener
+  # need to provide url config option
+  require 'rubygems'
+  require 'json/pure'
+  params = ['action=shorturl']
+  params << 'format=simple'
+  params << 'url=' + URI.encode(url)
+  yourls_url = Weechat.config_get_plugin('yourls_url')
+  api_url = yourls_url + params.join('&')
+  begin
+    body_txt = fetch(api_url)
+  rescue Exception => ex
+    return "Failure yourls shortening url: " + ex.to_s
+  end
+  body_txt
+end
+
 def bitly_shorten(url)
   require 'rubygems'
   require 'json'
@@ -173,12 +222,12 @@ def shortener(url)
   begin
     send("#{service}_shorten", url)
   rescue NoMethodError => e
-    "Shortening service #{service} not supported."
+    "Shortening service #{service} not supported... #{e}"
   end
 end
 
 def regexp_url
-  @regexp_url ||= Regexp.new('https?://[^\s,>]*')
+  @regexp_url ||= Regexp.new('https?://[^\s>]*')
   @regexp_url
 end
 
