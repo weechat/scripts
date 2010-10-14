@@ -66,6 +66,9 @@
 #
 #
 #   History:
+#   2010-10-14
+#   version 0.6.8: by xt <xt@bash.no>
+#   * supress highlights when printing in grep buffer
 #   2010-10-06
 #   version 0.6.7: by xt <xt@bash.no> 
 #   * better temporary file:
@@ -171,7 +174,7 @@ except ImportError:
 
 SCRIPT_NAME    = "grep"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.6.7"
+SCRIPT_VERSION = "0.6.8"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Search in buffers and logs"
 SCRIPT_COMMAND = "grep"
@@ -419,7 +422,7 @@ def error(s, prefix=None, buffer='', trace=''):
 def say(s, prefix=None, buffer=''):
     """normal msg"""
     prefix = prefix or script_nick
-    weechat.prnt(buffer, '%s\t%s' %(prefix, s))
+    weechat.prnt_date_tags(buffer, 0, 'no_highlight', '%s\t%s' %(prefix, s))
 
 ### Log files and buffers ###
 cache_dir = {} # note: don't remove, needed for completion if the script was loaded recently
@@ -1082,7 +1085,7 @@ def buffer_update():
                                 error("Found garbage in log '%s', maybe it's corrupted" %log,
                                         trace=repr(line))
                                 line = line.replace('\x00', '')
-                            prnt(buffer, format_line(line))
+                            weechat.prnt_date_tags(buffer, 0, 'no_highlight', format_line(line))
 
                 # summary
                 if count or get_config_boolean('show_summary'):
