@@ -21,6 +21,7 @@
 #
 # Script inspirated and tested by LaoLang_cool
 #
+# v0.6	: new option "use_title" to print hotlist in screen title.
 # v0.5	: lot of internal changes
 # v0.4	: highlight_char can be set as often as you want
 #	: merged buffer will be displayed once
@@ -67,8 +68,10 @@ my $highlight_char		= "*";
 my $lowest_priority		= 0;
 my $priority_remove		= 0;
 my $delimiter			= ",";
+my $use_title			= "on";
+
 my $prgname	= "hotlist2extern";
-my $version	= "0.5";
+my $version	= "0.6";
 my $description	= "Give hotlist to an external file/program";
 my $current_buffer = "";
 
@@ -111,7 +114,11 @@ $table		= "";
 	    $table = @table;
 	    if ($table eq 0){
 	      unless ($external_command_hotlist_empty eq ""){				# does we have a command for empty string?
-		system($external_command_hotlist_empty);
+		if ($use_title eq "on"){
+		  weechat::window_set_title($external_command_hotlist_empty);
+		}else{
+		  system($external_command_hotlist_empty);
+		}
 	      }
 	    }
   return weechat::WEECHAT_RC_OK;
@@ -157,7 +164,13 @@ sub create_output{
 	      my $export = join("$delimiter", sort_routine(@table));
 	      if (grep (/\%X/,$external_command_hotlist)){				# check for %X option.
 		$res2 =~ s/%X/$export/;
+
+		if ($use_title eq "on"){
+		  weechat::window_set_title($res2);
+		}else{
 	    	system($res2);
+		}
+
 	      }
 	    }
 }
@@ -220,6 +233,12 @@ sub init{
   }else{
     $delimiter = weechat::config_get_plugin("delimiter");
   }
+  if (!weechat::config_is_set_plugin("use_title")){
+    weechat::config_set_plugin("use_title", $use_title);
+  }else{
+    $use_title = weechat::config_get_plugin("use_title");
+  }
+
 }
 
 sub toggle_config_by_set{
@@ -255,6 +274,10 @@ my ( $pointer, $name, $value ) = @_;
   }
   if ($name eq "plugins.var.perl.$prgname.delimiter"){
     $delimiter = $value;
+    return weechat::WEECHAT_RC_OK;
+  }
+  if ($name eq "plugins.var.perl.$prgname.use_title"){
+    $use_title = $value;
     return weechat::WEECHAT_RC_OK;
   }
 }
