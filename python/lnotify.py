@@ -6,7 +6,7 @@
 
 import weechat, string, subprocess
 
-weechat.register("lnotify", "kevr", "0.1.0", "GPL3", "lnotify - A libnotify script for weechat", "", "")
+weechat.register("lnotify", "kevr", "0.1.1", "GPL3", "lnotify - A libnotify script for weechat", "", "")
 
 # Set up here, go no further!
 settings = {
@@ -31,13 +31,13 @@ def get_notified(data, bufferp, uber_empty, tagsn, isdisplayed,
         buffer = (weechat.buffer_get_string(bufferp, "short_name") or
                 weechat.buffer_get_string(bufferp, "name"))
         if buffer == prefix:
-           subprocess.call(["/usr/bin/notify-send \"In Private Message\" \"" + prefix + ": " + message + "\"",""],shell=True)
+           subprocess.call(['/usr/bin/notify-send', 'In Private Message %s: %s' % (prefix, message)],shell=False)
 
     elif (ishilight == "1" and 
             weechat.config_get_plugin('show_highlight') == "on"):
         buffer = (weechat.buffer_get_string(bufferp, "short_name") or
                 weechat.buffer_get_string(bufferp, "name"))
-        subprocess.call(["/usr/bin/notify-send \"In " + buffer + "\" \"" + prefix + ": " + message + "\"",""],shell=True)
+        subprocess.call(['/usr/bin/notify-send', 'In %s %s: %s' % (buffer, prefix, message)],shell=False)
 
     return weechat.WEECHAT_RC_OK
 
