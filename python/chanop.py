@@ -17,7 +17,7 @@
 ###
 
 ###
-#   Helper script for IRC operators
+#   Helper script for IRC Channel Operators
 #
 #   Inspired by auto_bleh.pl (irssi) and chanserv.py (xchat) scripts.
 #
@@ -96,7 +96,7 @@
 #     /oban, /obankick or /oquiet
 #     You can use several keywords for build a banmask, each keyword defines how
 #     the banmask will be generated for a given hostmask, see /help oban.
-#     Valid keywords are: nick, user, host, exact and webchat
+#     Valid keywords are: nick, user, host and exact.
 #     Default: 'host'
 #
 #     Examples:
@@ -182,17 +182,23 @@
 #   * ban expire time
 #   * save ban.mask and ban.hostmask across reloads
 #   * allow to override quiet command (for quiet with ChanServ)
-#   * rewrite the queue message stuff
 #   * multiple-channel ban (?)
 #   * freenode:
 #    - support for bans with channel forward
 #    - support for extbans (?)
-#   * Refactor /oop /odeop /ovoice /odevoice commands, should use MODE.
-#   * Update banmask cache with regular /ban command
 #   * Sort completions by user activity
 #
 #
 #   History:
+#   2010-10-28
+#   version 0.2.1: refactoring mostly
+#   * deop_command option removed
+#   * removed --webchat switch, freenode's updates made it superfluous.
+#   * if WeeChat doesn't know a hostmask, use /userhost or /who if needed.
+#   * /oban and /oquiet without arguments show ban/quiet list.
+#   * most commands allows '-o' option, that forces immediate deop (without configured delay).
+#   * updated for WeeChat 0.3.4 (irc_nick infolist changes)
+#
 #   2010-09-20
 #   version 0.2: major update
 #   * fixed quiets for ircd-seven (freenode)
@@ -230,19 +236,18 @@
 
 SCRIPT_NAME    = "chanop"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.2.1"
 SCRIPT_LICENSE = "GPL3"
-SCRIPT_DESC    = "Helper script for IRC operators"
+SCRIPT_DESC    = "Helper script for IRC Channel Operators"
 
 ### default settings ###
 settings = {
 'op_command'            :'/msg chanserv op $channel $nick',
-'deop_command'          :'/deop',
 'autodeop'              :'on',
 'autodeop_delay'        :'180',
 'default_banmask'       :'host',
 'enable_remove'         :'off',
-'kick_reason'           :'kthxbye!',
+'kick_reason'           :'KTHXBYE',
 'enable_multi_kick'     :'off',
 'display_affected'      :'on',
 }
@@ -259,7 +264,6 @@ except ImportError:
 
 import getopt, re
 from time import time
-now = lambda : int(time())
 
 ################
 ### Messages ###
@@ -284,6 +288,7 @@ def debug(s, *args):
     if args:
         s = s %args
     prnt('', '%s\t%s' %(script_nick, s))
+
 
 ##############
 ### Config ###
@@ -317,7 +322,7 @@ def get_config_int(config, get_function=None):
         error("'%s' is not a number." %value)
         return int(default)
 
-valid_banmask = set(('nick', 'user', 'host', 'exact', 'webchat'))
+valid_banmask = set(('nick', 'user', 'host', 'exact'))
 def get_config_banmask(config='default_banmask', get_function=None):
     if get_function and callable(get_function):
         value = get_function(config)
@@ -357,6 +362,8 @@ def get_config_specific(config, server='', channel=''):
 #############
 ### Utils ###
 
+now = lambda: int(time())
+
 def time_elapsed(elapsed, ret=None, level=2):
     time_hour = 3600
     time_day  = 86400
@@ -394,45 +401,31 @@ def time_elapsed(elapsed, ret=None, level=2):
 #################
 ### IRC utils ###
 
-# XXX a regexp would be better?
+_hostmaskRe = re.compile(r':?\S+!\S+@\S+') # poor but good enough
 def is_hostmask(s):
-    """Returns whether or not the string s is a valid User hostmask."""
-    n = s.find('!')
-    m = s.find('@')
-    if n < m-1 and n >= 1 and m >= 3 and len(s) > m+1:
-        return True
-    else:
-        return False
+    """Returns whether or not the string s starts with something like a hostmask."""
+    return _hostmaskRe.match(s) is not None
 
 def is_ip(s):
     """Returns whether or not a given string is an IPV4 address."""
-    if s.count('.') != 3:
-        return False
     import socket
     try:
         return bool(socket.inet_aton(s))
     except socket.error:
         return False
 
-# XXX I hate this, find a simpler way.
 _valid_label = re.compile(r'^[a-z\d\-]+$', re.I)
 def is_hostname(s):
-    """
-    Checks if 's' is a valid hostname."""
-    # I did like a simpler method, I don't think I need to be this strict
-    if not s or len(s) > 255:
+    """Checks if 's' is a valid hostname."""
+    if not s:
         return False
-    if s[-1] == '.': # strip tailing dot
-        s = s[:-1]
     for label in s.split('.'):
-        if not label or len(label) > 63 \
-                or label[0] == '-' or label[-1] == '-' \
-                or not _valid_label.search(label):
+        if not label or not _valid_label.match(label):
             return False
     return True
 
 def hostmask_pattern_match(pattern, strings):
-    if is_hostmask(pattern):
+    if is_hostmask(pattern): # is this good at all? XXX
         return pattern_match(pattern, strings)
     return []
 
@@ -443,13 +436,20 @@ def pattern_match(pattern, strings):
     if pattern in _regexp_cache:
         regexp = _regexp_cache[pattern]
     else:
-        # XXX doesn't account IRC case insensitive-ness
         s = '^'
         for c in pattern:
             if c == '*':
                 s += '.*'
             elif c == '?':
                 s += '.'
+            elif c in '[{':
+                s += r'[\[{]'
+            elif c in ']}':
+                s += r'[\]}]'
+            elif c in '|\\':
+                s += r'[|\\]'
+            elif c in '^~':
+                s += '[~^]'
             else:
                 s += re.escape(c)
         s += '$'
@@ -458,49 +458,32 @@ def pattern_match(pattern, strings):
 
     if isinstance(strings, str):
         strings = [strings]
-    return [ s for s in strings if regexp.search(s) ]
+    # FIXME don't always return a list
+    return [ s for s in strings if s and regexp.match(s) ]
 
 def get_nick(s):
-    """
-    'nick!user@host' => 'nick'
-    ':nick!user@host' => 'nick'"""
-    n = s.find('!')
-    if n < 1:
-        raise ValueError, "Invalid usermask: %s" %s
-    if s[0] == ':':
-        return s[1:n]
-    return s[:n]
+    """':nick!user@host' => 'nick'"""
+    #assert is_hostmask(s) # not all are valid hostmasks, like server.freenode.net
+    return weechat.info_get('irc_nick_from_host', s)
 
 def get_user(s, trim=False):
-    """
-    'nick!user@host' => 'user'"""
-    n = s.find('!')
-    m = s.find('@')
-    if n > 0 and m > 2 and m > n:
-        s = s[n+1:m]
-        if trim:
-            # remove the stuff not part of the username.
-            if s[0] == '~':
-                return s[1:]
-            elif s[:2] in ('i=', 'n='):
-                return s[2:]
-            else:
-                return s
-        else:
-            return s
-    raise ValueError, "Invalid usermask: %s" %s
+    """'nick!user@host' => 'user'"""
+    assert is_hostmask(s)
+    s = s[s.find('!') + 1:s.find('@')]
+    if trim:
+        # remove the stuff not part of the username.
+        if s[0] == '~':
+            return s[1:]
+        elif s[:2] in ('i=', 'n='):
+            return s[2:]
+    return s
 
 def get_host(s):
-    """
-    'nick!user@host' => 'host'"""
-    n = s.find('@')
-    if n < 3:
-        # not a valid hostmask
-        raise ValueError, "Invalid usermask: %s" %s
-    m = s.find(' ')
-    if m > 0 and m > n:
-        return s[n+1:m]
-    return s[n+1:]
+    """'nick!user@host' => 'host'"""
+    assert is_hostmask(s)
+    if ' ' in s:
+        return s[s.find('@') + 1:s.find(' ')]
+    return s[s.find('@') + 1:]
 
 def is_channel(s):
     return weechat.info_get('irc_is_channel', s)
@@ -515,10 +498,7 @@ def _is_nick(s):
     return bool(_nickRe.match(s))
 
 def hex_to_ip(s):
-    """
-    '7f000001' => '127.0.0.1'"""
-    if not len(s) == 8:
-        return ''
+    """'7f000001' => '127.0.0.1'"""
     try:
         ip = map(lambda n: s[n:n+2], range(0, len(s), 2))
         ip = map(lambda n: int(n, 16), ip)
@@ -528,16 +508,36 @@ def hex_to_ip(s):
 
 def irc_buffer(buffer):
     """Returns pair (server, channel) or None if buffer isn't an irc channel"""
-    buffer_get_string = weechat.buffer_get_string
-    if buffer_get_string(buffer, 'plugin') == 'irc' \
-            and buffer_get_string(buffer, 'localvar_type') == 'channel':
-        channel = buffer_get_string(buffer, 'localvar_channel')
-        server = buffer_get_string(buffer, 'localvar_server')
+    get_string = weechat.buffer_get_string
+    if get_string(buffer, 'plugin') == 'irc' \
+            and get_string(buffer, 'localvar_type') == 'channel':
+        channel = get_string(buffer, 'localvar_channel')
+        server = get_string(buffer, 'localvar_server')
         return (server, channel)
 
 
 #######################
 ### WeeChat classes ###
+
+def callback(method):
+    """This function will take a bound method or function and make it a callback."""
+    # try to create a descriptive and unique name.
+    func = method.func_name
+    try:
+        im_self = method.im_self
+        try:
+            inst = im_self.__name__
+        except AttributeError:
+            inst = im_self.__class__.__name__
+        name = '%s_%s' %(inst, func)
+    except AttributeError:
+        # not a bound method
+        name = func
+    # set our callback
+    import __main__
+    setattr(__main__, name, method)
+    #debug('callback: %s', name)
+    return name
 
 class Infolist(object):
     """Class for reading WeeChat's infolists."""
@@ -548,11 +548,15 @@ class Infolist(object):
             'value'       :'string',
             'host'        :'string',
             'flags'       :'integer',
+            'prefixes'    :'string',
             'is_connected':'integer',
             }
 
+    _use_flags = False
+
     def __init__(self, name, args=''):
         self.cursor = 0
+        #debug('Generating infolist %r %r', name, args)
         self.pointer = weechat.infolist_get(name, '', args)
         if self.pointer == '':
             raise Exception("Infolist initialising failed (name:'%s' args:'%s')" %(name, args))
@@ -570,8 +574,20 @@ class Infolist(object):
 
     def __getitem__(self, name):
         """Implement the evaluation of self[name]."""
-        type = self.fields[name]
-        return getattr(weechat, 'infolist_%s' %type)(self.pointer, name)
+        if self._use_flags and name == 'prefixes':
+            name = 'flags'
+        value = getattr(weechat, 'infolist_%s' %self.fields[name])(self.pointer, name)
+        if self._use_flags and name == 'flags':
+            value = self._flagsAsString(value)
+        return value
+
+    def _flagsAsString(self, n):
+        s = ''
+        if n & 32:
+            s += '+'
+        if n & 8:
+            s += '@'
+        return s
 
     def next(self):
         self.cursor = weechat.infolist_next(self.pointer)
@@ -594,166 +610,320 @@ class Infolist(object):
             self.pointer = ''
 
 
+def nick_infolist(server, channel):
+    return Infolist('irc_nick', '%s,%s' %(server, channel))
+
+
+class NoArguments(Exception):
+    pass
+
+class ArgumentError(Exception):
+    pass
+
+
 class Command(object):
     """Class for hook WeeChat commands."""
     description, usage, help = "WeeChat command.", "[define usage template]", "detailed help here"
-
     command = ''
     completion = ''
-    callback = ''
-    def __init__(self, command='', callback='', completion=''):
-        if command:
-            self.command = command
-        if callback:
-            self.callback = callback
-        elif not self.callback:
-            self.callback = 'chanop_%s' %self.command
-        if completion:
-            self.completion = completion
-        self.pointer = ''
+
+    def __init__(self):
+        assert self.command, "No command defined"
+        self.__name__ = self.command
+        self._pointer = ''   
+        self._callback = ''   
 
     def __call__(self, *args):
+        return self.callback(*args)
+
+    def callback(self, data, buffer, args):
         """Called by WeeChat when /command is used."""
-        self.parse_args(*args)
-        self.execute()
+        self.data, self.buffer, self.args = data, buffer, args
+        try:
+            self.parser(args)  # argument parsing
+        except ArgumentError, e:
+            error('Argument error, %s' %e)
+        except NoArguments:
+            pass
+        else:
+            self.execute()
         return WEECHAT_RC_OK
 
-    def parse_args(self, data, buffer, args):
-        """Do argument parsing here."""
-        self.buffer = buffer
-        self.args = args
+    def parser(self, args):
+        """Argument parsing, override if needed."""
+        pass
 
     def execute(self):
         """This method is called when the command is run, override this."""
         pass
 
     def hook(self):
-        import __main__
-        assert self.command and self.callback, "command: '%s' callback: '%s'" %(self.command,
-                self.callback)
-        assert not self.pointer, "There's already a hook pointer, unhook first (%s)" %self.command
-        assert not hasattr(__main__, self.callback), "Callback already in __main__ (%s)" %self.callback
-        self.pointer = weechat.hook_command(self.command, self.description, self.usage, self.help,
-                self.completion, self.callback, '')
-        if self.pointer == '':
-            raise Exception, "hook_command failed"
-        # add self to the global namespace
-        setattr(__main__, self.callback, self)
+        assert not self._pointer, \
+                "There's already a hook pointer, unhook first (%s)" %self.command
+        self._callback = callback(self.callback)
+        pointer = weechat.hook_command(self.command,
+                                       self.description,
+                                       self.usage,
+                                       self.help,
+                                       self.completion,
+                                       self._callback, '')
+        if pointer == '':
+            raise Exception, "hook_command failed: %s %s" %(SCRIPT_NAME, self.command)
+        self._pointer = pointer
 
     def unhook(self):
-        import __main__
-        delattr(__main__, self.callback)
-        if self.pointer:
-            weechat.unhook(self.pointer)
-            self.pointer = ''
+        if self._pointer:
+            weechat.unhook(self._pointer)
+            self._pointer = ''
+            self._callback = ''
+
+
+############################
+### Per buffer variables ###
+
+class EnviromentVars(dict):
+    def __init__(self, buffer):
+        self.buffer = buffer
+        self.irc = IrcCommands(buffer)
+        self.autodeop = True
+        self.deopHook = self.opHook = self.opTimeout = None
+        self.server = weechat.buffer_get_string(buffer, 'localvar_server')
+        self.channel = weechat.buffer_get_string(buffer, 'localvar_channel')
+        self.nick = weechat.info_get('irc_nick', self.server)
+
+    def __getattr__(self, k):
+        return self[k]
+
+    def __setattr__(self, k, v):
+        self[k] = v
+
+
+class ConfigOptions(object):
+    buffer = ''
+    _env = {}
+    def __getattr__(self, k):
+        return self._env[self.buffer][k]
+
+    def setup(self, buffer):
+        self.buffer = buffer
+        if buffer not in self._env:
+            self._env[buffer] = EnviromentVars(buffer)
+
+    @property
+    def env(self):
+        return self._env[self.buffer]
+
+    def envOf(self, buffer):
+        return self._env[buffer]
+
+    def replace_vars(self, s):
+        try:
+            return weechat.buffer_string_replace_local_var(self.buffer, s)
+        except AttributeError:
+            if '$channel' in s:
+                s = s.replace('$channel', self.channel)
+            if '$nick' in s:
+                s = s.replace('$nick', self.nick)
+            if '$server' in s:
+                s = s.replace('$server', self.server)
+            return s
+
+    def get_config(self, config):
+        #debug('config: %s' %config)
+        return get_config_specific(config, self.server, self.channel)
+
+    def get_config_boolean(self, config):
+        return get_config_boolean(config, self.get_config)
+
+    def get_config_int(self, config):
+        return get_config_int(config, self.get_config)
 
 
 ##########################
 ### IRC messages queue ###
 
-# TODO I need to refactor all this, WeeChat sends messages every one or two
-# seconds, so all this code for queueing and timing commands is utterly useless.
+class Message(ConfigOptions):
+    command = None
+    args = ()
+    wait = 0
+    def __init__(self, cmd=None, args=(), wait=0):
+        if cmd:  self.command = cmd
+        if args: self.args = args
+        if wait: self.wait = wait
 
-class Message(object):
-    """Class that stores the command for scheduling in CommandQueue."""
-    def __init__(self, cmd, buffer='', wait=0):
-        assert cmd
-        self.command = cmd
-        self.wait = wait
+    def payload(self):
+        cmd = self.command
+        if cmd[0] != '/':
+            cmd = '/' + cmd
+        if self.args:
+            cmd += ' ' + ' '.join(self.args)
+        if self.wait:
+            cmd = '/wait %s ' %self.wait + cmd
+        return cmd
+
+    def register(self, buffer):
         self.buffer = buffer
 
     def __call__(self):
-        #debug('Message: wait %s' %self.wait)
-        if self.wait:
-            if isinstance(self.wait, float):
-               command = '/wait %sms %s' %(int(self.wait*1000), self.command)
-            else:
-               command = '/wait %s %s' %(self.wait, self.command)
-        else:
-            command = self.command
+        cmd = self.payload()
+        self.send(cmd)
+
+    def send(self, cmd):
         if weechat.config_get_plugin('debug'):
-            debug('sending: %r', command)
-            # don't run commands
-            #return True
-        weechat.command(self.buffer, command)
-        return True
+            debug('sending: %r', cmd)
+        weechat.command(self.buffer, cmd)
+
+    def __repr__(self):
+        return '<Message(%s, %s)>' %(self.command, self.args)
 
 
-class CommandQueue(object):
+class IrcCommands(ConfigOptions):
     """Class that manages and sends the script's commands to WeeChat."""
-    commands = []
-    wait = 0
 
-    class Normal(Message):
-        """Normal message"""
-        def __str__(self):
-            return "<Normal %s >" \
-                    %', '.join((self.command, self.buffer, str(self.wait)))
+    # Special message classes
+    class OpMessage(Message):
+        def send(self, cmd):
+            if self.irc.checkOp():
+                # nothing to do
+                return
 
-    class WaitForOp(Message):
-        """This message interrupts the command queue until user is op'ed."""
-        def __init__(self, cmd, server='*', channel='', nick='', **kwargs):
-            Message.__init__(self, cmd, **kwargs)
-            self.server = server
-            self.channel = channel
-            self.nick = nick
+            self.irc.interrupt = True
+            Message.send(self, cmd)
 
-        def __call__(self):
-            """Interrupt queue and wait until our user gets op."""
-            global hook_timeout, hook_signal
-            if hook_timeout:
-                weechat.unhook(hook_timeout)
-            if hook_signal:
-                weechat.unhook(hook_signal)
+            def modeOpCallback(data, signal, signal_data):
+                signal = signal_data.split(None, 1)[1]
+                if signal == data:
+                    #debug('We got op')
+                    # add this channel to our watchlist
+                    config = 'watchlist.%s' %self.server
+                    channels = CaseInsensibleSet(get_config_list(config))
+                    if self.channel not in channels:
+                        channels.add(self.channel)
+                        value = ','.join(channels)
+                        weechat.config_set_plugin(config, value)
+                    weechat.unhook(self.opHook)
+                    weechat.unhook(self.opTimeout)
+                    self.env.opTimeout = self.env.opHook = None
+                    self.irc.interrupt = False
+                    self.irc.run()
+                return WEECHAT_RC_OK
+
+            def timeoutCallback(channel, count):
+                error("Couldn't get op in '%s', purging command queue..." %channel)
+                weechat.unhook(self.opHook)
+                if self.deopHook:
+                    weechat.unhook(self.deopHook)
+                    self.env.deopHook = None
+                self.env.opTimeout = self.env.opHook = None
+                self.irc.interrupt = False
+                self.irc.clear()
+                return WEECHAT_RC_OK
+
+            # wait for a while before timing out.
+            data = '%s.%s' %(self.server, self.channel)
+            self.env.opTimeout = weechat.hook_timer(30*1000, 0, 1, callback(timeoutCallback), data)
 
             data = 'MODE %s +o %s' %(self.channel, self.nick)
-            hook_signal = weechat.hook_signal('%s,irc_in2_MODE' %self.server,
-                    'queue_continue_cb', data)
+            self.env.opHook = weechat.hook_signal('%s,irc_in2_MODE' %self.server,
+                    callback(modeOpCallback), data)
 
-            data = '%s.%s' %(self.server, self.channel)
-            # wait for a minute before timing out.
-            hook_timeout = weechat.hook_timer(60*1000, 0, 1, 'queue_timeout_cb', data)
 
-            Message.__call__(self)
-            #if weechat.config_get_plugin('debug'):
-            #    return True
-            return False # returning false interrupts the queue execution
+    class ModeMessage(Message):
+        command = 'mode'
+        def __init__(self, char=None, args=None, **kwargs):
+            self.chars = [ char ]
+            self.charargs = [ args ]
+            self.args = (char, args)
+            Message.__init__(self, **kwargs)
 
-        def __str__(self):
-            return "<WaitForOp %s >" \
-                    %', '.join((self.command, self.buffer, self.server, self.channel, self.nick,
-                        str(self.wait)))
+        def payload(self):
+            args = []
+            modeChar = []
+            prefix = ''
+            for m, a in zip(self.chars, self.charargs):
+                if a:
+                    if callable(a):
+                        a = a()
+                    args.append(a)
+                if m[0] != prefix:
+                    prefix = m[0]
+                    modeChar.append(prefix)
+                modeChar.append(m[1])
+            args.insert(0, ''.join(modeChar))
+            self.args = args
+            return Message.payload(self)
 
-    class AddChannel(Message):
-        """This message only adds a channel into chanop channel list."""
-        def __init__(self, cmd, server='', channel='', **kwargs):
-            self.server = server
-            self.channel = channel
 
-        def __call__(self):
-            if not self.channel or not weechat.info_get('irc_is_channel', self.channel):
-                return True
-            #debug('adding %s to the watchlist' %self.channel)
-            config = 'watchlist.%s' %self.server
-            channels = CaseInsensibleSet(get_config_list(config))
-            if self.channel not in channels:
-                channels.add(self.channel)
-                value = ','.join(channels)
-                weechat.config_set_plugin(config, value)
-            return True
+    class DeopMessage(ModeMessage):
+        def send(self, cmd):
+            if self.irc.checkOp():
+                Message.send(self, cmd)
 
-    def queue(self, cmd, type='Normal', wait=1, **kwargs):
-        #debug('queue: wait %s self.wait %s' %(wait, self.wait))
-        pack = getattr(self, type)(cmd, wait=self.wait, **kwargs)
-        self.wait += wait
-        #debug('queue: wait %s %s' %(self.wait, pack))
-        self.commands.append(pack)
+    # IrcCommands methods
+    def __init__(self, buffer):
+        self.interrupt = False
+        self.commands = []
+        self.buffer = buffer
+
+    def checkOp(self):
+        infolist = nick_infolist(self.server, self.channel)
+        while infolist.next():
+            if infolist['name'] == self.nick:
+                return '@' in infolist['prefixes']
+        return False
+
+    def Op(self):
+        if self.opHook and self.opTimeout:
+            # already send command, wait for timeout
+            return
+
+        value = self.replace_vars(self.get_config('op_command'))
+        if not value:
+            raise Exception, "No command defined for get op."
+        msg = self.OpMessage(value)
+        self.queue(msg)
+
+    def Deop(self):
+        msg = self.DeopMessage('-o', self.nick)
+        self.queue(msg)
+
+    def Mode(self, mode, args=None, wait=0):
+        msg = self.ModeMessage(mode, args, wait=wait)
+        self.queue(msg)
+
+    def Kick(self, nick, reason=None, wait=0):
+        if not reason:
+            reason = self.get_config('kick_reason')
+        if self.get_config_boolean('enable_remove'):
+            cmd = '/quote remove %s %s :%s' %(self.channel, nick, reason)
+            msg = Message(cmd, wait=wait)
+        else:
+            msg = Message('kick', (nick, reason), wait=wait)
+        self.queue(msg)
+
+    def Voice(self, nick):
+        self.Mode('+v', nick)
+
+    def Devoice(self, nick):
+        self.Mode('-v', nick)
+
+    def queue(self, message):
+        #debug('queuing: %s', message)
+        # merge /modes
+        if self.commands and message.command == 'mode':
+            max_modes = supported_maxmodes(self.server)
+            msg = self.commands[-1]
+            if msg.command == 'mode' and len(msg.chars) < max_modes:
+                msg.chars.append(message.chars[0])
+                msg.charargs.append(message.charargs[0])
+                return
+        self.commands.append(message)
 
     # it happened once and it wasn't pretty
     def safe_check(f):
         def abort_if_too_many_commands(self):
-            if len(self.commands) > 20:
-                error("Limit of 20 commands in queue reached, aborting.")
+            if len(self.commands) > 10:
+                error("Limit of 10 commands in queue reached, aborting.")
                 self.clear()
             else:
                 f(self)
@@ -761,41 +931,16 @@ class CommandQueue(object):
 
     @safe_check
     def run(self):
-        while self.commands:
-            pack = self.commands.pop(0)
-            #debug('running: %s' %pack)
-            rt = pack()
-            assert rt in (True, False), '%s must return either True or False' %pack
-            if not rt:
-                return
-        self.wait = 0
+        while self.commands and not self.interrupt:
+            msg = self.commands.pop(0)
+            msg.register(self.buffer)
+            msg()
+            if self.interrupt:
+                #debug("Interrupting queue")
+                break
 
     def clear(self):
         self.commands = []
-        self.wait = 0
-
-weechat_queue = CommandQueue()
-hook_signal = hook_timeout = None
-
-def queue_continue_cb(data, signal, signal_data):
-    global hook_timeout, hook_signal
-    signal = signal_data.split(' ', 1)[1].strip()
-    if signal == data:
-        # we got op'ed
-        #debug("We got op")
-        weechat.unhook(hook_signal)
-        weechat.unhook(hook_timeout)
-        hook_signal = hook_timeout = None
-        weechat_queue.run()
-    return WEECHAT_RC_OK
-
-def queue_timeout_cb(channel, count):
-    global hook_timeout, hook_signal
-    error("Couldn't get op in '%s', purging command queue..." %channel)
-    weechat.unhook(hook_signal)
-    hook_signal = hook_timeout = None
-    weechat_queue.clear()
-    return WEECHAT_RC_OK
 
 
 #########################
@@ -804,18 +949,12 @@ def queue_timeout_cb(channel, count):
 class CaseInsensibleString(str):
     def __init__(self, s=''):
         self.lowered = s.lower()
+    
+    lower    = lambda self: self.lowered
+    __eq__   = lambda self, s: self.lowered == s.lower()
+    __ne__   = lambda self, s: not self == s
+    __hash__ = lambda self: hash(self.lowered)
 
-    def __eq__(self, s):
-        try:
-            return self.lowered == s.lower()
-        except:
-            return False
-
-    def __ne__(self, s):
-        return not self == s
-
-    def __hash__(self):
-        return hash(self.lowered)
 
 def caseInsensibleKey(k):
     if isinstance(k, str):
@@ -827,6 +966,10 @@ def caseInsensibleKey(k):
 
 class CaseInsensibleDict(dict):
     key = staticmethod(caseInsensibleKey)
+
+    def __init__(self, **kwargs):
+        for k, v in kwargs.iteritems():
+            self[k] = v
 
     def __setitem__(self, k, v):
         dict.__setitem__(self, self.key(k), v)
@@ -886,12 +1029,12 @@ chanopChannels = ChannelWatchlistSet()
 
 
 class ServerChannelDict(CaseInsensibleDict):
-    def getKeys(self, server, item=None):
-        """Return a list of keys that match server and has item if given"""
+    def getChannels(self, server, item=None):
+        """Return a list of channels that match server and has item if given"""
         if item:
-            return [ key for key in self if key[0] == server and item in self[key] ]
+            return [ chan for serv, chan in self if serv == server and item in self[serv, chan] ]
         else:
-            return [ key for key in self if key[0] == server ]
+            return [ chan for serv, chan in self if serv == server ]
 
     def purge(self):
         for key in self.keys():
@@ -903,8 +1046,8 @@ class ServerChannelDict(CaseInsensibleDict):
 
 # Masks
 class MaskObject(object):
-    __slots__ = ('mask', 'hostmask', 'operator', 'date', 'expires')
-    def __init__(self, mask, hostmask=None, operator=None, date=None, expires=None):
+    __slots__ = ('mask', 'hostmask', 'operator', 'date')#, 'expires')
+    def __init__(self, mask, hostmask=None, operator=None, date=None):#, expires=None):
         self.mask = mask
         self.hostmask = hostmask
         self.operator = operator
@@ -913,36 +1056,52 @@ class MaskObject(object):
         else:
             date = now()
         self.date = date
-        self.expires = expires
+#        self.expires = expires
 
     def __repr__(self):
-        return "<MaskObject %s %s >" %(self.mask, self.date)
+        return "<MaskObject(%s)>" %self.mask
 
 
 class MaskList(CaseInsensibleDict):
-    def __init__(self):
-        self.fetch_time = 0
-        self.synced = False
+    def __init__(self, server, channel):
+        self.server = CaseInsensibleString(server)
+        self.channel = CaseInsensibleString(channel)
+        self.synced = 0
 
-    def __setitem__(self, mask, d):
+    def add(self, mask, **kwargs):
         if mask in self:
             # mask exists, update it
             ban = self[mask]
-            for attr, value in d.iteritems():
+            for attr, value in kwargs.iteritems():
                 if value:
                     setattr(ban, attr, value)
         else:
-            CaseInsensibleDict.__setitem__(self, mask, MaskObject(mask, **d))
+            self[mask] = MaskObject(mask, **kwargs)
 
     def searchByHostmask(self, hostmask):
-        L = []
-        for mask in self:
-            if hostmask_pattern_match(mask, hostmask):
-                L.append(mask)
-        return L
+        return [ mask for mask in self if hostmask_pattern_match(mask, hostmask) ]
 
     def searchByPattern(self, pattern):
         return pattern_match(pattern, self.iterkeys())
+
+    def searchByNick(self, nick):
+        try:
+            hostmask = userCache.getHostmask(nick, self.server, self.channel)
+            if callable(hostmask):
+                # can't wait for /userhost
+                return []
+            return self.searchByHostmask(hostmask)
+        except KeyError:
+            return []
+
+    def search(self, s):
+        if is_nick(s):
+            masks = self.searchByNick(s)
+        elif is_hostmask(s):
+            masks = self.searchByHostmask(s)
+        else:
+            masks = self.searchByPattern(s)
+        return masks
 
     def purge(self):
         pass
@@ -950,10 +1109,6 @@ class MaskList(CaseInsensibleDict):
 
 class MaskCache(ServerChannelDict):
     """Keeps a list of our bans for quick look up."""
-    # DONT reassign these lists, should be shared across MaskCache instances
-    hook_queue = []
-    hook_fetch = []
-
     def __init__(self, mode='b'):
         self.mode = mode
 
@@ -961,8 +1116,8 @@ class MaskCache(ServerChannelDict):
         """Adds a ban to (server, channel) banlist."""
         key = (server, channel)
         if key not in self:
-            self[key] = MaskList()
-        self[key][mask] = kwargs
+            self[key] = MaskList(*key)
+        self[key].add(mask, **kwargs)
 
     def remove(self, server, channel, mask=None):#, hostmask=None):
         key = (server, channel)
@@ -975,213 +1130,393 @@ class MaskCache(ServerChannelDict):
         except KeyError:
             pass
 
-    def searchByHostmask(self, hostmask, server, channel):
-        if hostmask:
-            try:
-                return self[server, channel].searchByHostmask(hostmask)
-            except KeyError:
-                pass
-        return []
 
-    def searchByPattern(self, pattern, server, channel):
-        if pattern:
-            try:
-                return self[server, channel].searchByPattern(pattern)
-            except KeyError:
-                pass
-        return []
+class MaskHandler(ServerChannelDict):
+    _hook_mask = ''
+    _hook_end = ''
+    _hide_msg = False
 
-    def searchByNick(self, nick, server, channel):
-        hostmask = userCache.hostFromNick(nick, server, channel)
-        return self.searchByHostmask(hostmask, server, channel)
+    caches = {}
+    _modeTranslation = CaseInsensibleDict()
+    queue = []
+    _execute = CaseInsensibleDict()
 
-    def search(self, s, server, channel):
-        if is_nick(s):
-            masks = self.searchByNick(s, server, channel)
-        elif is_hostmask(s):
-            masks = self.searchByHostmask(s, server, channel)
-        else:
-            masks = self.searchByPattern(s, server, channel)
-        return masks
+    def hook(self):
+        if not self._hook_mask:
+            self._hook_mask = \
+                    weechat.hook_modifier('irc_in_367', callback(self._maskCallback), '')
+        if not self._hook_end:
+            self._hook_end = \
+                    weechat.hook_modifier('irc_in_368', callback(self._endCallback), '')
 
-    def fetch(self, server, channel):
+    def unhook(self):
+        if self._hook_mask:
+            weechat.unhook(self._hook_mask)
+            self._hook_mask = ''
+        if self._hook_end:
+            weechat.unhook(self._hook_end)
+            self._hook_end = ''
+
+    def __setitem__(self, key, value):
+        try:
+            self[key].append(value)
+        except:
+            ServerChannelDict.__setitem__(self, key, [value])
+
+    def addCache(self, mode, *args):
+        def fetch(server, channel, execute=None):
+            self.fetch(server, channel, mode, execute)
+
+        cache = MaskCache(mode)
+        cache.fetch = fetch
+
+        self.caches[mode] = cache
+        for name in args:
+            self._modeTranslation[name] = cache
+
+    def getCache(self, mode):
+        try:
+            return self.caches[mode]
+        except KeyError:
+            return self._modeTranslation[mode]
+
+    def fetch(self, server, channel, mode, execute=None):
         """Fetches masks for a given server and channel."""
+        buffer = weechat.buffer_search('irc', 'server.%s' %server)
+        if not buffer or not weechat.info_get('irc_is_channel', channel):
+            # invalid server or channel
+            return 
+
         # check modes
-        if self.mode not in supported_modes(server):
+        if mode not in supported_modes(server):
             return
+        maskCache = self.caches[mode]
+        key = (server, channel)
         # check the last time we did this
         try:
-            if (now() - self[server, channel].fetch_time) < 60:
+            masklist = maskCache[key]
+            if (now() - masklist.synced) < 60:
                 # don't fetch again
                 return
         except KeyError:
             pass
+        
+        if not self.queue:
+            self._fetch(server, channel, mode)
+        elif (server, channel, mode) not in self.queue:
+            self.queue.append((server, channel, mode))
+
+        if execute:
+            self._execute[server, channel] = execute
+
+    def _fetch(self, server, channel, mode):
         buffer = weechat.buffer_search('irc', 'server.%s' %server)
-        if not buffer or not weechat.info_get('irc_is_channel', channel):
-            # invalid server or channel
+        if not buffer:
             return
-        key = (server, channel, self.mode)
-        if key in self.hook_queue:
-            # already in queue
-            return
-        self.hook_queue.append(key)
-        if not self.hook_fetch:
-            # only need to hook once
-            self.hook_fetch.append(weechat.hook_modifier('irc_in_367', 'masklist_add_cb', ''))
-            self.hook_fetch.append(weechat.hook_modifier('irc_in_368', 'masklist_end_cb', ''))
-        cmd = '/wait %s /mode %s %s' %(len(self.hook_queue), channel, self.mode)
-        #say('Fetching %s masks (+%s channelmode).' %(channel, self.mode))
+        cmd = '/mode %s %s' %(channel, mode)
+        #say('Fetching %s masks (+%s channelmode).' %(channel, mode))
+        self._hide_msg = True
         weechat.command(buffer, cmd)
 
-banlist = MaskCache('b')
-quietlist = MaskCache('q')
-maskModes = { 'b':banlist, 'q': quietlist }
-
-def masklist_add_cb(data, modifier, modifier_data, string):
-    """Adds ban to the list."""
-    channel, banmask, op, date = string.split()[-4:]
-    server = modifier_data
-    #debug('%s %s', server, channel)
-    serv, chan, mode = MaskCache.hook_queue[0]
-    if caseInsensibleKey((serv, chan)) ==  (server, channel):
-        maskModes[mode].add(server, channel, banmask, operator=op, date=date)
-    else:
-        error("Error: got mask from unexpected server/channel",
-                trace="Expected: %s.%s Got: %s.%s" %(serv, chan, server, channel))
-    return ''
-
-def masklist_end_cb(data, modifier, modifier_data, string):
-    """Ban listing over."""
-    #debug(string)
-    global waiting_for_completion, waiting_for_sync
-    server, channel, mode = MaskCache.hook_queue.pop(0)
-    masklist = maskModes[mode]
-    key = (server, channel)
-    if key not in masklist:
-        masklist[key] = MaskList()
-    masklist[key].synced = True
-    if not MaskCache.hook_queue:
-        # fetch is over
-        for hook in MaskCache.hook_fetch:
-            weechat.unhook(hook)
-        del MaskCache.hook_fetch[:]
-    # check if there is a completion waiting for the fetch to finish
-    if waiting_for_completion:
-        buffer, completion  = waiting_for_completion
-        if masklist[key]:
-            say('Got %s +%s masks.' %(len(masklist[key]), mode), buffer)
+    def _maskCallback(self, data, modifier, modifier_data, string):
+        """callback for irc_in_367 modifier, a single ban."""
+        #debug(string)
+        channel, banmask, op, date = string.split()[-4:]
+        self[modifier_data, channel] = (banmask, op, date) # store temporally until irc_368 msg
+        if self._hide_msg:
+            return ''
         else:
-            say('No +%s masks found.' %mode, buffer)
-        cmpl_unban(buffer, server, channel, completion, masklist)
-        waiting_for_completion = None
-    if waiting_for_sync:
-        buffer, mode, channel = waiting_for_sync
-        cmd_showbans('', buffer, '%s %s' %(mode, channel))
-        waiting_for_sync = None
-    return ''
+            return string
+    
+    def _endCallback(self, data, modifier, modifier_data, string):
+        """callback for irc_in_368 modifier that marks the end of channel's ban list."""
+        #debug(string)
+        L = string.split()
+        channel, mode = L[3], L[7]
+        server = modifier_data
 
-
-# TODO refactor UserList and UserCache
-# Users
-class UserList(CaseInsensibleDict):
-    def __init__(self, key):
-        self._key = key
-        self._temp_users = CaseInsensibleDict()
-
-    def __setitem__(self, nick, hostname):
-        #debug('%s setitem: %s %s' %(self.__class__.__name__, nick, hostname))
-        CaseInsensibleDict.__setitem__(self, nick, hostname)
-        # remove from temp list, in case if user did a cycle
-        if nick in self._temp_users:
-            del self._temp_users[nick]
-
-    def __getitem__(self, nick):
-        host = CaseInsensibleDict.__getitem__(self, nick)
-        if host:
-            return host
-        #debug('cache failed, trying infolist')
-        self._regenerateCache()
-        host = CaseInsensibleDict.__getitem__(self, nick)
-        if host:
-            return host
-        else:
-            raise KeyError
-
-    def _regenerateCache(self):
         try:
-            infolist = Infolist('irc_nick', '%s,%s' %self._key)
-        except:
-            pass
-        else:
-            while infolist.next():
-                name = infolist['name']
-                host = infolist['host']
-                if host:
-                    self[name] = '%s!%s' %(name, host)
+            maskCache = self.getCache(mode)
+            for banmask, op, date in self[server, channel]:
+                maskCache.add(server, channel, banmask, operator=op, date=date)
+            masklist = maskCache[server, channel]
+        except KeyError:
+            masklist = maskCache[server, channel] = MaskList(server, channel)
+        finally:
+            if (server, channel) in self:
+                del self[server, channel]
 
-    def itervalues(self):
-        # quick fix for '' hostmask until I get to refactor all this
-        if '' in CaseInsensibleDict.itervalues(self):
-            self.clear()
-            self._temp_users.clear()
-            self._regenerateCache()
-        return CaseInsensibleDict.itervalues(self)
+        masklist.synced = now()
 
-    def remove(self, nick):
-        """Place nick in queue for deletion"""
-        self._temp_users[nick] = now()
+        # run finishing functions if any
+        if (server, channel) in self._execute:
+            self._execute[server, channel]()
+            del self._execute[server, channel]
+
+        try:
+            if self._hide_msg:
+                return ''
+            else:
+                return string
+        finally:
+            if self.queue:
+                next = self.queue.pop(0)
+                self._fetch(*next)
+            else:
+                self._hide_msg = False
+
+
+maskHandler = MaskHandler()
+maskHandler.addCache('b', 'ban', 'bans')
+maskHandler.addCache('q', 'quiet', 'quiets')
+
+
+# Users
+class UserObject(object):
+    __slots__ = ('nick', 'hostmask', 'seen', 'channels')
+    def __init__(self, nick, hostmask):
+        self.nick = nick
+        self.hostmask = hostmask
+        self.seen = now()
+        self.channels = 0
+
+    def update(self, hostmask=None):
+        if hostmask:
+            self.hostmask = hostmask
+        self.seen = now()
+
+    def __len__(self):
+        return len(self.hostmask)
+
+    def __repr__(self):
+        return '<UserObject(%s)>' %(self.hostmask or self.nick)
+
+
+class ServerUserList(CaseInsensibleDict):
+    def __init__(self, server):
+        self.server = server
+        self._purge_time = 3600*4 # 4 hours
+
+    def getHostmask(self, nick):
+        user = self[nick]
+        if not user.hostmask:
+            userCache.userhost(self.server, nick)
+            return lambda: user.hostmask or user.nick
+        return user.hostmask
 
     def purge(self):
-        """Purge 1 hour old nicks"""
-        _now = now()
-        for nick, when in self._temp_users.items():
-            if (_now - when) > 3600:
+        """Purge old nicks"""
+        n = now()
+        for nick, user in self.items():
+            if user.channels < 1 and (n - user.seen) > self._purge_time:
+                #debug('purging user: %s' %user)
+                del self[nick]
+
+
+class UserList(ServerUserList):
+    def __init__(self, server, channel):
+        self.server = server
+        self.channel = channel
+        self._purge_list = {}
+        self._purge_time = 3600*2 # 2 hours
+
+    def remove(self, nick):
+        try:
+            user = self[nick]
+            self._purge_list[nick] = user
+            user.channels -= 1
+        except KeyError:
+            pass
+
+    def values(self):
+        if not all(self.itervalues()):
+            userCache.who(self.server, self.channel)
+        L = list(self.itervalues())
+        L.sort(key=lambda x:x.seen)
+        return reversed(L)
+    
+    def hostmasks_sorted(self):
+        return [ user.hostmask for user in self.values() if user ]
+
+    def hostmasks(self):
+        return [ user.hostmask for user in self.itervalues() if user ]
+
+    def nicks(self):
+#        if not all(self.itervalues()):
+#            userCache.who(self.server, self.channel)
+        L = list(self.iteritems())
+        L.sort(key=lambda x:x[1].seen)
+        return reversed([x[0] for x in L])
+
+    def getHostmask(self, nick):
+        try:
+            user = self[nick]
+        except KeyError:
+            user = userCache[self.server][nick]
+        if not user.hostmask:
+            userCache.userhost(self.server, nick)
+            return lambda: user.hostmask or user.nick
+        return user.hostmask
+
+    def purge(self):
+        """Purge old nicks"""
+        n = now()
+        for nick, user in self._purge_list.items():
+            if (n - user.seen) > self._purge_time:
                 try:
-                    del self._temp_users[nick]
+                    del self._purge_list[nick]
                     del self[nick]
                 except KeyError:
                     pass
 
 
 class UserCache(ServerChannelDict):
-    def generateCache(self, key):
-        users = UserList(key)
+    servercache = CaseInsensibleDict()
+    _hook_who = _hook_who_end = None
+    _hook_userhost = None
+    _hook_userhost_nick = []
+    _channels = CaseInsensibleSet()
+
+    def generateCache(self, server, channel):
+        #debug('generateCache: %s %s', server, channel)
+        users = UserList(server, channel)
         try:
-            infolist = Infolist('irc_nick', '%s,%s' %key)
+            infolist = nick_infolist(server, channel)
         except:
             # better to fail silently
             #debug('invalid buffer')
             return users
+
         while infolist.next():
-            name = infolist['name']
+            nick = infolist['name']
             host = infolist['host']
-            #debug('host: %r' %host)
-            if not host:
-                # be extra careful
-                users[name] = ''
+            if host:
+                hostmask = '%s!%s' %(nick, host)
             else:
-                users[name] = '%s!%s' %(name, host)
-        if users:
-            self[key] = users
+                hostmask = ''
+            user = self.addUser(server, nick, hostmask)
+            user.channels += 1
+            users[nick] = user
+        self[server, channel] = users
         return users
 
-    def __getitem__(self, k):
+    def addUser(self, server, nick, hostmask):
+        cache = self[server]
         try:
-            return ServerChannelDict.__getitem__(self, k)
+            user = cache[nick]
+            if hostmask:
+                user.update(hostmask)
         except KeyError:
-            return self.generateCache(k)
+            user = UserObject(nick, hostmask)
+            cache[nick] = user
+        return user
 
-    def hostFromNick(self, nick, server, channel=None):
-        """Returns hostmask of nick, searching in all or one channel"""
+    def __getitem__(self, k):
+        if isinstance(k, tuple):
+            try:
+                return ServerChannelDict.__getitem__(self, k)
+            except KeyError:
+                return self.generateCache(*k)
+        elif isinstance(k, str):
+            try:
+                return self.servercache[k]
+            except KeyError:
+                cache = self.servercache[k] = ServerUserList(k)
+                return cache
+
+    def __delitem__(self, k):
+        # when we delete a channel, we need to reduce user.channels count
+        # so they can be purged later.
+        for user in self[k].itervalues():
+            user.channels -= 1
+        ServerChannelDict.__delitem__(self, k)
+
+    def getHostmask(self, nick, server, channel=None):
+        """Returns hostmask of nick."""
         if channel:
-            users = self[(server, channel)]
-            if nick in users:
-                return users[nick]
-        try:
-            key = self.getKeys(server, nick)[0]
-            return self[key][nick]
-        except IndexError:
-            return None
+            return self[server, channel].getHostmask(nick)
+        return self[server].getHostmask(nick)
+
+    def who(self, server, channel):
+        if self._hook_who:
+            return
+
+        if (server, channel) in self._channels:
+            return
+
+        self._channels.add((server, channel))
+        
+        key = ('%s.%s' %(server, channel)).lower()
+        self._hook_who = weechat.hook_modifier(
+                'irc_in_352', callback(self._whoCallback), key)
+        self._hook_who_end = weechat.hook_modifier(
+                'irc_in_315', callback(self._endWhoCallback), key)
+
+        #debug('WHO: %s', channel)
+        buffer = weechat.buffer_search('irc', 'server.%s' %server)
+        weechat.command(buffer, '/WHO %s' %channel)
+
+    def _whoCallback(self, data, modifier, modifier_data, string):
+        #debug('%s %s %s', modifier, modifier_data, string)
+        args = string.split()
+        server, channel = modifier_data, args[3]
+        key = ('%s.%s' %(server, channel)).lower()
+        if key != data:
+            return string
+
+        nick, user, host = args[7], args[4], args[5]
+        hostmask = '%s!%s@%s' %(nick, user, host)
+        #debug('WHO: %s', hostmask)
+        self.addUser(server, nick, hostmask)
+        return ''
+
+    def _endWhoCallback(self, data, modifier, modifier_data, string):
+        args = string.split()
+        server, channel = modifier_data, args[3]
+        key = ('%s.%s' %(server, channel)).lower()
+        if key != data:
+            return string
+
+        #debug('end WHO')
+        weechat.unhook(self._hook_who)
+        weechat.unhook(self._hook_who_end)
+        self._hook_who = self._hook_who_end = None
+        return ''
+
+    def hookUserhost(self):
+        self._hook_userhost = weechat.hook_modifier(
+                'irc_in_302', callback(self._userhostCallback), '')
+
+    def userhost(self, server, nick):
+        if nick in self._hook_userhost_nick:
+            return
+        if not self._hook_userhost_nick:
+            self._userhost(server, nick)
+        self._hook_userhost_nick.append(nick)
+
+    def _userhost(self, server, nick):
+        #debug('USERHOST: %s', nick)
+        buffer = weechat.buffer_search('irc', 'server.%s' %server)
+        weechat.command(buffer, '/USERHOST %s' %nick)
+
+    def _userhostCallback(self, data, modifier, modifier_data, string):
+        nick, host = string.rsplit(None, 1)[1].split('=')
+        nick, host = nick.strip(':*'), host[1:]
+        hostmask = '%s!%s' %(nick, host)
+        #debug('USERHOST: %s %s', nick, hostmask)
+        self.addUser(modifier_data, nick, hostmask)
+        if nick in self._hook_userhost_nick:
+            del self._hook_userhost_nick[0]
+            if self._hook_userhost_nick:
+                nick = self._hook_userhost_nick[0]
+                self._userhost(modifier_data, nick)
+            return ''
+        return string
+
+    def purge(self):
+        ServerChannelDict.purge(self)
+        for cache in self.servercache.itervalues():
+            cache.purge()
 
 userCache = UserCache()
 
@@ -1189,184 +1524,114 @@ userCache = UserCache()
 ### Chanop Command Classes ###
 
 # Base classes for chanop commands
-class CommandChanop(Command):
+class CommandChanop(Command, ConfigOptions):
     """Base class for our commands, with config and general functions."""
     infolist = None
-    def __call__(self, *args):
-        """Called by WeeChat when /command is used."""
-        #debug("command __call__ args: %s" %(args, ))
-        try:
-            self.parse_args(*args)  # argument parsing
-        except Exception, e:
-            error('Argument error, %s' %e)
-            return WEECHAT_RC_OK
-        self.execute()          # call our command and queue messages for WeeChat
-        weechat_queue.run()     # run queued messages
+
+    def parser(self, args):
+        if not args:
+            weechat.command('', '/help %s' %self.command)
+            raise NoArguments
+        self.setup(self.buffer)
+
+    def execute(self):
+        self.users = userCache[self.server, self.channel]
+        self.execute_chanop()   # call our command and queue messages for WeeChat
+        self.irc.run()          # run queued messages
         self.infolist = None    # free irc_nick infolist
-        return WEECHAT_RC_OK    # make WeeChat happy
 
-    def parse_args(self, data, buffer, args):
-        self.buffer = buffer
-        self.args = args
-        self.server = weechat.buffer_get_string(self.buffer, 'localvar_server')
-        self.channel = weechat.buffer_get_string(self.buffer, 'localvar_channel')
-        self.nick = weechat.info_get('irc_nick', self.server)
-        self.users = userCache[(self.server, self.channel)]
+    def execute_chanop(self):
+        pass
 
-    def replace_vars(self, s):
-        try:
-            return weechat.buffer_string_replace_local_var(self.buffer, s)
-        except AttributeError:
-            if '$channel' in s:
-                s = s.replace('$channel', self.channel)
-            if '$nick' in s:
-                s = s.replace('$nick', self.nick)
-            if '$server' in s:
-                s = s.replace('$server', self.server)
-            return s
-
-    def get_config(self, config):
-        return get_config_specific(config, self.server, self.channel)
-
-    def get_config_boolean(self, config):
-        return get_config_boolean(config, self.get_config)
-
-    def get_config_int(self, config):
-        return get_config_int(config, self.get_config)
-
-    def _nick_infolist(self):
+    def nick_infolist(self):
         # reuse the same infolist instead of creating it many times
-        # per __call__() (like with MultiKick)
         if not self.infolist:
-            #debug('Creating Infolist')
-            self.infolist = Infolist('irc_nick', '%s,%s' %(self.server, self.channel))
-            return self.infolist
+            self.infolist = nick_infolist(self.server, self.channel)
         else:
             self.infolist.reset()
-            return self.infolist
+        return self.infolist
 
-    def has_op(self, nick=None):
-        if not nick:
-            nick = self.nick
+    def has_op(self, nick):
         try:
-            nicks = self._nick_infolist()
+            nicks = self.nick_infolist()
             while nicks.next():
                 if nicks['name'] == nick:
-                    if nicks['flags'] & 8:
-                        return True
-                    else:
-                        return False
+                    return '@' in nicks['prefixes']
         except:
             error('Not in a IRC channel.')
 
-    def has_voice(self, nick=None):
-        if not nick:
-            nick = self.nick
+    def has_voice(self, nick):
         try:
-            nicks = self._nick_infolist()
+            nicks = self.nick_infolist()
             while nicks.next():
                 if nicks['name'] == nick:
-                    if nicks['flags'] & 32:
-                        return True
-                    else:
-                        return False
+                    return '+' in nicks['prefixes']
         except:
             error('Not in a IRC channel.')
 
     def is_nick(self, nick):
         return nick in self.users
 
-    def get_host(self, name=None):
+    def get_host(self, name):
         try:
-            if name is None:
-                return self.users[self.nick]
-            host = self.users[name]
-            return host
+            return self.users.getHostmask(name)
         except KeyError:
             pass
 
-    def queue(self, cmd, **kwargs):
-        weechat_queue.queue(cmd, buffer=self.buffer, **kwargs)
-
-    def queue_clear(self):
-        weechat_queue.clear()
-
-    def get_op(self):
-        op = self.has_op()
-        if op is False:
-            value = self.get_config('op_command')
-            if not value:
-                raise Exception, "No command defined for get op."
-            self.queue(self.replace_vars(value), type='WaitForOp', server=self.server,
-                    channel=self.channel, nick=self.nick)
-        self.queue('', type='AddChannel', wait=0, server=self.server, channel=self.channel)
-        return op
-
-    def drop_op(self):
-        op = self.has_op()
-        if op is True:
-            value = self.get_config('deop_command')
-            if not value:
-                value = '/deop'
-            self.queue(self.replace_vars(value))
-
-    def voice(self, args):
-        cmd = '/voice %s' %args
-        self.queue(cmd)
-
-    def devoice(self, args):
-        cmd = '/devoice %s' %args
-        self.queue(cmd)
+    def set_mode(self, *nicks):
+        mode = self.prefix + self.mode
+        for nick in nicks:
+            self.irc.Mode(mode, nick)
 
 
-deop_hook = {}
-manual_op = False
-class CommandNeedsOp(CommandChanop):
+class CommandWithOp(CommandChanop):
     """Base class for all the commands that requires op status for work."""
-
-    def parse_args(self, data, buffer, args):
-        """Show help if nothing to parse."""
-        CommandChanop.parse_args(self, data, buffer, args)
+    def setup(self, buffer):
+        self.deopNow = False
+        CommandChanop.setup(self, buffer)
+    
+    def parser(self, args):
+        CommandChanop.parser(self, args)
+        args = args.split()
+        if '-o' in args:
+            self.deopNow = True
+            del args[args.index('-o')]
+            self.args = ' '.join(args)
         if not self.args:
-            weechat.command('', '/help %s' %self.command)
+            raise NoArguments
 
-    def execute(self, *args):
-        global deop_hook, manual_op
-        buffer = self.buffer
-        if not self.args:
-            return # don't pointless op and deop it no arguments given
-        op = self.get_op()
-        if op is None:
-            return WEECHAT_RC_OK # not a channel
-        elif op is False or buffer in deop_hook:
-            # we're going to autoop or already did
-            manual_op = False
-        else:
-            manual_op = True
+    def execute_chanop(self, *args):
+        self.irc.Op()
         self.execute_op(*args)
-        if not manual_op and self.get_config_boolean('autodeop'):
+
+        if self.autodeop and self.get_config_boolean('autodeop'):
             delay = self.get_config_int('autodeop_delay')
-            if delay > 0:
-                if buffer in deop_hook:
-                    weechat.unhook(deop_hook[buffer])
-                deop_hook[buffer] = weechat.hook_timer(delay * 1000, 0, 1, 'deop_callback', buffer)
+            if delay > 0 and not self.deopNow:
+                if self.deopHook:
+                    weechat.unhook(self.deopHook)
+                self.env.deopHook = weechat.hook_timer(delay * 1000, 0, 1,
+                        callback(self.deopCallback), self.buffer)
             else:
-                self.drop_op()
+                self.irc.Deop()
 
     def execute_op(self, *args):
         """Commands in this method will be run with op privileges."""
         pass
 
-
-def deop_callback(buffer, count):
-    global deop_hook, cmd_deop
-    if weechat_queue.commands:
-        # there are commands in queue yet, wait some more
-        deop_hook[buffer] = weechat.hook_timer(5000, 0, 1, 'deop_callback', buffer)
-    else:
-        cmd_deop('', buffer, '')
-        del deop_hook[buffer]
-    return WEECHAT_RC_OK
+    def deopCallback(self, buffer, count):
+        #debug('deop %s', buffer)
+        env = self.envOf(buffer)
+        if env.autodeop:
+            if env.irc.commands:
+                # there are commands in queue yet, wait some more
+                env.deopHook = weechat.hook_timer(1000, 0, 1,
+                        callback(self.deopCallback), buffer)
+                return WEECHAT_RC_OK
+            else:
+                env.irc.Deop()
+                env.irc.run()
+        env.deopHook = None
+        return WEECHAT_RC_OK
 
 
 # Chanop commands
@@ -1382,60 +1647,51 @@ class Op(CommandChanop):
     command = 'oop'
     completion = '%(nicks)'
 
-    _prefix = '+'
+    prefix = '+'
+    mode = 'o'
 
-    def execute(self):
-        op = self.get_op()
-        if op is True and self.buffer in deop_hook:
-            # /oop was called before auto-deoping, we assume that the user wants
-            # to stay opped permanently
-            hook = deop_hook[self.buffer]
-            weechat.unhook(hook)
-            del deop_hook[self.buffer]
+    def parser(self, args):
+        # dont show /help if no args
+        self.setup(self.buffer)
+
+    def execute_chanop(self):
+        self.irc.Op()
+        # /oop was used, we assume that the user wants
+        # to stay opped permanently
+        self.env.autodeop = False
         if self.args:
-            nicks = []
             for nick in self.args.split():
-                if is_nick(nick) and not self.has_op(nick):
-                    nicks.append(nick)
-            self.op(nicks)
-
-    def op(self, nicks):
-        max_modes = supported_maxmodes(self.server)
-        for n in range(0, len(nicks), max_modes):
-            slice = nicks[n:n+max_modes]
-            cmd = '/mode %s%s %s' %(self._prefix, 'o'*len(slice), ' '.join(slice))
-            self.queue(cmd)
+                if self.is_nick(nick) and not self.has_op(nick):
+                    self.set_mode(nick)
 
 
-class Deop(CommandNeedsOp, Op):
+class Deop(Op, CommandWithOp):
     description, usage, help = \
     "Removes operator privileges from yourself or users.", "[nick [nick ... ]]", ""
     command = 'odeop'
     completion = '%(nicks)'
     
-    _prefix = '-'
+    prefix = '-'
 
-    def parse_args(self, data, buffer, args):
-        """Override CommandNeedsOp.parse_args so it doesn't do /help if no args are supplied."""
-        CommandChanop.parse_args(self, data, buffer, args)
-
-    def execute(self):
+    def execute_chanop(self):
         if self.args:
             nicks = []
             for nick in self.args.split():
                 if is_nick(nick) and self.has_op(nick):
                     nicks.append(nick)
             if nicks:
-                CommandNeedsOp.execute(self, nicks)
+                CommandWithOp.execute_chanop(self, nicks)
         else:
-            self.drop_op()
+            self.env.autodeop = True
+            if self.has_op(self.nick):
+                self.irc.Deop()
 
     def execute_op(self, nicks):
-        self.op(nicks)
+        self.set_mode(*nicks)
 
 
-class Kick(CommandNeedsOp):
-    description, usage = "Kick nick.", "<nick> [<reason>]"
+class Kick(CommandWithOp):
+    description, usage = "Kick nick.", "<nick> [<reason>] [-o]"
     help = \
     "On freenode, you can set this command to use /remove instead of /kick, users"\
     " will see it as if the user parted and it can bypass autojoin-on-kick scripts."\
@@ -1443,34 +1699,21 @@ class Kick(CommandNeedsOp):
     command = 'okick'
     completion = '%(nicks)'
 
-    def execute_op(self, args=None):
-        if not args:
-            args = self.args
-        nick, s, reason = args.partition(' ')
-        if not reason:
-            reason = self.get_config('kick_reason')
-        self.kick(nick, reason)
-
-    def kick(self, nick, reason, **kwargs):
-        if self.get_config_boolean('enable_remove'):
-            cmd = '/quote remove %s %s :%s' %(self.channel, nick, reason)
-        else:
-            cmd = '/kick %s %s' %(nick, reason)
-        self.queue(cmd, **kwargs)
+    def execute_op(self):
+        nick, s, reason = self.args.partition(' ')
+        self.irc.Kick(nick, reason)
 
 
 class MultiKick(Kick):
-    description, usage = "Kick one or more nicks.", "<nick> [<nick> ..] [:] [<reason>]"
+    description, usage = "Kick one or more nicks.", "<nick> [<nick> ... ] [:] [<reason>] [-o]"
     help = Kick.help + "\n\n"\
     "Note: Is not needed, but use ':' as a separator between nicks and "\
     "the reason. Otherwise, if there's a nick in the channel matching the "\
     "first word in reason it will be kicked."
     completion = '%(nicks)|%*'
 
-    def execute_op(self, args=None):
-        if not args:
-            args = self.args
-        args = args.split()
+    def execute_op(self):
+        args = self.args.split()
         nicks = []
         #debug('multikick: %s' %str(args))
         while(args):
@@ -1481,30 +1724,26 @@ class MultiKick(Kick):
         #debug('multikick: %s, %s' %(nicks, args))
         reason = ' '.join(args).lstrip(':')
         if nicks:
-            if not reason:
-                reason = self.get_config('kick_reason')
             for nick in nicks:
-                self.kick(nick, reason)
+                self.irc.Kick(nick, reason)
         else:
             say("Sorry, found nothing to kick.", buffer=self.buffer)
-            self.queue_clear()
+            self.irc.clear()
 
 
-class Ban(CommandNeedsOp):
+class Ban(CommandWithOp):
     description = "Ban user or hostmask."
     usage = \
-    "<nick|mask> [<nick|mask> ..] [ [--host] [--user] [--nick] | --exact | --webchat ]"
+    "<nick|mask> [<nick|mask> ... ] [ [--host] [--user] [--nick] | --exact ] [-o]"
     help = \
     "Mask options:\n"\
     " -h  --host: Match hostname (*!*@host)\n"\
     " -n  --nick: Match nick     (nick!*@*)\n"\
     " -u  --user: Match username (*!user@*)\n"\
     " -e --exact: Use exact hostmask. Can't be combined with other options.\n"\
-    " -w --webchat: Like --host, but for webchat's users, it will match "\
-    "username if hostname isn't valid and username is a hexed ip. "\
-    "Can't be combined with other options.\n"\
     "\n"\
     "If no mask options are supplied, configured defaults are used.\n"\
+    " -o: Forces deop immediately (without configured delay).\n"\
     "\n"\
     "Example:\n"\
     "/oban somebody --user --host\n"\
@@ -1512,36 +1751,32 @@ class Ban(CommandNeedsOp):
     command = 'oban'
     completion = '%(chanop_nicks)|%(chanop_ban_mask)|%*'
 
-    masklist = banlist
     banmask = []
-    _mode = 'b'
-    _prefix = '+'
+    mode = 'b'
+    prefix = '+'
+    maskCache = maskHandler.caches[mode]
 
-    def parse_args(self, *args):
-        CommandNeedsOp.parse_args(self, *args)
-        self._parse_args(self, *args)
+    def parser(self, args):
+        if not args:
+            showBans.callback(self.data, self.buffer, self.mode)
+            raise NoArguments
+        CommandWithOp.parser(self, args)
+        self._parser(self.args)
 
-    def _parse_args(self, *args):
-        args = self.args.split()
+    def _parser(self, args):
+        args = args.split()
         try:
-            (opts, args) = getopt.gnu_getopt(args, 'hunew', ('host', 'user', 'nick', 'exact',
-                'webchat'))
+            (opts, args) = getopt.gnu_getopt(args, 'hune', ('host', 'user', 'nick', 'exact'))
         except getopt.GetoptError, e:
-            raise Exception, e
+            raise ArgumentError, e
         self.banmask = []
         for k, v in opts:
             if k in ('-h', '--host'):
                 self.banmask.append('host')
-            elif k == '--host2':
-                self.banmask.append('host2')
-            elif k == '--host1':
-                self.banmask.append('host1')
             elif k in ('-u', '--user'):
                 self.banmask.append('user')
             elif k in ('-n', '--nick'):
                 self.banmask.append('nick')
-            elif k in ('-w', '--webchat'):
-                self.banmask.append('webchat')
             elif k in ('-e', '--exact'):
                 self.banmask = ['exact']
                 break
@@ -1554,29 +1789,25 @@ class Ban(CommandNeedsOp):
 
     def make_banmask(self, hostmask):
         assert self.banmask
-        assert is_hostmask(hostmask), "Invalid hostmask: %s" %hostmask
-        if 'exact' in self.banmask:
-            return hostmask
-        elif 'webchat' in self.banmask:
-            user = get_user(hostmask, trim=True)
-            decoded_ip = hex_to_ip(user)
-            host = get_host(hostmask)
-            if not is_hostname(host) \
-                    and is_ip(decoded_ip) \
-                    and decoded_ip not in host:
-                return '*!%s@*' %get_user(hostmask)
-            else:
-                return '*!*@%s' %host
-        nick = user = host = '*'
-        if 'nick' in self.banmask:
-            nick = get_nick(hostmask)
-        if 'user' in self.banmask:
-            user = get_user(hostmask)
-        if 'host' in self.banmask:
-            host = get_host(hostmask)
-        banmask = '%s!%s@%s' %(nick, user, host)
-        assert is_hostmask(banmask), "Invalid banmask: %s" %banmask
-        return banmask
+        template = self.banmask
+        def banmask(s):
+            if not is_hostmask(s):
+                return s
+            if 'exact' in template:
+                return s
+            nick = user = host = '*'
+            if 'nick' in template:
+                nick = get_nick(s)
+            if 'user' in template:
+                user = get_user(s)
+            if 'host' in template:
+                host = get_host(s)
+            s = '%s!%s@%s' %(nick, user, host)
+            assert is_hostmask(s), "Invalid banmask: %s" %s
+            return s
+        if callable(hostmask):
+            return lambda: banmask(hostmask())
+        return banmask(hostmask)
 
     def execute_op(self):
         args = self.args.split()
@@ -1587,52 +1818,50 @@ class Ban(CommandNeedsOp):
                 hostmask = self.get_host(arg)
                 if hostmask:
                     mask = self.make_banmask(hostmask)
-                    if self.has_voice(arg):
-                        self.devoice(arg)
+            if self.has_voice(arg):
+                self.irc.Devoice(arg)
             banmasks.append(mask)
-        if banmasks:
-            banmasks = set(banmasks) # remove duplicates
-            self.ban(*banmasks)
-        else:
-            say("Sorry, found nothing to ban.", buffer=self.buffer)
-            self.queue_clear()
+        banmasks = set(banmasks) # remove duplicates
+        self.ban(*banmasks)
 
     def mode_is_supported(self):
-        return self._mode in supported_modes(self.server)
+        return self.mode in supported_modes(self.server)
 
     def ban(self, *banmasks, **kwargs):
-        if self._mode != 'b' and not self.mode_is_supported():
+        if self.mode != 'b' and not self.mode_is_supported():
             error("%s doesn't seem to support channel mode '%s', using regular ban." %(self.server,
-                self._mode))
+                self.mode))
             mode = 'b'
         else:
-            mode = self._mode
-        max_modes = supported_maxmodes(self.server)
-        for n in range(0, len(banmasks), max_modes):
-            slice = banmasks[n:n+max_modes]
-            bans = ' '.join(slice)
-            cmd = '/mode %s%s %s' %(self._prefix, mode*len(slice), bans)
-            self.queue(cmd, **kwargs)
+            mode = self.mode
+        mode = self.prefix + mode
+        for mask in banmasks:
+            self.irc.Mode(mode, mask, **kwargs)
 
 
 class UnBan(Ban):
-    description, usage = "Remove bans.", "<nick|mask> [<nick|mask> ..]"
+    description, usage = "Remove bans.", "<nick|mask> [<nick|mask> ... ] [-o]"
     command = 'ounban'
     help = \
     "Autocompletion will use channel's bans, patterns allowed for autocomplete multiple"\
     " bans.\n"\
+    " -o: Forces deop immediately (without configured delay).\n"\
     "\n"\
     "Example:\n"\
     "/%(cmd)s *192.168*<tab>\n"\
     "  Will autocomplete with all bans matching *192.168*" %{'cmd':command}
     completion = '%(chanop_unban_mask)|%(chanop_nicks)|%*'
-    _prefix = '-'
+    prefix = '-'
 
     def search_masks(self, s):
+        try:
+            masklist = self.maskCache[self.server, self.channel]
+        except KeyError:
+            return []
         if is_nick(s):
-            return self.masklist.searchByNick(s, self.server, self.channel)
+            return masklist.searchByNick(s)
         elif is_hostmask(s):
-            return self.masklist.searchByHostmask(s, self.server, self.channel)
+            return masklist.searchByHostmask(s)
         return []
 
     def execute_op(self):
@@ -1644,13 +1873,7 @@ class UnBan(Ban):
                 banmasks.extend(masks)
             else:
                 banmasks.append(arg)
-        if banmasks:
-            self.unban(*banmasks)
-        else:
-            say("Couldn't find any mask for remove with '%s'" %self.args, buffer=self.buffer)
-            self.queue_clear()
-
-    unban = Ban.ban
+        self.ban(*banmasks)
 
 
 class Quiet(Ban):
@@ -1659,8 +1882,8 @@ class Quiet(Ban):
     command = 'oquiet'
     completion = '%(chanop_nicks)|%(chanop_ban_mask)|%*'
 
-    _mode = 'q'
-    masklist = quietlist
+    mode = 'q'
+    maskCache = maskHandler.caches[mode]
 
 
 class UnQuiet(UnBan):
@@ -1669,35 +1892,37 @@ class UnQuiet(UnBan):
     help = "Works exactly like /ounban, but only for quiets. See /help ounban"
     completion = '%(chanop_unquiet_mask)|%(chanop_nicks)|%*'
 
-    _mode = 'q'
-    masklist = quietlist
+    mode = 'q'
+    maskCache = maskHandler.caches[mode]
 
 
 class BanKick(Ban, Kick):
     description = "Bankicks nick."
-    usage = "<nick> [<reason>] [ [--host] [--user] [--nick] | --exact | --webchat ]"
+    usage = "<nick> [<reason>] [ [--host] [--user] [--nick] | --exact ]"
     help = "Combines /oban and /okick commands. See /help oban and /help okick."
     command = 'obankick'
     completion = '%(chanop_nicks)'
 
     def execute_op(self):
         nick, s, reason = self.args.partition(' ')
+        if not self.is_nick(nick):
+            say("Sorry, found nothing to bankick.", buffer=self.buffer)
+            self.irc.clear()
+            return
+
         hostmask = self.get_host(nick)
         if hostmask:
-            if not reason:
-                reason = self.get_config('kick_reason')
             banmask = self.make_banmask(hostmask)
             self.ban(banmask)
-            self.kick(nick, reason)
         else:
-            say("Sorry, found nothing to bankick.", buffer=self.buffer)
-            self.queue_clear()
+            self.ban(nick)
+        self.irc.Kick(nick, reason, wait=1)
 
 
 class MultiBanKick(BanKick):
     description = "Bankicks one or more nicks."
     usage = \
-    "<nick> [<nick> ..] [:] [<reason>] [ [--host)] [--user] [--nick] | --exact | --webchat ]"
+    "<nick> [<nick> ... ] [:] [<reason>] [ [--host)] [--user] [--nick] | --exact ] [-o]"
     completion = '%(chanop_nicks)|%*'
 
     def execute_op(self):
@@ -1709,65 +1934,67 @@ class MultiBanKick(BanKick):
                 break
             nicks.append(args.pop(0))
         reason = ' '.join(args).lstrip(':')
-        if nicks:
-            if not reason:
-                reason = self.get_config('kick_reason')
-            for nick in nicks:
-                hostmask = self.get_host(nick)
-                if hostmask:
-                    banmask = self.make_banmask(hostmask)
-                    self.ban(banmask)
-                    self.kick(nick, reason)
-        else:
+        if not nicks:
             say("Sorry, found nothing to bankick.", buffer=self.buffer)
-            self.queue_clear()
+            self.irc.clear()
+            return
+
+        for nick in nicks:
+            hostmask = self.get_host(nick)
+            if hostmask:
+                banmask = self.make_banmask(hostmask)
+                self.ban(banmask)
+            else:
+                self.ban(nick)
+        for nick in nicks:
+            self.irc.Kick(nick, reason, wait=1)
 
 
-class Topic(CommandNeedsOp):
-    description, usage = "Changes channel topic.", "[-delete | topic]"
+class Topic(CommandWithOp):
+    description, usage = "Changes channel topic.", "[-delete | topic] [-o]"
     help = "Clear topic if '-delete' is the new topic."
     command = 'otopic'
     completion = '%(irc_channel_topic)||-delete'
 
     def execute_op(self):
-        self.topic(self.args)
-
-    def topic(self, topic):
-        cmd = '/topic %s' %topic
-        self.queue(cmd)
+        self.irc.queue(Message('/topic %s' %self.args))
 
 
-class Voice(CommandNeedsOp):
-    description, usage, help = "Gives voice to somebody.", "nick", ""
+class Voice(CommandWithOp):
+    description, usage = "Gives voice to somebody.", "nick [nick ... ] [-o]"
+    help = " -o: Forces deop immediately (without configured delay)."
     command = 'ovoice'
-    completion = '%(nicks)'
+    completion = '%(nicks)|%*'
+
+    prefix = '+'
+    mode = 'v'
 
     def execute_op(self):
-        self.voice(self.args)
+        for nick in self.args.split():
+            if self.is_nick(nick) and not self.has_voice(nick):
+                self.set_mode(nick)
 
 
 class DeVoice(Voice):
     description = "Removes voice from somebody."
     command = 'odevoice'
 
-    def execute_op(self):
-        self.devoice(self.args)
+    prefix = '-'
+
+    def has_voice(self, nick):
+        return not Voice.has_voice(self, nick)
 
 
-class Mode(CommandNeedsOp):
-    description, usage, help = "Changes channel modes.", "<channel modes>", ""
+class Mode(CommandWithOp):
+    description, usage = "Changes channel modes.", "<channel modes> [-o]"
+    help = " -o: Forces deop immediately (without configured delay)."
     command = 'omode'
 
     def execute_op(self):
-        self.mode(self.args)
-
-    def mode(self, modes):
-        cmd = '/mode %s' %modes
-        self.queue(cmd)
+        mode, _, args = self.args.partition(' ')
+        self.irc.Mode(mode, args)
 
 
-global waiting_for_sync
-waiting_for_sync = None
 class ShowBans(CommandChanop):
     description, usage, help = "Lists bans or quiets of a channel.", "(bans|quiets) [channel]", ""
     command = 'olist'
@@ -1776,20 +2003,21 @@ class ShowBans(CommandChanop):
 
     padding = 40
 
-    def parse_args(self, data, buffer, args):
-        self.buffer = buffer
+    def parser(self, args):
         self.server = weechat.buffer_get_string(self.buffer, 'localvar_server')
         self.channel = weechat.buffer_get_string(self.buffer, 'localvar_channel')
         type, _, args = args.partition(' ')
         if not type:
             raise ValueError, 'missing argument'
-        if type in ('b', 'bans'):
-            self.type = 'bans'
-            self.mode = 'b'
-        elif type in ('q', 'quiets'):
-            self.type = 'quiets'
-            self.mode = 'q'
-        else:
+        try:
+            self.maskCache = maskHandler.getCache(type)
+            if type == 'b':
+                self.type = 'bans'
+            elif type == 'q':
+                self.type = 'quiets'
+            else:
+                self.type = type
+        except KeyError:
             raise ValueError, 'incorrect argument'
         self.args = args.strip()
 
@@ -1840,29 +2068,28 @@ class ShowBans(CommandChanop):
 
     def execute(self):
         self.showbuffer = ''
-        if self.mode not in supported_modes(self.server):
+        if self.maskCache.mode not in supported_modes(self.server):
             self.clear()
             self.prnt("\n%sNetwork '%s' doesn't support %s" %(color_channel, self.server,
                 self.type))
             return
-        masklist = maskModes[self.mode]
         if self.args:
             key = (self.server, self.args)
         else:
             key = (self.server, self.channel)
         try:
-            masks = masklist[key]
+            masklist = self.maskCache[key]
         except KeyError:
             if not (weechat.info_get('irc_is_channel', key[1]) and self.server):
                 error("Command /%s must be used in an IRC buffer." %self.command)
                 return
-            masks = None
+            masklist = None
         self.clear()
         mask_count = 0
-        if masks:
-            mask_count = len(masks)
+        if masklist:
+            mask_count = len(masklist)
             self.prnt('\n%s[%s %s]' %(color_channel, key[0], key[1]))
-            masks = [ m for m in masks.itervalues() ]
+            masks = [ m for m in masklist.itervalues() ]
             masks.sort(key=lambda x: x.date)
             for ban in masks:
                 op = self.server
@@ -1874,11 +2101,9 @@ class ShowBans(CommandChanop):
                 self.prnt_ban(ban.mask, op, ban.date, ban.hostmask)
         else:
             self.prnt('No known %s for %s.%s' %(self.type, key[0], key[1]))
-        if masks is None or not masklist[key].synced:
+        if masklist is None or not masklist.synced:
             self.prnt("\n%sList not synced, please wait ..." %color_channel)
-            global waiting_for_sync
-            waiting_for_sync = (self.buffer, self.mode, key[1])
-            masklist.fetch(*key)
+            self.maskCache.fetch(key[0], key[1], lambda: self.execute())
         self.set_title('List of %s known by chanop in %s.%s (total: %s)' %(self.type,
                                                                            key[0],
                                                                            key[1],
@@ -1898,12 +2123,10 @@ def signal_parse(f):
         if (server, channel) not in chanopChannels:
             # signals only processed for channels in watchlist
             return WEECHAT_RC_OK
-        try:
-            nick = get_nick(signal_data)
-        except ValueError:
-            return WEECHAT_RC_OK
+        nick = get_nick(signal_data)
+        hostmask = signal_data[1:signal_data.find(' ')]
         #debug('%s %s %s', data, signal, signal_data)
-        return f(server, channel, nick, data, signal, signal_data)
+        return f(server, channel, nick, hostmask, signal_data)
     decorator.func_name = f.func_name
     return decorator
 
@@ -1911,10 +2134,11 @@ def signal_parse_no_channel(f):
     def decorator(data, signal, signal_data):
         server = signal[:signal.find(',')]
         nick = get_nick(signal_data)
-        keys = userCache.getKeys(server, nick)
-        if keys:
+        channels = userCache.getChannels(server, nick)
+        if channels:
+            hostmask = signal_data[1:signal_data.find(' ')]
             #debug('%s %s %s', data, signal, signal_data)
-            return f(keys, nick, data, signal, signal_data)
+            return f(server, channels, nick, hostmask, signal_data)
         return WEECHAT_RC_OK
     decorator.func_name = f.func_name
     return decorator
@@ -2007,7 +2231,7 @@ def print_affected_users(buffer, *hostmasks):
 
 # Masks list tracking
 @signal_parse
-def mode_cb(server, channel, nick, data, signal, signal_data):
+def mode_cb(server, channel, nick, opHostmask, signal_data):
     """Keep the banmask list updated when somebody changes modes"""
     #:m4v!~znc@unaffiliated/m4v MODE #test -bo+v asd!*@* m4v dude
     pair = signal_data.split(' ', 4)[3:]
@@ -2025,8 +2249,8 @@ def mode_cb(server, channel, nick, data, signal, signal_data):
     # check if channel is in watchlist
     key = (server, channel)
     allkeys = CaseInsensibleSet()
-    for masklist in maskModes.itervalues():
-        allkeys.update(masklist)
+    for maskCache in maskHandler.caches.itervalues():
+        allkeys.update(maskCache)
         if key not in allkeys and key not in chanopChannels:
             # from a channel we're not tracking
             return WEECHAT_RC_OK
@@ -2041,7 +2265,6 @@ def mode_cb(server, channel, nick, data, signal, signal_data):
     action = ''
     chanmode_list = []
     args = args.split()
-    op = signal_data[1:signal_data.find(' ')]
     
     # user channel mode, such as +v or +o, get only the letters and not the prefixes
     usermodes = ''.join(map(lambda c: c.isalpha() and c or '', prefix))
@@ -2061,17 +2284,17 @@ def mode_cb(server, channel, nick, data, signal, signal_data):
             del args[0]
 
     affected_users = []
-    # update masklist
+    # update masks
     for action, mode, mask in chanmode_list:
-        masklist = maskModes[mode]
+        maskCache = maskHandler.caches[mode]
         #debug('MODE: %s%s %s %s', action, mode, mask, op)
         if action == '+':
-            hostmask = hostmask_pattern_match(mask, userCache[key].itervalues())
+            hostmask = hostmask_pattern_match(mask, userCache[key].hostmasks())
             if hostmask:
                 affected_users.extend(hostmask)
-            masklist.add(server, channel, mask, operator=op, hostmask=hostmask)
+            maskCache.add(server, channel, mask, operator=opHostmask, hostmask=hostmask)
         elif action == '-':
-            masklist.remove(server, channel, mask)
+            maskCache.remove(server, channel, mask)
     if affected_users and get_config_boolean('display_affected',
             get_function=get_config_specific, server=server, channel=channel):
         buffer = weechat.buffer_search('irc', '%s.%s' %key)
@@ -2081,31 +2304,35 @@ def mode_cb(server, channel, nick, data, signal, signal_data):
 
 # User cache
 @signal_parse
-def join_cb(server, channel, nick, data, signal, signal_data):
-    key = (server, channel)
-    hostname = signal_data[1:signal_data.find(' ')]
-    userCache[key][nick] = hostname
+def join_cb(server, channel, nick, hostmask, signal_data):
+    user = userCache.addUser(server, nick, hostmask)
+    user.channels += 1
+    userCache[server, channel][nick] = user
     return WEECHAT_RC_OK
 
 @signal_parse
-def part_cb(server, channel, nick, data, signal, signal_data):
-    userCache[(server, channel)].remove(nick)
+def part_cb(server, channel, nick, hostmask, signal_data):
+    userCache.addUser(server, nick, hostmask)
+    userCache[server, channel].remove(nick)
     return WEECHAT_RC_OK
 
 @signal_parse_no_channel
-def quit_cb(keys, nick, data, signal, signal_data):
-    for key in keys:
-        userCache[key].remove(nick)
+def quit_cb(server, channels, nick, hostmask, signal_data):
+    userCache.addUser(server, nick, hostmask)
+    for channel in channels:
+        userCache[server, channel].remove(nick)
     return WEECHAT_RC_OK
 
 @signal_parse_no_channel
-def nick_cb(keys, nick, data, signal, signal_data):
-    hostname = signal_data[1:signal_data.find(' ')]
+def nick_cb(server, channels, nick, hostmask, signal_data):
     newnick = signal_data[signal_data.rfind(' ')+2:]
-    newhostname = '%s!%s' %(newnick, hostname[hostname.find('!')+1:])
-    for key in keys:
-        userCache[key].remove(nick)
-        userCache[key][newnick] = newhostname
+    newhostmask = '%s!%s' %(newnick, hostmask[hostmask.find('!')+1:])
+    userCache.addUser(server, nick, hostmask)
+    user = userCache.addUser(server, newnick, newhostmask)
+    for channel in channels:
+        userCache[server, channel].remove(nick)
+        user.channels += 1
+        userCache[server, channel][nick] = user
     return WEECHAT_RC_OK
 
 
@@ -2115,22 +2342,27 @@ def garbage_collector_cb(data, counter):
     This takes care of purging users and masks from channels not in watchlist, and
     expired users that parted.
     """
-    for masklist in maskModes.itervalues():
-        masklist.purge()
-
+    for maskCache in maskHandler.caches.itervalues():
+        maskCache.purge()
     userCache.purge()
-
     if weechat.config_get_plugin('debug'):
-        user_count = sum(map(len, userCache.itervalues()))
-        temp_user_count = sum(map(lambda x: len(x._temp_users), userCache.itervalues()))
-        for mode, masklist in maskModes.iteritems():
-            mask_count = sum(map(len, masklist.itervalues()))
-            mask_chan = len(masklist)
-            debug("%s '%s' cached masks in %s channels", mask_count, mode, mask_chan)
-        debug('%s cached users in %s channels', user_count, len(userCache))
-        debug('%s users about to be purged', temp_user_count)
-        debug('%s cached regexps', len(_regexp_cache))
+        print_chanop_stats()
     return WEECHAT_RC_OK
+
+def print_chanop_stats():
+    purge_users = mask_count = mask_chan = 0
+    for maskCache in maskHandler.caches.itervalues():
+        mask_count += sum(map(len, maskCache.itervalues()))
+        mask_chan += len(maskCache)
+    for server in userCache.servercache.itervalues():
+        purge_users += len([ u for u in server.itervalues() if not u.channels ]) 
+    user_count = sum(map(len, userCache.servercache.itervalues()))
+    temp_user_count = sum(map(lambda x: len(x._purge_list), userCache.itervalues()))
+    debug("%s cached masks in %s channels", mask_count, mask_chan)
+    debug('%s cached users in %s servers', user_count - purge_users, len(userCache.servercache))
+    debug('%s users not in channel', temp_user_count)
+    debug('%s users to be purged', purge_users)
+    debug('%s cached regexps', len(_regexp_cache))
 
 
 # Config callbacks
@@ -2175,52 +2407,50 @@ def cmpl_get_irc_users(f):
         return f(users, data, completion_item, buffer, completion)
     return decorator
 
-global waiting_for_completion, cmpl_mask_args
-waiting_for_completion = None
-cmpl_mask_args = None
 def unban_mask_cmpl(mode, completion_item, buffer, completion):
     """Completion for applied banmasks, for commands like /ounban /ounquiet"""
-    masklist = maskModes[mode]
+    maskCache = maskHandler.caches[mode]
     key = irc_buffer(buffer)
     if not key:
         return WEECHAT_RC_OK
     server, channel = key
-    if key not in masklist or not masklist[key].synced:
-        # do completion in masklist_end_cb function
-        global waiting_for_completion
-        masklist.fetch(server, channel)
-        # check if it's fetching a banlist
-        if MaskCache.hook_fetch and not waiting_for_completion:
-            waiting_for_completion = (buffer, completion)
-            say('Fetching +%s masks in %s, please wait...' %(mode, channel), buffer)
-        else:
-            # fetch in progress, do nothing.
-            pass
-    else:
-        # mask list updated, do completion
-        cmpl_unban(buffer, server, channel, completion, masklist)
-    return WEECHAT_RC_OK
 
-def cmpl_unban(buffer, server, channel, completion, masklist):
-    """Updates input with masks if pattern given or feeds the completion list"""
-    masks = masklist[server, channel]
-    input = weechat.buffer_get_string(buffer, 'input')
-    if input[-1] != ' ':
-        input, _, pattern = input.rpartition(' ')
-    else:
-        pattern = ''
-    #debug('%s %s', repr(input), repr(pattern))
-    if pattern:
-        L = masklist.search(pattern, server, channel)
-        if L:
-            input = '%s %s ' %(input, ' '.join(L))
-            weechat.buffer_set(buffer, 'input', input)
-            weechat.buffer_set(buffer, 'input_pos', str(len(input)))
+    def cmpl_unban(masklist):
+        input = weechat.buffer_get_string(buffer, 'input')
+        if input[-1] != ' ':
+            input, _, pattern = input.rpartition(' ')
+        else:
+            pattern = ''
+        #debug('%s %s', repr(input), repr(pattern))
+        if pattern:
+            L = masklist.search(pattern)
+            if L:
+                input = '%s %s ' %(input, ' '.join(L))
+                weechat.buffer_set(buffer, 'input', input)
+                weechat.buffer_set(buffer, 'input_pos', str(len(input)))
+                return
+        elif not masklist:
             return
-    elif not masks:
-        return
-    for mask in masks.iterkeys():
-        weechat.hook_completion_list_add(completion, mask, 0, weechat.WEECHAT_LIST_POS_END)
+        for mask in masklist.iterkeys():
+            weechat.hook_completion_list_add(completion, mask, 0, weechat.WEECHAT_LIST_POS_END)
+
+    if key not in maskCache or not maskCache[key].synced:
+        # do completion after fetching marks
+        if not maskHandler.queue:
+            def execute():
+                masklist = maskCache[key]
+                if masklist:
+                    say('Got %s +%s masks.' %(len(masklist), maskCache.mode), buffer)
+                else:
+                    say('No +%s masks found.' %maskCache.mode, buffer)
+                cmpl_unban(masklist)
+
+            maskCache.fetch(server, channel, execute)
+            say('Fetching +%s masks in %s, please wait...' %(mode, channel), buffer)
+    else:
+        # mask list is up to date, do completion
+        cmpl_unban(maskCache[key])
+    return WEECHAT_RC_OK
 
 @cmpl_get_irc_users
 def ban_mask_cmpl(users, data, completion_item, buffer, completion):
@@ -2239,17 +2469,19 @@ def ban_mask_cmpl(users, data, completion_item, buffer, completion):
     if '@' in pattern:
         # complete *!*@hostname
         prefix = pattern[:pattern.find('@')]
-        make_mask = lambda mask : '%s@%s' %(prefix, mask[mask.find('@')+1:])
+        make_mask = lambda mask: '%s@%s' %(prefix, mask[mask.find('@') + 1:])
+        get_list = users.hostmasks_sorted
     elif '!' in pattern:
         # complete *!username@*
         prefix = pattern[:pattern.find('!')]
-        make_mask = lambda mask : '%s!%s@*' %(prefix, mask[mask.find('!')+1:mask.find('@')])
+        make_mask = lambda mask: '%s!%s@*' %(prefix, mask[mask.find('!') + 1:mask.find('@')])
+        get_list = users.hostmasks_sorted
     else:
         # complete nick!*@*
-        make_mask = lambda mask : '%s!*@*' %get_nick(mask)
+        make_mask = lambda mask: '%s!*@*' %mask
+        get_list = users.nicks
 
-    masks = pattern_match(search_pattern, users.itervalues())
-    for mask in masks:
+    for mask in pattern_match(search_pattern, get_list()):
         mask = make_mask(mask)
         weechat.hook_completion_list_add(completion, mask, 0, weechat.WEECHAT_LIST_POS_END)
     return WEECHAT_RC_OK
@@ -2257,20 +2489,20 @@ def ban_mask_cmpl(users, data, completion_item, buffer, completion):
 # Completions for nick, user and host parts of a usermask
 @cmpl_get_irc_users
 def nicks_cmpl(users, data, completion_item, buffer, completion):
-    for nick in users:
+    for nick in users.nicks():
         weechat.hook_completion_list_add(completion, nick, 0, weechat.WEECHAT_LIST_POS_END)
     return WEECHAT_RC_OK
 
 @cmpl_get_irc_users
 def hosts_cmpl(users, data, completion_item, buffer, completion):
-    for hostmask in users.itervalues():
+    for hostmask in users.hostmasks_sorted():
         weechat.hook_completion_list_add(completion, get_host(hostmask), 0,
                 weechat.WEECHAT_LIST_POS_SORT)
     return WEECHAT_RC_OK
 
 @cmpl_get_irc_users
 def users_cmpl(users, data, completion_item, buffer, completion):
-    for hostmask in users.itervalues():
+    for hostmask in users.hostmasks_sorted():
         user = get_user(hostmask)
         weechat.hook_completion_list_add(completion, user, 0, weechat.WEECHAT_LIST_POS_END)
     return WEECHAT_RC_OK
@@ -2281,9 +2513,14 @@ if __name__ == '__main__' and import_ok and \
         weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
         SCRIPT_DESC, '', ''):
 
-    #from weeutils import DebugBuffer
-    #debug = DebugBuffer('chanop_debugging', globals())
-    #debug.create()
+    try:
+        # custom debug module I use, allows me to inspect script's objects.
+        from weeutils import DebugBuffer
+        debug = DebugBuffer('chanop_debugging', globals())
+        if weechat.config_get_plugin('debug'):
+            debug.create()
+    except:
+        pass
 
     # colors
     color_delimiter = weechat.color('chat_delimiters')
@@ -2307,9 +2544,14 @@ if __name__ == '__main__' and import_ok and \
         version = 0
     #debug(version)
     if version < 0x30200:
+        error('WeeChat < 0.3.2: using irc_is_nick workaround.')
         is_nick = _is_nick # prior to 0.3.2 didn't have irc_is_nick info
     if version < 0x30300: # prior to 0.3.3 didn't have support for ISUPPORT msg
+        error('WeeChat < 0.3.3: using ISUPPORT workaround.')
         weechat.hook_signal('*,irc_in_005', 'isupport_cb', '')
+    if version < 0x30400: # irc_nick flags changed in 0.3.4
+        error('WeeChat < 0.3.4: using irc_nick infolist workaround.')
+        Infolist._use_flags = True
 
     for opt, val in settings.iteritems():
         if not weechat.config_is_set_plugin(opt):
@@ -2317,8 +2559,7 @@ if __name__ == '__main__' and import_ok and \
 
     # hook /oop /odeop
     Op().hook()
-    cmd_deop = Deop()
-    cmd_deop.hook()
+    Deop().hook()
     # hook /okick /obankick
     if get_config_boolean('enable_multi_kick'):
         cmd_kick = MultiKick()
@@ -2331,8 +2572,8 @@ if __name__ == '__main__' and import_ok and \
     # hook /oban /ounban /olist
     Ban().hook()
     UnBan().hook()
-    cmd_showbans = ShowBans()
-    cmd_showbans.hook()
+    showBans = ShowBans()
+    showBans.hook()
     # hook /oquiet /ounquiet
     Quiet().hook()
     UnQuiet().hook()
@@ -2341,6 +2582,9 @@ if __name__ == '__main__' and import_ok and \
     Mode().hook()
     Voice().hook()
     DeVoice().hook()
+
+    maskHandler.hook()
+    userCache.hookUserhost()
 
     weechat.hook_config('plugins.var.python.%s.enable_multi_kick' %SCRIPT_NAME,
             'enable_multi_kick_conf_cb', '')
