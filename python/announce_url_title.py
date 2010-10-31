@@ -25,6 +25,8 @@
 # 
 #
 # History:
+# 2010-10-29, athe
+#   version 0.9: WeeChat user-agent option
 # 2010-10-11, xt
 #   version 0.8: support multiple concurrent url lookups
 # 2010-10-11, xt
@@ -51,7 +53,7 @@ from time import time as now
 
 SCRIPT_NAME    = "announce_url_title"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.8"
+SCRIPT_VERSION = "0.9"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Look up URL title"
 
@@ -65,6 +67,7 @@ settings = {
     'suffix':   '',
     'announce_public': 'off', # print it or msg the buffer
     'global': 'off', # whether to enable for all buffers
+    'user_agent': 'WeeChat/%(version)s (http://www.weechat.org)' # user-agent format string
 }
 
 
@@ -91,9 +94,8 @@ def unescape(s):
     return p.save_end()
 
 def url_print_cb(data, buffer, time, tags, displayed, highlight, prefix, message):
-
     global buffer_name, urls
-
+    
     # Do not trigger on notices
     if prefix == '--':
         return w.WEECHAT_RC_OK
@@ -145,18 +147,20 @@ def url_print_cb(data, buffer, time, tags, displayed, highlight, prefix, message
 
 def url_process_launcher():
     ''' Iterate found urls, fetch title if hasn't been launched '''
-
     global urls
 
+    user_agent = w.config_get_plugin('user_agent') % {'version': w.info_get("version", "")}
     for url, url_d in urls.items():
         if not url_d: # empty dict means not launched
             url_d['launched'] = now()
 
+            cmd = "python -c \"import urllib2; opener = urllib2.build_opener();"
+            cmd += "opener.addheaders = [('User-agent','%s')];" % user_agent
+            cmd += "print opener.open('%s').read(8192)\"" % url
+            
             # Read 8192
             url_d['stdout'] = ''
-            url_d['url_hook_process'] = w.hook_process(
-                "python -c \"import urllib2; print urllib2.urlopen('" + url + "').read(8192)\"",
-                30 * 1000, "url_process_cb", "")
+            url_d['url_hook_process'] = w.hook_process(cmd, 30 * 1000, "url_process_cb", "")
 
     return w.WEECHAT_RC_OK
 
@@ -165,8 +169,7 @@ def url_process_cb(data, command, rc, stdout, stderr):
 
     global buffer_name, urls
 
-
-    url = command.split("'")[1]
+    url = command.split("'")[-2]
     if stdout != "":
         urls[url]['stdout'] += stdout
     if int(rc) >= 0:
@@ -220,6 +223,7 @@ def purge_cb(*args):
 if __name__ == "__main__":
     if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
                         SCRIPT_DESC, "", ""):
+
         # Set default settings
         for option, default_value in settings.iteritems():
             if not w.config_is_set_plugin(option):
