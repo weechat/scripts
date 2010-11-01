@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2009 by FlashCode <flashcode@flashtux.org>
+# Copyright (C) 2009-2010 Sebastien Helleu <flashcode@flashtux.org>
+# Copyright (C) 2010 m4v <lambdae2@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,36 +23,39 @@
 #
 # History:
 #
+# 2010-11-01, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 1.2: use high priority for hooks to prevent conflict with other
+#                  plugins/scripts (WeeChat >= 0.3.4 only)
 # 2010-03-25, m4v <lambdae2@gmail.com>:
 #     version 1.1: use a space for match the end of a string
-# 2009-11-16, FlashCode <flashcode@flashtux.org>:
+# 2009-11-16, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 1.0: add new option for displaying short names
-# 2009-06-15, FlashCode <flashcode@flashtux.org>:
+# 2009-06-15, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.9: fix typo in /help go with command /key
-# 2009-05-16, FlashCode <flashcode@flashtux.org>:
+# 2009-05-16, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.8: search buffer by number, fix bug when window is split
-# 2009-05-03, FlashCode <flashcode@flashtux.org>:
+# 2009-05-03, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.7: eat tab key (do not complete input, just move buffer pointer)
-# 2009-05-02, FlashCode <flashcode@flashtux.org>:
+# 2009-05-02, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.6: sync with last API changes
-# 2009-03-22, FlashCode <flashcode@flashtux.org>:
+# 2009-03-22, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.5: update modifier signal name for input text display,
 #                  fix arguments for function string_remove_color
-# 2009-02-18, FlashCode <flashcode@flashtux.org>:
+# 2009-02-18, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.4: do not hook command and init options if register failed
-# 2009-02-08, FlashCode <flashcode@flashtux.org>:
+# 2009-02-08, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.3: case insensitive search for buffers names
-# 2009-02-08, FlashCode <flashcode@flashtux.org>:
+# 2009-02-08, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.2: add help about Tab key
-# 2009-02-08, FlashCode <flashcode@flashtux.org>:
+# 2009-02-08, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.1: initial release
 #
 
 import weechat
 
 SCRIPT_NAME    = "go"
-SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "1.1"
+SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
+SCRIPT_VERSION = "1.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Quick jump to buffers"
 
@@ -113,9 +117,16 @@ def unhook_all():
 def hook_all():
     """ Hook command_run and modifier """
     global hook_command_run, hooks
+    priority = ""
+    version = weechat.info_get("version_number", "") or 0
+    # use high priority for hook to prevent conflict with other plugins/scripts
+    # (WeeChat >= 0.3.4 only)
+    if int(version) >= 0x00030400:
+        priority = "2000|"
     for hook, value in hook_command_run.iteritems():
         if hook not in hooks:
-            hooks[hook] = weechat.hook_command_run(value[0], value[1], "")
+            hooks[hook] = weechat.hook_command_run("%s%s" % (priority, value[0]),
+                                                   value[1], "")
     if "modifier" not in hooks:
         hooks["modifier"] = weechat.hook_modifier(
             "input_text_display_with_cursor", "input_modifier", "")
