@@ -21,6 +21,8 @@
 # 
 #
 # History:
+# 2010-11-01, nils_2
+#   version 0.8: hook_modifier() added to communicate with rainbow_text
 # 2010-10-01, xt
 #   version 0.7: changes to support non-irc-plugins
 # 2010-07-29, xt
@@ -42,7 +44,7 @@ w = weechat
 
 SCRIPT_NAME    = "colorize_nicks"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.7"
+SCRIPT_VERSION = "0.8"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Use the weechat nick colors in the chat area"
 
@@ -192,4 +194,4 @@ if __name__ == "__main__":
         w.hook_signal('nicklist_nick_added', 'add_nick', '')
         w.hook_signal('nicklist_nick_removed', 'remove_nick', '')
         w.hook_modifier('weechat_print', 'colorize_cb', '')
-
+        w.hook_modifier('colorize_nicks', 'colorize_cb', '')
