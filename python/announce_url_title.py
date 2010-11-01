@@ -25,6 +25,8 @@
 # 
 #
 # History:
+# 2010-11-01, xt
+#   version 10: add ignored buffers feature
 # 2010-10-29, athe
 #   version 0.9: WeeChat user-agent option
 # 2010-10-11, xt
@@ -53,13 +55,14 @@ from time import time as now
 
 SCRIPT_NAME    = "announce_url_title"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.9"
+SCRIPT_VERSION = "10"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Look up URL title"
 
 settings = {
     "buffers"        : 'freenode.#testing,',     # comma separated list of buffers
     "buffers_notice" : 'freenode.#testing,',     # comma separated list of buffers
+    'ignore_buffers' : 'grep,',     # comma separated list of buffers to be ignored by this module
     'title_max_length': '80',
     'url_ignore'     : '', # comma separated list of strings in url to ignore
     'reannounce_wait': '5', # 5 minutes delay
@@ -95,13 +98,16 @@ def unescape(s):
 
 def url_print_cb(data, buffer, time, tags, displayed, highlight, prefix, message):
     global buffer_name, urls
-    
+
     # Do not trigger on notices
     if prefix == '--':
         return w.WEECHAT_RC_OK
 
     msg_buffer_name = get_buffer_name(buffer)
     # Skip ignored buffers
+    if msg_buffer_name in w.config_get_plugin('ignore_buffers').split(','):
+        return w.WEECHAT_RC_OK
+
     found = False
     notice = False
     if w.config_get_plugin('global') == 'on':
@@ -157,7 +163,7 @@ def url_process_launcher():
             cmd = "python -c \"import urllib2; opener = urllib2.build_opener();"
             cmd += "opener.addheaders = [('User-agent','%s')];" % user_agent
             cmd += "print opener.open('%s').read(8192)\"" % url
-            
+
             # Read 8192
             url_d['stdout'] = ''
             url_d['url_hook_process'] = w.hook_process(cmd, 30 * 1000, "url_process_cb", "")
