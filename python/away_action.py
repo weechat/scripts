@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ###
-#   * plugins.var.python.inotify.ignore_channel:
+#   * plugins.var.python.away_action.ignore_channel:
 #   Comma separated list of patterns for define ignores. Notifications from channels where its name
 #   matches any of these patterns will be ignored.
 #   Wildcards '*', '?' and char groups [..] can be used.
@@ -26,20 +26,22 @@
 #       *ubuntu*,!#ubuntu-offtopic
 #       any notifications from a 'ubuntu' channel will be ignored, except from #ubuntu-offtopic
 #
-#   * plugins.var.python.inotify.ignore_nick:
+#   * plugins.var.python.away_action.ignore_nick:
 #   Same as ignore_channel, but for nicknames.
 #
 #       Example:
 #       troll,b[0o]t
 #       will ignore notifications from troll, bot and b0t
 #
-#   * plugins.var.python.inotify.ignore_text:
+#   * plugins.var.python.away_action.ignore_text:
 #   Same as ignore_channel, but for the contents of the message.
 
 ###
 #
 #
 #   History:
+#   2010-11-04:
+#   version 0.3: minor cleanups, fix import, add hook info
 #   2010-03-17:
 #   version 0.2: add force on option
 #   2010-03-11
@@ -49,7 +51,7 @@
 
 SCRIPT_NAME    = "away_action"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Run command on highlight and privmsg when away"
 
@@ -63,11 +65,13 @@ settings = {
 }
 
 ignore_nick, ignore_text, ignore_channel = (), (), ()
+last_buffer = ''
 try:
     import weechat
     w = weechat
     WEECHAT_RC_OK = weechat.WEECHAT_RC_OK
     import_ok = True
+    from fnmatch import fnmatch
 except:
     print "This script must be run under WeeChat."
     print "Get WeeChat now at: http://www.weechat.org/"
@@ -115,7 +119,7 @@ def get_nick(s):
 
 def away_cb(data, buffer, time, tags, display, hilight, prefix, msg):
 
-    global ignore_nick, ignore_text, ignore_channel
+    global ignore_nick, ignore_text, ignore_channel, last_buffer
 
     # Check if we are either away or force_enabled is on
     if not w.buffer_get_string(buffer, 'localvar_away') and \
@@ -128,12 +132,14 @@ def away_cb(data, buffer, time, tags, display, hilight, prefix, msg):
         if prefix not in ignore_nick \
                 and channel not in ignore_channel \
                 and msg not in ignore_text:
+            last_buffer = w.buffer_get_string(buffer, 'plugin') + '.' + \
+                          w.buffer_get_string(buffer, 'name')
             command = weechat.config_get_plugin('command')
             if not command.startswith('/'):
                 w.prnt('', '%s: Error: %s' %(SCRIPT_NAME, 'command must start with /'))
                 return WEECHAT_RC_OK
 
-            w.command('', '%s %s %s' %(command, prefix, msg))
+            w.command('', '%s <%s> %s' %(command, prefix, msg))
     return WEECHAT_RC_OK
 
 def ignore_update(*args):
@@ -141,6 +147,12 @@ def ignore_update(*args):
     ignore_nick._get_ignores()
     ignore_text._get_ignores()
     return WEECHAT_RC_OK
+
+
+def info_hook_cb(data, info_name, arguments):
+    global last_buffer
+    return last_buffer
+
 
 if __name__ == '__main__' and import_ok and \
         weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC,
@@ -157,6 +169,7 @@ if __name__ == '__main__' and import_ok and \
     weechat.hook_config('plugins.var.python.%s.ignore_*' %SCRIPT_NAME, 'ignore_update', '')
 
     weechat.hook_print('', '', '', 1, 'away_cb', '')
+    w.hook_info('%s_buffer' %SCRIPT_NAME, '', '', 'info_hook_cb', '')
 
 
 # vim:set shiftwidth=4 tabstop=4 softtabstop=4 expandtab textwidth=100:
