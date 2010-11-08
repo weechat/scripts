@@ -13,6 +13,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+# History
+# 2010-11-08, John Anderson <sontek@gmail.com>:
+#   version 0.3: Get python 2.x binary for hook_process (fixes problem
+#                when python 3.x is default python version, requires
+#                WeeChat >= 0.3.4)
+
 import sys
 import re
 import weechat
@@ -21,7 +27,7 @@ from urllib2 import urlopen
 
 SCRIPT_NAME    = "shortenurl"
 SCRIPT_AUTHOR  = "John Anderson <sontek@gmail.com>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Shorten long incoming and outgoing URLs"
 
@@ -108,8 +114,9 @@ def tiny_url(url, buffer):
         url = TINYURL % urlencode({'url':url})
     try:
         if buffer:
+            python2_bin = weechat.info_get('python2_bin', '') or 'python'
             shortenurl_hook_process = weechat.hook_process(
-                        "python -c \"import urllib2; print urllib2.urlopen('" + url + "').read()\"",
+                        python2_bin + " -c \"import urllib2; print urllib2.urlopen('" + url + "').read()\"",
                         10 * 1000, "process_complete", buffer)
         else:
             return urlopen(url).read()
