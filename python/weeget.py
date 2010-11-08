@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2009-2010 by FlashCode <flashcode@flashtux.org>
+# Copyright (C) 2009-2010 Sebastien Helleu <flashcode@flashtux.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,34 +22,38 @@
 #
 # History:
 #
+# 2010-11-08, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 1.1: get python 2.x binary for hook_process (fix problem
+#                  when python 3.x is default python version, requires
+#                  WeeChat >= 0.3.4)
 # 2010-02-22, Blake Winton <bwinton@latte.ca>:
 #     version 1.0: add option "listinstalled" for command /weeget
-# 2010-01-25, FlashCode <flashcode@flashtux.org>:
+# 2010-01-25, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.9: fix "running" status of scripts with /weeget check
-# 2009-09-30, FlashCode <flashcode@flashtux.org>:
+# 2009-09-30, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.8: fix bugs and add missing info in "/weeget show",
 #                  display warning if url for plugins.xml.gz is old site
-# 2009-09-07, FlashCode <flashcode@flashtux.org>:
+# 2009-09-07, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.7: update weechat site with new URL
-# 2009-05-02, FlashCode <flashcode@flashtux.org>:
+# 2009-05-02, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.6: sync with last API changes
-# 2009-04-15, FlashCode <flashcode@flashtux.org>:
+# 2009-04-15, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.5: display missing module(s) when import failed
-# 2009-04-11, FlashCode <flashcode@flashtux.org>:
+# 2009-04-11, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.4: use new completion for command arguments
-# 2009-04-07, FlashCode <flashcode@flashtux.org>:
+# 2009-04-07, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.3: fix bug with install/upgrade when weeget is updated with
 #                  other scripts: ensure that weeget is always the last
 #                  installed script
-# 2009-04-07, FlashCode <flashcode@flashtux.org>:
+# 2009-04-07, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.2: add author's mail in script description
-# 2009-04-05, FlashCode <flashcode@flashtux.org>:
+# 2009-04-05, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.1: initial release
 #
 
 SCRIPT_NAME    = "weeget"
-SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "1.0"
+SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
+SCRIPT_VERSION = "1.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "WeeChat scripts manager"
 
@@ -424,7 +428,7 @@ def wg_show_script(name):
     Show detailed info about a script (in repository).
     For example:
         Script: weeget.py, version 0.7, license: GPL3
-        Author: FlashCode <flashcode [at] flashtux [dot] org>
+        Author: Sebastien Helleu <flashcode [at] flashtux [dot] org>
         Status: installed, running
           Date: added: 2009-04-05, updated: 2009-09-07
            URL: http://www.weechat.org/files/scripts/weeget.py
@@ -534,8 +538,9 @@ def wg_install_next_script():
                     wg_hook_process["script"] = ""
                 wg_current_script_install = script
                 filename = wg_config_get_dir() + os.sep + script["full_name"]
+                python2_bin = weechat.info_get("python2_bin", "") or "python"
                 wg_hook_process["script"] = weechat.hook_process(
-                    "python -c \"import urllib, urllib2\n"
+                    python2_bin + " -c \"import urllib, urllib2\n"
                     "req = urllib2.Request('" + script["url"] + "')\n"
                     "try:\n"
                     "    response = urllib2.urlopen(req)\n"
@@ -784,8 +789,9 @@ def wg_update_cache():
     wg_config_create_dir()
     url = weechat.config_string(wg_config_option["scripts_url"])
     filename = wg_config_get_cache_filename()
+    python2_bin = weechat.info_get("python2_bin", "") or "python"
     wg_hook_process["update"] = weechat.hook_process(
-        "python -c \"import urllib, urllib2\n"
+        python2_bin + " -c \"import urllib, urllib2\n"
         "req = urllib2.Request('" + url + "')\n"
         "try:\n"
         "    response = urllib2.urlopen(req)\n"
