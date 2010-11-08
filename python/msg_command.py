@@ -15,6 +15,8 @@
 #       
 #
 #   History:
+#   2010-11-08:
+#   version 0.2: check that message is from remote side
 #   2010-11-04
 #   version 0.1: initial release
 #
@@ -22,7 +24,7 @@
 
 SCRIPT_NAME    = "msg_command"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Run chat recieved in a buffer as commands"
 
@@ -54,7 +56,9 @@ def msg_command_cb(data, buffer, time, tags, display, hilight, prefix, msg):
         buffer_name = '.'.join(buffer_name.split('.')[1:])
         buffer = w.buffer_search(plugin, buffer_name)
         if buffer:
-            w.command(buffer, msg)
+            # Check if message is from remote and not a local
+            if prefix in w.config_get_plugin('buffer'):
+                w.command(buffer, msg)
     return WEECHAT_RC_OK
 
 def hook_it(buffer_pointer):
