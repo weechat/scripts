@@ -3,7 +3,16 @@
 # It sends a notice to your contacts when you're typing a message.
 #
 # Author: CissWit cisswit at 6-8 dot fr
-# Version 1.0
+# Version 1.0.1
+#
+# Changelog :
+#
+# * 1.0.1
+#   Ignore the user "request" (no need to tell it we are typing)
+#
+# * 1.0
+#   Original version
+#
 # Licence GPL3
 
 $h_typing = Hash.new
@@ -13,7 +22,7 @@ def weechat_init
     Weechat.register(
       "minbif_typing_notice",
       "CissWit",
-      "1.0",
+      "1.0.1",
       "GPL3",
       "For minbif - displays when someone is typing a message to you, and notice them when you do.",
       "",
@@ -36,6 +45,10 @@ def input_changed(data,signal,type_data)
 
     if buffer_name =~ /^#{Weechat.config_get_plugin("minbif_server")}\.(.*)/
         nick = $1
+	if nick == "request"
+	    return Weechat::WEECHAT_RC_OK
+	end
+
         buffer_text = Weechat.buffer_get_string(buffer,"input")
         if(buffer_text == "" or buffer_text =~ /^\//)
             if $h_sending.key?(buffer)
