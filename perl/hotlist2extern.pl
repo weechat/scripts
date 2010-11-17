@@ -1,4 +1,7 @@
-# Copyright (c) 2009 by Nils Görs <weechatter@arcor.de>
+# Copyright (c) 2009-2010 by Nils Görs <weechatter@arcor.de>
+#
+# waiting for hotlist to change and then execute a user specified command
+# or writes the hotlist to screen title.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,57 +16,67 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-# waiting for hotlist to change and then execute a user specified command.
-#
 # I am using this script to display the hotlist with STDIN plasmoid on
 # KDE desktop.
 # http://www.kde-look.org/content/show.php/STDIN+Plasmoid?content=92309
 #
 # Script inspirated and tested by LaoLang_cool
 #
-# v0.6	: new option "use_title" to print hotlist in screen title.
-# v0.5	: lot of internal changes
-# v0.4	: highlight_char can be set as often as you want
+# 0.7	: using %h for weechat-dir instead of hardcoded path in script (flashcode)
+# 0.6	: new option "use_title" to print hotlist in screen title.
+# 0.5	: lot of internal changes
+# 0.4	: highlight_char can be set as often as you want
 #	: merged buffer will be displayed once
 #	: more than one metachar-highlight produced a perl error
-# v0.3	: usersettings won't be loaded, sorry! :-(
+# 0.3	: usersettings won't be loaded, sorry! :-(
 #	: added a more complex sort routine (from important to unimportant and also numeric)
 #	: added options: "delimiter", "priority_remove" and "hotlist_remove_format"
 #
 #
 # use the following settings for hotlist_format:
+# %h = weechat-dir (~/.weechat)
 # %H = filled with highlight_char if a highlight message was written in channel. For example: *
 # %N = filled with buffer number: 1 2 3 ....
 # %S = filled with short name of channel: #weechat
 #
-# to export the hotlist_format in your external command.
+# export the hotlist_format to your external command.
 # %X
 #
 # Usage:
-# following options are used from hotlist2extern:
-# Output (for example: "WeeChat Act: %H%N:%S"):
-# /set plugins.var.perl.hotlist2extern.external_command_hotlist "echo \'WeeChat Act: %X\' >~/.weechat/hotlist_output.txt"
-# Output if there is no activity (for example: "WeeChat: no activity"):
-# /set plugins.var.perl.hotlist2extern.external_command_hotlist_empty "echo 'WeeChat: no activity ' >~/.weechat/hotlist_output.txt"
-# charset for a highlight message:
-# /set plugins.var.perl.hotlist2extern.highlight_char  "*"
 # template to use for display (for example: "1:freenode *2:#weechat"):
 # /set plugins.var.perl.hotlist2extern.hotlist_format  "%H%N:%S"
+#
+# Output (for example: "WeeChat Act: %H%N:%S"):
+# /set plugins.var.perl.hotlist2extern.external_command_hotlist "echo \'WeeChat Act: %X\' >%h/hotlist_output.txt"
+#
+# Output if there is no activity (for example: "WeeChat: no activity"):
+# /set plugins.var.perl.hotlist2extern.external_command_hotlist_empty "echo 'WeeChat: no activity ' >%h/hotlist_output.txt"
+#
+# charset for a highlight message:
+# /set plugins.var.perl.hotlist2extern.highlight_char  "*"
+#
 # template that shall be remove when message priority is low. (for example, the buffer name will be removed and only the buffer
 # number will be display instead! (1 *2:#weechat):
 # /set plugins.var.perl.hotlist2extern.hotlist_remove_format ":%S"
+#
+# message priority when using hotlist_remove_format (-1 means off)
+# /set plugins.var.perl.hotlist2extern.priority_remove 0
+#
 # display messages with level:
 # 0=crappy msg (join/part) and core buffer informations, 1=msg, 2=pv, 3=nick highlight
 # /set plugins.var.perl.hotlist2extern.lowest_priority  0
-# message priority when using hotlist_remove_format (-1 means off)
-# /set plugins.var.perl.hotlist2extern.priority_remove 0
+#
+# delimiter to use:
 # /set plugins.var.perl.hotlist2extern.delimiter ","
+#
+# hotlist will be printed to screen title:
+# /set plugins.var.perl.hotlist2extern.use_title "on"
 
 use strict;
 my $hotlist_format		= "%H%N:%S";
 my $hotlist_remove_format	= ":%S";
-my $external_command_hotlist	= "echo \'WeeChat Act: %X\' >~/.weechat/hotlist_output.txt";
-my $external_command_hotlist_empty	= "echo \'WeeChat: no activity \' >~/.weechat/hotlist_output.txt";
+my $external_command_hotlist	= "echo \'WeeChat Act: %X\' >%h/hotlist_output.txt";
+my $external_command_hotlist_empty	= "echo \'WeeChat: no activity \' >%h/hotlist_output.txt";
 my $highlight_char		= "*";
 my $lowest_priority		= 0;
 my $priority_remove		= 0;
@@ -71,11 +84,12 @@ my $delimiter			= ",";
 my $use_title			= "on";
 
 my $prgname	= "hotlist2extern";
-my $version	= "0.6";
-my $description	= "Give hotlist to an external file/program";
+my $version	= "0.7";
+my $description	= "Give hotlist to an external file/program/screen title";
 my $current_buffer = "";
 
 my $plugin_name		= "";
+my $weechat_dir		= "";
 my $buffer_name		= "";
 my $buffer_number	= 0;
 my $buffer_pointer	= 0;
@@ -117,6 +131,9 @@ $table		= "";
 		if ($use_title eq "on"){
 		  weechat::window_set_title($external_command_hotlist_empty);
 		}else{
+		if (grep (/\%h/,$external_command_hotlist_empty)){			# does %h is in string?
+		  $external_command_hotlist_empty =~ s/%h/$weechat_dir/;		# add weechat-dir
+		}
 		  system($external_command_hotlist_empty);
 		}
 	      }
@@ -137,14 +154,14 @@ sub create_output{
 	    }
    if ($priority <= $priority_remove){
 	      $res =~ s/$hotlist_remove_format//;					# remove hotlist_remove_format
-	    if (grep (/\%S/,$hotlist_format)){						# does %S is in sting? (check with original!!!)
+	    if (grep (/\%S/,$hotlist_format)){						# does %S is in string? (check with original!!!)
 		  $res =~ s/%S/$short_name/;						# add short_name
 	    }
  	    if (grep (/\%N/,$hotlist_format)){
 	      $res =~ s/%N/$buffer_number/;						# add buffer_number
 	    }
    }else{
-	    if (grep (/\%S/,$hotlist_format)){						# does %S is in sting? (check with original!!!)
+	    if (grep (/\%S/,$hotlist_format)){						# does %S is in string? (check with original!!!)
 		  $res =~ s/%S/$short_name/;						# add short_name
 	    }
  	    if (grep (/\%N/,$hotlist_format)){
@@ -165,6 +182,10 @@ sub create_output{
 	      if (grep (/\%X/,$external_command_hotlist)){				# check for %X option.
 		$res2 =~ s/%X/$export/;
 
+		if (grep (/\%h/,$external_command_hotlist)){				# does %h is in string?
+		  $res2 =~ s/%h/$weechat_dir/;						# add weechat-dir
+		}
+
 		if ($use_title eq "on"){
 		  weechat::window_set_title($res2);
 		}else{
@@ -178,10 +199,10 @@ sub create_output{
 # first sort channels with highlight, then channels with
 # action and the rest will be put it at the end of list
 sub sort_routine {
-  my @zeilen=@_;
+  my @zeilen = @_;
   my @sortiert = map { $_->[0] }
   map { [$_,(split (/\*/,$_))[1]] } @zeilen ;
-  sort { $a->[0] cmp $b->[0] }
+  sort { $a->[0] cmp $b->[0] }		#sort{$a<=>$b}(@zeilen);
 return @sortiert;
 }
 
@@ -238,7 +259,7 @@ sub init{
   }else{
     $use_title = weechat::config_get_plugin("use_title");
   }
-
+  $weechat_dir = weechat::info_get("weechat_dir", "");
 }
 
 sub toggle_config_by_set{
