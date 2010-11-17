@@ -65,6 +65,11 @@
 #
 #
 #   History:
+#   2010-11-15
+#   version 0.7.1:
+#   * use TempFile so temporal files are guaranteed to be deleted.
+#   * enable Archlinux workaround.
+#
 #   2010-10-26
 #   version 0.7:
 #   * added templates.
@@ -168,9 +173,8 @@
 #
 ###
 
-import sys, getopt, time, os, re
-path = os.path
-stat = os.stat
+from os import path
+import sys, getopt, time, os, re, tempfile
 
 try:
     import weechat
@@ -181,7 +185,7 @@ except ImportError:
 
 SCRIPT_NAME    = "grep"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.7"
+SCRIPT_VERSION = "0.7.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Search in buffers and logs"
 SCRIPT_COMMAND = "grep"
@@ -313,7 +317,7 @@ class linesList(list):
 now = time.time
 def get_size(f):
     try:
-        return stat(f).st_size
+        return os.stat(f).st_size
     except OSError:
         return 0
 
@@ -917,13 +921,18 @@ def show_matching_lines():
             quotify = lambda s: '"%s"' %s
             files_string = ', '.join(map(quotify, search_in_files))
 
+            global tmpFile
+            # we keep the file descriptor as a global var so it isn't deleted until next grep
+            tmpFile = tempfile.NamedTemporaryFile(prefix=SCRIPT_NAME,
+                    dir=weechat.info_get('weechat_dir', ''))
             cmd = grep_process_cmd %dict(logs=files_string, head=head, pattern=pattern, tail=tail,
                     hilight=hilight, after_context=after_context, before_context=before_context,
                     exact=exact, matchcase=matchcase, home_dir=home_dir, script_path=script_path,
-                    count=count, invert=invert, bytecode=bytecode)
+                    count=count, invert=invert, bytecode=bytecode, filename=tmpFile.name,
+                    python=weechat.info_get('python2_bin', '') or 'python')
 
             #debug(cmd)
-            hook_file_grep = weechat.hook_process(cmd, timeout, 'grep_file_callback', '')
+            hook_file_grep = weechat.hook_process(cmd, timeout, 'grep_file_callback', tmpFile.name)
             global pattern_tmpl
             if hook_file_grep:
                 buffer_create("Searching for '%s' in %s worth of data..." %(pattern_tmpl,
@@ -932,8 +941,8 @@ def show_matching_lines():
         buffer_update()
 
 # defined here for commodity
-grep_process_cmd = """python -%(bytecode)sc '
-import sys, cPickle, tempfile, os
+grep_process_cmd = """%(python)s -%(bytecode)sc '
+import sys, cPickle, os
 sys.path.append("%(script_path)s") # add WeeChat script dir so we can import grep
 from grep import make_regexp, grep_file, strip_home
 logs = (%(logs)s, )
@@ -945,10 +954,7 @@ try:
         lines = grep_file(log, %(head)s, %(tail)s, %(after_context)s, %(before_context)s,
         %(count)s, regexp, "%(hilight)s", %(exact)s, %(invert)s)
         d[log_name] = lines
-    #fdname = "/tmp/grep_search.tmp"
-    fd, fdname = tempfile.mkstemp(prefix="grep", dir="%(home_dir)s")
-    fd = os.fdopen(fd, "wb")
-    print fdname
+    fd = open("%(filename)s", "wb")
     cPickle.dump(d, fd, -1)
     fd.close()
 except Exception, e:
@@ -956,7 +962,7 @@ except Exception, e:
 """
 
 grep_stdout = grep_stderr = ''
-def grep_file_callback(data, command, rc, stdout, stderr):
+def grep_file_callback(filename, command, rc, stdout, stderr):
     global hook_file_grep, grep_stderr,  grep_stdout
     global matched_lines
     #debug("rc: %s\nstderr: %s\nstdout: %s" %(rc, repr(stderr), repr(stdout)))
@@ -976,23 +982,23 @@ def grep_file_callback(data, command, rc, stdout, stderr):
             if grep_stderr:
                 error(grep_stderr)
                 set_buffer_error()
-            elif grep_stdout:
+            #elif grep_stdout:
                 #debug(grep_stdout)
-                file = grep_stdout.strip()
-                if file:
-                    try:
-                        import cPickle, os
-                        #debug(file)
-                        fd = open(file, 'rb')
-                        d = cPickle.load(fd)
-                        matched_lines.update(d)
-                        fd.close()
-                    except Exception, e:
-                        error(e)
-                        set_buffer_error()
-                    else:
-                        os.remove(file)
-                        buffer_update()
+            elif path.exists(filename):
+                import cPickle
+                try:
+                    #debug(file)
+                    fd = open(filename, 'rb')
+                    d = cPickle.load(fd)
+                    matched_lines.update(d)
+                    fd.close()
+                except Exception, e:
+                    error(e)
+                    set_buffer_error()
+                else:
+                    buffer_update()
+            global tmpFile
+            tmpFile = None
         finally:
             grep_stdout = grep_stderr = ''
             hook_file_grep = None
@@ -1368,7 +1374,7 @@ def cmd_grep_parsing(args):
             tail = n
 
 def cmd_grep_stop(buffer, args):
-    global hook_file_grep, pattern, matched_lines
+    global hook_file_grep, pattern, matched_lines, tmpFile
     if hook_file_grep:
         if args == 'stop':
             weechat.unhook(hook_file_grep)
@@ -1379,6 +1385,7 @@ def cmd_grep_stop(buffer, args):
             if grep_buffer:
                 weechat.buffer_set(grep_buffer, 'title', s)
             del matched_lines
+            tmpFile = None
         else:
             say(get_grep_file_status(), buffer)
         raise Exception
@@ -1529,15 +1536,15 @@ def completion_grep_args(data, completion_item, buffer, completion):
 # template placeholder
 _tmplRe = re.compile(r'%\{(\w+.*?)(?:\}|$)')
 # will match 999.999.999.999 but I don't care
-ipAddress = r'\\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\\b'
-domain = r'\\b[\w-]{2,}(?:\.[\w-]{2,})*\.[a-z]{2,}\\b'
-url = r'\\b\w+://(?:%s|%s)(?::\d+)?(?:/[^\])>\s]*)?\\b' % (domain, ipAddress)
+ipAddress = r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}'
+domain = r'[\w-]{2,}(?:\.[\w-]{2,})*\.[a-z]{2,}'
+url = r'\w+://(?:%s|%s)(?::\d+)?(?:/[^\])>\s]*)?' % (domain, ipAddress)
 
 def make_url_regexp(args):
     #debug('make url: %s', args)
     if args:
         words = r'(?:%s)' %'|'.join(map(re.escape, args.split()))
-        return r'\\b(?:\w+://|www\.)[^\s]*%s[^\s]*(?:/[^\])>\s]*)?\\b' %words
+        return r'(?:\w+://|www\.)[^\s]*%s[^\s]*(?:/[^\])>\s]*)?' %words
     else:
         return url
 
