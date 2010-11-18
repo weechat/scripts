@@ -31,14 +31,21 @@
 #	2010-10-17: version 0.1: initial release
 #
 #  2010-10-17: version 0.1.1:
-#     * changed: If a buffer + sound is added and psound is empty, then
+#     * change: If a buffer + sound is added and psound is empty, then
 #                psound is set to given sound
-#     * fixed: bugs in "on"- and "off"-functions
-#     * fixed: "on"- and "off"-statusses were not used
+#     * fix: bugs in "on"- and "off"-functions
+#     * fix: "on"- and "off"-statusses were not used
+#  2010-11-15: Version 0.1.3
+#		* change: No sound is played anymore on messages from yourself.
+#		* fix: a new sound for an entry already in the list wasn't set.
+#		* change: Replaced "weechat.hook_process" with Pythons' "subprocess.Popen"
+
+import subprocess as s
+from os.path import expanduser
 
 SCR_NAME    = "snotify"
 SCR_AUTHOR  = "Stephan Huebner <shuebnerfun01@gmx.org>"
-SCR_VERSION = "0.1.1"
+SCR_VERSION = "0.1.3"
 SCR_LICENSE = "GPL3"
 SCR_DESC    = "Play a soundfile for messages in choosable channels or queries"
 SCR_COMMAND = "snotify"
@@ -58,7 +65,6 @@ settings = {
 	"player" : "mplayer", # Application used to play a soundfile
 	"psound" : "", # Sound that should be played on private messages
 	"hsound" : "", # Sound that should be played on highlights
-	#weechat::hook_signal("irc_pv_opened", "signal_irc_pv_opened", "");
 	"buffers" : ""
 }
 
@@ -66,11 +72,17 @@ def errMsg(myMsg):
 	alert("ERR: " + myMsg)
 	return
 
+def fn_hook_process(data, command, rc, stdout, stderr):
+	alert(stderr)
+	return w.WEECHAT_RC_OK
+	
 def fn_privmsg(data, bufferp, time, tags, display, is_hilight, prefix, msg):
 	global bfList
 	global settings
+	servername = (w.buffer_get_string(bufferp, "name").split("."))[0]
+	ownNick = w.info_get("irc_nick", servername)
 	mySound = ""
-	if not muted:
+	if not muted and prefix != ownNick:
 		if settings["player"] == "":
 			errMsg("'Player' isn't set!")
 		else:
@@ -87,8 +99,8 @@ def fn_privmsg(data, bufferp, time, tags, display, is_hilight, prefix, msg):
 								mySound = settings["psound"]
 						else:
 							mySound = lEntry["sound"]
-						cmd_hook_process = w.hook_process(settings["player"] +
-													" " + mySound, 0, "", "")
+						s.Popen([settings["player"], expanduser(mySound)],
+								stderr=s.STDOUT, stdout=s.PIPE)
 					break
 	return w.WEECHAT_RC_OK
 
@@ -116,13 +128,12 @@ def fn_command(data, buffer, args):
 			myBuffer = w.current_buffer()
 			mySound = settings["psound"]
 		myBuffer = w.buffer_get_string(myBuffer, "name")
-
 		if args[0] == "test":
 			if settings["psound"] == "":
 				errMsg("No sound defined! Please set 'psound'-option!")
 			else:
-				cmd_hook_process = w.hook_process(settings["player"] +
-									    " " + settings["psound"], 0, "", "")
+				s.Popen([settings["player"], expanduser(mySound)],
+						  stderr=s.STDOUT, stdout=s.PIPE)
 		elif args[0] == "list":
 			for lEntry in bfList:
 				alert("BUFFER: " + lEntry["buffer"] + " | " +
@@ -139,8 +150,6 @@ def fn_command(data, buffer, args):
 		elif args[0] == "add":
 			for listIndex in range(len(bfList)):
 				if bfList[listIndex]["buffer"] == myBuffer:
-					myStatus = bfList[listIndex]["status"]
-					mySound = bfList[listIndex]["sound"]
 					bfList.pop(listIndex)
 					break
 			bfList += [{"buffer":myBuffer,"status":myStatus,"sound":mySound}]
@@ -219,22 +228,37 @@ if __name__ == "__main__" and import_ok:
 			"[test] | [add] [buffer] [sound[] | [remove] buffer | " +
 			"[on] [buffer] | [off] [buffer] | [muteall] | " +
 			"[demuteall] | [list]",
-			"Attention:\n  * in places where you can enter a buffername, its best to use the 'Tab'-key to cycle through available buffers. If no buffer is chosen at all or the buffer doesn't exist, the current buffer will be used.\n  * You are free to choose whatever player you want (by entering its' name. I urge you to *not* enter any command that could be dangerous, as the command will be executed just as if it were entered on the commandline. The suggestion for common players would be 'mplayer', 'vlc' or 'ogg123'; without the quotes of course).\n\nAvailable options are:\n" +
-			"- player:  The application used to play a soundfile\n" +
-			"- psound:  The soundfile that should be played\n" +
-			"- buffers: The saved buffers (it's best to not edit that setting directly. Rather choose one of the above mentioned commands).\n\nCommands:\n"
-			"test:      Test soundplaying with current settings\n"
-			"add:       add/edit a buffer. If no sound is chosen, the standard on is being used (if one is set)"
-			"remove:    Remove a buffer.\n"
-			"off:       Turn off sound for buffer\n"
-			"on:        Turn on sound for buffer\n"
-			"muteall:   Turn off sounds for all buffers\n"
-			"demuteall: Turn on sounds for all buffers that were activated before\n"
-			"list:      List all saved buffers",
-			"add %(buffers_names)"
-			" || remove %(buffers_names)"
-			" || on %(buffers_names)"
-			" || off %(buffers_names)"
-			" || mute"
-			" || muteall", "fn_command", ""
+			"Attention:" +
+"""
+* in places where you can enter a buffername, its best to use the 'Tab'-key
+  to cycle through available buffers. If no buffer is chosen at all or the
+  buffer doesn't exist, the current buffer will be used.
+* You are free to choose whatever player you want (by entering its' name. I
+  urge you to *not* enter any command that could be dangerous, as the
+  command will be executed just as if it were entered on the commandline.
+  The suggestion for common players would be 'mplayer', 'vlc' or 'ogg123';
+  without the quotes of course).
+  
+Available options are:
+- player:  The application used to play a soundfile
+- psound:  The soundfile that should be played
+- buffers: The saved buffers (it's best to not edit that setting directly.
+  Rather choose one of the above mentioned commands).
+  
+Commands:
+- test:      Test soundplaying with current settings
+- add:       add/edit a buffer. If no sound is chosen, the standard on is being
+             used (if one is set)
+- remove:    Remove a buffer.
+- off:       Turn off sound for buffer
+- on:        Turn on sound for buffer
+- muteall:   Turn off sounds for all buffers
+- demuteall: Turn on sounds for all buffers that were activated before
+- list:      List all saved buffers""",
+			"|| add %(buffers_names)"
+			"|| remove %(buffers_names)"
+			"|| on %(buffers_names)"
+			"|| off %(buffers_names)"
+			"mute"
+			"muteall", "fn_command", ""
 			)
