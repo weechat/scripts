@@ -17,6 +17,8 @@
 # Set WeeChat and plugins options interactively.
 #
 # History:
+# 2010-11-21, drubin <drubin+weechat@smartcube.co.za>:
+#     version 1.1.1: fix bugs with cursor position
 # 2010-11-20, nils_2 <weechatter@arcor.de>:
 #     version 1.1: cursor position set to value
 # 2010-08-03, Sebastien Helleu <flashcode@flashtux.org>:
@@ -48,7 +50,7 @@
 
 use strict;
 
-my $version = "1.1";
+my $version = "1.1.1";
 
 my $iset_buffer = "";
 my @options_names = ();
@@ -521,6 +523,7 @@ sub iset_cmd_cb
                 $quote = "\"" if ($options_types[$current_line] eq "string");
             }
             weechat::buffer_set($iset_buffer, "input", "/set ".$options_names[$current_line]." ".$quote.$value.$quote);
+            weechat::command($iset_buffer, "/input move_beginning_of_line");
             weechat::command($iset_buffer, "/input move_next_word");
             weechat::command($iset_buffer, "/input move_next_word");
             weechat::command($iset_buffer, "/input move_next_char");
