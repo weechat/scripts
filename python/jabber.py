@@ -26,6 +26,8 @@
 # Happy chat, enjoy :)
 #
 # History:
+# 2010-11-23, xt
+#     version 0.6: change format of sent ping, to match RFC
 # 2010-10-05, xt, <xt@bash.no>
 #     version 0.5: no highlight for status/presence messages
 # 2010-10-01, xt, <xt@bash.no>
@@ -63,7 +65,7 @@
 
 SCRIPT_NAME    = "jabber"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.5"
+SCRIPT_VERSION = "0.6"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Jabber/XMPP protocol for WeeChat"
 SCRIPT_COMMAND = SCRIPT_NAME
@@ -483,9 +485,11 @@ class Server:
                 weechat.buffer_set(self.buffer, "localvar_set_nick", self.buddy.username);
                 hook_away = weechat.hook_command_run("/away -all*", "jabber_away_command_run_cb", "")
 
+
                 # setting initial presence
                 priority = weechat.config_integer(self.options['priority'])
                 self.set_presence(show="",priority=priority)
+
 
                 self.ping_up = True
             else:
@@ -865,9 +869,10 @@ class Server:
         if not self.is_connected():
             if not self.connect():
                 return
-        ping_node = xmpp.protocol.Protocol(name='ping', xmlns='urn:xmpp:ping')
-        iq = xmpp.protocol.Iq(to=self.buddy.domain, payload=[ping_node], typ='get')
+        iq = xmpp.protocol.Iq(to=self.buddy.domain, typ='get')
+        iq.addChild( name= "ping", namespace = "urn:xmpp:ping" )
         id = self.client.send(iq)
+        self.print_debug_handler("ping", iq)
         self.add_ping_timeout_timer()
         return
 
@@ -890,8 +895,8 @@ class Server:
             weechat.unhook(self.hook_fd)
             self.hook_fd = None
         if self.client != None:
-            if self.client.isConnected():
-                self.client.disconnect()
+            #if self.client.isConnected():
+            #    self.client.disconnect()
             self.client = None
             self.jid = None
             self.sock = None
