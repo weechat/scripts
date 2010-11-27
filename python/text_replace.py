@@ -20,6 +20,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2010-11-26, xt <xt@bash.no>
+#   version 0.3: don't replace in /set commands
 # 2009-10-27, xt <xt@bash.no>
 #   version 0.2: also replace on words
 # 2009-10-22, xt <xt@bash.no>
@@ -30,7 +32,7 @@ import re
 
 SCRIPT_NAME    = "text_replace"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Replaces text you write with replacement text"
 
@@ -63,6 +65,11 @@ def command_run_input(data, buffer, command):
 
         # Get input contents
         input_s = w.buffer_get_string(buffer, 'input')
+
+        # Skip modification of settings
+        if input_s.startswith('/set '):
+            return w.WEECHAT_RC_OK
+
         # Iterate transformation pairs
         for replace_item in w.config_get_plugin('replacement_pairs').split(','):
             orig, replaced = replace_item.split('=')
