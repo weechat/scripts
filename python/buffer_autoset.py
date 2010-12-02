@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2010-12-02, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 0.3: "no_highlight_nicks" replaced by "hotlist_max_level_nicks"
 # 2010-10-11, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.2: add example in /help autosetbuffer with new buffer
 #                  property "no_highlight_nicks"
@@ -31,7 +33,7 @@
 
 SCRIPT_NAME    = "buffer_autoset"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Auto-set buffer properties when a buffer is opened"
 
@@ -192,8 +194,10 @@ if __name__ == "__main__" and import_ok:
                                  "    /" + SCRIPT_COMMAND + " add irc.freenode.#weechat time_for_each_line 0\n"
                                  "  add word \"weechat\" in highlight list on channel #savannah:\n"
                                  "    /" + SCRIPT_COMMAND + " add irc.freenode.#savannah highlight_words_add weechat\n"
-                                 "  disable highlights from nick \"mike\" on freenode server (all channels) (requires WeeChat >= 0.3.4):\n"
-                                 "    /" + SCRIPT_COMMAND + " add irc.freenode.* no_highlight_nicks_add mike",
+                                 "  disable highlights from nick \"mike\" on freenode server, channel #weechat (requires WeeChat >= 0.3.4):\n"
+                                 "    /" + SCRIPT_COMMAND + " add irc.freenode.#weechat hotlist_max_level_nicks_add mike:2\n"
+                                 "  disable hotlist changes for nick \"bot\" on freenode server (all channels) (requires WeeChat >= 0.3.4):\n"
+                                 "    /" + SCRIPT_COMMAND + " add irc.freenode.* hotlist_max_level_nicks_add bot:-1",
                                  "add %(buffers_plugins_names)|%(buffer_autoset_current_buffer) %(buffer_properties_set)"
                                  " || del %(buffer_autoset_options)",
                                  "bas_cmd", "")
