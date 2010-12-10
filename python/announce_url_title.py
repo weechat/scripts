@@ -22,12 +22,30 @@
 # If someone posts an URL in a configured channel
 # this script will post back title 
 
+# Explanation about ignores:
+#   * plugins.var.python.announce_url_title.ignore_buffers:
+#   Comma separated list of patterns for define ignores. 
+#   URLs from channels where its name matches any of these patterns will be ignored.
+#   Wildcards '*', '?' and char groups [..] can be used.
+#   An ignore exception can be added by prefixing '!' in the pattern.
+#
+#       Example:
+#       *ubuntu*,!#ubuntu-offtopic
+#       any urls from a 'ubuntu' channel will be ignored, 
+#       except from #ubuntu-offtopic
+#
+#   * plugins.var.python.announce_url_title.url_ignore
+#     simply does partial match, so specifying 'google' will ignore every url with the word google in it
 # 
 #
 # History:
+# 2010-12-10, xt
+#   version 12: add better ignores (code based on m4v inotify.py)
+# 2010-11-02, xt
+#   version 11: add prefix
 # 2010-11-01, xt
 #   version 10: add ignored buffers feature
-# 2010-10-29, athe
+# 2010-10-29, add ignore buffers feature
 #   version 0.9: WeeChat user-agent option
 # 2010-10-11, xt
 #   version 0.8: support multiple concurrent url lookups
@@ -52,12 +70,13 @@ w = weechat
 import re
 import htmllib
 from time import time as now
+from fnmatch import fnmatch
 
 SCRIPT_NAME    = "announce_url_title"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "10"
+SCRIPT_VERSION = "12"
 SCRIPT_LICENSE = "GPL"
-SCRIPT_DESC    = "Look up URL title"
+SCRIPT_DESC    = "Announce URL titles to channel or locally"
 
 settings = {
     "buffers"        : 'freenode.#testing,',     # comma separated list of buffers
@@ -70,7 +89,8 @@ settings = {
     'suffix':   '',
     'announce_public': 'off', # print it or msg the buffer
     'global': 'off', # whether to enable for all buffers
-    'user_agent': 'WeeChat/%(version)s (http://www.weechat.org)' # user-agent format string
+    'user_agent': 'WeeChat/%(version)s (http://www.weechat.org)', # user-agent format string
+    'global_prefix':'url', # Prefix for when not public announcement
 }
 
 
@@ -84,10 +104,10 @@ urlRe = re.compile(r'(\w+://(?:%s|%s)(?::\d+)?(?:/[^\])>\s]*)?)' % (domain, ipAd
 buffer_name = ''
 
 urls = {}
-
-def get_buffer_name(bufferp):
-    bufferd = w.buffer_get_string(bufferp, "name")
-    return bufferd
+script_nick = 'url'
+def say(s, buffer=''):
+    """normal msg"""
+    weechat.prnt(buffer, '%s\t%s' %(script_nick, s))
 
 def unescape(s):
     """Unescape HTML entities"""
@@ -97,15 +117,18 @@ def unescape(s):
     return p.save_end()
 
 def url_print_cb(data, buffer, time, tags, displayed, highlight, prefix, message):
-    global buffer_name, urls
+    global buffer_name, urls, ignore_buffers
 
     # Do not trigger on notices
     if prefix == '--':
         return w.WEECHAT_RC_OK
 
-    msg_buffer_name = get_buffer_name(buffer)
+    msg_buffer_name = w.buffer_get_string(buffer, "name")
     # Skip ignored buffers
-    if msg_buffer_name in w.config_get_plugin('ignore_buffers').split(','):
+
+    #if msg_buffer_name in w.config_get_plugin('ignore_buffers').split(','):
+    #    return w.WEECHAT_RC_OK
+    if msg_buffer_name in ignore_buffers:
         return w.WEECHAT_RC_OK
 
     found = False
@@ -130,7 +153,6 @@ def url_print_cb(data, buffer, time, tags, displayed, highlight, prefix, message
 
     ignorelist = w.config_get_plugin('url_ignore').split(',')
     for url in urlRe.findall(message):
-
 
         ignore = False
         for ignore_part in ignorelist:
@@ -160,11 +182,11 @@ def url_process_launcher():
         if not url_d: # empty dict means not launched
             url_d['launched'] = now()
 
+            # Read 8192
             cmd = "python -c \"import urllib2; opener = urllib2.build_opener();"
             cmd += "opener.addheaders = [('User-agent','%s')];" % user_agent
             cmd += "print opener.open('%s').read(8192)\"" % url
 
-            # Read 8192
             url_d['stdout'] = ''
             url_d['url_hook_process'] = w.hook_process(cmd, 30 * 1000, "url_process_cb", "")
 
@@ -205,9 +227,9 @@ def url_process_cb(data, command, rc, stdout, stderr):
                         w.command('', '/notice -server %s %s %s' %(server, buffer, output))
                         found = True
                 if found == False:
-                    w.prnt(w.buffer_search('', buffer_name), 'URL title\t' +output)
+                    say(output,w.buffer_search('', buffer_name))
             else:
-                w.prnt(w.buffer_search('', buffer_name), 'URL title\t' +output)
+                say(output,w.buffer_search('', buffer_name))
         urls[url]['stdout'] = ''
 
     return w.WEECHAT_RC_OK
@@ -225,6 +247,34 @@ def purge_cb(*args):
 
     return w.WEECHAT_RC_OK
 
+class Ignores(object):
+    def __init__(self, ignore_type):
+        self.ignore_type = ignore_type
+        self.ignores = []
+        self.exceptions = []
+        self._get_ignores()
+
+    def _get_ignores(self):
+        assert self.ignore_type is not None
+        ignores = weechat.config_get_plugin(self.ignore_type).split(',')
+        ignores = [ s.lower() for s in ignores if s ]
+        self.ignores = [ s for s in ignores if s[0] != '!' ]
+        self.exceptions = [ s[1:] for s in ignores if s[0] == '!' ]
+
+    def __contains__(self, s):
+        s = s.lower()
+        for p in self.ignores:
+            if fnmatch(s, p):
+                for e in self.exceptions:
+                    if fnmatch(s, e):
+                        return False
+                return True
+        return False
+
+def ignore_update(*args):
+    ignore_buffers._get_ignores()
+    return w.WEECHAT_RC_OK
+
 
 if __name__ == "__main__":
     if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
@@ -234,6 +284,7 @@ if __name__ == "__main__":
         for option, default_value in settings.iteritems():
             if not w.config_is_set_plugin(option):
                 w.config_set_plugin(option, default_value)
+        ignore_buffers = Ignores('ignore_buffers')
 
         w.hook_print("", "", "://", 1, "url_print_cb", "")
         w.hook_timer(\
@@ -242,3 +293,14 @@ if __name__ == "__main__":
             0,
             "purge_cb",
             '')
+        weechat.hook_config('plugins.var.python.%s.ignore_buffers' %SCRIPT_NAME, 'ignore_update', '')
+    color_chat_delimiters = weechat.color('chat_delimiters')
+    color_chat_nick       = weechat.color('chat_nick')
+    color_reset           = weechat.color('reset')
+    color_chat_buffer     = weechat.color('chat_buffer')
+    # pretty printing
+    script_nick = '%s[%s%s%s]%s' %(color_chat_delimiters,
+                                   color_chat_nick,
+                                   w.config_get_plugin('global_prefix'),
+                                   color_chat_delimiters,
+                                   color_reset)
