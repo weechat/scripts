@@ -1,6 +1,6 @@
 #
 # chanmon.pl - Channel Monitoring for weechat 0.3.0
-# Version 2.1.2
+# Version 2.1.3
 #
 # Add 'Channel Monitor' buffer/bar that you can position to show IRC channel
 # messages in a single location without constantly switching buffers
@@ -10,7 +10,7 @@
 # /chanmon [help] | [monitor [channel [server]]] | [dynmon] | [clean default|orphan|all]
 #  Command wrapper for chanmon commands
 #
-# /monitor [channel] [server] is used to toggle a channel monitoring on and off, this
+# /chmonitor [channel] [server] is used to toggle a channel monitoring on and off, this
 #  can be used in the channel buffer for the channel you wish to toggle, or be given
 #  with arguments e.g. /monitor #weechat freenode
 #
@@ -66,6 +66,10 @@
 # /set weechat.bar.input.conditions "active"
 
 # History:
+# 2010-12-05, KenjiE20 <longbow@longbowslair.co.uk>:
+#	v2.1.3: -change: /monitor is now /chmonitor to avoid command conflicts (thanks m4v)
+#		(/chanmon monitor remains the same)
+#		-fix: Add command list to inbuilt help
 # 2010-09-30, KenjiE20 <longbow@longbowslair.co.uk>:
 #	v2.1.2:	-fix: logging config was not correctly toggling back on (thanks to sleo for noticing)
 # 2010-09-20, m4v <lambdae2@gmail.com>:
@@ -160,7 +164,17 @@
 @bar_lines = ();
 @bar_lines_time = ();
 # Replicate info earlier for in-client help
-$chanmonhelp = weechat::color("bold")."/set plugins.var.perl.chanmon.alignment".weechat::color("-bold")."
+$chanmonhelp = weechat::color("bold")."/chanmon [help] | [monitor [channel [server]]] | [dynmon] | [clean default|orphan|all]".weechat::color("-bold")."
+Command wrapper for chanmon commands
+
+".weechat::color("bold")."/chmonitor [channel] [server]".weechat::color("-bold")." is used to toggle a channel monitoring on and off, this
+ can be used in the channel buffer for the channel you wish to toggle, or be given with arguments e.g. /monitor #weechat freenode
+
+".weechat::color("bold")."/dynmon".weechat::color("-bold")." is used to toggle 'Dynamic Channel Monitoring' on and off, this will automagically stop monitoring the current active buffer, without affecting regular settings (Default is off)
+
+".weechat::color("bold")."/chanclean".weechat::color("-bold")." default|orphan|all will clean the config section of default 'on' entries, channels you are no longer joined, or both
+
+".weechat::color("bold")."/set plugins.var.perl.chanmon.alignment".weechat::color("-bold")."
  The config setting \"alignment\" can be changed to;
  \"channel\", \"schannel\", \"nchannel\", \"channel,nick\", \"schannel,nick\", \"nchannel,nick\"
  to change how the monitor appears
@@ -607,11 +621,11 @@ sub chanmon_dyn_toggle
 sub chanmon_hook
 {
 	weechat::hook_print("", "", "", 0, "chanmon_new_message", "");
-	weechat::hook_command("monitor", "Toggles monitoring for a channel", "[channel [server]]", " channel: What channel to toggle monitoring for\n  server: Internal server name, if channel is on more than one server", "%(irc_channels) %(irc_servers)", "chanmon_toggle", "");
+	weechat::hook_command("chmonitor", "Toggles monitoring for a channel", "[channel [server]]", " channel: What channel to toggle monitoring for\n  server: Internal server name, if channel is on more than one server", "%(irc_channels) %(irc_servers)", "chanmon_toggle", "");
 	weechat::hook_command("dynmon", "Toggles 'dynamic' monitoring (auto-disable monitoring for current channel)", "", "", "", "chanmon_dyn_toggle", "");
 	weechat::hook_command("chanclean", "Chanmon config clean up", "default|orphan|all", " default: Cleans all config entries with the default \"on\" value\n  orphan: Cleans all config entries for channels you aren't currently joined\n     all: Does both defaults and orphan", "default|orphan|all", "chanmon_config_clean", "");
 	
-	weechat::hook_command("chanmon", "Chanmon help", "[help] | [monitor [channel [server]]] | [dynmon] | [clean default|orphan|all]", "    help: Print help on config options for chanmon\n monitor: Toggles monitoring for a channel (/monitor)\n  dynmon: Toggles 'dynamic' monitoring (auto-disable monitoring for current channel) (/dynmon)\n   clean: Chanmon config clean up (/chanclean)", "help || monitor %(irc_channels) %(irc_servers) || dynmon || clean default|orphan|all", "chanmon_command_cb", "");
+	weechat::hook_command("chanmon", "Chanmon help", "[help] | [monitor [channel [server]]] | [dynmon] | [clean default|orphan|all]", "    help: Print help for chanmon\n monitor: Toggles monitoring for a channel (/chmonitor)\n  dynmon: Toggles 'dynamic' monitoring (auto-disable monitoring for current channel) (/dynmon)\n   clean: Chanmon config clean up (/chanclean)", "help || monitor %(irc_channels) %(irc_servers) || dynmon || clean default|orphan|all", "chanmon_command_cb", "");
 	
 	weechat::hook_config("plugins.var.perl.chanmon.*", "chanmon_config_cb", "");
 }
@@ -1037,7 +1051,7 @@ sub format_buffer_name
 }
 
 # Check result of register, and attempt to behave in a sane manner
-if (!weechat::register("chanmon", "KenjiE20", "2.1.2", "GPL3", "Channel Monitor", "", ""))
+if (!weechat::register("chanmon", "KenjiE20", "2.1.3", "GPL3", "Channel Monitor", "", ""))
 {
 	# Double load
 	weechat::print ("", "\tChanmon is already loaded");

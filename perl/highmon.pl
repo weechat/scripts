@@ -1,6 +1,6 @@
 #
 # highmon.pl - Highlight Monitoring for weechat 0.3.0
-# Version 2.1.2
+# Version 2.1.3
 #
 # Add 'Highlight Monitor' buffer/bar to log all highlights in one spot
 #
@@ -13,7 +13,7 @@
 #
 # /highmon monitor [channel] [server] is used to toggle a highlight monitoring on and off, this
 #  can be used in the channel buffer for the channel you wish to toggle, or be given
-#  with arguments e.g. /monitor #weechat freenode
+#  with arguments e.g. /highmon monitor #weechat freenode
 #
 # /set plugins.var.perl.highmon.alignment
 #  The config setting "alignment" can be changed to;
@@ -58,6 +58,9 @@
 #
 
 # History:
+# 2010-12-13, idl0r & KenjiE20 <longbow@longbowslair.co.uk>:
+#	v2.1.3:	-fix: perl errors caused by bar line counter
+#			-fix: Add command list to inbuilt help
 # 2010-09-30, KenjiE20 <longbow@longbowslair.co.uk>:
 #	v2.1.2:	-fix: logging config was not correctly toggling back on (thanks to sleo for noticing)
 #			-version sync w/ chanmon
@@ -107,7 +110,15 @@
 @bar_lines = ();
 @bar_lines_time = ();
 # Replicate info earlier for in-client help
-$highmonhelp = weechat::color("bold")."/set plugins.var.perl.highmon.alignment".weechat::color("-bold")."
+
+$highmonhelp = weechat::color("bold")."/highmon [help] | [monitor [channel [server]]] | [clean default|orphan|all]".weechat::color("-bold")."
+ Command wrapper for highmon commands
+
+".weechat::color("bold")."/highmon clean default|orphan|all".weechat::color("-bold")." will clean the config section of default 'on' entries, channels you are no longer joined, or both
+
+".weechat::color("bold")."/highmon monitor [channel] [server]".weechat::color("-bold")." is used to toggle a highlight monitoring on and off, this can be used in the channel buffer for the channel you wish to toggle, or be given with arguments e.g. /highmon monitor #weechat freenode
+
+".weechat::color("bold")."/set plugins.var.perl.highmon.alignment".weechat::color("-bold")."
  The config setting \"alignment\" can be changed to;
  \"channel\", \"schannel\", \"nchannel\", \"channel,nick\", \"schannel,nick\", \"nchannel,nick\"
  to change how the monitor appears
@@ -158,11 +169,12 @@ sub highmon_bar_build
 {
 	# Get max lines
 	$max_lines = weechat::config_get_plugin("bar_lines");
+	$max_lines = $max_lines ? $max_lines : 10;
 	$str = '';
 	$align_num = 0;
 	$count = 0;
 	# Keep lines within max
-	while (@bar_lines > $max_lines)
+	while ($#bar_lines > $max_lines)
 	{
 		shift(@bar_lines);
 		shift(@bar_lines_time);
@@ -929,7 +941,7 @@ sub format_buffer_name
 }
 
 # Check result of register, and attempt to behave in a sane manner
-if (!weechat::register("highmon", "KenjiE20", "2.1.2", "GPL3", "Highlight Monitor", "", ""))
+if (!weechat::register("highmon", "KenjiE20", "2.1.3", "GPL3", "Highlight Monitor", "", ""))
 {
 	# Double load
 	weechat::print ("", "\tHighmon is already loaded");

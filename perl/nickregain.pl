@@ -1,6 +1,6 @@
 #
 # nickregain.pl - Automatically regain your nick when avaiable, for weechat 0.3.0
-# Version 1.1
+# Version 1.1.1
 #
 # Automatically checks every x mins to see if your prefered nicks are available
 # and issues either /nick or a custom nickserv command
@@ -31,6 +31,8 @@
 # Default: 60
 #
 # History:
+# 2010-12-13, idl0r:
+#	v1.1.1:	-fix: corner case where $config{$name} didn't exist for a disconnecting server
 # 2009-04-24, KenjiE20 <longbow@longbowslair.co.uk>:
 #	v1.1	-feature: Add server_command_delay option to add a delay to server_command
 #		-fix: Broken quit/nick change detection
@@ -88,7 +90,7 @@ $helpstr = "  on: Enables regain for current server
  Used incase you can't see the old nick quit or nick change
  Default: ".weechat::color("bold")."60".weechat::color("-bold");
 
-weechat::register("nickregain", "KenjiE20", "1.1", "GPL3", "Auto Nick Regaining", "", "");
+weechat::register("nickregain", "KenjiE20", "1.1.1", "GPL3", "Auto Nick Regaining", "", "");
 
 regain_setup();
 
@@ -158,7 +160,7 @@ sub regain_disconn
 	$name = $_[2];
 
 	# Are we configured to run on this server
-	if ($config{$name}{'enabled'} ne 'off')
+	if ($config{$name} && ($config{$name}{'enabled'} ne 'off'))
 	{
 		# Unhook any hooks, as they can't do anything now
 		if ($nhook{$name})
