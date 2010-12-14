@@ -19,17 +19,24 @@
 # Allows you to visually see if there are updates to your weechat system
 
 #Versions
+# 0.2 nils_2 - second release.
+#             - countdown to next stable release added.
+#             - now using hook_signal(day_changed) instead of hook_timer()
+#             └-> option "update_interval" is obsolet now.
+#             - hook_config() added.
+#             - type missmatched removed if git_compile_location wasn't set
 # 0.1 drubin - First release.
 #            - Basic functionality with url getting and compairing version.
 
 SCRIPT_NAME    = "update_notifier"
 SCRIPT_AUTHOR  = "drubin <drubin at smartcube.co.za>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Notifiers users of updates to weechat."
 
 import_ok = True
 import os
+from time import *
 try:
     import weechat
 except ImportError:
@@ -43,12 +50,16 @@ settings = {
     "uses_git"                  : "false",
     "uses_devel"                : "false",
     "git_compile_location"      : "",
-    #In seconds
-    "update_interval"           : "%s"  % (60*60*24) , #Default is to check every day
-    "update_text"               : "New Version Available",
+    "update_text"               : "New devel version available",
+    "update_text_stable"        : "New stable version %s available",
+    "start_counting"            : "30",
+    "start_countdown"           : "10",
+    "next_stable_text"          : "%d day(s) left to version %s",
+    "color_default"             : "default",
+    "color_countdown"           : "red",
 }
 
-infos = ["stable","stable_number","git","next_stable","next_stable_number"]
+infos = ["stable","stable_number","git","next_stable","next_stable_number","next_stable_date"]
 
 #Not a config because it should not change ever
 BASE_URL = "http://www.weechat.net/info/"
@@ -78,7 +89,7 @@ def full_file_name(filename):
      path = un_cache_dir() + os.sep + filename
      return path
 
-def un_timer_cache(date,remaning):
+def un_timer_cache(date,remaning,dropit):
     un_update_cache()
     return weechat.WEECHAT_RC_OK 
 
@@ -90,11 +101,13 @@ def un_update_cache():
         
 def get_cur_git_version():
     path = weechat.config_get_plugin("git_compile_location")
-    f = os.popen("cd %s && git rev-parse HEAD" % path)
-    stuff = f.readline()
-    f.close()
-    return stuff.strip()
-    
+    if path != "":
+      f = os.popen("cd %s && git rev-parse HEAD" % path)
+      stuff = f.readline()
+      f.close()
+      return stuff.strip()
+    else:
+      return False
 
 def get_info_ver(info):
     filecontents = file(full_file_name(info)).read().strip()
@@ -128,31 +141,73 @@ def up_item_cb(data, buffer, args):
     """ Callback for building update item. """
     version = get_version()
     version_num = get_version(True)
-    
+    next_stable_text = ""
     compare_version = ""
     compare_version_num = ""
     
     update_avaliable = False
-    
+
+# check for stable version first
+    start_counting = weechat.config_get_plugin("start_counting")
+    if start_counting != "":
+        next_stable_date = get_info_ver("next_stable_date")
+        lt = localtime()
+        year, month, day = lt[0:3]				# today
+        next_stable_date = next_stable_date.split("-")		# next_stable_date
+        next_stable_date = int(next_stable_date[0]),int(next_stable_date[1]),int(next_stable_date[2]),0,0,0,0,0,0
+        next_stable_date = mktime(next_stable_date)
+        today = year,month,day, 0, 0, 0, 0, 0, 0
+        today = mktime(today)
+        diff_day = (next_stable_date - today)/60/60/24		# calculate days till next_stable_date
+        diff_day = "%1i" % (diff_day)
+#        diff_day = 0						# test to pop up new stable text
+        if (int(diff_day) > 0) and (int(diff_day) <= int(start_counting)):
+	  used_color = weechat.config_get_plugin("color_default")
+	  if (int(diff_day) <= int(weechat.config_get_plugin("start_countdown"))):		# TEN and counting....
+	    used_color = weechat.config_get_plugin("color_countdown")
+        
+	  next_stable_text = weechat.config_get_plugin("next_stable_text")
+	  next_stable = get_info_ver("next_stable")
+	  if next_stable_text == "":
+	    next_stable_text = ("days left:" + weechat.color(used_color) + "%d" + weechat.color("reset") + " to stable: %s") % (int(diff_day),next_stable)
+	  else:
+	    next_stable_text = next_stable_text.replace("%d", weechat.color(used_color) + "%d" + weechat.color("reset"))
+	    if next_stable_text.find("%s") >= 1:		# check for %s
+	      next_stable_text = next_stable_text % (int(diff_day),next_stable)
+	    else:
+	      next_stable_text = next_stable_text % int(diff_day)
+	    update_avaliable = False
+        elif (int(diff_day) <= 0):				# today a new stable version is available
+          stable_number = get_info_ver("stable")
+          next_stable_text = weechat.config_get_plugin("update_text_stable")
+          if next_stable_text.find("%s") >= 1:			# %s in string?
+	    next_stable_text = (next_stable_text % stable_number)
+	  return next_stable_text				# new stable version
+
     if weechat.config_get_plugin("uses_devel") == "true":
         compare_version_num = get_info_ver("next_stable_number")
         compare_version = get_info_ver("next_stable")
         update_avaliable = int(compare_version_num) > int(version_num)
     elif weechat.config_get_plugin("uses_git") == "true":
         git_cur = get_cur_git_version()
-        git_ver = get_info_ver("git")
-        compare_version = git_cur
-        update_avaliable = get_cur_git_version() != git_ver
+        if git_cur != False:				# path to git dir exists?
+	  git_ver = get_info_ver("git")			# yes
+          compare_version = git_cur
+          update_avaliable = get_cur_git_version() != git_ver
+        else:
+	  update_avaliable = False
     else:
         compare_version_num = get_info_ver("stable_number")
         compare_version = get_info_ver("stable")
         update_avaliable = int(compare_version_num) > int(version_num)
-    
+        
     if update_avaliable:
         return weechat.config_get_plugin("update_text")
-    else: 
-        return ""
-    
+    else:
+      if next_stable_text != "":
+        return next_stable_text
+      else:
+	return ""
 
 def un_cmd(data, buffer, args):
     un_update_cache()
@@ -163,6 +218,7 @@ if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
                     SCRIPT_DESC, "", ""):
     for option, default_value in settings.iteritems():
         if weechat.config_get_plugin(option) == "":
+	  if option != "start_counting":
             weechat.config_set_plugin(option, default_value)
             
     weechat.hook_command("upgrade_check", "Checks for upgrades", "",
@@ -171,6 +227,8 @@ if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
             
             
     weechat.bar_item_new(BAR_NAME, 'up_item_cb', '')
-    weechat.hook_timer(int(weechat.config_get_plugin("update_interval")) * 1000, 0, 0, "un_timer_cache", "")
+    weechat.hook_signal("day_changed","un_timer_cache","")
+    weechat.hook_config("plugins.var.python." + SCRIPT_NAME + ".*", "un_timer_cache", "")
+
     #Update the cache when it starts up.
     un_update_cache()
