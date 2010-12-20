@@ -22,6 +22,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2010-12-20, xt <xt@bash.no>
+#     version 10: use API for nick color, strip nick prefix
 # 2009-12-17, FlashCode <flashcode@flashtux.org>
 #     version 0.9: fix option name "show_index" (spaces removed)
 # 2009-12-12, FlashCode <flashcode@flashtux.org>
@@ -44,7 +46,7 @@
 
 SCRIPT_NAME    = "urlbar"
 SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.9"
+SCRIPT_VERSION = "10"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Bar with URLs. For easy clicking or selecting."
 SCRIPT_COMMAND = "urlbar"
@@ -136,7 +138,7 @@ class URL(object):
                 (weechat.color(weechat.config_string(
                 weechat.config_get('weechat.color.chat_time_delimiters'))),
                 weechat.color('reset')))
-        self.nick = irc_nick_find_color(nick)
+        self.nick = irc_nick_find_color(nick.strip('%&@+'))
 
     def __str__(self):
         # Format options
@@ -222,14 +224,13 @@ def urlbar_completion_urls_cb(data, completion_item, buffer, completion):
 
 def irc_nick_find_color(nick):
 
-    color = 0
-    for char in nick:
-        color += ord(char)
-
-    color %= weechat.config_integer(weechat.config_get("weechat.look.color_nicks_number"))
-    color = weechat.config_get('weechat.color.chat_nick_color%02d' %(color+1))
-    color = weechat.config_string(color)
-    return '%s%s%s' %(weechat.color(color), nick, weechat.color('reset'))
+    color = weechat.info_get('irc_nick_color', nick)
+    if not color:
+        # probably we're in WeeChat 0.3.0
+        color %= weechat.config_integer(weechat.config_get("weechat.look.color_nicks_number"))
+        color = weechat.config_get('weechat.color.chat_nick_color%02d' %(color+1))
+        color = w.color(weechat.config_string(color))
+    return '%s%s%s' %(color, nick, weechat.color('reset'))
 
 
 if __name__ == "__main__" and import_ok:
