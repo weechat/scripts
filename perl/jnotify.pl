@@ -14,7 +14,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-# v0.7: quakenet uses another JOIN format (JOIN #channelname instead of JOIN :#channelname)
+# v0.8: get_color() is now using API function weechat::info_get("irc_nick_color")
+# v0.7: quakenet uses different JOIN format (JOIN #channelname instead of JOIN :#channelname)
 # v0.6: newsbar support
 #     : internal changes (thanks to rettub)
 #     : added option 'block_all_buffers'
@@ -57,7 +58,7 @@ my $extern_command = qq(echo -en "\a");
 # my $extern_command = qq(notify-send -t 9000 -i $HOME/.weechat/120px-Weechat_logo.png "\"%C\" \"neuer User: %N\");
 
 # default values in setup file (~/.weechat/plugins.conf)
-my $version		= "0.7";
+my $version		= "0.8";
 my $prgname 		= "jnotify";
 my $description 	= "starts an external program if a user or one of your buddies JOIN a channel you are in";
 my $status		= "status";
@@ -370,19 +371,9 @@ sub _del{
 		weechat::print("", "$prgname : There is no nick to be removed.");
 	}
 }
-# get color routine by rettub
 sub get_color{
-	my $color = 0;
-	foreach my $c (split(//, $_[0]))
-	{
-		$color += ord($c);
-	}
-	$color = ($color %
-			weechat::config_integer (weechat::config_get ("weechat.look.color_nicks_number")));
-
-	my $color_name = sprintf("chat_nick_color%02d", $color + 1);
-
-	return weechat::color ($color_name);
+    my $nick_name = $_[0];
+    return weechat::info_get("irc_nick_color", $nick_name);
 }
 # newsbar support starts here (code by rettub)
 sub info2newsbar{

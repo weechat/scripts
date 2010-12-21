@@ -48,6 +48,10 @@
 # -----------------------------------------------------------------------------
 #
 # Changelog:
+# Version 0.11 2010-12-20, nils_2
+#
+#   * FIX function called before weechat::register()
+#   * FIX find_color_nick, now using API function weechat::info_get("irc_nick_color")
 #
 # Version 0.10 2010-01-20
 #
@@ -144,7 +148,7 @@ use POSIX qw(strftime);
 use strict;
 use warnings;
 
-my $Version = "0.10";
+my $Version = "0.11";
 
 # constants
 #
@@ -378,22 +382,10 @@ sub _beep {
 
 # 
 # irc_nick_find_color: find a color for a nick (according to nick letters)
-# (ported to perl from WeeChats source)
 sub irc_nick_find_color
 {
-    my @nick_name = split(//, $_[0]);
-    
-    my $color = 0;
-    foreach my $c (split(//, $_[0]))
-    {
-        $color += ord($c);
-    }
-    $color = ($color %
-             weechat::config_integer (weechat::config_get ("weechat.look.color_nicks_number")));
-
-    my $color_name = sprintf("chat_nick_color%02d", $color + 1);
-    
-    return weechat::color ($color_name);
+    my $nick_name = $_[0];
+    return weechat::info_get("irc_nick_color", $nick_name);
 }
 
 sub _colored {
@@ -833,7 +825,7 @@ sub init_bar {
         weechat::bar_item_new( $bar_name, "build_bar", "" );
         weechat::bar_new(
             $bar_name,                              $Bar_hidden,
-            "100",                                  "root",
+            "1000",                                 "root",
             "",                                     "top",
             "vertical",                             "vertical",
             "0",
@@ -855,7 +847,7 @@ sub init_bar {
         weechat::bar_item_new( $Bar_title_name, "build_bar_title", "" );
         weechat::bar_new(
             $Bar_title_name,                        $Bar_hidden,
-            "100",                                  "root",
+            "1010",                                 "root",
             "",                                     "top",
             "vertical",                             "vertical",
             "0",                                    '1',
@@ -977,10 +969,8 @@ sub build_bar {
     return $str;
 }
 
-# ------------------------------------------------------------------------------
-# here we go...
-
 # color/uncolor help {{{
+sub color_help {
 if (weechat::config_string (weechat::config_get('plugins.var.perl.newsbar.colored_help')) eq 'off' ) {
     $CMD_HELP =~ s/<c>|<\/c>//g;
 } else {
@@ -998,7 +988,10 @@ if (weechat::config_string (weechat::config_get('plugins.var.perl.newsbar.colore
     $CMD_HELP =~ s/<c>(.*)?<\/c>/$cc_brown$1$cc_default/g;
     $CMD_HELP =~ s/(%[nNcCs])/$cc_cyan$1$cc_default/g;
 } # }}}
+}
 
+# ------------------------------------------------------------------------------
+# here we go...
 # init script
 # XXX If you don't check weechat::register() for succsess, %SETTINGS will be set
 # XXX by init_config() into the namespace of other perl scripts.
@@ -1008,6 +1001,7 @@ if ( weechat::register(  $SCRIPT,  $AUTHOR, $Version, $LICENCE, $DESCRIPTION, "u
     weechat::hook_print( "", "", "", 1, "highlights_public", "" );
     weechat::hook_signal( "weechat_pv",    "highlights_private", "" );
 
+    color_help();
     init_config();
     init_bar();
     weechat::hook_config( "plugins.var.perl." . $SCRIPT . ".away_only", 'highlights_config_changed', "" );

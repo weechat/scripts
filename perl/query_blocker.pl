@@ -34,6 +34,9 @@
 #
 # -----------------------------------------------------------------------------
 # History:
+# 2010-12-20, nils:
+#     version 0.3:
+#     FIX:         find_color_nick(), now using API function weechat::info_get("irc_nick_color")
 #
 # 2010-01-10, rettub:
 #     version 0.2:
@@ -57,7 +60,7 @@ use strict;
 
 my $SCRIPT      = 'query_blocker';
 my $AUTHOR      = 'rettub <rettub@gmx.net>';
-my $VERSION     = '0.2';
+my $VERSION     = '0.3';
 my $LICENSE     = 'GPL3';
 my $DESCRIPTION = 'Simple blocker for private message (i.e. spam)';
 my $COMMAND     = "query_blocker";             # new command name
@@ -119,20 +122,10 @@ sub DEBUG {weechat::print('', "***\t" . $_[0]);}
 # {{{ helpers
 # 
 # irc_nick_find_color: find a color for a nick (according to nick letters)
-# (ported to perl from WeeChats source)
 sub irc_nick_find_color
 {
-    my $color = 0;
-    foreach my $c (split(//, $_[0]))
-    {
-        $color += ord($c);
-    }
-    $color = ($color %
-             weechat::config_integer (weechat::config_get ("weechat.look.color_nicks_number")));
-
-    my $color_name = sprintf("chat_nick_color%02d", $color + 1);
-    
-    return weechat::color ($color_name);
+    my $nick_name = $_[0];
+    return weechat::info_get("irc_nick_color", $nick_name);
 }
 # }}}
 
