@@ -852,7 +852,7 @@ class IrcCommands(ChanopBuffers):
                 nick, host = string.rsplit(None, 1)[1].split('=')
                 nick, host = nick.strip(':*'), host[1:]
                 hostmask = '%s!%s' % (nick, host)
-                debug('USERHOST: %s %s', nick, hostmask)
+                #debug('USERHOST: %s %s', nick, hostmask)
                 userCache.remember(modifier_data, nick, hostmask)
                 weechat.unhook(vars.msgHook)
                 weechat.unhook(vars.msgTimeout)
@@ -1385,20 +1385,6 @@ class ServerUserList(CaseInsensibleDict):
         buffer = weechat.buffer_search('irc', 'server.%s' %server)
         self.irc = IrcCommands(buffer)
         self._purge_time = 3600*4 # 4 hours
-
-    def __setitem__(self, k, v):
-        if hasattr(self, 'channel'):
-            debug('%s.%s --> %s', self.server, self.channel, v)
-        else:
-            debug('%s --> %s', self.server, v)
-        CaseInsensibleDict.__setitem__(self, k, v)
-
-    def __delitem__(self, k):
-        if hasattr(self, 'channel'):
-            debug('%s.%s <-- %s', self.server, self.channel, k)
-        else:
-            debug('%s <-- %s', self.server, k)
-        CaseInsensibleDict.__delitem__(self, k)
 
     def getHostmask(self, nick):
         user = self[nick]
@@ -2640,18 +2626,6 @@ if __name__ == '__main__' and import_ok and \
         weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
         SCRIPT_DESC, '', ''):
 
-    try:
-        # custom debug module I use, allows me to inspect script's objects.
-        import pybuffer
-        debug = pybuffer.debugBuffer(globals(), 'chanop_debug')
-    except:
-        def debug(s, *args):
-            if not isinstance(s, basestring):
-                s = str(s)
-            if args:
-                s = s %args
-            prnt('', '%s\t%s' %(script_nick, s))
-
     # colors
     color_delimiter = weechat.color('chat_delimiters')
     color_chat_nick = weechat.color('chat_nick')
@@ -2742,6 +2716,27 @@ if __name__ == '__main__' and import_ok and \
     weechat.hook_info("chanop_pattern_match",
             "Test if pattern matches text, is case insensible with IRC case rules.",
             "pattern,text", "info_pattern_match", "")
+
+    # -------------------------------------------------------------------------
+    # Debug
+
+    if weechat.config_get_plugin('debug'):
+        try:
+            # custom debug module I use, allows me to inspect script's objects.
+            import pybuffer
+            debug = pybuffer.debugBuffer(globals(), '%s_debug' % SCRIPT_NAME)
+        except:
+            def debug(s, *args):
+                if not isinstance(s, basestring):
+                    s = str(s)
+                if args:
+                    s = s %args
+                prnt('', '%s\t%s' % (script_nick, s))
+    else:
+        def debug(*args):
+            pass
+
+
 
 
 # vim:set shiftwidth=4 tabstop=4 softtabstop=4 expandtab textwidth=100:
