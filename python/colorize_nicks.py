@@ -21,6 +21,8 @@
 # 
 #
 # History:
+# 2010-12-22, xt
+#   version 10: hook config option for updating blacklist
 # 2010-12-20, xt
 #   version 0.9: hook new config option for weechat 0.3.4 
 # 2010-11-01, nils_2
@@ -38,7 +40,7 @@
 # 2010-03-24, xt
 #   version 0.2: use ignore_channels when populating to increase performance.
 # 2010-02-03, xt
-#   version 0.1: initial
+#   version 0.1: initial (based on ruby script by dominikh)
 
 import weechat
 import re
@@ -46,7 +48,7 @@ w = weechat
 
 SCRIPT_NAME    = "colorize_nicks"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.9"
+SCRIPT_VERSION = "10"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Use the weechat nick colors in the chat area"
 
@@ -178,6 +180,13 @@ def remove_nick(data, signal, type_data):
 
     return w.WEECHAT_RC_OK
 
+def update_blacklist(*args):
+    global ignore_channels, ignore_nicks
+    if w.config_get_plugin('blacklist_channels'):
+        ignore_channels = w.config_get_plugin('blacklist_channels').split(',')
+    ignore_nicks = w.config_get_plugin('blacklist_nicks').split(',')
+    return w.WEECHAT_RC_OK
+
 if __name__ == "__main__":
     if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
                         SCRIPT_DESC, "", ""):
@@ -188,14 +197,15 @@ if __name__ == "__main__":
 
         for key, value in PREFIX_COLORS.iteritems():
             PREFIX_COLORS[key] = w.color(w.config_string(w.config_get('weechat.look.%s'%value)))
-        if w.config_get_plugin('blacklist_channels'):
-            ignore_channels = w.config_get_plugin('blacklist_channels').split(',')
-        ignore_nicks = w.config_get_plugin('blacklist_nicks').split(',')
 
+        update_blacklist() # Set blacklist
         populate_nicks() # Run it once to get data ready 
         w.hook_signal('nicklist_nick_added', 'add_nick', '')
         w.hook_signal('nicklist_nick_removed', 'remove_nick', '')
         w.hook_modifier('weechat_print', 'colorize_cb', '')
         # Hook config for changing colors
         w.hook_config('weechat.color.chat_nick_colors', 'populate_nicks', '')
+        # Hook for working togheter with other scripts (like rainbow)
         w.hook_modifier('colorize_nicks', 'colorize_cb', '')
+        # Hook for updating blacklist (this could be improved to use fnmatch)
+        weechat.hook_config('plugins.var.python.%s.blacklist*' %SCRIPT_NAME, 'update_blacklist', '')

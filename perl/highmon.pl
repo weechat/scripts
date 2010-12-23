@@ -1,6 +1,6 @@
 #
 # highmon.pl - Highlight Monitoring for weechat 0.3.0
-# Version 2.1.3
+# Version 2.2
 #
 # Add 'Highlight Monitor' buffer/bar to log all highlights in one spot
 #
@@ -58,6 +58,8 @@
 #
 
 # History:
+# 2010-12-22, KenjiE20 <longbow@longbowslair.co.uk>:
+#	v2.2:	-change: Use API instead of config to find channel colours, ready for 0.3.4 and 256 colours
 # 2010-12-13, idl0r & KenjiE20 <longbow@longbowslair.co.uk>:
 #	v2.1.3:	-fix: perl errors caused by bar line counter
 #			-fix: Add command list to inbuilt help
@@ -883,16 +885,21 @@ sub format_buffer_name
 	if (weechat::config_get_plugin("color_buf") eq "on")
 	{
 		# Determine what colour to use
-		$color = 0;
-		@char_array = split(//,$bufname);
-		foreach $char (@char_array)
+		$color = weechat::info_get("irc_nick_color", $bufname);
+		if (!$color)
 		{
-			$color += ord($char);
+			$color = 0;
+			@char_array = split(//,$bufname);
+			foreach $char (@char_array)
+			{
+				$color += ord($char);
+			}
+			$color %= 10;
+			$color = sprintf "weechat.color.chat_nick_color%02d", $color+1;
+			$color = weechat::config_get($color);
+			$color = weechat::config_string($color);
+			$color = weechat::color($color);
 		}
-		$color %= 10;
-		$color = sprintf "weechat.color.chat_nick_color%02d", $color+1;
-		$color = weechat::config_get($color);
-		$color = weechat::config_string($color);
 		
 		# Format name to short or 'nicename'
 		if (weechat::config_get_plugin("short_names") eq "on")
@@ -941,7 +948,7 @@ sub format_buffer_name
 }
 
 # Check result of register, and attempt to behave in a sane manner
-if (!weechat::register("highmon", "KenjiE20", "2.1.3", "GPL3", "Highlight Monitor", "", ""))
+if (!weechat::register("highmon", "KenjiE20", "2.2", "GPL3", "Highlight Monitor", "", ""))
 {
 	# Double load
 	weechat::print ("", "\tHighmon is already loaded");
