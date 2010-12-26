@@ -17,6 +17,10 @@
 # Set WeeChat and plugins options interactively.
 #
 # History:
+# 2010-12-26, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 1.2: improve speed of /upgrade when iset buffer is open,
+#                  restore filter used after /upgrade using buffer local variable,
+#                  use /iset filter argument if buffer is open.
 # 2010-11-21, drubin <drubin+weechat@smartcube.co.za>:
 #     version 1.1.1: fix bugs with cursor position
 # 2010-11-20, nils_2 <weechatter@arcor.de>:
@@ -50,7 +54,7 @@
 
 use strict;
 
-my $version = "1.1.1";
+my $version = "1.2";
 
 my $iset_buffer = "";
 my @options_names = ();
@@ -114,6 +118,10 @@ sub iset_filter
     {
         $filter = "*".$filter."*";
     }
+    if ($iset_buffer ne "")
+    {
+        weechat::buffer_set($iset_buffer, "localvar_set_iset_filter", $filter);
+    }
 }
 
 sub iset_buffer_input
@@ -143,6 +151,11 @@ sub iset_init
     {
         $iset_buffer = weechat::buffer_new("iset", "iset_buffer_input", "", "iset_buffer_close", "");
     }
+    else
+    {
+        my $new_filter = weechat::buffer_get_string($iset_buffer, "localvar_iset_filter");
+        $filter = $new_filter if ($new_filter ne "");
+    }
     if ($iset_buffer ne "")
     {
         weechat::buffer_set($iset_buffer, "type", "free");
@@ -160,6 +173,7 @@ sub iset_init
         weechat::buffer_set($iset_buffer, "key_bind_meta-meta2-1~", "/iset **scroll_top");
         weechat::buffer_set($iset_buffer, "key_bind_meta-meta2-4~", "/iset **scroll_bottom");
         weechat::buffer_set($iset_buffer, "key_bind_meta-v",        "/iset **toggle_help");
+        weechat::buffer_set($iset_buffer, "localvar_set_iset_filter", $filter);
     }
 }
 
@@ -351,6 +365,8 @@ sub iset_config_cb
     
     if ($iset_buffer ne "")
     {
+        return weechat::WEECHAT_RC_OK if (weechat::info_get("weechat_upgrading", "") eq "1");
+        
         my $index = iset_get_option_name_index($option_name);
         if ($index >= 0)
         {
@@ -411,10 +427,12 @@ sub iset_unset_option
 sub iset_cmd_cb
 {
     my ($data, $buffer, $args) = ($_[0], $_[1], $_[2]);
+    my $filter_set = 0;
 
     if (($args ne "") && (substr($args, 0, 2) ne "**"))
     {
         iset_filter($args);
+        $filter_set = 1;
     }
     
     if ($iset_buffer eq "")
@@ -422,6 +440,10 @@ sub iset_cmd_cb
         iset_init();
         iset_get_options();
         iset_refresh();
+    }
+    else
+    {
+        iset_full_refresh() if ($filter_set);
     }
     
     weechat::buffer_set($iset_buffer, "display", "1");
@@ -644,12 +666,17 @@ sub iset_signal_buffer_switch_cb
     return weechat::WEECHAT_RC_OK;
 }
 
-sub iset_item_cb()
+sub iset_item_cb
 {
     return iset_get_help();
 }
 
-sub iset_end()
+sub iset_upgrade_ended
+{
+    iset_full_refresh();
+}
+
+sub iset_end
 {
     # when script is unloaded, we hide bar
     iset_show_bar(0);
@@ -674,6 +701,7 @@ weechat::hook_command("iset", "Interactive set", "[f file] [s section] [text]",
                       "text,enter     : set a new filter using command line (use '*' to see all options)\n".
                       "alt+'V'        : toggle help bar\n",
                       "", "iset_cmd_cb", "");
+weechat::hook_signal("upgrade_ended", "iset_upgrade_ended", "");
 weechat::hook_signal("window_scrolled", "iset_signal_window_scrolled_cb", "");
 weechat::hook_signal("buffer_switch", "iset_signal_buffer_switch_cb","");
 weechat::hook_config("*", "iset_config_cb", "");
