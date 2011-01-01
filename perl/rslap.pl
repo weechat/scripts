@@ -1,6 +1,6 @@
 #
 # rslap.pl - Random slap strings for weechat 0.3.0
-# Version 1.3
+# Version 1.3.1
 #
 # Let's you /slap a nick but with a random string
 # Customisable via the 'rslap' file in your config dir
@@ -25,6 +25,8 @@
 #  is a valid entry number
 
 # History:
+# 2010-12-30, KenjiE20 <longbow@longbowslair.co.uk>:
+#	v1.3.1	-fix: uninitialised variable error
 # 2010-04-25, KenjiE20 <longbow@longbowslair.co.uk>:
 #	v1.3	-feature: Ability to add/remove entries
 #		-feature: Can specify which string /rslap will use
@@ -53,7 +55,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-weechat::register("rslap", "KenjiE20", "1.3", "GPL3", "Slap Randomiser", "", "");
+weechat::register("rslap", "KenjiE20", "1.3.1", "GPL3", "Slap Randomiser", "", "");
 
 $file = weechat::info_get("weechat_dir", "")."/rslap";
 my @lines;
@@ -181,14 +183,14 @@ sub rslap
 	$args = $_[2];
 	if (weechat::buffer_get_string($buffer, "plugin") eq "irc")
 	{
-		($nick, my $number) = split(/ /,$args);
+		($nick, $number) = split(/ /,$args);
 		if ($nick eq "")
 		{
 			weechat::print ("", weechat::prefix("error")."No nick given");
 		}
 		else
 		{
-			if ($number =~ m/^\d+$/)
+			if (defined $number && $number =~ m/^\d+$/)
 			{
 				$number--;
 				if (!$lines[$number])
