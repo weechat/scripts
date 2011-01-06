@@ -16,6 +16,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 0.1: internal release
+# 0.2: hook_print() changed (thanks to xt)
+#
 # requirements:
 # - URI::Find
 
@@ -23,7 +26,7 @@ use strict;
 use URI::Find;
 
 my $prgname	= "expand_url";
-my $version	= "0.1";
+my $version	= "0.2";
 my $description	= "Get information on a short URL. Find out where it goes.";
 # default values
 my %default_options = (	"shortener"		=>	"tiny.cc|bit.ly|is.gd|tinyurl.com",
@@ -40,7 +43,6 @@ sub hook_print_cb{
 my ( $data, $buffer, $date, $tags, $displayed, $highlight, $prefix, $message ) = @_;
 my $tags2 = ",$tags,";
 return weechat::WEECHAT_RC_OK if ( not $tags2 =~ /,notify_[^,]+,/ ); # message is not from a nick?
-
 
   $uri_only = "";
   my $finder = URI::Find->new( \&uri_find_cb );
@@ -113,5 +115,5 @@ if (!weechat::config_is_set_plugin("color")){
   $default_options{color} = weechat::config_get_plugin("color");
 }
 
-weechat::hook_print("", "", "", 1, "hook_print_cb", "");
+weechat::hook_print("", "", "://", 1, "hook_print_cb", "");
 weechat::hook_config("plugins.var.perl.$prgname.*", "toggled_by_set", "");	# options changed?
