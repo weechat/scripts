@@ -40,6 +40,9 @@
 #   Note: 'trim' and 'bitly' shorteners require the 'rubygems' and
 #   'json' ruby modules.
 #
+# 2010-01-07, nils_2 <weechatter@arcor.de>
+#     version 1.8: URI will be shorten only for messages
+#      checking for notify_message, notify_private and notify_highlight first
 # 2010-10-11, Daniel
 #     version 1.7: google use comma in URL so make them acceptable too
 # 2010-08-05, Derek Carter <goozbach@friocorte.com>
@@ -64,7 +67,7 @@ require 'uri'
 SCRIPT_NAME = 'url_shorten'
 SCRIPT_AUTHOR = 'Daniel Bretoi <daniel@bretoi.com>'
 SCRIPT_DESC = 'Shorten url'
-SCRIPT_VERSION = '1.7'
+SCRIPT_VERSION = '1.8'
 SCRIPT_LICENSE = 'BSD'
 
 DEFAULTS = {
@@ -81,7 +84,9 @@ def weechat_init
   Weechat.register SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, "", ""
   Weechat.hook_command SCRIPT_NAME, SCRIPT_DESC, "url", "url: url to shorten", "", SCRIPT_NAME, ""
   #Weechat.hook_signal "*,irc_in2_privmsg", "msg_shorten", ""
-  Weechat.hook_print "", "", "://", 1, "msg_shorten", ""
+  Weechat.hook_print "", "notify_message", "://", 1, "msg_shorten", ""
+  Weechat.hook_print "", "notify_private", "://", 1, "msg_shorten", ""
+  Weechat.hook_print "", "notify_highlight", "://", 1, "msg_shorten", ""
   DEFAULTS.each_pair { |option, def_value|
     cur_value = Weechat.config_get_plugin(option)
     if cur_value.nil? || cur_value.empty?
