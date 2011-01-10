@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 ###
-# Copyright (c) 2009-2010 by Elián Hanisch <lambdae2@gmail.com>
+# Copyright (c) 2009-2011 by Elián Hanisch <lambdae2@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -65,6 +65,9 @@
 #
 #
 #   History:
+#   2011-01-09
+#   version 0.7.2: bug fixes
+#
 #   2010-11-15
 #   version 0.7.1:
 #   * use TempFile so temporal files are guaranteed to be deleted.
@@ -185,7 +188,7 @@ except ImportError:
 
 SCRIPT_NAME    = "grep"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.7.1"
+SCRIPT_VERSION = "0.7.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Search in buffers and logs"
 SCRIPT_COMMAND = "grep"
@@ -413,14 +416,6 @@ def strip_home(s, dir=''):
 
 ### Messages ###
 script_nick = SCRIPT_NAME
-def debug(s, *args):
-    if not weechat.config_get_plugin('debug'): return
-    if not isinstance(s, basestring):
-        s = str(s)
-    if args:
-        s = s %args
-    prnt('', '%s\t%s' %(script_nick, s))
-
 def error(s, buffer=''):
     """Error msg"""
     prnt(buffer, '%s%s %s' %(weechat.prefix('error'), script_nick, s))
@@ -495,16 +490,18 @@ def get_file_by_pattern(pattern, all=False):
     if path.isfile(file):
         return [file]
     else:
-        import fnmatch
+        from fnmatch import fnmatch
         file = []
         file_list = dir_list(home_dir)
         n = len(home_dir)
         for log in file_list:
             basename = log[n:]
-            if fnmatch.fnmatch(basename, pattern):
+            if fnmatch(basename, pattern):
                 file.append(log)
-                if not all: break
         #debug('get_file_by_filename: got %s.' %file)
+        if not all and file:
+            file.sort()
+            return [ file[-1] ]
         return file
 
 def get_file_by_buffer(buffer):
@@ -552,10 +549,13 @@ def get_file_by_name(buffer_name):
             if '$server' in mask:
                 mask = mask.replace('$server', server)
         # change the unreplaced vars by '*'
+        from string import letters
+        if '%' in mask:
+            # vars for time formatting
+            mask = mask.replace('%', '$')
         if '$' in mask:
-            chars = 'abcdefghijklmnopqrstuvwxyz_'
             masks = mask.split('$')
-            masks = map(lambda s: s.lstrip(chars), masks)
+            masks = map(lambda s: s.lstrip(letters), masks)
             mask = '*'.join(masks)
             if mask[0] != '*':
                 mask = '*' + mask
@@ -604,6 +604,11 @@ def make_regexp(pattern, matchcase=False):
     if pattern in ('.', '.*', '.?', '.+'):
         # because I don't need to use a regexp if we're going to match all lines
         return None
+    # matching takes a lot more time if pattern starts or ends with .* and it isn't needed.
+    if pattern[:2] == '.*':
+        pattern = pattern[2:]
+    if pattern[-2:] == '.*':
+        pattern = pattern[:-2]
     try:
         if not matchcase:
             regexp = re.compile(pattern, re.IGNORECASE)
@@ -617,19 +622,28 @@ def check_string(s, regexp, hilight='', exact=False):
     """Checks 's' with a regexp and returns it if is a match."""
     if not regexp:
         return s
+
     elif exact:
         matchlist = regexp.findall(s)
         if matchlist:
+            if isinstance(matchlist[0], tuple):
+                # join tuples (when there's more than one match group in regexp)
+                return [ ' '.join(t) for t in matchlist ]
             return matchlist
+
     elif hilight:
         matchlist = regexp.findall(s)
         if matchlist:
+            if isinstance(matchlist[0], tuple):
+                # flatten matchlist
+                matchlist = [ item for L in matchlist for item in L if item ]
             matchlist = list(set(matchlist)) # remove duplicates if any
             # apply hilight
             color_hilight, color_reset = hilight.split(',', 1)
             for m in matchlist:
-                s = s.replace(m, '%s%s%s' %(color_hilight, m, color_reset))
+                s = s.replace(m, '%s%s%s' % (color_hilight, m, color_reset))
             return s
+
     # no need for findall() here
     elif regexp.search(s):
         return s
@@ -916,7 +930,7 @@ def show_matching_lines():
             # we hook a process so grepping runs in background.
             #debug('on background')
             global hook_file_grep, script_path, bytecode
-            timeout = 1000*60*10 # 10 min
+            timeout = 1000*60*5 # 5 min
 
             quotify = lambda s: '"%s"' %s
             files_string = ', '.join(map(quotify, search_in_files))
@@ -1100,8 +1114,7 @@ def buffer_update():
                         else:
                             if '\x00' in line:
                                 # log was corrupted
-                                error("Found garbage in log '%s', maybe it's corrupted" %log,
-                                        trace=repr(line))
+                                error("Found garbage in log '%s', maybe it's corrupted" %log)
                                 line = line.replace('\x00', '')
                             prnt_date_tags(buffer, 0, 'no_highlight', format_line(line))
 
@@ -1679,5 +1692,24 @@ Examples:
     script_nick_nocolor = '[%s]' %SCRIPT_NAME
     # paragraph separator when using context options
     context_sep = '%s\t%s--' %(script_nick, color_info)
+
+    # -------------------------------------------------------------------------
+    # Debug
+
+    if weechat.config_get_plugin('debug'):
+        try:
+            # custom debug module I use, allows me to inspect script's objects.
+            import pybuffer
+            debug = pybuffer.debugBuffer(globals(), '%s_debug' % SCRIPT_NAME)
+        except:
+            def debug(s, *args):
+                if not isinstance(s, basestring):
+                    s = str(s)
+                if args:
+                    s = s %args
+                prnt('', '%s\t%s' %(script_nick, s))
+    else:
+        def debug(*args):
+            pass
 
 # vim:set shiftwidth=4 tabstop=4 softtabstop=4 expandtab textwidth=100:
