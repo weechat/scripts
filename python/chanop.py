@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 ###
-# Copyright (c) 2009-2010 by Elián Hanisch <lambdae2@gmail.com>
+# Copyright (c) 2009-2011 by Elián Hanisch <lambdae2@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -189,6 +189,9 @@
 #
 #
 #   History:
+#   2011-01-09
+#   version 0.2.3: bug fixes.
+#   
 #   2010-12-23
 #   version 0.2.2: bug fixes.
 #
@@ -238,7 +241,7 @@
 
 SCRIPT_NAME    = "chanop"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.2.2"
+SCRIPT_VERSION = "0.2.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Helper script for IRC Channel Operators"
 
@@ -441,7 +444,7 @@ def hostmaskPattern(f):
         if is_hostmask(pattern):
             pattern, _, channel = pattern.partition('$') # nick!user@host$#channel
             return f(pattern, arg)
-        return False
+        return ''
     return checkPattern
 
 match_string = lambda r, s: r.match(s) is not None
@@ -1403,7 +1406,7 @@ class UserList(ServerUserList):
     def __init__(self, server, channel):
         self.server = server
         self.channel = channel
-        self._purge_list = {}
+        self._purge_list = CaseInsensibleDict()
         self._purge_time = 3600*2 # 2 hours
 
     def __setitem__(self, nick, user):
@@ -2412,6 +2415,14 @@ def mode_cb(server, channel, nick, opHostmask, signal_data):
 # User cache
 @signal_parse
 def join_cb(server, channel, nick, hostmask, signal_data):
+    if weechat.info_get('irc_nick', server) == nick:
+        # we're joining the channel, the cache is no longer valid
+        #userCache.generateCache(server, channel)
+        try:
+            del userCache[server, channel]
+        except KeyError:
+            pass
+        return WEECHAT_RC_OK
     user = userCache.remember(server, nick, hostmask)
     userCache[server, channel][nick] = user
     return WEECHAT_RC_OK
