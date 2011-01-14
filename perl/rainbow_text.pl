@@ -20,6 +20,7 @@
 # settings see help page
 #
 # history:
+# 0.5: support of hotlist_max_level_nicks_add and weechat.color.chat_nick_colors (>= weechat 0.3.4)
 # 0.4: support of weechat.look.highlight_regex option (>= weechat 0.3.4)
 #    : support of weechat.look.highlight option
 #    : highlighted line did not work with "." inside servername
@@ -36,7 +37,7 @@
 
 use strict;
 my $prgname	= "rainbow_text";
-my $version	= "0.4";
+my $version	= "0.5";
 my $description	= "colours the channel text with according nick colour. Highlight messages will be fully highlighted";
 
 # default values
@@ -46,12 +47,14 @@ my %default_options = (	"var_highlight"		=> "on",
 			"var_buffer_autoset"	=> "off",
 			"var_look_highlight"	=> "off",
 			"var_look_highlight_regex"	=> "off",
+			"var_hotlist_max_level_nicks_add"	=> "off",
 			"zahl"			=> 0,
 			"default_version"	=> 0,
 			"prefix_action"		=> "",
 			"blacklist_channels"	=> "",
 );
 my $nick_mode = "";
+# standard colours.
 my %colours = (0 => "darkgray", 1 => "red", 2 => "lightred", 3 => "green",
 		  4 => "lightgreen", 5 => "brown", 6 => "yellow", 7 => "blue",
 		  8 => "lightblue", 9 => "magenta", 10 => "lightmagenta", 11 => "cyan",
@@ -116,6 +119,7 @@ if ($default_options{prefix_action} eq $nick){							# nick is a prefix!!!
 	$nick_color = weechat::info_get('irc_nick_color', $line =~ (m/(.+?) /));		# and get real nick-colour from line
 }
 
+	    my $var_hl_max_level_nicks_add = 0;
 # highlight message received?
     if ($default_options{var_highlight} eq "on"){						# highlight_mode on?
       if ( $default_options{var_buffer_autoset} eq "on" || $default_options{var_look_highlight} eq "on" ){# buffer_autoset or look_highlight "on"?
@@ -128,8 +132,11 @@ if ($default_options{prefix_action} eq $nick){							# nick is a prefix!!!
 	  }
 
 	  if ($default_options{var_look_highlight} eq "on"){
-	    my $look_highlight = weechat::config_string(weechat::config_get("weechat.look.highlight"));
+	    my $look_highlight = weechat::config_string( weechat::config_get("weechat.look.highlight") );
 	    $highlight_words .= $look_highlight;
+	  }
+	  if ( $default_options{var_hotlist_max_level_nicks_add} eq "on" and weechat::config_string(weechat::config_get("buffer_autoset.buffer.irc.".$servername.".".$channel_name.".hotlist_max_level_nicks_add")) =~ /$nick\:[0-2]/ ){
+	    $var_hl_max_level_nicks_add = 1;
 	  }
 
 	    # kill "," at end of string
@@ -178,9 +185,11 @@ if ($default_options{prefix_action} eq $nick){							# nick is a prefix!!!
 	      }
 
 # highlight whole line
+	if ( $var_hl_max_level_nicks_add eq 0 ){
 	      $line = colorize_nicks($high_color,$modifier_data,$line);
 	      $line = $nick_mode . $high_color . $nick . "\t" . $high_color . $line . weechat::color('reset');
 	      return $line;
+	}
 	}
     } # highlight area finished
 
@@ -284,6 +293,10 @@ my ( $pointer, $name, $value ) = @_;
     $default_options{var_buffer_autoset} = $value;
     return weechat::WEECHAT_RC_OK;
   }
+  if ($name eq "plugins.var.perl.$prgname.hotlist_max_level_nicks_add"){
+    $default_options{var_hotlist_max_level_nicks_add} = $value;
+    return weechat::WEECHAT_RC_OK;
+  }
   if ($name eq "plugins.var.perl.$prgname.look_highlight"){
     $default_options{var_look_highlight} = $value;
     return weechat::WEECHAT_RC_OK;
@@ -338,6 +351,15 @@ my $getarg = lc($_[2]);										# switch to lower-case
     return weechat::WEECHAT_RC_OK;
   }
 
+  if ($getarg eq "hotlist"){
+    if ($default_options{var_hotlist_max_level_nicks_add} eq "on"){
+      weechat::config_set_plugin("hotlist_max_level_nicks_add", "off");
+    } else{
+      weechat::config_set_plugin("hotlist_max_level_nicks_add", "on");
+    }
+    return weechat::WEECHAT_RC_OK;
+  }
+
   if ($getarg eq "lookhighlight_regex"){
     if ($default_options{var_look_highlight} eq "on"){
       weechat::config_set_plugin("look_highlight_regex", "off");
@@ -385,6 +407,11 @@ weechat::register($prgname, "Nils Görs <weechatter\@arcor.de>", $version,
   }else{
     $default_options{var_buffer_autoset} = weechat::config_get_plugin("buffer_autoset");
   }
+  if (!weechat::config_is_set_plugin("hotlist_max_level_nicks_add")){
+    weechat::config_set_plugin("hotlist_max_level_nicks_add", $default_options{var_hotlist_max_level_nicks_add});
+  }else{
+    $default_options{var_hotlist_max_level_nicks_add} = weechat::config_get_plugin("hotlist_max_level_nicks_add");
+  }
   if (!weechat::config_is_set_plugin("look_highlight")){
     weechat::config_set_plugin("look_highlight", $default_options{var_look_highlight});
   }else{
@@ -411,6 +438,18 @@ weechat::register($prgname, "Nils Görs <weechatter\@arcor.de>", $version,
     $default_options{blacklist_channels} = weechat::config_get_plugin("blacklist_channels");
   }
 
+  # read nick colours if exists (>= weechat 0.3.4) in %colours
+  my $colours_buf = weechat::config_string(weechat::config_get("weechat.color.chat_nick_colors"));
+  if ( $colours_buf ne "" ) {
+    my @array = split(/,/,$colours_buf);
+    my $i = 0;
+    foreach (@array){
+      $colours{$i++} = $_;
+    }
+    undef $colours_buf;
+    undef @array;
+  }
+
 $default_options{prefix_action} = weechat::config_string(weechat::config_get("weechat.look.prefix_action"));
 weechat::hook_modifier("weechat_print","colorize_cb", "");
 #weechat::hook_modifier("colorize_text","colorize_cb", "");
@@ -423,25 +462,27 @@ weechat::hook_modifier("weechat_print","colorize_cb", "");
 
 weechat::hook_command($prgname, $description,
 
-	"<highlight> <chat> <shuffle> <autoset> <look>", 
+	"<highlight> <chat> <shuffle> <autoset> <lookhighlight> <hotlist>",
 
 	"<highlight>       toggle highlight colour text on/off\n".
 	"<chat>            toggle chat colour text on/off\n".
 	"<shuffle>         toggle shuffle colour mode on/off\n".
 	"<autoset>         toggle highlight colour mode for buffer_autoset on/off\n".
-	"<lookhighlight>   toggle highlight colour mode for weechat.look.highlight on/off\n\n".
+	"<lookhighlight>   toggle highlight colour mode for weechat.look.highlight on/off\n".
+	"<hotlist>         toggle hotlist_max_level_nicks_add on/off\n\n".
 	"Options (script):\n".
-	"'plugins.var.perl.$prgname.highlight'           : toggle highlight colour in text on/off\n".
-	"'plugins.var.perl.$prgname.buffer_autoset'      : toggle highlight colour in text for buffer_autoset on/off\n".
-	"'plugins.var.perl.$prgname.look_highlight'      : toggle highlight colour in text for weechat.look.highlight on/off\n".
-	"'plugins.var.perl.$prgname.chat'                : toggle coloured text for chats on/off\n".
-	"'plugins.var.perl.$prgname.shuffle'             : toggle shuffle colour mode for chats on/off\n".
-	"'plugins.var.perl.$prgname.blacklist_channels'  : comma separated list with channelname (e.g.: #weechat,#weechat-fr)\n\n".
+	"   'plugins.var.perl.$prgname.highlight'                   : toggle highlight colour in text on/off\n".
+	"   'plugins.var.perl.$prgname.buffer_autoset'              : toggle highlight colour in text for buffer_autoset on/off\n".
+	"   'plugins.var.perl.$prgname.hotlist_max_level_nicks_add' : toggle highlight for hotlist on/off\n".
+	"   'plugins.var.perl.$prgname.look_highlight'              : toggle highlight colour in text for weechat.look.highlight on/off\n".
+	"   'plugins.var.perl.$prgname.chat'                        : toggle coloured text for chats on/off\n".
+	"   'plugins.var.perl.$prgname.shuffle'                     : toggle shuffle colour mode for chats on/off\n".
+	"   'plugins.var.perl.$prgname.blacklist_channels'          : comma separated list with channelname (e.g.: #weechat,#weechat-fr)\n\n".
 	"Options (global):\n".
-	"'weechat.color.chat_highlight'                      : highlight colour\n".
-	"'weechat.color.chat_highlight_bg'                   : highlight background colour\n".
-	"'weechat.color.chat_nick*'                          : colours for nicks\n\n".
-	"To use the autoset highlight option install buffer_autoset script from: http://www.weechat.org/scripts/\n",
-	"highlight|chat|shuffle|autoset|lookhighlight", "change_settings", "");
+	"   'weechat.color.chat_highlight'                      : highlight colour\n".
+	"   'weechat.color.chat_highlight_bg'                   : highlight background colour\n".
+	"   'weechat.color.chat_nick*'                          : colours for nicks\n\n".
+	"To use the buffer_autoset and/or hotlist_max_level_nicks_install buffer_autoset script from: http://www.weechat.org/scripts/\n",
+	"highlight|chat|shuffle|autoset|lookhighlight|hotlist", "change_settings", "");
 
 weechat::hook_config( "plugins.var.perl.$prgname.*", "toggle_config_by_set", "" );
