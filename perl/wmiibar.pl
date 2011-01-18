@@ -21,7 +21,7 @@ my $show_message = 0;
 
 # weechat stuff
 weechat::register('wmiibar','Sebastian Köhler <sebkoehler@whoami.org.uk>',
-                  '0.2','Apache 2.0','Show highlights in the wmii statusbar',
+                  '0.3','Apache 2.0','Show highlights in the wmii statusbar',
                   '','');
 
 weechat::hook_command('wmiibar',"Show highlights in the wmii statusbar",
@@ -43,7 +43,7 @@ sub highlight {
 sub wmii_bar {
     my $sel_tag = `wmiir read /client/sel/label 2> /dev/null`;
     
-    if($sel_tag =~ /^WeeChat \d\.\d\.\d$/) {
+    if($sel_tag =~ /^(W|w)ee(C|c)hat \d\.\d\.\d.*$/) {
         $show_message = 0;
     }
     if($show_message) {
@@ -74,4 +74,3 @@ sub load_defaults {
         weechat::config_set_plugin("message","New Message");
     }
 }
-
