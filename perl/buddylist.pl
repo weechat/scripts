@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2010 by Nils Görs <weechatter@arcor.de>
+# Copyright (c) 2010-2011 by Nils Görs <weechatter@arcor.de>
 #
 # display the status and visited buffers of your buddies in a buddylist bar
 #
@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# v1.1  : fixed: offline users on bitlbee were shown as away. (reported and beta-testing by javuchi)
 # v1.0  : redirection implemented (needs weechat >= 0.3.4). Now, its a real buddylist
 #	: new options: "check.buddies", "callback.timeout", "use.redirection", "display.original.nick"
 #	: buffer-number will be displayed behind nickname (option: "color.number")
@@ -56,7 +57,7 @@
 use strict;
 
 my $prgname		= "buddylist";
-my $version		= "1.0";
+my $version		= "1.1";
 my $description		= "displays a buddylist in a bar-item.";
 
 # -------------------------------[ config ]-------------------------------------
@@ -561,7 +562,7 @@ sub buddylist_save {
 	close WL;
 }
 
-# options changed during runntime
+# changes in settings hooked by hook_config()?
 sub toggled_by_set{
 	my ( $pointer, $option, $value ) = @_;
 
@@ -604,6 +605,7 @@ sub toggled_by_set{
 	}elsif ($option eq "plugins.var.perl.$prgname.debug.redir.out"){
 		$debug_redir_out = $value;
 	}
+weechat::bar_item_update($prgname);
 
 # check Hooks()
 	if ($default_options{check_buddies} ne "0" and $default_options{use_redirection} eq "on"){
@@ -741,9 +743,10 @@ sub init{
 # hide bar when buddylist was closed
 sub shutdown{
 	weechat::command("", "/bar hide " . $prgname);
+return weechat::WEECHAT_RC_OK;
 }
-sub DEBUG {weechat::print('', "***\t" . $_[0]);}
 
+sub DEBUG {weechat::print('', "***\t" . $_[0]);}
 
 sub hook_timer_and_redirect{
 
@@ -802,13 +805,16 @@ my $foreach_count = 0;
 		next;									# goto next server
 	      }
 		# sort nick structure and call /whois
-		foreach my $nickname ( sort keys %{$nick_structure{$server}} ) {	# sort nicks (a-z)
+		foreach my $nickname ( keys %{$nick_structure{$server}} ) {		# sort nicks (a-z)
 		  if (not defined $nick_structure{$server}{$nickname}{counter} or $nick_structure{$server}{$nickname}{counter} eq 0){
+		    delete $nick_structure{$server}{$nickname} if ( $nickname eq ":seconds" );	# wrong parsing!?
+		    next if ( $nickname eq ":seconds" );					# wrong parsing!?
 		    $nick_structure{$server}{$nickname}{counter} = 1;
 		    $foreach_count = 1;
 		    $int_count = 1;
 
 		    next if ($server eq "" or $nickname eq "");
+
 		    # calling hsignal(redirect)
 		    my $hash = { "server" => $server, "pattern" => "whois", "signal" => "buddylist",
 				  "count" => "1", "string" => $nickname, "timeout" => $default_options{callback_timeout}, "cmd_filter" => "" };
@@ -863,7 +869,6 @@ sub redirect_whois{
 	# check if buddy is online and look for visiting channels
 	my $rfc_319 = "319";							# rfc number containing channels
 	my ( $nickname,$channel_name ) = parse_redirect($hashtable{"server"},$rfc_319,$hashtable{"output"});	# check redirection output for channels
-	delete $nick_structure{$nickname} if ( $nickname eq ":seconds" );	# wrong parsing!?
 	return weechat::WEECHAT_RC_OK if ( $channel_name eq -1 );		# -1 = buddy not online
 	  if ($channel_name eq -2 and exists $nick_structure{$hashtable{"server"}}{$main_nickname}){
 	    my $sorted_numbers = check_query_buffer($hashtable{"server"},$main_nickname,"");
@@ -897,7 +902,7 @@ sub check_for_channels{
 		      my $buffer_number = search_buffer_number($buffer_pointer);# check if buddy is in same channels as you
 			if ($buffer_number ne 0){
 			  push @buf_count,($buffer_number) ;
-			  # check if option "color_number" has valid entry and write buffer number to nick_structure
+			  # check if option "color.number" has valid entry and write buffer number to nick_structure
 			    if ($default_options{color_number} ne ""){		# color for color_number set?
 			      @buf_count = del_double(@buf_count);
 			      my $sorted_numbers = join(",",sort{$a<=>$b}(@buf_count));		# channel numbers (1,2....)
@@ -966,6 +971,25 @@ return ("",-1) if (not defined $servername or $servername eq "");
   }
 
   my $rfc_301 = " 301 ";							# nick :away
+  # bitlbee offline check
+  # :localhost 312 nils_2 nickname mail@gmail.com. :jabber network
+  # :localhost 301 nils_2 nickname :User is offline
+  my $rfc_312 = " 312 ";							# 312 nick server :info
+  my $offline_text = "(:User is offline|:Offline)\n";				# (bitlbee|bitlbee-libpurple)
+  my $network = "(:msn|:jabber|:yahoo)";					# possible networks
+  my ($a1,$a2,$a3,$a4)  = "";
+  ($a1,$a2,$a3,$a4) = ($args =~ /(.*)($rfc_312)(.*)($network)/);
+  if ( defined $a4 and $a4 ne ""){
+    ($a1,$a2,$a3,$a4) = "";
+    ($a1,$a2,$a3,$a4) = ($args =~ /($rfc_301)(.*?) (.*?) ($offline_text)/);
+    if ( defined $a4 and $a4 ne ""){
+	$nick_structure{$servername}{$a3}{status} = 2;				# buddy offline on bitlbee
+	$nick_structure{$servername}{$a3}{buffer} = "";				# clear buffer number
+	$nick_structure{$servername}{$a3}{buf_name} = "";			# clear name of buffer
+	return ("",-1);
+    }
+  }
+
 
 if ( $default_options{display_original_nick} eq "on" ){
   my $rfc_330 = " 330 ";							# nick :is logged in as
