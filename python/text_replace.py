@@ -20,6 +20,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2011-02-01, xt
+#   version 0.4: improve regexp for word replacement
 # 2010-11-26, xt <xt@bash.no>
 #   version 0.3: don't replace in /set commands
 # 2009-10-27, xt <xt@bash.no>
@@ -32,7 +34,7 @@ import re
 
 SCRIPT_NAME    = "text_replace"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.3"
+SCRIPT_VERSION = "0.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Replaces text you write with replacement text"
 
@@ -78,7 +80,7 @@ def command_run_input(data, buffer, command):
         for replace_item in w.config_get_plugin('replacement_words').split(','):
             orig, replaced = replace_item.split('=')
             # Search for whitespace+word+whitespace and replace the word
-            input_s = re.sub('(\s+)%s(\s+)' %orig, '\\1%s\\2' %replaced, input_s)
+            input_s = re.sub('(\s+|^)%s(\s+|$)' %orig, '\\1%s\\2' %replaced, input_s)
 
         # Spit it out
         w.buffer_set(buffer, 'input', input_s)
