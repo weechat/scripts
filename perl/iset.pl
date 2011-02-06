@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2008-2010 Sebastien Helleu <flashcode@flashtux.org>
+# Copyright (C) 2008-2011 Sebastien Helleu <flashcode@flashtux.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,9 +17,11 @@
 # Set WeeChat and plugins options interactively.
 #
 # History:
+# 2011-02-03, nils_2 <weechatter@arcor.de>:
+#     version 1.4: fixed: restore value filter after /upgrade using buffer local variable.
 # 2011-01-14, nils_2 <weechatter@arcor.de>:
 #     version 1.3: added function to search for values (option value_search_char).
-#                  code optimization (hook_config(perl.iset))
+#                  code optimization.
 # 2010-12-26, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 1.2: improve speed of /upgrade when iset buffer is open,
 #                  restore filter used after /upgrade using buffer local variable,
@@ -57,7 +59,7 @@
 
 use strict;
 
-my $version = "1.3";
+my $version = "1.4";
 
 my $iset_buffer = "";
 my @options_names = ();
@@ -133,11 +135,16 @@ sub iset_filter
 sub iset_buffer_input
 {
     my ($data, $buffer, $string) = ($_[0], $_[1], $_[2]);
+
     my $string2 = substr( $string,0,1 );
     if ( $string2 eq $default_options{value_search_char} ){
       $filter = substr( $string, 1 );
       iset_get_values($filter);
       $iset_filter_title = "Filter (by value): ";
+      if ($iset_buffer ne "")
+      {
+          weechat::buffer_set($iset_buffer, "localvar_set_iset_filter", $filter);
+      }
     }else{
       $iset_filter_title = "";
       iset_filter($string);
@@ -259,6 +266,7 @@ sub iset_get_values
         push(@options_values, $options{$name}{"value"});
         push(@options_is_null, $options{$name}{"is_null"});
     }
+        weechat::buffer_set($iset_buffer, "localvar_set_iset_filter", $var_value);
 }
 
 sub iset_refresh_line
@@ -325,7 +333,16 @@ sub iset_full_refresh
     if ($iset_buffer ne "")
     {
         weechat::buffer_clear($iset_buffer);
-        iset_get_options();
+        # search for "*" in $filter.
+        if ($filter =~ m/\*/)
+        {
+            iset_get_options();
+        }
+        else
+        {
+            iset_get_values($filter);
+            $iset_filter_title = "Filter (by value): ";
+        }
         iset_set_current_line($current_line);
         iset_refresh();
         weechat::command($iset_buffer, "/window refresh");
@@ -790,7 +807,7 @@ weechat::hook_command("iset", "Interactive set", "[f file] [s section] [text]",
                       "    /iset s look\n".
                       "  show all options with text 'nicklist' in name\n".
                       "    /iset nicklist\n".
-                      "  show all values who contains 'red'. '" . weechat::config_get_plugin("value_search_char"). "' is a trigger char.\n".
+                      "  show all values which contain 'red'. '" . weechat::config_get_plugin("value_search_char"). "' is a trigger char.\n".
                       "    /iset ".weechat::config_get_plugin("value_search_char")."red\n",
                       "", "iset_cmd_cb", "");
 weechat::hook_signal("upgrade_ended", "iset_upgrade_ended", "");
