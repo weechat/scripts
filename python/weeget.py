@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2009-2010 Sebastien Helleu <flashcode@flashtux.org>
+# Copyright (C) 2009-2011 Sebastien Helleu <flashcode@flashtux.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2011-02-13, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 1.2: use new help format for command arguments
 # 2010-11-08, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 1.1: get python 2.x binary for hook_process (fix problem
 #                  when python 3.x is default python version, requires
@@ -53,7 +55,7 @@
 
 SCRIPT_NAME    = "weeget"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "1.1"
+SCRIPT_VERSION = "1.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "WeeChat scripts manager"
 
@@ -886,9 +888,8 @@ if __name__ == "__main__" and import_ok:
         str_obsolete = wg_config_color("obsolete") + "N" + weechat.color("chat")
         weechat.hook_command(SCRIPT_COMMAND,
                              "WeeChat scripts manager",
-                             "[list [<text>] | listinstalled [<text>] | show <script> | "
-                             "install <script> [<script>...] | check | update | "
-                             "upgrade | remove <script> [<script>...]]",
+                             "list|listinstalled [<text>] || show <script>"
+                             " || install|remove <script> [<script>...] || check|update|upgrade",
                              "         list: list scripts (search text if given)\n"
                              "listinstalled: list installed scripts (search text if given)\n"
                              "         show: show detailed information about a script (in repository)\n"
@@ -911,10 +912,10 @@ if __name__ == "__main__" and import_ok:
                              " || listinstalled %(weeget_scripts)"
                              " || show %(weeget_scripts)"
                              " || install %(weeget_scripts)|%*"
+                             " || remove %(weeget_scripts)|%*"
                              " || check"
                              " || update"
-                             " || upgrade"
-                             " || remove %(weeget_scripts)|%*",
+                             " || upgrade",
                              "wg_cmd", "")
         weechat.hook_completion("weeget_scripts", "list of scripts in repository",
                                 "wg_completion_scripts_cb", "")
