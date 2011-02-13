@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2010 Sebastien Helleu <flashcode@flashtux.org>
+# Copyright (C) 2010-2011 Sebastien Helleu <flashcode@flashtux.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2011-02-13, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 0.3: use new help format for command arguments
 # 2010-07-31, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.2: add keyword "commands" to run many commands
 # 2010-07-26, Sebastien Helleu <flashcode@flashtux.org>:
@@ -32,7 +34,7 @@
 
 SCRIPT_NAME    = "cron"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Time-based scheduler, like cron and at"
 
@@ -564,8 +566,8 @@ if __name__ == "__main__" and import_ok:
             str_commands += "          - " + cmd + ": " + cron_commands[cmd] + "\n";
         weechat.hook_command("cron",
                              "Manage jobs in crontab",
-                             "[list] | [add minute hour monthday month weekday repeat buffer command] | "
-                             "[del number|-all] | [exec number] | [reload] | [save]",
+                             "list || add <minute> <hour> <monthday> <month> <weekday> <repeat> <buffer> <command> || "
+                             "del <number>|-all || exec <number> || reload|save",
                              "    list: display jobs in crontab\n"
                              "     add: add a job in crontab\n"
                              "  minute: minute (0-59)\n"
@@ -611,7 +613,7 @@ if __name__ == "__main__" and import_ok:
                              "cron_cmd_cb", "")
         weechat.hook_command("at",
                              "Queue job for later execution",
-                             "[list] | [time buffer command]",
+                             "list || <time> <buffer> <command>",
                              "    list: display jobs in crontab\n"
                              "    time: time for job, can be absolute (HH:MM) or relative "
                              "with \"+\" followed by value and optional unit\n"
