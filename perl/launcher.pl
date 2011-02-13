@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2009-2010 by FlashCode <flashcode@flashtux.org>
+# Copyright (c) 2009-2011 by Sebastien Helleu <flashcode@flashtux.org>
 # Copyright (c) 2010 James Campos <james.r.campos@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
@@ -22,25 +22,27 @@
 #
 # History:
 #
-# 2010-05-29, FlashCode <flashcode@flashtux.org>:
+# 2011-02-13, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 0.5: use new help format for command arguments
+# 2010-05-29, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.4: escape quotes in $signal_data, fix example with notify-send
-# 2010-05-28, FlashCode <flashcode@flashtux.org>:
+# 2010-05-28, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.3: add "$signal_data" in command (thanks to James Campos)
-# 2009-05-02, FlashCode <flashcode@flashtux.org>:
+# 2009-05-02, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.2: sync with last API changes
-# 2009-02-03, FlashCode <flashcode@flashtux.org>:
+# 2009-02-03, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.1: initial release
 #
 
 use strict;
 
-my $version = "0.4";
+my $version = "0.5";
 my $command_suffix = " &";
 
 weechat::register("launcher", "FlashCode <flashcode\@flashtux.org>", $version, "GPL3",
                   "Launch external commands for signals", "", "");
 weechat::hook_command("launcher", "Associate external commands to signals",
-                      "[signal command] | [-del signal]",
+                      "<signal> <command> || -del <signal>",
                       " signal: name of signal, may begin or end with \"*\" to catch many signals (common signals are: \"weechat_highlight\", \"weechat_pv\")\n"
                       ."command: command to launch when this signal is received (see below)\n"
                       ."   -del: delete commande associated to a signal\n\n"
