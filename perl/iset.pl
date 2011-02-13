@@ -17,6 +17,8 @@
 # Set WeeChat and plugins options interactively.
 #
 # History:
+# 2011-02-13, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 1.5: use new help format for command arguments
 # 2011-02-03, nils_2 <weechatter@arcor.de>:
 #     version 1.4: fixed: restore value filter after /upgrade using buffer local variable.
 # 2011-01-14, nils_2 <weechatter@arcor.de>:
@@ -59,7 +61,7 @@
 
 use strict;
 
-my $version = "1.4";
+my $version = "1.5";
 
 my $iset_buffer = "";
 my @options_names = ();
@@ -781,11 +783,11 @@ return weechat::WEECHAT_RC_OK;
 
 weechat::register("iset", "Sebastien Helleu <flashcode\@flashtux.org>", $version, "GPL3",
                   "Interactive Set for configuration options", "iset_end", "");
-weechat::hook_command("iset", "Interactive set", "[f file] [s section] [text]",
-                      "f file    : show options for a file.\n".
-                      "s section : show options for a section.\n".
-                      "text      : show options with 'text' in name.\n".
-                      weechat::config_get_plugin("value_search_char")."text     : show values with 'text'.\n\n".
+weechat::hook_command("iset", "Interactive set", "f <file> || s <section> || [=]<text>",
+                      "f file    : show options for a file\n".
+                      "s section : show options for a section\n".
+                      "text      : show options with 'text' in name\n".
+                      weechat::config_get_plugin("value_search_char")."text     : show options with 'text' in value\n\n".
                       "Keys for iset buffer:\n".
                       "up,down        : move one option up/down\n".
                       "pgup,pdwn      : move one page up/down\n".
