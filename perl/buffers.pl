@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2008-2010 by Sebastien Helleu <flashcode@flashtux.org>
+# Copyright (c) 2008-2011 by Sebastien Helleu <flashcode@flashtux.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@
 # Display sidebar with list of buffers.
 #
 # History:
+# 2011-02-13, Nils G <weechatter@arcor.de>:
+#     v2.1: add options "color_whitelist_*"
 # 2010-10-05, Sebastien Helleu <flashcode@flashtux.org>:
 #     v2.0: add options "sort" and "show_number"
 # 2010-04-12, Sebastien Helleu <flashcode@flashtux.org>:
@@ -87,28 +89,35 @@
 
 use strict;
 
-my $version = "2.0";
+my $version = "2.1";
 
 # -------------------------------[ config ]-------------------------------------
 
-my %default_options = ("short_names"             => "on",
-                       "indenting"               => "on",
-                       "indenting_number"        => "on",
-                       "hide_merged_buffers"     => "off",
-                       "show_number"             => "on",
-                       "show_prefix"             => "off",
-                       "show_prefix_empty"       => "on",
-                       "sort"                    => "number",  # "number" or "name"
-                       "color_hotlist_low"       => "white",
-                       "color_hotlist_message"   => "yellow",
-                       "color_hotlist_private"   => "lightgreen",
-                       "color_hotlist_highlight" => "magenta",
-                       "color_current"           => "lightcyan,red",
-                       "color_default"           => "default",
-                       "color_number"            => "lightgreen",
+my %default_options = ("short_names"               => "on",
+                       "indenting"                 => "on",
+                       "indenting_number"          => "on",
+                       "hide_merged_buffers"       => "off",
+                       "show_number"               => "on",
+                       "show_prefix"               => "off",
+                       "show_prefix_empty"         => "on",
+                       "sort"                      => "number",  # "number" or "name"
+                       "color_hotlist_low"         => "white",
+                       "color_hotlist_message"     => "yellow",
+                       "color_hotlist_private"     => "lightgreen",
+                       "color_hotlist_highlight"   => "magenta",
+                       "color_current"             => "lightcyan,red",
+                       "color_default"             => "default",
+                       "color_number"              => "lightgreen",
+                       "color_whitelist_buffers"   => "",
+                       "color_whitelist_low"       => "",
+                       "color_whitelist_message"   => "",
+                       "color_whitelist_private"   => "",
+                       "color_whitelist_highlight" => "",
+
     );
 my %options;
 my %hotlist_level = (0 => "low", 1 => "message", 2 => "private", 3 => "highlight");
+my @whitelist_buffers = "";
 
 # --------------------------------[ init ]--------------------------------------
 
@@ -141,6 +150,7 @@ sub buffers_read_options
     {
         $options{$option} = weechat::config_get_plugin($option);
     }
+    @whitelist_buffers = split(/,/, $options{color_whitelist_buffers});
 }
 
 sub build_buffers
@@ -252,9 +262,24 @@ sub build_buffers
         my $color = $options{"color_default"};
         $color = "default" if ($color eq "");
         my $bg = "";
+
         if (exists $hotlist{$buffer->{"pointer"}})
         {
-            $color = $options{"color_hotlist_".$hotlist_level{$hotlist{$buffer->{"pointer"}}}};
+            if (grep /^$buffer->{"name"}$/, @whitelist_buffers)
+            {
+                if ($options{"color_whitelist_".$hotlist_level{$hotlist{$buffer->{"pointer"}}}} eq "")    # no color in settings
+                {
+                    $color = $options{"color_hotlist_".$hotlist_level{$hotlist{$buffer->{"pointer"}}}};     # use standard colors
+                }
+                else
+                {
+                    $color = $options{"color_whitelist_".$hotlist_level{$hotlist{$buffer->{"pointer"}}}};
+                }
+            }
+            else
+            {
+                $color = $options{"color_hotlist_".$hotlist_level{$hotlist{$buffer->{"pointer"}}}};
+            }
         }
         if ($buffer->{"current_buffer"})
         {
