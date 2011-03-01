@@ -1,7 +1,7 @@
 #
-# Copyright (C) 2008-2010 Sebastien Helleu <flashcode@flashtux.org>
+# Copyright (C) 2008-2011 Sebastien Helleu <flashcode@flashtux.org>
 # Copyright (C) 2009 drubin <drubin [@] smartcube [dot] co[dot]za>
-# Copyright (C) 2010 Trashlord <dornenreich666@gmail.com>
+# Copyright (C) 2010-2011 Trashlord <dornenreich666@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,6 +20,8 @@
 # Tetris game for WeeChat.
 #
 # History:
+# 2011-02-28, Trashlord <dornenreich666@gmail.com>:
+#     version 0.9: add playing time display
 # 2010-10-08, Trashlord <dornenreich666@gmail.com>:
 #     version 0.8: add best score and best level statistics
 # 2009-12-17, Sebastien Helleu <flashcode@flashtux.org>:
@@ -41,7 +43,7 @@
 
 use strict;
 
-my $version = "0.8";
+my $version = "0.9";
 
 my $weetris_buffer = "";
 my $timer = "";
@@ -92,6 +94,9 @@ my $item_form = 0;
 my $title = "WeeTris.pl $version - enjoy!  |  Keys: arrows: move/rotate, alt-N: new game, alt-P: pause";
 my $mlevel = 1;
 my $mlines = 0;
+my ($play_minutes, $play_seconds, $play_starting_time) = (0, 0, time()); # Indicates playing time.
+my $total_seconds = time();
+my $time_display_timer = "";
 
 sub buffer_close
 {
@@ -101,7 +106,12 @@ sub buffer_close
         weechat::unhook($timer);
         $timer = "";
     }
-    
+    if (defined $time_display_timer)
+    {
+        weechat::unhook($time_display_timer);
+        ($play_minutes, $play_seconds, $play_starting_time) = (0, 0, 0);
+        $time_display_timer = undef;
+    }
     weechat::print("", "Thank you for playing WeeTris!");
     return weechat::WEECHAT_RC_OK;
 }
@@ -144,6 +154,17 @@ sub display_line
     weechat::print_y($weetris_buffer, $start_y + $y + 1, $str);
 }
 
+sub weetris_display_playing_time
+{
+    $total_seconds = time() - $play_starting_time;
+    $play_minutes = int($total_seconds / 60);
+    $play_seconds = int($total_seconds % 60);
+    $total_seconds++;
+    $play_seconds = "0".$play_seconds if ($play_seconds < 10);
+    $play_minutes = "0".$play_minutes if ($play_minutes < 10);
+    weechat::print_y($weetris_buffer, $start_y + $nby + 6, " Playing time : $play_minutes:$play_seconds");
+}
+
 sub display_level_lines
 {
     my $plural = "";
@@ -153,7 +174,7 @@ sub display_level_lines
     weechat::print_y($weetris_buffer, $start_y + $nby + 2, $str);
     weechat::print_y($weetris_buffer, $start_y + $nby + 3, " $dash");
     weechat::print_y($weetris_buffer, $start_y + $nby + 4, " Highest level: $mlevel");
-    weechat::print_y($weetris_buffer, $start_y + $nby + 5, " Max lines: $mlines");
+    weechat::print_y($weetris_buffer, $start_y + $nby + 5, " Max lines    : $mlines");
 }
 
 sub apply_item
@@ -216,7 +237,10 @@ sub new_game
     $paused = 0;
     $lines = 0;
     $level = 1;
+    $play_starting_time = time();
+    weechat::print_y($weetris_buffer, $start_y + $nby + 6, " Playing time : 00:00");
     init_timer();
+    $time_display_timer = weechat::hook_timer(1000, 0, 0, "weetris_display_playing_time", "");
     display_all();
     display_level_lines();
 }
@@ -317,6 +341,11 @@ sub end_of_item
         $item_form = 0;
         $playing = 0;
         $paused = 0;
+        if (defined $time_display_timer)
+        {
+            weechat::unhook($time_display_timer);
+            $time_display_timer = undef;
+        }
         weechat::print_y($weetris_buffer, $start_y + $nby + 2, ">> End of game, score: $lines lines, level $level (alt-N to restart) <<");
     }
 }
