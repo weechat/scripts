@@ -189,6 +189,9 @@
 #
 #
 #   History:
+#   2011-03-02
+#   version 0.2.4: fix python 2.5 compatibility
+#
 #   2011-01-09
 #   version 0.2.3: bug fixes.
 #   
@@ -241,7 +244,7 @@
 
 SCRIPT_NAME    = "chanop"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.2.3"
+SCRIPT_VERSION = "0.2.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Helper script for IRC Channel Operators"
 
@@ -269,6 +272,8 @@ except ImportError:
 
 import getopt, re, string
 from time import time
+
+chars = string.maketrans('', '')
 
 ################
 ### Messages ###
@@ -2349,7 +2354,7 @@ def mode_cb(server, channel, nick, opHostmask, signal_data):
 
     # check if there are interesting modes
     servermodes = supported_modes(server)
-    s = modes.translate(None, '+-') # remove + and -
+    s = modes.translate(chars, '+-') # remove + and -
     if not set(servermodes).intersection(s):
         return WEECHAT_RC_OK
 
@@ -2377,7 +2382,7 @@ def mode_cb(server, channel, nick, opHostmask, signal_data):
     usermodes = ''.join(map(lambda c: c.isalpha() and c or '', prefix))
     chanmodes = chanmodes.split(',')
     # modes not supported by script, like +e +I
-    notsupported = chanmodes[0].translate(None, servermodes)
+    notsupported = chanmodes[0].translate(chars, servermodes)
     modes_with_args = chanmodes[1] + usermodes + notsupported
     modes_with_args_when_set = chanmodes[2]
     for c in modes:
