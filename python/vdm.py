@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2009 by FlashCode <flashcode@flashtux.org>
+# Copyright (C) 2009-2011 Sebastien Helleu <flashcode@flashtux.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,30 +22,32 @@
 #
 # History:
 #
-# 2010-04-28, FlashCode <flashcode@flashtux.org>:
+# 2011-03-04, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 0.9: fix memory leak in XML parser
+# 2010-04-28, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.8: switch to vdm buffer if already opened
-# 2009-10-13, FlashCode <flashcode@flashtux.org>:
+# 2009-10-13, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.7: use "q" to close vdm buffer
-# 2009-06-12, FlashCode <flashcode@flashtux.org>:
+# 2009-06-12, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.6: fix bug when vdm buffer is closed: clear old list
-# 2009-05-02, FlashCode <flashcode@flashtux.org>:
+# 2009-05-02, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.5: sync with last API changes
-# 2009-03-16, FlashCode <flashcode@flashtux.org>:
+# 2009-03-16, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.4: use existing vdm buffer if found (for example after /upgrade)
-# 2009-03-15, FlashCode <flashcode@flashtux.org>:
+# 2009-03-15, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.3: do not switch to vdm buffer if there's nothing new to
 #                  display, do not display time for each line on vdm buffer
-# 2009-03-12, FlashCode <flashcode@flashtux.org>:
+# 2009-03-12, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.2: fix bug with "&quot;" in string
-# 2009-03-08, FlashCode <flashcode@flashtux.org>:
+# 2009-03-08, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.1: initial release
 #
 
 import weechat, xml.dom.minidom
 
 SCRIPT_NAME    = "vdm"
-SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.8"
+SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
+SCRIPT_VERSION = "0.9"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Display content of viedemerde.fr/fmylife.com website"
 
@@ -175,6 +177,7 @@ def vdm_parse(string):
             if texte:
                 vdm.append({"id": node.getAttribute("id"),
                             "text": texte[0].firstChild.data.replace("\n", " ").replace("&quot;", "\"")})
+        dom.unlink()
     return vdm
 
 def vdm_process_cb(data, command, rc, stdout, stderr):
