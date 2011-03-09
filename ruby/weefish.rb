@@ -24,72 +24,108 @@
 # No DH1080 key exchange, only manual key, sorry!
 #
 # Usage:
-#   Set key for an given nick/#channel or active nick/#channel:
-#     /setkey [nick/#channel] <secure key>
-#   Delete key for an given nick/#channel or active nick/#channel:
-#     /delkey [nick/#channel] <secure key>
+#   Set key for a given nick/channel, or the active nick/channel:
+#     /setkey [nick/channel] <secure key>
+#   Delete key for a given nick/channel, or the active nick/channel:
+#     /delkey [nick/channel] <secure key>
 #
 # History:
+#   2011-03-08 tp <tp@unreal.dk>
+#     version 0.3: fixed crypt/blowfish bug for ruby >= 1.9
 #   2010-09-06, tp <tp@unreal.dk>
 #     version 0.2: fixed some message printing
 #   2010-09-05, tp <tp@unreal.dk>
 #     version 0.1: initial release
 
-require 'crypt/blowfish'
+require "crypt/blowfish"
 
 def message buffer, message
   Weechat.print buffer, "#{Weechat.prefix('error')}#{Weechat.color('bold')}weefish:#{Weechat.color('-bold')} #{message}"
 end
 
 def weechat_init
-  Weechat.register 'weefish', 'Tobias Petersen', '0.2', 'GPL3', 'FiSH encryption/decryption', '', ''
+  Weechat.register "weefish", "Tobias Petersen", "0.3", "GPL3", "FiSH encryption/decryption", "", ""
   
-  Weechat.hook_modifier 'irc_in_privmsg', 'in_privmsg', ''
-  Weechat.hook_modifier 'irc_out_privmsg', 'out_privmsg', ''
+  Weechat.hook_modifier "irc_in_privmsg", "in_privmsg", ""
+  Weechat.hook_modifier "irc_out_privmsg", "out_privmsg", ""
   
-  Weechat.hook_command 'setkey', 'set fish key for active nick/#channel', '[nick/#channel] <secure key>', '', '', 'setkey', ''
-  Weechat.hook_command 'delkey', 'delete fish key for active nick/#channel', '[nick/#channel] <secure key>', '', '', 'delkey', ''
+  Weechat.hook_command "setkey", "Set the encryption key for the active nick/channel", "[nick/channel] <secure key>", "", "", "setkey", ""
+  Weechat.hook_command "delkey", "Delete the encryption key for the active nick/channel", "[nick/channel] <secure key>", "", "", "delkey", ""
   
   return Weechat::WEECHAT_RC_OK
 end
 
+if RUBY_VERSION.to_f >= 1.9
+  module ::Crypt
+    class Blowfish
+      def setup_blowfish
+        @sBoxes = Array.new(4) { |i| INITIALSBOXES[i].clone }
+        @pArray = INITIALPARRAY.clone
+        keypos = 0
+        0.upto(17) { |i|
+          data = 0
+          4.times {
+            data = ((data << 8) | @key[keypos].ord) % ULONG
+            keypos = (keypos.next) % @key.length
+          }
+          @pArray[i] = (@pArray[i] ^ data) % ULONG
+        }
+        l = 0
+        r = 0
+        0.step(17, 2) { |i|
+          l, r = encrypt_pair(l, r)
+          @pArray[i]   = l
+          @pArray[i+1] = r
+        }
+        0.upto(3) { |i|
+          0.step(255, 2) { |j|
+            l, r = encrypt_pair(l, r)
+            @sBoxes[i][j]   = l
+            @sBoxes[i][j+1] = r
+          }
+        }
+      end
+    end
+  end
+end
+
 def setkey data, buffer, key
-  network, channel = Weechat.buffer_get_string(buffer, 'name').split '.', 2
+  network, channel = Weechat.buffer_get_string(buffer, "name").split ".", 2
   
   unless key.empty?
-    if key.scan(' ').length == 0
-      if network == 'server'
-        message buffer, 'no active nick/#channel. usage: /setkey <nick/#channel> <secure key>'
+    if key.scan(" ").length == 0
+      if network == "server"
+        message buffer, "No active nick/channel. Usage: /setkey <nick/channel> <secure key>"
       else
-        message buffer, "key for #{channel} (#{network}) successfully set!"
+        message buffer, "Key for #{channel} (#{network}) successfully set!"
         Weechat.config_set_plugin "key.#{network}.#{channel}", key
       end
     else
-      network = channel if network == 'server'
-      channel, key = key.split ' ', 2
+      network = channel if network == "server"
+      channel, key = key.split " ", 2
       
-      message buffer, "key for #{channel} (#{network}) successfully set!"
+      message buffer, "Key for #{channel} (#{network}) successfully set!"
       Weechat.config_set_plugin "key.#{network}.#{channel}", key
     end
   else
-    message buffer, 'no parameters. usage: /setkey [nick/#channel] <secure key>'
+    message buffer, "No parameters. Usage: /setkey [nick/channel] <secure key>"
   end
 end
 
 def delkey data, buffer, string
-  network, channel = Weechat.buffer_get_string(buffer, 'name').split '.', 2
+  network, channel = Weechat.buffer_get_string(buffer, "name").split ".", 2
   
   if string.empty?
-    if network == 'server'
-      message buffer, 'no active nick/#channel. usage: /delkey <nick/#channel>'
+    if network == "server"
+      message buffer, "No active nick/channel. Usage: /delkey <nick/channel>"
     else
       Weechat.config_unset_plugin "key.#{network}.#{channel}"
-      message buffer, "key for #{channel} (#{network}) successfully deleted!"
+      message buffer, "Key for #{channel} (#{network}) successfully deleted!"
     end
   else
-    network = channel if network == 'server'
+    network = channel if network == "server"
     Weechat.config_unset_plugin "key.#{network}.#{string.split.first}"
-    message buffer, "key for #{string.split.first} (#{network}) successfully deleted!"
+    message buffer, "Key for #{string.split.first} (#{network}) successfully deleted!"
   end
 end
 
@@ -106,7 +142,7 @@ end
 
 def out_privmsg data, signal, server, args
   if args =~ /^(PRIVMSG (.*?) :)(.*)$/
-    key = Weechat.config_string(Weechat.config_get("plugins.var.ruby.weefish.key.#{server}.#{$2}"))
+    key = Weechat.config_string Weechat.config_get("plugins.var.ruby.weefish.key.#{server}.#{$2}")
     
     unless key.empty?
       fish = IRC::FiSH.new key
@@ -122,7 +158,7 @@ module IRC
   class BadInputError < StandardError; end
   
   class MBase64
-    B64 = './0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
+    B64 = "./0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
     
     def self.decode encoded
       return nil if not encoded.length % 12 == 0
@@ -159,7 +195,7 @@ module IRC
     def self.encode decoded
       if not decoded.length % 8 == 0
         raise IRC::BadInputError,
-          'can only encode strings which are a multiple of 8 characters.'
+          "can only encode strings which are a multiple of 8 characters."
       end
       
       encoded = String.new
@@ -206,7 +242,7 @@ module IRC
     
     def encrypt text
       text = pad(text, 8)
-      result = ''
+      result = ""
       
       num_block = text.length / 8
       num_block.times do |n|
@@ -221,7 +257,7 @@ module IRC
     def decrypt text
       return nil if not text.length % 12 == 0
       
-      result = ''
+      result = ""
       
       num_block = (text.length / 12).to_i
       num_block.times do |n|
@@ -229,7 +265,7 @@ module IRC
         result += @blowfish.decrypt_block(block)
       end
       
-      return result.gsub /\0*$/, ''
+      return result.gsub /\0*$/, ""
     end
     
     private
