@@ -1,5 +1,6 @@
 #
-# Copyright (c) 2006-2008 by FlashCode <flashcode@flashtux.org>
+# Copyright (C) 2006-2011 Sebastien Helleu <flashcode@flashtux.org>
+# Copyright (C) 2011 Nils Görs <weechatter@arcor.de>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,46 +17,77 @@
 #
 
 #
-# Speaker beep on highlight/private msg.
+# Speaker beep on highlight/private msg or new DCC.
 #
 # History:
-# 2009-05-02, FlashCode <flashcode@flashtux.org>:
+# 2011-03-09. nils_2 <weechatter@arcor.de>:
+#     version 0.5: add option for beep command and dcc
+# 2009-05-02, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.4: sync with last API changes
-# 2008-11-05, FlashCode <flashcode@flashtux.org>:
+# 2008-11-05, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.3: conversion to WeeChat 0.3.0+
-# 2007-08-10, FlashCode <flashcode@flashtux.org>:
+# 2007-08-10, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.2: upgraded licence to GPL 3
-# 2006-09-02, FlashCode <flashcode@flashtux.org>:
+# 2006-09-02, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.1: initial release
 #
 
 use strict;
-
-my $version = "0.4";
-my $beep_command = "echo -n \a";
+my $SCRIPT_NAME = "beep";
+my $VERSION = "0.5";
 
 # default values in setup file (~/.weechat/plugins.conf)
-my $default_beep_highlight = "on";
-my $default_beep_pv        = "on";
+my %options = ( "beep_highlight"   => "on",
+                "beep_pv"          => "on",
+                "beep_dcc"         => "on",
+                "beep_command"     => "echo -n '\\a'",
+);
 
-weechat::register("beep", "FlashCode <flashcode\@flashtux.org>", $version,
-                  "GPL3", "Speaker beep on highlight/private message", "", "");
-weechat::config_set_plugin("beep_highlight", $default_beep_highlight) if (weechat::config_get_plugin("beep_highlight") eq "");
-weechat::config_set_plugin("beep_pv", $default_beep_pv) if (weechat::config_get_plugin("beep_pv") eq "");
-
+weechat::register($SCRIPT_NAME, "FlashCode <flashcode\@flashtux.org>", $VERSION,
+                  "GPL3", "Speaker beep on highlight/private message and new DCC", "", "");
+init_config();
+weechat::hook_config("plugins.var.perl.$SCRIPT_NAME.*", "toggle_config_by_set", "");
 weechat::hook_signal("weechat_highlight", "highlight", "");
 weechat::hook_signal("irc_pv", "pv", "");
+weechat::hook_signal("irc_dcc", "dcc", "");
 
 sub highlight
 {
-    my $beep = weechat::config_get_plugin("beep_highlight");
-    system($beep_command) if ($beep eq "on");
+    system($options{beep_command}) if ($options{beep_highlight} eq "on");
     return weechat::WEECHAT_RC_OK;
 }
 
 sub pv
 {
-    my $beep = weechat::config_get_plugin("beep_pv");
-    system($beep_command) if ($beep eq "on");
+    system($options{beep_command}) if ($options{beep_pv} eq "on");
     return weechat::WEECHAT_RC_OK;
+}
+
+sub dcc
+{
+    system($options{beep_command}) if ($options{beep_dcc} eq "on");
+    return weechat::WEECHAT_RC_OK;
+}
+
+sub toggle_config_by_set
+{
+    my ($pointer, $name, $value) = @_;
+    $name = substr($name, length("plugins.var.perl.".$SCRIPT_NAME."."), length($name));
+    $options{$name} = $value;
+    return weechat::WEECHAT_RC_OK;
+}
+
+sub init_config
+{
+    foreach my $option (keys %options)
+    {
+        if (!weechat::config_is_set_plugin($option))
+        {
+            weechat::config_set_plugin($option, $options{$option});
+        }
+        else
+        {
+            $options{$option} = weechat::config_get_plugin($option);
+        }
+    }
 }
