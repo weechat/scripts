@@ -22,6 +22,9 @@
 #
 # History:
 #
+# 2011-03-10, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 1.3: add script extension in script name completion and a new
+#                  completion with tags for actions "list" and "listinstalled"
 # 2011-02-13, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 1.2: use new help format for command arguments
 # 2010-11-08, Sebastien Helleu <flashcode@flashtux.org>:
@@ -29,7 +32,7 @@
 #                  when python 3.x is default python version, requires
 #                  WeeChat >= 0.3.4)
 # 2010-02-22, Blake Winton <bwinton@latte.ca>:
-#     version 1.0: add option "listinstalled" for command /weeget
+#     version 1.0: add action "listinstalled" for command /weeget
 # 2010-01-25, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.9: fix "running" status of scripts with /weeget check
 # 2009-09-30, Sebastien Helleu <flashcode@flashtux.org>:
@@ -55,7 +58,7 @@
 
 SCRIPT_NAME    = "weeget"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "1.2"
+SCRIPT_VERSION = "1.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "WeeChat scripts manager"
 
@@ -868,8 +871,20 @@ def wg_completion_scripts_cb(data, completion_item, buffer, completion):
     wg_read_scripts(download_list=False)
     if len(wg_scripts) > 0:
         for id, script in wg_scripts.iteritems():
-            weechat.hook_completion_list_add(completion, script["name"],
+            weechat.hook_completion_list_add(completion, script["full_name"],
                                              0, weechat.WEECHAT_LIST_POS_SORT)
+    return weechat.WEECHAT_RC_OK
+
+def wg_completion_scripts_tags_cb(data, completion_item, buffer, completion):
+    """ Complete with known tags, for command '/weeget'. """
+    global wg_scripts
+    wg_read_scripts(download_list=False)
+    if len(wg_scripts) > 0:
+        for id, script in wg_scripts.iteritems():
+            if script["tags"]:
+                for tag in script["tags"].split(","):
+                    weechat.hook_completion_list_add(completion, tag,
+                                                     0, weechat.WEECHAT_LIST_POS_SORT)
     return weechat.WEECHAT_RC_OK
 
 # ==================================[ main ]==================================
@@ -888,7 +903,7 @@ if __name__ == "__main__" and import_ok:
         str_obsolete = wg_config_color("obsolete") + "N" + weechat.color("chat")
         weechat.hook_command(SCRIPT_COMMAND,
                              "WeeChat scripts manager",
-                             "list|listinstalled [<text>] || show <script>"
+                             "list|listinstalled [<text>|<tag>] || show <script>"
                              " || install|remove <script> [<script>...] || check|update|upgrade",
                              "         list: list scripts (search text if given)\n"
                              "listinstalled: list installed scripts (search text if given)\n"
@@ -904,12 +919,12 @@ if __name__ == "__main__" and import_ok:
                              "  " + str_running   + "  script is running (loaded)\n"
                              "  " + str_obsolete  + "  script is obsolete (new version available)\n\n"
                              "Examples:\n"
-                             "  /" + SCRIPT_COMMAND + " list            => list all scripts\n"
-                             "  /" + SCRIPT_COMMAND + " list game       => list all scripts with text/tag \"game\"\n"
-                             "  /" + SCRIPT_COMMAND + " install weetris => install script weetris.pl\n"
-                             "  /" + SCRIPT_COMMAND + " remove weetris  => remove script weetris.pl",
-                             "list %(weeget_scripts)"
-                             " || listinstalled %(weeget_scripts)"
+                             "  /" + SCRIPT_COMMAND + " list             => list all scripts\n"
+                             "  /" + SCRIPT_COMMAND + " list game        => list all scripts with text/tag \"game\"\n"
+                             "  /" + SCRIPT_COMMAND + " install beep.pl  => install script beep.pl\n"
+                             "  /" + SCRIPT_COMMAND + " remove beep.pl   => remove script beep.pl",
+                             "list %(weeget_scripts_tags)"
+                             " || listinstalled %(weeget_scripts_tags)"
                              " || show %(weeget_scripts)"
                              " || install %(weeget_scripts)|%*"
                              " || remove %(weeget_scripts)|%*"
@@ -919,6 +934,8 @@ if __name__ == "__main__" and import_ok:
                              "wg_cmd", "")
         weechat.hook_completion("weeget_scripts", "list of scripts in repository",
                                 "wg_completion_scripts_cb", "")
+        weechat.hook_completion("weeget_scripts_tags", "tags of scripts in repository",
+                                "wg_completion_scripts_tags_cb", "")
 
 # ==================================[ end ]===================================
 
