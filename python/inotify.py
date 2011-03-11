@@ -90,6 +90,9 @@
 #
 #
 #   History:
+#   2011-03-11, Sebastien Helleu <flashcode@flashtux.org>:
+#   version 0.1.2: get python 2.x binary for hook_process (fix problem when
+#                  python 3.x is default python version)
 #   2010-03-10:
 #   version 0.1.1: fixes
 #   * improved shell escapes when using hook_process
@@ -102,7 +105,7 @@
 
 SCRIPT_NAME    = "inotify"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.1.1"
+SCRIPT_VERSION = "0.1.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Notifications for WeeChat."
 SCRIPT_COMMAND = "inotify"
@@ -359,7 +362,8 @@ class Server(object):
             return  '"""%s"""' %s
 
         args = ', '.join(map(quoted, args))
-        cmd = rpc_process_cmd %{'server_uri':self.address, 'method':self.method, 'args':args}
+        python2_bin = weechat.info_get('python2_bin', '') or 'python'
+        cmd = python2_bin + rpc_process_cmd %{'server_uri':self.address, 'method':self.method, 'args':args}
         debug('\nRemote cmd:%s\n' %cmd)
         weechat.hook_process(cmd, 30000, 'rpc_process_cb', '')
 
@@ -388,7 +392,7 @@ def msg_flush(*args):
 # command MUST be within single quotes, otherwise the shell would try to expand stuff and it might
 # be real nasty, somebody could run arbitrary code with a highlight.
 rpc_process_cmd = """
-python -c '
+ -c '
 import xmlrpclib
 try:
     server = xmlrpclib.Server("%(server_uri)s")
