@@ -24,6 +24,9 @@
 # 
 #
 # History:
+# 2011-03-11, Sebastien Helleu <flashcode@flashtux.org>
+#   version 0.6: get python 2.x binary for hook_process (fix problem when
+#                python 3.x is default python version)
 # 2010-01-12, xt
 #   version 0.5: add option to use notice instead of message
 # 2009-12-02, xt
@@ -43,7 +46,7 @@ import urllib2
 
 SCRIPT_NAME    = "spotify"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.5"
+SCRIPT_VERSION = "0.6"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Look up spotify urls"
 
@@ -102,8 +105,9 @@ def spotify_print_cb(data, buffer, time, tags, displayed, highlight, prefix, mes
         if spotify_hook_process != "":
             weechat.unhook(spotify_hook_process)
             spotify_hook_process = ""
+        python2_bin = weechat.info_get("python2_bin", "") or "python"
         spotify_hook_process = weechat.hook_process(
-            "python -c \"import urllib2; print urllib2.urlopen('" + url + "').read()\"",
+            python2_bin + " -c \"import urllib2; print urllib2.urlopen('" + url + "').read()\"",
             30 * 1000, "spotify_process_cb", "")
 
     return weechat.WEECHAT_RC_OK
