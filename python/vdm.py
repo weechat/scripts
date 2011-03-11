@@ -22,6 +22,9 @@
 #
 # History:
 #
+# 2011-03-11, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 1.0: get python 2.x binary for hook_process (fix problem when
+#                  python 3.x is default python version)
 # 2011-03-04, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.9: fix memory leak in XML parser
 # 2010-04-28, Sebastien Helleu <flashcode@flashtux.org>:
@@ -47,7 +50,7 @@ import weechat, xml.dom.minidom
 
 SCRIPT_NAME    = "vdm"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.9"
+SCRIPT_VERSION = "1.0"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Display content of viedemerde.fr/fmylife.com website"
 
@@ -254,8 +257,9 @@ def vdm_get(key):
         vdm_hook_process = ""
     vdm_stdout = ""
     url = weechat.config_get_plugin("url") % (vdm_key, weechat.config_get_plugin("lang"))
+    python2_bin = weechat.info_get("python2_bin", "") or "python"
     vdm_hook_process = weechat.hook_process(
-        "python -c \"import urllib; print urllib.urlopen('" + url + "').read()\"",
+        python2_bin + " -c \"import urllib; print urllib.urlopen('" + url + "').read()\"",
         10 * 1000, "vdm_process_cb", "")
 
 def vdm_buffer_input(data, buffer, input_data):
