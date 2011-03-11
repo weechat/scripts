@@ -39,6 +39,8 @@
 # 
 #
 # History:
+# 2011-03-11, Sebastien Helleu <flashcode@flashtux.org>
+#   version 13: get python 2.x binary for hook_process (fix problem when python 3.x is default python version)
 # 2010-12-10, xt
 #   version 12: add better ignores (code based on m4v inotify.py)
 # 2010-11-02, xt
@@ -74,7 +76,7 @@ from fnmatch import fnmatch
 
 SCRIPT_NAME    = "announce_url_title"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "12"
+SCRIPT_VERSION = "13"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Announce URL titles to channel or locally"
 
@@ -183,7 +185,8 @@ def url_process_launcher():
             url_d['launched'] = now()
 
             # Read 8192
-            cmd = "python -c \"import urllib2; opener = urllib2.build_opener();"
+            python2_bin = w.info_get("python2_bin", "") or "python"
+            cmd = python2_bin + " -c \"import urllib2; opener = urllib2.build_opener();"
             cmd += "opener.addheaders = [('User-agent','%s')];" % user_agent
             cmd += "print opener.open('%s').read(8192)\"" % url
 
