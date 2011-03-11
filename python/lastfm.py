@@ -1,5 +1,5 @@
 """
-    lastfm.py 0.2
+    lastfm.py
 
     author: Adam Saponara <saponara TA gmail TOD com>
       desc: Sends your latest Last.fm track to the current buffer
@@ -9,6 +9,10 @@
    license: GPLv3
 
    history:
+
+       0.3 - 2011-03-11, Sebastien Helleu <flashcode@flashtux.org>:
+             get python 2.x binary for hook_process (fix problem when
+             python 3.x is default python version)
 
        0.2 - using hook_process for last.fm call (prevents hang)
            - using ?limit=1 in last.fm call (faster, more efficient)
@@ -20,7 +24,7 @@
 import weechat
 import feedparser
 
-weechat.register("lastfm", "Adam Saponara", "0.2", "GPL3", "Sends your latest Last.fm track to the current buffer", "", "")
+weechat.register("lastfm", "Adam Saponara", "0.3", "GPL3", "Sends your latest Last.fm track to the current buffer", "", "")
 
 defaults = {
         "lastfm_username" : "nobody",
@@ -44,8 +48,9 @@ def lastfm_cmd(data, buffer, args):
         cmd_buffer = buffer
         cmd_stdout = ""
         cmd_stderr = ""
+        python2_bin = weechat.info_get("python2_bin", "") or "python"
         cmd_hook_process = weechat.hook_process(
-                "python -c \"\n"
+                python2_bin + " -c \"\n"
                 "import sys, feedparser\n"
                 "feed = None\n"
                 "feed = feedparser.parse('http://ws.audioscrobbler.com/1.0/user/%(username)s/recenttracks.rss?limit=1')\n"
