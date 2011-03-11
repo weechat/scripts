@@ -29,6 +29,9 @@
 #                   %O - current condition
 #
 # History:
+# 2011-03-11, Sebastien Helleu <flashcode@flashtux.org>:
+#   version 0.4: get python 2.x binary for hook_process (fix problem when
+#                python 3.x is default python version)
 # 2010-04-15, jkesanen <jani.kesanen@gmail.com>
 #   version 0.3: - added output formatting
 #                - removed output and city color related options
@@ -49,7 +52,7 @@ from sys import version_info
 
 SCRIPT_NAME    = "gweather"
 SCRIPT_AUTHOR  = "Jani Kesänen <jani.kesanen@gmail.com>"
-SCRIPT_VERSION = "0.3"
+SCRIPT_VERSION = "0.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Bar item with current Google weather"
 
@@ -245,8 +248,9 @@ def gweather_cb(*kwargs):
         gweather_hook_process = ''
 
     # Fire up the weather informationg fetching
+    python2_bin = weechat.info_get("python2_bin", "") or "python"
     gweather_hook_process = weechat.hook_process(\
-        "python -c \"import urllib2;\
+        python2_bin + " -c \"import urllib2;\
                      handler = " + command + ";\
                      print handler.info().dict['content-type'];\
                      print handler.read();\
