@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2009 by FlashCode <flashcode@flashtux.org>
+# Copyright (C) 2009-2011 Sebastien Helleu <flashcode@flashtux.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,13 +21,16 @@
 #
 # History:
 #
-# 2009-10-15, FlashCode <flashcode@flashtux.org>:
+# 2011-03-11, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 0.2: get python 2.x binary for hook_process (fix problem when
+#                  python 3.x is default python version)
+# 2009-10-15, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.1: initial release
 #
 
 SCRIPT_NAME    = "translate"
-SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Translate string using Google translate API"
 
@@ -189,10 +192,11 @@ def translate_cmd_cb(data, buffer, args):
     # translate!
     translate_stdout = ""
     args_urlopen = "'%s', data = urllib.urlencode({'langpair': '%s|%s', 'v': '1.0', 'q': '%s', })" \
-        % (weechat.config_get_plugin("url"), translate_options["lang"][0],
-           translate_options["lang"][1], translate_options["string"].replace("'", "\\'"))
+        % (weechat.config_get_plugin("url"), translate_options["lang"][0], \
+               translate_options["lang"][1], translate_options["string"].replace("'", "\\'"))
+    python2_bin = weechat.info_get("python2_bin", "") or "python"
     translate_hook_process = weechat.hook_process(
-        "python -c \"import urllib; print urllib.urlopen(" + args_urlopen + ").read()\"",
+        python2_bin + " -c \"import urllib; print urllib.urlopen(" + args_urlopen + ").read()\"",
         10 * 1000, "translate_process_cb", "")
     
     return weechat.WEECHAT_RC_OK
