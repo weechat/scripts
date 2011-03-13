@@ -20,8 +20,11 @@
 # settings see help page
 #
 # history:
-# 0.6: code optimizations.
-#      rename of script (rainbow_text.pl -> colorize_lines.pl)
+# 0.7: fixed: bug when irc.look.nick_suffix was set (reported and beta-testing by: hw2) (>= weechat 0.3.4)
+#      blacklist_channels option supports servername
+#      clean up code
+# 0.6: code optimazations.
+#      rename of script (rainbow_text.pl -> colorize_lines.pl) (suggested by xt and flashcode)
 # 0.5: support of hotlist_max_level_nicks_add and weechat.color.chat_nick_colors (>= weechat 0.3.4)
 # 0.4: support of weechat.look.highlight_regex option (>= weechat 0.3.4)
 #    : support of weechat.look.highlight option
@@ -39,7 +42,7 @@
 
 use strict;
 my $prgname	= "colorize_lines";
-my $version	= "0.6";
+my $version	= "0.7";
 my $description	= "colors text in chat area with according nick color. Highlight messages will be fully highlighted in chat area";
 
 # default values
@@ -53,9 +56,12 @@ my %default_options = (	"var_highlight"		=> "on",
 			"zahl"			=> 0,
 			"default_version"	=> 0,
 			"prefix_action"		=> "",
-			"blacklist_channels"	=> "",
+			"var_blacklist_channels"	=> "",
 );
+my @var_blacklist_channels = "";
+
 my $nick_mode = "";
+
 # standard colours.
 my %colours = (0 => "darkgray", 1 => "red", 2 => "lightred", 3 => "green",
 		  4 => "lightgreen", 5 => "brown", 6 => "yellow", 7 => "blue",
@@ -69,6 +75,7 @@ my ( $data, $modifier, $modifier_data, $string ) = @_;
 if (index($modifier_data,"irc_privmsg") == -1){							# its neither a channel nor a query buffer
   return $string;
 }
+
 if ($default_options{var_highlight} eq "off" and $default_options{var_chat} eq "off"){		# all options OFF
   return $string;
 }
@@ -79,49 +86,76 @@ my ($t0, $t1 , $t2) = split(/;/,$modifier_data);
 my $servername = $1;
 my $channel_name = $2;
 
-if (index($default_options{blacklist_channels},$channel_name) >= 0) {				# check blacklist_channels
+
+if ( grep /^$servername.$channel_name$/, @var_blacklist_channels ) {                            # check for blacklist_channels
   return $string;
 }
 
-my $my_nick = weechat::info_get( 'irc_nick', $servername );					# get nick with servername (;freenode.)
+my $my_nick = weechat::info_get( 'irc_nick', $servername );                                    # get nick with servername (;freenode.)
 
 $string =~ m/^(.*)\t(.*)/;									# get the nick name: nick[tab]string
-my $nick = $1;
+my $nick = $1;                                                                                  # nick with nick_mode and color codes
 my $line = $2;											# get written text
+$line = weechat::string_remove_color($line,"");                                                 # remove color-codes from line, first
+
+$modifier_data =~ m/nick_(.*),/;                                                                # get the nick name from modifier_data (without nick_mode and color codes!)
+$nick = $1;
+
+# recreate irc.look.nick_suffix and irc.color.nick_suffix
+my $nick_suffix_with_color = "";
+my $nick_suffix = weechat::config_string( weechat::config_get("irc.look.nick_suffix"));
+if ( $nick_suffix ne "" ){
+  my $nick_suffix_color = weechat::color( weechat::config_color( weechat::config_get( "irc.color.nick_suffix" )));
+  $nick_suffix_with_color = $nick_suffix_color . $nick_suffix;
+}
+
+# check for action (/me)
+my $prefix_action_with_color = "";
+if (index($modifier_data,"irc_action") >= 0){
+  my $prefix_action_color = weechat::color( weechat::config_color( weechat::config_get( "weechat.color.chat_prefix_action" )));
+  my $prefix_action = weechat::config_string( weechat::config_get("weechat.look.prefix_action"));
+  $prefix_action_with_color = $prefix_action_color . $prefix_action;
+}
+
+# check if look.nickmode is ON and no prefix and no query buffer
+$nick_mode = "";
+if ( weechat::config_boolean(weechat::config_get("weechat.look.nickmode")) ==  1 and ($nick ne $default_options{prefix_action}) and (index($modifier_data,"notify_private")) == -1){
+#   if ($nick  =~ m/^\@|^\%|^\+|^\~|^\*|^\&|^\!|^\-/) {                                                  # check for nick modes (@%+~*&!-) without colour
+      my $buf_pointer = weechat::buffer_search("irc",$servername . "." . $channel_name);
+      my $nick_pointer = weechat::nicklist_search_nick($buf_pointer,"",$nick);
+      $nick_mode = weechat::nicklist_nick_get_string($buf_pointer,$nick_pointer,"prefix");
+      my $color_mode = weechat::color( weechat::config_string( weechat::config_get( weechat::nicklist_nick_get_string($buf_pointer,$nick_pointer,"prefix_color") ) ) );
+      if ( $nick_mode eq " " or $color_mode eq ""){                                             # no nick_mode!
+        $nick_mode = "";
+      }else{                                                                                    # nick_mode exists
+        $nick_mode = $color_mode . $nick_mode;
+      }
+}
 
 # i wrote the message
-    if ($nick =~ m/(\w.*$my_nick.*)/){								# i wrote the message
+    if ($nick eq $my_nick ){	        			        				# i wrote the message
       if ($default_options{var_chat} eq "on"){
-	  my $nick_color = weechat::config_color(weechat::config_get("weechat.color.chat_nick_self"));	# get my nick colour
+	  my $nick_color = weechat::config_color(weechat::config_get("weechat.color.chat_nick_self"));	# get my nick color
 	  $nick_color = weechat::color($nick_color);
 	  $line = colorize_nicks($nick_color,$modifier_data,$line);
-	  $line = $nick . "\t" . $nick_color . $line . weechat::color('reset');
+
+          if (index($modifier_data,"irc_action") >= 0){
+            $nick = $prefix_action_with_color;
+          }else{
+            $nick = $nick . $nick_suffix_with_color;
+          }
+	  $line = $nick_mode . $nick_color . $nick . "\t" . $nick_color . $line . weechat::color('reset');
 	  return $line;
       }else{
 	  return $string;
       }
     }
 
-# check if look.nickmode is ON and no prefix and no query buffer
-my $nick_mode = "";
-if ( weechat::config_boolean(weechat::config_get("weechat.look.nickmode")) ==  1 and (weechat::string_remove_color($nick,"") ne $default_options{prefix_action}) and (index($modifier_data,"notify_private")) == -1){
-   if (weechat::string_remove_color($nick,"") =~ m/^\@|^\%|^\+|^\~|^\*|^\&|^\!|^\-/) {		# check for nick modes (@%+~*&!-) without colour
-      $nick_mode = substr($nick,0,5);								# get nick_mode with colour codes
-      $nick = substr($nick,5,length($nick)-1);							# get nick name
-  }
-}
-
-# get nick colour
+# get nick color
 $nick = weechat::string_remove_color($nick,"");							# remove colour-codes from nick
 my $nick_color = weechat::info_get('irc_nick_color', $nick);					# get nick-colour
 
-# check for /me text
-if ($default_options{prefix_action} eq $nick){							# nick is a prefix!!!
-    $line = weechat::string_remove_color($line,"");						# remove colour-codes from line
-	$nick_color = weechat::info_get('irc_nick_color', $line =~ (m/(.+?) /));		# and get real nick-colour from line
-}
-
-	    my $var_hl_max_level_nicks_add = 0;
+    my $var_hl_max_level_nicks_add = 0;
 # highlight message received?
     if ($default_options{var_highlight} eq "on"){						# highlight_mode on?
       if ( $default_options{var_buffer_autoset} eq "on" || $default_options{var_look_highlight} eq "on" ){# buffer_autoset or look_highlight "on"?
@@ -153,14 +187,14 @@ if ($default_options{prefix_action} eq $nick){							# nick is a prefix!!!
 		    my $color_highlight = weechat::config_color(weechat::config_get("weechat.color.chat_highlight"));
 		    my $color_highlight_bg = weechat::config_color(weechat::config_get("weechat.color.chat_highlight_bg"));
 		    my $high_color = weechat::color("$color_highlight,$color_highlight_bg");
-			  if ($default_options{prefix_action} eq $nick){			# highlight in /me text?
-#			    $line = weechat::string_remove_color($line,"");			# remove colour-codes from line
-			    $line = colorize_nicks($nick_color,$modifier_data,$line);
-			    $line = $nick_mode . $high_color . $nick . "\t" . $high_color . $line . weechat::color('reset');
+                          if (index($modifier_data,"irc_action") >= 0){
+			    $line = colorize_nicks($high_color,$modifier_data,$line);
+                            $nick = $prefix_action_with_color;
+			    $line = $high_color . $nick . "\t" . $high_color . $line . weechat::color('reset');
 			    return $line;
 			  }
 		    $line = colorize_nicks($high_color,$modifier_data,$line);
-		    $line = $nick_mode . $high_color . $nick . "\t" . $high_color . $line . weechat::color('reset');
+		    $line = $nick_mode . $high_color . $nick . $nick_suffix_with_color . "\t" . $high_color . $line . weechat::color('reset');
 		    return $line;
 		  }
 	      }
@@ -171,25 +205,17 @@ if ($default_options{prefix_action} eq $nick){							# nick is a prefix!!!
 	    my $color_highlight_bg = weechat::config_color(weechat::config_get("weechat.color.chat_highlight_bg"));
 	    my $high_color = weechat::color("$color_highlight,$color_highlight_bg");
 
-	      if ($default_options{prefix_action} eq $nick){					# prefix used (for example using /me)
-
-		    if (weechat::string_remove_color($line,"") =~ m/^$my_nick/) {		# check for own nick
-			$nick_color = weechat::config_color(weechat::config_get("weechat.color.chat_nick_self"));# get my nick colour
-			$nick_color = weechat::color($nick_color);
-			$line = colorize_nicks($nick_color,$modifier_data,$line);
-			$line = $nick_mode . $nick . "\t" . $nick_color . $line . weechat::color('reset');# print line
-			return $line;
-		    }
-		# $default_options{prefix_action} ne $nick
-		$line = colorize_nicks($high_color,$modifier_data,$line);
-		$line = $nick_mode . $nick . "\t" . $high_color . $line . weechat::color('reset');
-		return $line;
+              if (index($modifier_data,"irc_action") >= 0){                                    # action used (/me)
+                $line = colorize_nicks($high_color,$modifier_data,$line);
+                $nick = $prefix_action_with_color;
+                $line = $high_color . $nick . "\t" . $high_color . $line . weechat::color('reset');
+                return $line;
 	      }
 
 # highlight whole line
 	if ( $var_hl_max_level_nicks_add eq 0 ){
 	      $line = colorize_nicks($high_color,$modifier_data,$line);
-	      $line = $nick_mode . $high_color . $nick . "\t" . $high_color . $line . weechat::color('reset');
+	      $line = $nick_mode . $high_color . $nick . $nick_suffix_with_color . "\t" . $high_color . $line . weechat::color('reset');
 	      return $line;
 	}
 	}
@@ -197,14 +223,14 @@ if ($default_options{prefix_action} eq $nick){							# nick is a prefix!!!
 
 # simple channel message
     if ($default_options{var_chat} eq "on"){							# chat_mode on?
-	if ($default_options{var_shuffle} eq "on"){						# colour_shuffle on?
+	if ($default_options{var_shuffle} eq "on"){						# color_shuffle on?
 	  my $zahl2 = 0;
 	  my $my_color = weechat::config_color(weechat::config_get("weechat.color.chat_nick_self"));	# get my own nick colour
 	    for (1){										# get a random colour but don't use
-	      redo if ( $default_options{zahl} ==  ($zahl2 = int(rand(14))) or ($colours{$zahl2} eq $my_color) );	# latest colour nor own nick colour
+	      redo if ( $default_options{zahl} ==  ($zahl2 = int(rand(14))) or ($colours{$zahl2} eq $my_color) );	# latest color nor own nick color
 	      $default_options{zahl} = $zahl2;
 	    }
-	  $nick_color = weechat::color($colours{$default_options{zahl}});			# get new random colour
+	  $nick_color = weechat::color($colours{$default_options{zahl}});			# get new random color
 	}
 
 # check for weechat version and use weechat.look.highlight_regex option
@@ -215,19 +241,22 @@ if ($default_options{prefix_action} eq $nick){							# nick is a prefix!!!
 		my $color_highlight_bg = weechat::config_color(weechat::config_get("weechat.color.chat_highlight_bg"));
 		my $high_color = weechat::color("$color_highlight,$color_highlight_bg");
 		$line = colorize_nicks($high_color,$modifier_data,$line);
-		$line = $nick_mode . $high_color . $nick . "\t" . $high_color . $line . weechat::color('reset');
+		$line = $nick_mode . $high_color . $nick . $nick_suffix_with_color . "\t" . $high_color . $line . weechat::color('reset');
 		return $line;
 	    }
 	  }
 	}
-	  if ($default_options{prefix_action} eq $nick){					# prefix used (for example using /me)
+          if (index($modifier_data,"irc_action") >= 0){
+#	  if ($default_options{prefix_action} eq $nick){
+                my $nick_color = weechat::info_get('irc_nick_color', $nick);                                    # get nick-color
 		$line = colorize_nicks($nick_color,$modifier_data,$line);
-		$line = $nick_mode . $nick . "\t" . $nick_color . $line . weechat::color('reset');
+                $nick = $prefix_action_with_color;
+		$line = $nick . "\t" . $nick_color . $line . weechat::color('reset');
 		return $line;
 	  }
 
       $line = colorize_nicks($nick_color,$modifier_data,$line);
-      $line = $nick_mode . $nick_color . $nick . "\t" . $nick_color . $line . weechat::color('reset');  # create new line nick_color+nick+separator+text
+      $line = $nick_mode . $nick_color . $nick . $nick_suffix_with_color .  "\t" . $nick_color . $line . weechat::color('reset');  # create new line nick_color+nick+separator+text
       return $line;
     }else{
       return $string;										# return original string
@@ -247,18 +276,6 @@ sub shell2regex {
     return $globstr;
 }
 
-sub get_nick_mode{
-my ( $word ) = @_;
-
-  if ($word =~ m/^\@|^\%|^\+|^\~|^\*|^\&|^\!|^\-/) {						# check for nick modes (@%+~*&!-)
-    $nick_mode = substr($word,0,1);
-    my $nick = substr($word,1,length($word)-1);
-    return $nick;
-  }else{
-    return "",$word;
-  }
-}
-
 # check for colorize_nicks script an set colour before and after nick name 
 sub colorize_nicks{
 my ( $nick_color, $mf_data, $line ) = @_;
@@ -267,8 +284,7 @@ my $pyth_ptn = weechat::infolist_get("python_script","","colorize_nicks");
 weechat::infolist_next($pyth_ptn);
 
 if ( "colorize_nicks" eq weechat::infolist_string($pyth_ptn,"name") ){				# does colorize_nicks is installed?
-	$line = weechat::string_remove_color($line,"");						# remove colour-codes from line first
-	$line = weechat::hook_modifier_exec( "colorize_nicks",$mf_data,$line);			# call colorize_nicks function and color the nick
+	$line = weechat::hook_modifier_exec( "colorize_nicks",$mf_data,$line);			# call colorize_nicks function and color the nick(s)
 	my @array = "";
 	my $color_code_reset = weechat::color('reset');
 	@array=split(/$color_code_reset/,$line);
@@ -280,46 +296,22 @@ if ( "colorize_nicks" eq weechat::infolist_string($pyth_ptn,"name") ){				# does
 	$line = $new_line;
 }
 weechat::infolist_free($pyth_ptn);
+
 return $line;
 }
 
 # changes in settings hooked by hook_config()?
 sub toggle_config_by_set{
 my ( $pointer, $name, $value ) = @_;
+    $name = substr($name,length("plugins.var.perl.$prgname."),length($name));
+    $default_options{"var_" . $name} = $value;
 
-  if ($name eq "plugins.var.perl.$prgname.highlight"){
-    $default_options{var_highlight} = $value;
-    return weechat::WEECHAT_RC_OK;
-  }
-  if ($name eq "plugins.var.perl.$prgname.buffer_autoset"){
-    $default_options{var_buffer_autoset} = $value;
-    return weechat::WEECHAT_RC_OK;
-  }
-  if ($name eq "plugins.var.perl.$prgname.hotlist_max_level_nicks_add"){
-    $default_options{var_hotlist_max_level_nicks_add} = $value;
-    return weechat::WEECHAT_RC_OK;
-  }
-  if ($name eq "plugins.var.perl.$prgname.look_highlight"){
-    $default_options{var_look_highlight} = $value;
-    return weechat::WEECHAT_RC_OK;
-  }
-  if ($name eq "plugins.var.perl.$prgname.look_highlight_regex"){
-    $default_options{var_look_highlight_regex} = $value;
-    return weechat::WEECHAT_RC_OK;
-  }
-  if ($name eq "plugins.var.perl.$prgname.chat"){
-    $default_options{var_chat} = $value;
-    return weechat::WEECHAT_RC_OK;
-  }
-  if ($name eq "plugins.var.perl.$prgname.shuffle"){
-    $default_options{var_shuffle} = $value;
-    return weechat::WEECHAT_RC_OK;
-  }
-  if ($name eq "plugins.var.perl.$prgname.blacklist_channels"){
-    $default_options{blacklist_channels} = $value;
-    return weechat::WEECHAT_RC_OK;
-  }
-return weechat::WEECHAT_RC_OK;
+    if ( $name eq "blacklist_channels" ){
+      @var_blacklist_channels = "";
+      @var_blacklist_channels = split( /,/, $default_options{"var_" . $name} );
+    }
+
+return weechat::WEECHAT_RC_OK ;
 }
 
 # toggle functions on/off manually
@@ -433,9 +425,9 @@ weechat::register($prgname, "Nils Görs <weechatter\@arcor.de>", $version,
     $default_options{var_shuffle} = weechat::config_get_plugin("shuffle");
   }
   if (!weechat::config_is_set_plugin("blacklist_channels")){
-    weechat::config_set_plugin("blacklist_channels", $default_options{blacklist_channels});
+    weechat::config_set_plugin("blacklist_channels", $default_options{var_blacklist_channels});
   }else{
-    $default_options{blacklist_channels} = weechat::config_get_plugin("blacklist_channels");
+    $default_options{var_blacklist_channels} = weechat::config_get_plugin("blacklist_channels");
   }
 
   # read nick colours if exists (>= weechat 0.3.4) in %colours
@@ -479,7 +471,7 @@ weechat::hook_command($prgname, $description,
         "   'plugins.var.perl.$prgname.look_highlight_regex'        : toggle highlight color in chat area for option weechat.look.highlight_regex on/off\n".
         "   'plugins.var.perl.$prgname.chat'                        : toggle colored text for chats on/off\n".
         "   'plugins.var.perl.$prgname.shuffle'                     : toggle shuffle color mode for chats area on/off\n".
-        "   'plugins.var.perl.$prgname.blacklist_channels'          : comma separated list with channelname (e.g.: #weechat,#weechat-fr)\n\n".
+        "   'plugins.var.perl.$prgname.blacklist_channels'          : comma separated list with channelname (e.g.: freenode.#weechat,freenode.#weechat-fr)\n\n".
         "Options (global):\n".
         "   'weechat.color.chat_highlight'                      : highlight color\n".
         "   'weechat.color.chat_highlight_bg'                   : highlight background color\n".
