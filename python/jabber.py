@@ -26,6 +26,8 @@
 # Happy chat, enjoy :)
 #
 # History:
+# 2011-03-21, Isaac Raway <isaac.raway@gmail.com>:
+#     version 0.8: search chat buffer before opening it
 # 2011-02-13, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.7: use new help format for command arguments
 # 2010-11-23, xt
@@ -67,7 +69,7 @@
 
 SCRIPT_NAME    = "jabber"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.7"
+SCRIPT_VERSION = "0.8"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Jabber/XMPP protocol for WeeChat"
 SCRIPT_COMMAND = SCRIPT_NAME
@@ -963,9 +965,11 @@ class Chat:
         self.buddy = buddy
         buddy.chat = self
         bufname = "%s.%s.%s" % (SCRIPT_NAME, server.name, self.buddy.alias)
-        self.buffer = weechat.buffer_new(bufname,
-                                         "jabber_buffer_input_cb", "",
-                                         "jabber_buffer_close_cb", "")
+        self.buffer = weechat.buffer_search("python", bufname)
+        if not self.buffer:
+            self.buffer = weechat.buffer_new(bufname,
+                                             "jabber_buffer_input_cb", "",
+                                             "jabber_buffer_close_cb", "")
         self.buffer_title = self.buddy.alias
         if self.buffer:
             weechat.buffer_set(self.buffer, "title", self.buffer_title)
