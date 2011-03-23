@@ -19,6 +19,8 @@
 # Display sidebar with list of buffers.
 #
 # History:
+# 2011-03-23, Sebastien Helleu <flashcode@flashtux.org>:
+#     v2.2: fix color of nick prefix with WeeChat >= 0.3.5
 # 2011-02-13, Nils G <weechatter@arcor.de>:
 #     v2.1: add options "color_whitelist_*"
 # 2010-10-05, Sebastien Helleu <flashcode@flashtux.org>:
@@ -89,7 +91,7 @@
 
 use strict;
 
-my $version = "2.1";
+my $version = "2.2";
 
 # -------------------------------[ config ]-------------------------------------
 
@@ -333,6 +335,8 @@ sub build_buffers
                 my $infolist_nick = weechat::infolist_get("nicklist", $buffer->{"pointer"}, "nick_".$nickname);
                 if ($infolist_nick ne "")
                 {
+                    my $version = weechat::info_get("version_number", "");
+                    $version = 0 if ($version eq "");
                     while (weechat::infolist_next($infolist_nick))
                     {
                         if ((weechat::infolist_string($infolist_nick, "type") eq "nick")
@@ -341,10 +345,18 @@ sub build_buffers
                             my $prefix = weechat::infolist_string($infolist_nick, "prefix");
                             if (($prefix ne " ") or ($options{"show_prefix_empty"} eq "on"))
                             {
-                                $str .= weechat::color(weechat::config_color(
-                                                           weechat::config_get(
-                                                               weechat::infolist_string($infolist_nick, "prefix_color"))))
-                                    .$prefix;
+                                # with version >= 0.3.5, it is now a color name (for older versions: option name with color)
+                                if (int($version) >= 0x00030500)
+                                {
+                                    $str .= weechat::color(weechat::infolist_string($infolist_nick, "prefix_color"));
+                                }
+                                else
+                                {
+                                    $str .= weechat::color(weechat::config_color(
+                                                               weechat::config_get(
+                                                                   weechat::infolist_string($infolist_nick, "prefix_color"))));
+                                }
+                                $str .= $prefix;
                             }
                             last;
                         }
