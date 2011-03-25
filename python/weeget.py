@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2011-03-25, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 1.4: add completion with installed scripts for action "remove"
 # 2011-03-10, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 1.3: add script extension in script name completion and a new
 #                  completion with tags for actions "list" and "listinstalled"
@@ -58,7 +60,7 @@
 
 SCRIPT_NAME    = "weeget"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "1.3"
+SCRIPT_VERSION = "1.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "WeeChat scripts manager"
 
@@ -875,6 +877,18 @@ def wg_completion_scripts_cb(data, completion_item, buffer, completion):
                                              0, weechat.WEECHAT_LIST_POS_SORT)
     return weechat.WEECHAT_RC_OK
 
+def wg_completion_scripts_installed_cb(data, completion_item, buffer, completion):
+    """ Complete with names of scripts installed, for command '/weeget'. """
+    global wg_scripts
+    wg_read_scripts(download_list=False)
+    if len(wg_scripts) > 0:
+        for id, script in wg_scripts.iteritems():
+            status = wg_get_local_script_status(script)
+            if status["installed"]:
+                weechat.hook_completion_list_add(completion, script["full_name"],
+                                                 0, weechat.WEECHAT_LIST_POS_SORT)
+    return weechat.WEECHAT_RC_OK
+
 def wg_completion_scripts_tags_cb(data, completion_item, buffer, completion):
     """ Complete with known tags, for command '/weeget'. """
     global wg_scripts
@@ -927,13 +941,15 @@ if __name__ == "__main__" and import_ok:
                              " || listinstalled %(weeget_scripts_tags)"
                              " || show %(weeget_scripts)"
                              " || install %(weeget_scripts)|%*"
-                             " || remove %(weeget_scripts)|%*"
+                             " || remove %(weeget_scripts_installed)|%*"
                              " || check"
                              " || update"
                              " || upgrade",
                              "wg_cmd", "")
         weechat.hook_completion("weeget_scripts", "list of scripts in repository",
                                 "wg_completion_scripts_cb", "")
+        weechat.hook_completion("weeget_scripts_installed", "list of scripts installed",
+                                "wg_completion_scripts_installed_cb", "")
         weechat.hook_completion("weeget_scripts_tags", "tags of scripts in repository",
                                 "wg_completion_scripts_tags_cb", "")
 
