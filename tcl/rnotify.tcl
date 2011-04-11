@@ -1,8 +1,15 @@
-# Remote Notification Script
+# Remote Notification Script v1.1
 # by Gotisch <gotisch@gmail.com>
 #
 # With help of this script you can make weechat create notification bubbles
 # in ubuntu or any other distribution that supports libnotify.
+#
+# Changelog:
+#
+# 1.1
+#		added setting: privmessage to customize notifications of messages in query
+# 1.0
+#		initial release
 #
 # How does it work?
 #
@@ -28,6 +35,11 @@
 # General Syntax:	
 #		In weechat
 #		/set plugins.var.tcl.notify.port <portnumber to send notifies to/ or local>
+#		To get notifications for private messages set:
+#		/set plugins.var.tcl.notify.privmessage [no(default)|all|inactive]
+#			no - no notifications for private messages (besides on highlight)
+#			all - notifications for all private messages
+#			inactive - notifications only for messages that are not the currently active buffer
 #		As script
 #		notify.tcl <portnumber to listen on>
 #		if no port is given it will listen on 1234.
@@ -45,18 +57,26 @@ exec tclsh "$0" ${1+"$@"}
 if {[namespace exists ::weechat]} {
 	# We have been called inside weechat
 	namespace eval weechat::script::rnotify {
-		weechat::register "rnotify" {Gotisch gotisch@gmail.com} 1.0 GPL3 {Sends highlights to (remote) client} {} {}
+		weechat::register "rnotify" {Gotisch gotisch@gmail.com} 1.1 GPL3 {Sends highlights to (remote) client} {} {}
 		proc highlight { data buffer date tags displayed highlight prefix message } {
-			if {$highlight == 0} { return $::weechat::WEECHAT_RC_OK }
 			set buffername [weechat::buffer_get_string $buffer short_name]
 			if {$buffername != $prefix} {
 				set buffername "$prefix in $buffername"
+				if {$highlight == 0} { return $::weechat::WEECHAT_RC_OK }
 			} else {
-				set buffername "$prefix in query"			
+				set buffername "$prefix in query"
+				if {![string equal -nocase [weechat::config_get_plugin privmessage] "all"] &&
+					!([string equal -nocase [weechat::config_get_plugin privmessage] "inactive"] && ![string equal [weechat::buffer_get_string [weechat::current_buffer] short_name] $buffername])}	{
+					if {$highlight == 0} { return $::weechat::WEECHAT_RC_OK }
+				}
 			}
+			notify $buffername $message
+			return $::weechat::WEECHAT_RC_OK
+		}
+		proc notify {title text} {
 			if {[weechat::config_get_plugin port] == "local"} {
 				catch {
-					exec notify-send -u normal -c IRC -i gtk-help "$buffername" "$message"
+					exec notify-send -u normal -c IRC -i gtk-help "$title" "$text"
 				}
 			} else {
 				catch {		
@@ -65,9 +85,8 @@ if {[namespace exists ::weechat]} {
 					close $sock
 				}
 			}
-			return $::weechat::WEECHAT_RC_OK
 		}
-		weechat::hook_print "" "notify_message" "" 1 [namespace current]::highlight {}
+		weechat::hook_print "" "irc_privmsg" "" 1 [namespace current]::highlight {}
 	}
 } else {
 	# We probably have been called from the shell
@@ -92,3 +111,4 @@ if {[namespace exists ::weechat]} {
 	}
 	notify_server $port
 }
+
