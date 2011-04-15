@@ -5,7 +5,8 @@
 # in ubuntu or any other distribution that supports libnotify.
 #
 # Changelog:
-#
+# 1.2
+#   fixed small typo that prevented remote notification (thanks Jesse)
 # 1.1
 #		added setting: privmessage to customize notifications of messages in query
 # 1.0
@@ -20,19 +21,19 @@
 #
 # Example 1: 	Weechat runs on the local pc
 #		/tcl load rnotify.tcl
-#		and set the port 
+#		and set the port
 #		/set plugins.var.tcl.rnotify.port local
 #
-# Example 2:	Weechat runs on a remote pc and you login via ssh port you 
+# Example 2:	Weechat runs on a remote pc and you login via ssh port you
 #		want to use is 4321
 #		sh location/of/rnotify.tcl 4321 & ssh -R 4321:localhost:4321 username@host
 #		on server you start weechat (or resume screen or whatever).
 #		Then inside weechat
 #		/tcl load rnotify.tcl
-#		and set the port 
+#		and set the port
 #		/set plugins.var.tcl.rnotify.port 4321
 #
-# General Syntax:	
+# General Syntax:
 #		In weechat
 #		/set plugins.var.tcl.notify.port <portnumber to send notifies to/ or local>
 #		To get notifications for private messages set:
@@ -49,7 +50,7 @@
 #
 # Possible problems:
 #		It could be other programs send data to the notify port when using remote
-#		mode. This will then lead to the following: either break the script, or 
+#		mode. This will then lead to the following: either break the script, or
 #		make weird notification bubbles.
 # \
 exec tclsh "$0" ${1+"$@"}
@@ -57,7 +58,7 @@ exec tclsh "$0" ${1+"$@"}
 if {[namespace exists ::weechat]} {
 	# We have been called inside weechat
 	namespace eval weechat::script::rnotify {
-		weechat::register "rnotify" {Gotisch gotisch@gmail.com} 1.1 GPL3 {Sends highlights to (remote) client} {} {}
+		weechat::register "rnotify" {Gotisch gotisch@gmail.com} 1.2 GPL3 {Sends highlights to (remote) client} {} {}
 		proc highlight { data buffer date tags displayed highlight prefix message } {
 			set buffername [weechat::buffer_get_string $buffer short_name]
 			if {$buffername != $prefix} {
@@ -79,9 +80,9 @@ if {[namespace exists ::weechat]} {
 					exec notify-send -u normal -c IRC -i gtk-help "$title" "$text"
 				}
 			} else {
-				catch {		
+				catch {
 					set sock [socket -async localhost [weechat::config_get_plugin port]]
-					puts $sock [list normal gtk-help $buffername $message]
+					puts $sock [list normal gtk-help $title $text]
 					close $sock
 				}
 			}
@@ -111,4 +112,3 @@ if {[namespace exists ::weechat]} {
 	}
 	notify_server $port
 }
-
