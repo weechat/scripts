@@ -1,6 +1,7 @@
 #
 # Copyright (C) 2006-2011 Sebastien Helleu <flashcode@flashtux.org>
 # Copyright (C) 2011 Nils Görs <weechatter@arcor.de>
+# Copyright (C) 2011 ArZa <arza@arza.us>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,6 +20,8 @@
 # Speaker beep on highlight/private msg or new DCC.
 #
 # History:
+# 2011-04-16, ArZa <arza@arza.us>:
+#     version 0.7: fix default beep command
 # 2011-03-11, nils_2 <weechatter@arcor.de>:
 #     version 0.6: add additional command options for dcc and highlight
 # 2011-03-09, nils_2 <weechatter@arcor.de>:
@@ -35,15 +38,15 @@
 
 use strict;
 my $SCRIPT_NAME = "beep";
-my $VERSION = "0.6";
+my $VERSION = "0.7";
 
 # default values in setup file (~/.weechat/plugins.conf)
-my %options = ( "beep_highlight"         => "on",
-                "beep_pv"                => "on",
-                "beep_dcc"               => "on",
-                "beep_command"           => "echo -n '\\a'",
-                "beep_command_highlight" => "echo -n '\\a'",
-                "beep_command_dcc"       => "echo -n '\\a'",
+my %options = ( 'beep_highlight'         => 'on',
+                'beep_pv'                => 'on',
+                'beep_dcc'               => 'on',
+                'beep_command'           => '$bell',
+                'beep_command_highlight' => '$bell',
+                'beep_command_dcc'       => '$bell',
 );
 
 weechat::register($SCRIPT_NAME, "FlashCode <flashcode\@flashtux.org>", $VERSION,
@@ -58,19 +61,49 @@ weechat::hook_signal("irc_dcc", "dcc", "");
 
 sub highlight
 {
-    system($options{beep_command_highlight}) if ($options{beep_highlight} eq "on");
+    if ($options{beep_highlight} eq "on")
+    {
+        if ($options{beep_command_highlight} eq '$bell')
+        {
+            print STDERR "\a";
+        }
+        else
+        {
+            system($options{beep_command_highlight});
+        }
+    }
     return weechat::WEECHAT_RC_OK;
 }
 
 sub pv
 {
-    system($options{beep_command}) if ($options{beep_pv} eq "on");
+    if ($options{beep_pv} eq "on")
+    {
+        if ($options{beep_command} eq '$bell')
+        {
+            print STDERR "\a";
+        }
+        else
+        {
+            system($options{beep_command});
+        }
+    }
     return weechat::WEECHAT_RC_OK;
 }
 
 sub dcc
 {
-    system($options{beep_command_dcc}) if ($options{beep_dcc} eq "on");
+    if ($options{beep_dcc} eq "on")
+    {
+        if ($options{beep_command_dcc} eq '$bell')
+        {
+            print STDERR "\a";
+        }
+        else
+        {
+            system($options{beep_command_dcc});
+        }
+    }
     return weechat::WEECHAT_RC_OK;
 }
 
