@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2010 by trenki <trechris@gmx.net>
+# Copyright (c) 2010-2011 by trenki <trechris@gmx.net>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,13 +19,29 @@
 # Thinklight blink on highlight/private msg.
 # based on beep script  by FlashCode <flashcode@flashtux.org>
 #
+# Needs /sys/class/leds/tpacpi\:\:thinklight/brightness to be r+w
+# as root type:
+# chmod 666 /sys/class/leds/tpacpi\:\:thinklight/brightness
+# 
+# see also http://www.thinkwiki.org/wiki/ThinkLight
+# 
 #
+# CHANGELOG:
+# 0.1 
+# Initial Release
+# 0.2
+# add subroutine for both hooks
+# add threaded non blocking function
+# 0.3
+# uses weechat::hook_timer
+# 
+# 
+#use Time::HiRes;
+#use threads;
+use warnings;
+use feature qw/switch/;
 
-
-#use strict; #comment cause of Time::HiRes;
-use Time::HiRes;
-
-my $version = "0.1";
+my $version = "0.3";
 my $blink_command_on = "echo 255 > /sys/class/leds/tpacpi\:\:thinklight/brightness";
 my $blink_command_off = "echo 0 > /sys/class/leds/tpacpi\:\:thinklight/brightness";
 my $blink_command_stat = "cat /sys/class/leds/tpacpi\:\:thinklight/brightness";
@@ -42,45 +58,30 @@ weechat::config_set_plugin("blink_pv", $default_blink_pv) if (weechat::config_ge
 weechat::hook_signal("weechat_highlight", "highlight", "");
 weechat::hook_signal("irc_pv", "pv", "");
 
+
 sub highlight
 {
     my $blink = weechat::config_get_plugin("blink_highlight");
-    # if ($blink eq "on")
-    for my $i (0..5)
-     {
-       Time::HiRes::usleep(750_000);
-        my $return_value = `cat /sys/class/leds/tpacpi\:\:thinklight/brightness`; 
-        if($return_value == "255")
-        {
-        system($blink_command_off);
-        }
-        else
-        {
-         system($blink_command_on);
-
-        }
-     }
+    weechat::hook_timer( 750, 0, 6, "tpblink", "");
     return weechat::WEECHAT_RC_OK;
 }
 
 sub pv
 {
     my $blink = weechat::config_get_plugin("blink_pv");
-    #if ($blink eq "on")
-    for my $i (0..5) 
-     {
-       Time::HiRes::usleep(750_000);
-	my $return_value = `cat /sys/class/leds/tpacpi\:\:thinklight/brightness`;
-        if($return_value == "255")
-        {
-        system($blink_command_off);
-        }
-        else
-        {
-         system($blink_command_on);
-
-        }
-     }
-
+    weechat::hook_timer( 750, 0, 6, "tpblink", "");
     return weechat::WEECHAT_RC_OK;
+}
+
+sub tpblink
+{
+    my $return_value = `cat /sys/class/leds/tpacpi\:\:thinklight/brightness`;
+    if($return_value == 255)
+    {
+        system($blink_command_off);
+    }
+    else
+    {
+        system($blink_command_on);
+    }
 }
