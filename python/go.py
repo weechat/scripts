@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2009-2010 Sebastien Helleu <flashcode@flashtux.org>
+# Copyright (C) 2009-2011 Sébastien Helleu <flashcode@flashtux.org>
 # Copyright (C) 2010 m4v <lambdae2@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
@@ -23,39 +23,41 @@
 #
 # History:
 #
-# 2010-11-01, Sebastien Helleu <flashcode@flashtux.org>:
+# 2011-04-25, Sébastien Helleu <flashcode@flashtux.org>:
+#     version 1.3: add info "go_running" (used by script input_lock.rb)
+# 2010-11-01, Sébastien Helleu <flashcode@flashtux.org>:
 #     version 1.2: use high priority for hooks to prevent conflict with other
 #                  plugins/scripts (WeeChat >= 0.3.4 only)
 # 2010-03-25, m4v <lambdae2@gmail.com>:
 #     version 1.1: use a space for match the end of a string
-# 2009-11-16, Sebastien Helleu <flashcode@flashtux.org>:
+# 2009-11-16, Sébastien Helleu <flashcode@flashtux.org>:
 #     version 1.0: add new option for displaying short names
-# 2009-06-15, Sebastien Helleu <flashcode@flashtux.org>:
+# 2009-06-15, Sébastien Helleu <flashcode@flashtux.org>:
 #     version 0.9: fix typo in /help go with command /key
-# 2009-05-16, Sebastien Helleu <flashcode@flashtux.org>:
+# 2009-05-16, Sébastien Helleu <flashcode@flashtux.org>:
 #     version 0.8: search buffer by number, fix bug when window is split
-# 2009-05-03, Sebastien Helleu <flashcode@flashtux.org>:
+# 2009-05-03, Sébastien Helleu <flashcode@flashtux.org>:
 #     version 0.7: eat tab key (do not complete input, just move buffer pointer)
-# 2009-05-02, Sebastien Helleu <flashcode@flashtux.org>:
+# 2009-05-02, Sébastien Helleu <flashcode@flashtux.org>:
 #     version 0.6: sync with last API changes
-# 2009-03-22, Sebastien Helleu <flashcode@flashtux.org>:
+# 2009-03-22, Sébastien Helleu <flashcode@flashtux.org>:
 #     version 0.5: update modifier signal name for input text display,
 #                  fix arguments for function string_remove_color
-# 2009-02-18, Sebastien Helleu <flashcode@flashtux.org>:
+# 2009-02-18, Sébastien Helleu <flashcode@flashtux.org>:
 #     version 0.4: do not hook command and init options if register failed
-# 2009-02-08, Sebastien Helleu <flashcode@flashtux.org>:
+# 2009-02-08, Sébastien Helleu <flashcode@flashtux.org>:
 #     version 0.3: case insensitive search for buffers names
-# 2009-02-08, Sebastien Helleu <flashcode@flashtux.org>:
+# 2009-02-08, Sébastien Helleu <flashcode@flashtux.org>:
 #     version 0.2: add help about Tab key
-# 2009-02-08, Sebastien Helleu <flashcode@flashtux.org>:
+# 2009-02-08, Sébastien Helleu <flashcode@flashtux.org>:
 #     version 0.1: initial release
 #
 
 import weechat
 
 SCRIPT_NAME    = "go"
-SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "1.2"
+SCRIPT_AUTHOR  = "Sébastien Helleu <flashcode@flashtux.org>"
+SCRIPT_VERSION = "1.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Quick jump to buffers"
 
@@ -100,6 +102,13 @@ if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
     for option, default_value in settings.iteritems():
         if weechat.config_get_plugin(option) == "":
             weechat.config_set_plugin(option, default_value)
+    weechat.hook_info("go_running", "Return '1' if go is running", "", "info_go_running", "")
+
+def info_go_running(data, info_name, arguments):
+    global hooks
+    if "modifier" in hooks:
+        return "1"
+    return "0"
 
 def unhook_one(hook):
     """ Unhook something hooked by this script """
