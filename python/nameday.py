@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2003-2010 by FlashCode <flashcode@flashtux.org>
+# Copyright (C) 2003-2011 Sébastien Helleu <flashcode@flashtux.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,214 +23,242 @@
 #
 # History:
 #
-# 2010-01-14, FlashCode <flashcode@flashtux.org>:
+# 2011-05-06, Sébastien Helleu <flashcode@flashtux.org>:
+#     version 1.0: add some missing names and color based on gender
+# 2010-01-14, Sébastien Helleu <flashcode@flashtux.org>:
 #     version 0.9: add color options and options to display dates in bar item
-# 2010-01-13, FlashCode <flashcode@flashtux.org>:
+# 2010-01-13, Sébastien Helleu <flashcode@flashtux.org>:
 #     version 0.8: conversion to python (script renamed to nameday.py),
 #                  conversion to WeeChat 0.3.0+
-# 2007-08-10, FlashCode <flashcode@flashtux.org>:
+# 2007-08-10, Sébastien Helleu <flashcode@flashtux.org>:
 #     version 0.7
-# 2003-12-06, FlashCode <flashcode@flashtux.org>:
+# 2003-12-06, Sébastien Helleu <flashcode@flashtux.org>:
 #     version 0.1: initial release (fete.pl)
 #
+
+SCRIPT_NAME    = 'nameday'
+SCRIPT_AUTHOR  = 'Sébastien Helleu <flashcode@flashtux.org>'
+SCRIPT_VERSION = '1.0'
+SCRIPT_LICENSE = 'GPL3'
+SCRIPT_DESC    = 'Display name days in bar item and buffer'
+
+SCRIPT_COMMAND  = 'nameday'
+SCRIPT_BAR_ITEM = 'nameday'
 
 import_ok = True
 
 try:
     import weechat
-except:
-    print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+except ImportError:
+    print('This script must be run under WeeChat.')
+    print('Get WeeChat now at: http://www.weechat.org/')
     import_ok = False
 
-import time, unicodedata
-from datetime import date
-
-SCRIPT_NAME    = "nameday"
-SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.9"
-SCRIPT_LICENSE = "GPL3"
-SCRIPT_DESC    = "Display name days in bar item and buffer"
+try:
+    import time, unicodedata
+    from datetime import date
+except ImportError, message:
+    print('Missing package(s) for %s: %s' % (SCRIPT_NAME, message))
+    import_ok = False
 
 # script options
-nameday_settings = {
-    "country"               : "fr",      # country, only 'fr' (french) is currently available
-    "days"                  : "1",       # number of days after current one to display in bar item
-    "item_date_today"       : "on",      # display date for today in bar item
-    "item_date_next"        : "off",     # display dates for tomorrow and next days in bar item
-    "item_color_date_today" : "white",   # color for today's date in item
-    "item_color_name_today" : "green",   # color for today's name in item
-    "item_color_date_next"  : "default", # color for date of next days in item
-    "item_color_name_next"  : "brown",   # color for name of next days in item
+nameday_settings_default = {
+    'country'                : ('fr',      'country, only "fr" (french) is currently available'),
+    'days'                   : ('1',       'number of days after current one to display in bar item'),
+    'item_date_today'        : ('on',      'display date for today in bar item'),
+    'item_date_next'         : ('off',     'display dates for tomorrow and next days in bar item'),
+    'item_name_gender'       : ('off',     'display gender (St/Ste) before name'),
+    'item_color_date_today'  : ('white',   'color for date in item (today)'),
+    'item_color_name_today'  : ('green',   'color for name in item (today)'),
+    'item_color_date_next'   : ('default', 'color for date in item (next days)'),
+    'item_color_name_next'   : ('default', 'color for name in item (next days)'),
+    'item_color_male_today'  : ('cyan',    'color for male names in item (today)'),
+    'item_color_female_today': ('magenta', 'color for female names in item (today)'),
+    'item_color_male_next'   : ('cyan',    'color for male names in item (next days)'),
+    'item_color_female_next' : ('magenta', 'color for female names in item (next days)'),
+    'color_male'             : ('cyan',    'color for male names'),
+    'color_female'           : ('magenta', 'color for female names'),
 }
+nameday_settings = {}
 
-nameday_item = ""
-nameday_buffer = ""
+nameday_item = ''
+nameday_buffer = ''
 
 namedays = {
-    "fr": (
-        # janvier
-        ( '!Marie - JOUR de l\'AN', '&Basile', '!Geneviève', '&Odilon', '&Edouard',
-          '&Mélaine', '&Raymond', '&Lucien', '!Alix', '&Guillaume', '&Paulin',
-          '!Tatiana', '!Yvette', '!Nina', '&Rémi', '&Marcel', '!Roseline',
-          '!Prisca', '&Marius', '&Sébastien', '!Agnès', '&Vincent', '&Barnard',
-          '&François de Sales', '-Conversion de St Paul', '!Paule', '!Angèle',
-          '&Thomas d\'Aquin', '&Gildas', '!Martine', '!Marcelle' ),
-        # février
-        ( '!Ella', '-Présentation', '&Blaise', '!Véronique', '!Agathe',
-          '&Gaston', '!Eugénie', '!Jacqueline', '!Apolline', '&Arnaud',
-          '-Notre-Dame de Lourdes', '&Félix', '!Béatrice', '&Valentin', '&Claude',
-          '!Julienne', '&Alexis', '!Bernadette', '&Gabin', '!Aimée',
-          '&Pierre Damien', '!Isabelle', '&Lazare', '&Modeste', '&Roméo', '&Nestor',
-          '!Honorine', '&Romain', '&Auguste' ),
-        # mars
-        ( '&Aubin', '&Charles le Bon', '&Guénolé', '&Casimir', '&Olive', '&Colette',
-          '!Félicité', '&Jean de Dieu', '!Françoise', '&Vivien', '!Rosine',
-          '!Justine', '&Rodrigue', '!Mathilde', '!Louise de Marillac', '!Bénédicte',
-          '&Patrice', '&Cyrille', '&Joseph', '&Herbert', '!Clémence', '!Léa',
-          '&Victorien', '!Catherine de Suède', '-Annonciation', '!Larissa',
-          '&Habib', '&Gontran', '!Gwladys', '&Amédée', '&Benjamin' ),
-        # avril
-        ( '&Hugues', '!Sandrine', '&Richard', '&Isodore', '!Irène', '&Marcellin',
-          '&Jean-Baptiste de la Salle', '!Julie', '&Gautier', '&Fulbert',
-          '&Stanislas', '&Jules', '!Ida', '&Maxime', '&Paterne',
-          '&Benoît-Joseph Labre', '&Anicet', '&Parfait', '!Emma', '!Odette',
-          '&Anselme', '&Alexandre', '&Georges', '&Fidèle', '&Marc', '!Alida',
-          '!Zita', '!Valérie', '!Catherine de Sienne', '&Robert' ),
-        # mai
-        ( '&Jérémie - FETE du TRAVAIL', '&Boris', '&Philippe / Jacques', '&Sylvain',
-          '!Judith', '!Prudence', '!Gisèle', '&Désiré - ANNIVERSAIRE 1945',
-          '&Pacôme', '!Solange', '!Estelle', '&Achille', '!Rolande', '&Mathias',
-          '!Denise', '&Honoré', '&Pascal', '&Eric', '&Yves', '&Bernardin',
-          '&Constantin', '&Emile', '&Didier', '&Donatien', '!Sophie', '&Bérenger',
-          '&Augustin', '&Germain', '&Aymar', '&Ferdinand', '-Visitation' ),
-        # juin
-        ( '&Justin', '!Blandine', '&Kévin', '!Clotilde', '&Igor', '&Norbert',
-          '&Gilbert', '&Médard', '!Diane', '&Landry', '&Barnabé', '&Guy',
-          '&Antoine de Padoue', '&Elisée', '!Germaine', '&Jean-François Régis',
-          '&Hervé', '&Léonce', '&Romuald', '&Silvère', '&Rodolphe', '&Alban',
-          '!Audrey', '&Jean-Baptiste', '&Salomon', '&Anthelme', '&Fernand',
-          '&Irénée', '&Pierre / Paul', '&Martial' ),
-        # juillet
-        ( '&Thierry', '&Martinien', '&Thomas', '&Florent', '&Antoine', '!Mariette',
-          '&Raoul', '&Thibaut', '!Amandine', '&Ulrich', '&Benoît', '&Olivier',
-          '&Henri / Joël', '!Camille - FETE NATIONALE', '&Donald',
-          '-N.D. du Mont Carmel', '!Charlotte', '&Frédéric', '&Arsène', '!Marina',
-          '&Victor', '!Marie-Madeleine', '!Brigitte', '!Christine', '&Jacques',
-          '&Anne', '!Nathalie', '&Samson', '!Marthe', '!Juliette',
-          '&Ignace de Loyola' ),
-        # août
-        ( '&Alphonse', '&Julien', '!Lydie', '&Jean-Marie Vianney', '&Abel',
-          '-Transfiguration', '&Gaëtan', '&Dominique', '&Amour', '&Laurent',
-          '!Claire', '!Clarisse', '&Hippolyte', '&Evrard',
-          '!Marie - ASSOMPTION', '&Armel', '&Hyacinthe', '!Hélène', '&Jean Eudes',
-          '&Bernard', '&Christophe', '&Fabrice', '!Rose de Lima', '&Barthélémy',
-          '&Louis', '!Natacha', '!Monique', '&Augustin', '!Sabine', '&Fiacre',
-          '&Aristide' ),
-        # septembre
-        ( '&Gilles', '!Ingrid', '&Grégoire', '!Rosalie', '!Raïssa', '&Bertrand',
-          '!Reine', '-Nativité de Marie', '&Alain', '!Inès', '&Adelphe',
-          '&Apollinaire', '&Aimé', '-La Ste Croix', '&Roland', '!Edith', '&Renaud',
-          '!Nadège', '!Emilie', '&Davy', '&Matthieu', '&Maurice', '&Constant',
-          '!Thècle', '&Hermann', '&Côme / Damien', '&Vincent de Paul', '&Venceslas',
-          '&Michel / Gabriel', '&Jérôme' ),
-        # octobre
-        ( '!Thérèse de l\'Enfant Jésus', '&Léger', '&Gérard', '&François d\'Assise',
-          '!Fleur', '&Bruno', '&Serge', '!Pélagie', '&Denis', '&Ghislain', '&Firmin',
-          '&Wilfried', '&Géraud', '&Juste', '!Thérèse d\'Avila', '!Edwige',
-          '&Baudouin', '&Luc', '&René', '!Adeline', '!Céline', '!Elodie',
-          '&Jean de Capistran', '&Florentin', '&Crépin', '&Dimitri', '!Emeline',
-          '&Simon / Jude', '&Narcisse', '!Bienvenue', '&Quentin' ),
-        # novembre
-        ( '&Harold - TOUSSAINT', '-Défunts', '&Hubert', '&Charles', '!Sylvie',
-          '!Bertille', '!Carine', '&Geoffroy', '&Théodore', '&Léon',
-          '&Martin - ARMISTICE 1918', '&Christian', '&Brice', '&Sidoine', '&Albert',
-          '!Marguerite', '!Elisabeth', '!Aude', '&Tanguy', '&Edmond',
-          '-Présentation de Marie', '!Cécile', '&Clément', '!Flora', '!Catherine',
-          '!Delphine', '&Séverin', '&Jacques de la Marche', '&Saturnin', '&André' ),
-        # décembre
-        ( '!Florence', '!Viviane', '&Xavier', '!Barbara', '&Gérald', '&Nicolas',
-          '&Ambroise', '-Immaculée Conception', '&Pierre Fourier', '&Romaric',
-          '&Daniel', '!Jeanne de Chantal', '!Lucie', '!Odile', '!Ninon', '!Alice',
-          '&Gaël', '&Gatien', '&Urbain', '&Abraham', '&Pierre Canisius',
-          '!Françoise-Xavier', '&Armand', '!Adèle', '&Emmanuel - NOEL', '&Etienne',
-          '&Jean', '-Sts Innocents', '&David', '&Roger', '&Sylvestre' ),
+    'fr': (
+        # january
+        ('!Marie (JOUR DE L\'AN)', '&Basile', '!Geneviève', '&Odilon', '&Edouard',
+         '&Mélaine', '&Raymond,&Cédric,!Virginie', '&Lucien', '!Alix', '&Guillaume',
+         '&Paulin', '!Tatiana', '!Yvette', '!Nina', '&Rémi,!Rachel',
+         '&Marcel', '!Roseline', '!Prisca', '&Marius', '&Sébastien',
+         '!Agnès', '&Vincent', '&Barnard', '&François de Sales', 'Conversion de St Paul',
+         '!Paule', '!Angèle', '&Thomas d\'Aquin', '&Gildas', '!Martine,!Jacinthe',
+         '!Marcelle'),
+        # february
+        ('!Ella,&Siméon', 'Présentation,&Théophane', '&Blaise', '!Véronique', '!Agathe',
+         '&Gaston,!Dorothée', '!Eugénie', '!Jacqueline', '!Apolline', '&Arnaud',
+         'Notre-Dame de Lourdes', '&Félix', '!Béatrice', '&Valentin', '&Claude,&Jordan',
+         '!Julienne,!Lucile', '&Alexis', '!Bernadette', '&Gabin', '!Aimée',
+         '&Damien', '!Isabelle', '&Lazare', '&Modeste', '&Roméo',
+         '&Nestor', '!Honorine', '&Romain', '&Auguste'),
+        # march
+        ('&Aubin,&Albin,&Jonathan', '&Charles le Bon', '&Guénolé,&Marin', '&Casimir', '!Olive,!Olivia',
+         '&Colette', '!Félicité,&Nathan', '&Ryan', '!Françoise', '&Vivien',
+         '!Rosine', '!Justine,&Pol', '&Rodrigue', '!Mathilde', '!Louise',
+         '!Bénédicte', '&Patrice,&Patrick', '&Cyrille', '&Joseph', '&Herbert',
+         '!Clémence,!Axelle', '!Léa', '&Victorien', '!Catherine', '&Humbert',
+         '!Larissa', '&Habib', '&Gontran', '!Gwladys', '&Amédée',
+         '&Benjamin'),
+        # april
+        ('&Hugues,&Valéry', '!Sandrine', '&Richard', '&Isodore', '!Irène',
+         '&Marcellin', '&Jean-Baptiste de la Salle,&Clotaire', '!Julie', '&Gautier', '&Fulbert',
+         '&Stanislas', '&Jules', '!Ida', '&Maxime,!Ludivine', '&César,&Paterne',
+         '&Benoît-Joseph Labre', '&Anicet', '&Parfait', '!Emma', '!Odette',
+         '&Anselme', '&Alexandre', '&Georges', '&Fidèle', '&Marc',
+         '!Alida', '!Zita', '!Valérie', '!Catherine de Sienne', '&Robert'),
+        # may
+        ('&Jérémie (FETE du TRAVAIL)', '&Boris,!Zoé', '&Philippe,&Jacques', '&Sylvain,&Florian', '!Judith',
+         '!Prudence', '!Gisèle', '&Désiré (ANNIVERSAIRE 1945)', '&Pacôme', '!Solange',
+         '!Estelle', '&Achille', '!Rolande,&Maël', '&Mathias,!Aglaé', '!Denise',
+         '&Honoré,&Brendan', '&Pascal', '&Eric,!Corinne', '&Yves,&Erwan', '&Bernardin',
+         '&Constantin', '&Emile,!Rita', '&Didier', '&Donatien', '!Sophie',
+         '&Bérenger', '&Augustin', '&Germain', '&Aymar,!Géraldine', '&Ferdinand,!Jeanne',
+         'Pétronille'),
+        # june
+        ('&Justin,&Ronan', '!Blandine', '&Kévin', '!Clotilde', '&Igor',
+         '&Norbert', '&Gilbert', '&Médard', '!Diane', '&Landry',
+         '&Barnabé,!Yolande', '&Guy', '&Antoine de Padoue', '&Elisée,&Valère', '!Germaine',
+         '&François-Régis,&Régis', '&Hervé', '&Léonce', '&Romuald,&Gervais,!Micheline', '&Silvère',
+         '&Rodolphe', '&Alban', '!Audrey', '&Jean-Baptiste', '&Salomon,&Prosper,!Aliénor,!Eléonore',
+         '&Anthelme', '&Fernand', '&Irénée', '&Pierre,&Paul', '&Martial,&Adolphe'),
+        # july
+        ('&Thierry,!Esther', '&Martinien', '&Thomas', '&Florent', '&Antoine',
+         '!Nolwen,!Mariette', '&Raoul', '&Thibaut,&Edgar,&Kilian,!Priscilla', '!Amandine,!Hermine,!Marianne', '&Ulrich',
+         '&Benoît,!Olga', '&Olivier,&Jason', '&Henri,&Joël,&Enzo,&Eugène', '!Camille (FETE NATIONALE)', '&Donald,&Vladimir',
+         '!Elvire', '!Charlotte,!Arlette,!Marcelline', '&Frédéric', '&Arsène', '!Marina',
+         '&Victor', '!Madeleine', '!Brigitte', '!Christine,!Ségolène', '&Jacques,!Valentine',
+         '!Anne,!Hannah,&Joachin', '!Nathalie', '&Samson', '!Marthe,!Béatrix,&Loup', '!Juliette',
+         '&Ignace de Loyola'),
+        # august
+        ('&Alphonse', '&Julien', '!Lydie', '&Vianney', '&Abel',
+         'Transfiguration', '&Gaëtan', '&Dominique', '&Amour', '&Laurent',
+         '!Claire,!Gilberte,!Suzanne', '!Clarisse', '&Hippolyte', '&Evrard', '!Marie,&Alfred (ASSOMPTION)',
+         '&Armel', '&Hyacinthe', '!Hélène,!Laetitia', '&Jean Eudes', '&Bernard,&Samuel',
+         '&Christophe,!Grâce', '&Fabrice', '!Rose de Lima', '&Barthélémy', '&Louis',
+         '!Natacha', '!Monique', '&Augustin,&Elouan', '!Sabine,&Médéric', '&Fiacre',
+         '&Aristide'),
+        # september
+        ('&Gilles', '!Ingrid', '&Grégoire', '!Rosalie,!Iris,&Moïse', '!Raïssa',
+         '&Bertrand,!Eva', '!Reine', '&Adrien,!Béline', '&Alain,&Omer', '!Inès',
+         '&Adelphe,!Glenn,!Vinciane', '&Apollinaire', '&Aimé', 'La Ste Croix', '&Roland,!Dolorès',
+         '!Edith', '&Renaud,&Lambert', '!Nadège,!Véra', '!Emilie', '&Davy',
+         '&Matthieu,!Déborah', '&Maurice', '&Constant', '!Thècle', '&Hermann',
+         '&Côme,&Damien', '&Vincent de Paul', '&Venceslas', '&Michel,&Gabriel,&Raphaël', '&Jérôme'),
+        # october
+        ('!Thérèse de l\'Enfant Jésus', '&Léger', '&Gérard', '&François d\'Assise', '!Fleur,!Chloé',
+         '&Bruno', '&Serge,&Gustave', '!Pélagie,&Thaïs', '&Denis', '&Ghislain,&Virgile',
+         '&Firmin', '&Wilfried,&Edwin', '&Géraud', '&Juste,!Céleste,!Gwendoline', '!Thérèse d\'Avila',
+         '!Edwige', '&Baudouin,!Solène', '&Luc', '&René,!Cléo', '!Adeline,!Aline',
+         '!Céline,!Ursule', '!Elodie,!Salomé', '&Jean de Capistran', '&Florentin', '&Crépin',
+         '&Dimitri', '!Emeline', '&Simon,&Jude', '&Narcisse', '!Bienvenue,!Maéva',
+         '&Quentin'),
+        # november
+        ('&Harold (TOUSSAINT)', 'Défunts', '&Hubert,&Gwenaël', '&Charles,&Aymeric', '!Sylvie,&Zacharie',
+         '!Bertille,&Léonard', '!Carine', '&Geoffroy', '&Théodore', '&Léon,&Noah,&Noé,!Mélissa',
+         '&Martin (ARMISTICE 1918)', '&Christian', '&Brice', '&Sidoine', '&Albert,&Arthur,&Léopold,!Victoire',
+         '!Marguerite,!Mégane,!Gertrude', '!Elisabeth,!Elise,!Hilda', '!Aude', '&Tanguy', '&Edmond,&Octave',
+         'Présentation de Marie', '!Cécile', '&Clément', '!Flora', '!Catherine',
+         '!Delphine', '&Séverin', '&Jacques de la Marche', '&Saturnin', '&André'),
+        # december
+        ('!Florence', '!Viviane', '&Xavier', '!Barbara', '&Gérald',
+         '&Nicolas', '&Ambroise', 'Immaculée Conception', '&Pierre Fourier', '&Romaric',
+         '&Daniel', '!Chantal', '!Lucie,&Jocelyn', '!Odile', '!Ninon',
+         '!Alice', '&Gaël', '&Gatien', '&Urbain', '&Abraham,&Théophile',
+         '&Pierre Canisius', '!Françoise-Xavier', '&Armand', '!Adèle', '&Emmanuel,&Manuel (NOEL)',
+         '&Etienne', '&Jean', '&Gaspard', '&David', '&Roger',
+         '&Sylvestre,!Colombe'),
         )
     }
 
 nameday_i18n = {
-    "fr": { "m"        : "St ",
-            "f"        : "Ste ",
+    'fr': { 'm'        : 'St ',
+            'f'        : 'Ste ',
             },
     }
 
+def nameday_remove_accents(string):
+    """Remove accents from string."""
+    return unicodedata.normalize('NFKD', unicode(string, 'UTF-8')).encode('ASCII', 'ignore')
+
 def nameday_get_country():
-    """ Return country. """
-    global namedays
-    country = weechat.config_get_plugin("country")
+    """Return country."""
+    global nameday_settings, namedays
+    country = nameday_settings['country']
     if not namedays[country]:
-        country = "fr"
+        country = 'fr'
     return country
 
-def nameday_transcode(name, add_prefix=True):
-    global nameday_i18n
+def nameday_decode(name, gender, colorMale, colorFemale):
+    """Decode name: replace special chars and optionally add color."""
+    global nameday_i18n, nameday_settings
     country = nameday_get_country()
-    if name.startswith('&'):
-        if add_prefix:
-            name = "%s%s" % (nameday_i18n[country]["m"], name[1:])
-        else:
-            name = name[1:]
-    elif name.startswith('!'):
-        if add_prefix:
-            name = "%s%s" % (nameday_i18n[country]["f"], name[1:])
-        else:
-            name = name[1:]
-    elif name.startswith('-'):
-        name = name[1:]
-    return name
+    replacement = { '&': '', '!': '' }
+    if colorMale:
+        replacement['&'] = weechat.color(nameday_settings[colorMale])
+    if colorFemale:
+        replacement['!'] = weechat.color(nameday_settings[colorFemale])
+    if gender:
+        replacement['&'] += nameday_i18n[country]['m']
+        replacement['!'] += nameday_i18n[country]['f']
+    return name.replace('&', replacement['&']).replace('!', replacement['!']).replace(',', ', ')
 
-def nameday_get_month_day(month, day):
-    """ Get name day for given day/month. """
+def nameday_get_month_day(month, day, gender, colorMale, colorFemale):
+    """Get name day for given day/month."""
     global namedays
     try:
         country = nameday_get_country()
         name = namedays[country][month][day]
-        return nameday_transcode(name)
+        return nameday_decode(name, gender, colorMale, colorFemale)
     except:
-        return ""
+        return ''
 
-def nameday_get_date(name_date):
-    """ Get name day for given date. """
-    return nameday_get_month_day(name_date.month - 1, name_date.day - 1)
+def nameday_get_date(name_date, gender, colorMale, colorFemale):
+    """Get name day for given date."""
+    return nameday_get_month_day(name_date.month - 1, name_date.day - 1, gender, colorMale, colorFemale)
 
 def nameday_completion_namedays_cb(data, completion_item, buffer, completion):
-    """ Complete with name days, for command '/nameday'. """
+    """Complete with name days, for command '/nameday'."""
     global namedays
     country = nameday_get_country()
     for names in namedays[country]:
-        for name in names:
-            name2 = nameday_transcode(name, False)
-            weechat.hook_completion_list_add(completion,
-                                             name2,
-                                             0, weechat.WEECHAT_LIST_POS_SORT)
-            weechat.hook_completion_list_add(completion,
-                                             unicodedata.normalize('NFKD', unicode(name2, "UTF-8")).encode('ASCII', 'ignore'),
-                                             0, weechat.WEECHAT_LIST_POS_SORT)
+        for string in names:
+            pos = string.find('(')
+            if pos > 0:
+                string = string[0:pos].strip()
+            for name in string.split(','):
+                name2 = nameday_decode(name, gender=False, colorMale='', colorFemale='')
+                weechat.hook_completion_list_add(completion,
+                                                 name2,
+                                                 0, weechat.WEECHAT_LIST_POS_SORT)
+                weechat.hook_completion_list_add(completion,
+                                                 nameday_remove_accents(name2),
+                                                 0, weechat.WEECHAT_LIST_POS_SORT)
     return weechat.WEECHAT_RC_OK
 
 def nameday_buffer_input_cb(data, buffer, input_data):
-    if input_data.lower() == "q":
+    """Input callback for buffer."""
+    if input_data.lower() == 'q':
         weechat.buffer_close(buffer)
     return weechat.WEECHAT_RC_OK
 
 def nameday_buffer_close_cb(data, buffer):
-    """ Callback called when buffer is closed. """
+    """Callback called when buffer is closed."""
     global nameday_buffer
-    nameday_buffer = ""
+    nameday_buffer = ''
     return weechat.WEECHAT_RC_OK
 
 def nameday_display_list(buffer):
-    """ Display list of name days in buffer. """
+    """Display list of name days in buffer."""
     global namedays
     country = nameday_get_country()
     today = date.today()
@@ -238,84 +266,94 @@ def nameday_display_list(buffer):
     while month < len(namedays[country]):
         day = 0
         while day < len(namedays[country][month]):
-            color = ""
+            color = ''
             if today.month - 1 == month and today.day - 1 == day:
-                color = weechat.color("yellow")
-            weechat.prnt(buffer, "%s%02d/%02d  %s" % (color,
+                color = weechat.color('yellow')
+            weechat.prnt(buffer, '%s%02d/%02d  %s' % (color,
                                                       (day + 1), (month + 1),
-                                                      nameday_get_month_day(month, day)))
+                                                      nameday_get_month_day(month, day, gender=True, colorMale='color_male', colorFemale='color_female')))
             day += 1
         month += 1
 
 def nameday_list():
-    """" Open buffer and display list of name days. """
+    """Open buffer and display list of name days."""
     global nameday_buffer
     if nameday_buffer:
-        weechat.buffer_set(nameday_buffer, "display", "1")
+        weechat.buffer_set(nameday_buffer, 'display', '1')
     else:
-        nameday_buffer = weechat.buffer_search("python", "nameday");
+        nameday_buffer = weechat.buffer_search('python', 'nameday');
         if not nameday_buffer:
-            nameday_buffer = weechat.buffer_new("nameday", "nameday_buffer_input_cb", "",
-                                                "nameday_buffer_close_cb", "");
+            nameday_buffer = weechat.buffer_new('nameday', 'nameday_buffer_input_cb', '',
+                                                'nameday_buffer_close_cb', '');
         if nameday_buffer:
-            weechat.buffer_set(nameday_buffer, "localvar_set_no_log", "1")
-            weechat.buffer_set(nameday_buffer, "time_for_each_line", "0")
-            weechat.buffer_set(nameday_buffer, "display", "1")
-            weechat.buffer_set(nameday_buffer, "title", "Name days  |  Commands: list, listfull")
+            weechat.buffer_set(nameday_buffer, 'localvar_set_no_log', '1')
+            weechat.buffer_set(nameday_buffer, 'time_for_each_line', '0')
+            weechat.buffer_set(nameday_buffer, 'display', '1')
+            weechat.buffer_set(nameday_buffer, 'title', 'Name days  |  Commands: list, listfull')
             nameday_display_list(nameday_buffer)
 
 def nameday_print(days):
-    """ Print name day for today and option N days in future. """
+    """Print name day for today and option N days in future."""
     global nameday_i18n
     country = nameday_get_country()
     today = date.today()
     current_time = time.time()
-    string = "%02d/%02d: %s" % (today.day, today.month, nameday_get_date(today))
+    string = '%02d/%02d: %s' % (today.day, today.month,
+                                nameday_get_date(today, gender=True,
+                                                 colorMale='color_male',
+                                                 colorFemale='color_female'))
     if days < 0:
         days = 0
     elif days > 50:
         days = 50
     if days > 0:
-        string += " ("
+        string += ' ('
         for i in range(1, days + 1):
             if i > 1:
-                string += ", "
+                string += ', '
             date2 = date.fromtimestamp(current_time + ((3600 * 24) * i))
-            string += "%02d/%02d: %s" % (date2.day, date2.month, nameday_get_date(date2))
-        string += ")"
-    weechat.prnt("", string)
+            string += '%s%02d/%02d: %s' % (weechat.color('chat'),
+                                           date2.day, date2.month,
+                                           nameday_get_date(date2, gender=True,
+                                                            colorMale='color_male',
+                                                            colorFemale='color_female'))
+        string += ')'
+    weechat.prnt('', string)
 
 def nameday_search(name):
-    """ Search a feast. """
+    """Search a name."""
     global namedays
-    user_nameday = unicodedata.normalize('NFKD', unicode(name, "UTF-8")).encode('ASCII', 'ignore').lower()
+    user_nameday = nameday_remove_accents(name).lower()
     country = nameday_get_country()
     month = 0
     while month < len(namedays[country]):
         day = 0
         while day < len(namedays[country][month]):
-            nameday = unicodedata.normalize('NFKD', unicode(namedays[country][month][day], "UTF-8")).encode('ASCII', 'ignore')
+            nameday = nameday_remove_accents(namedays[country][month][day])
             if (nameday.lower().find(user_nameday) >= 0):
-                weechat.prnt("", "%02d/%02d: %s" % ((day + 1), (month + 1),
-                                                    nameday_get_month_day(month, day)))
+                weechat.prnt('', '%02d/%02d: %s' % ((day + 1), (month + 1),
+                                                    nameday_get_month_day(month, day,
+                                                                          gender=True,
+                                                                          colorMale='color_male',
+                                                                          colorFemale='color_female')))
             day += 1
         month += 1
 
 def nameday_cmd_cb(data, buffer, args):
-    """ Command /nameday. """
+    """Command /nameday."""
     if args:
-        if args == "*":
+        if args == '*':
             nameday_list()
         elif args.isdigit():
             nameday_print(int(args))
-        elif args.find("/") >= 0:
-            pos = args.find("/")
+        elif args.find('/') >= 0:
+            pos = args.find('/')
             if pos > 0:
                 day = int(args[:pos])
                 month = int(args[pos+1:])
-                name = nameday_get_month_day(month - 1, day - 1)
-                if name != "":
-                    weechat.prnt("", "%02d/%02d: %s" % (day, month, name))
+                name = nameday_get_month_day(month - 1, day - 1, gender=True, colorMale='color_male', colorFemale='color_female')
+                if name != '':
+                    weechat.prnt('', '%02d/%02d: %s' % (day, month, name))
         else:
             nameday_search(args)
     else:
@@ -323,29 +361,34 @@ def nameday_cmd_cb(data, buffer, args):
     return weechat.WEECHAT_RC_OK
 
 def nameday_item_cb(data, buffer, args):
-    """ Callback for building nameday item. """
+    """Callback for building nameday item."""
     global nameday_item
     return nameday_item
 
 def nameday_build_item():
-    global nameday_item
-    nameday_item = ""
-    display_date_today = weechat.config_get_plugin("item_date_today").lower() == "on"
-    display_date_next = weechat.config_get_plugin("item_date_next").lower() == "on"
-    color_date_today = weechat.color(weechat.config_get_plugin("item_color_date_today"))
-    color_name_today = weechat.color(weechat.config_get_plugin("item_color_name_today"))
-    color_date_next = weechat.color(weechat.config_get_plugin("item_color_date_next"))
-    color_name_next = weechat.color(weechat.config_get_plugin("item_color_name_next"))
-    color_default = weechat.color("default")
+    """Build nameday item."""
+    global nameday_settings, nameday_item
+    nameday_item = ''
+    display_date_today = nameday_settings['item_date_today'].lower() == 'on'
+    display_date_next = nameday_settings['item_date_next'].lower() == 'on'
+    display_gender = nameday_settings['item_name_gender'].lower() == 'on'
+    color_date_today = weechat.color(nameday_settings['item_color_date_today'])
+    color_name_today = weechat.color(nameday_settings['item_color_name_today'])
+    color_date_next = weechat.color(nameday_settings['item_color_date_next'])
+    color_name_next = weechat.color(nameday_settings['item_color_name_next'])
+    color_default = weechat.color('default')
     today = date.today()
     if display_date_today:
-        nameday_item += "%s%02d/%02d%s: " % (color_date_today,
+        nameday_item += '%s%02d/%02d%s: ' % (color_date_today,
                                              today.day, today.month,
                                              color_default)
-    nameday_item += "%s%s" % (color_name_today, nameday_get_date(today))
+    nameday_item += '%s%s' % (color_name_today,
+                              nameday_get_date(today, gender=display_gender,
+                                               colorMale='item_color_male_today',
+                                               colorFemale='item_color_female_today'))
     days = 0
     try:
-        days = int(weechat.config_get_plugin("days"))
+        days = int(nameday_settings['days'])
     except:
         days = 0
     if days < 0:
@@ -353,61 +396,80 @@ def nameday_build_item():
     if days > 10:
         days = 10
     if days > 0:
-        nameday_item += "%s (" % color_default
+        nameday_item += '%s (' % color_default
         current_time = time.time()
         for i in range(1, days + 1):
             if i > 1:
-                nameday_item += ", "
+                nameday_item += ', '
             date2 = date.fromtimestamp(current_time + ((3600 * 24) * i))
             if display_date_next:
-                nameday_item += "%s%02d/%02d%s: " % (color_date_next,
+                nameday_item += '%s%02d/%02d%s: ' % (color_date_next,
                                                      date2.day, date2.month,
                                                      color_default)
-            nameday_item += "%s%s" % (color_name_next, nameday_get_date(date2))
-        nameday_item += "%s)" % color_default
+            nameday_item += '%s%s' % (color_name_next,
+                                      nameday_get_date(date2, gender=display_gender,
+                                                       colorMale='item_color_male_next',
+                                                       colorFemale='item_color_female_next'))
+        nameday_item += '%s)' % color_default
     return nameday_item
 
 def nameday_timer_cb(data, remaining_calls):
-    """ Called each day at midnight to change item content. """
+    """Called each day at midnight to change item content."""
     nameday_build_item()
-    weechat.bar_item_update("nameday")
+    weechat.bar_item_update('nameday')
     return weechat.WEECHAT_RC_OK
+
+def nameday_load_config():
+    global nameday_settings_default, nameday_settings
+    version = weechat.info_get("version_number", "") or 0
+    for option, value in nameday_settings_default.iteritems():
+        if weechat.config_is_set_plugin(option):
+            nameday_settings[option] = weechat.config_get_plugin(option)
+        else:
+            weechat.config_set_plugin(option, value[0])
+            nameday_settings[option] = value[0]
+        if int(version) >= 0x00030500:
+            weechat.config_set_desc_plugin(option, value[1])
 
 def nameday_config_cb(data, option, value):
+    """Called each time an option is changed."""
+    nameday_load_config()
     nameday_build_item()
-    weechat.bar_item_update("nameday")
+    weechat.bar_item_update('nameday')
     return weechat.WEECHAT_RC_OK
 
-if __name__ == "__main__" and import_ok:
+if __name__ == '__main__' and import_ok:
     if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION,
                         SCRIPT_LICENSE, SCRIPT_DESC,
-                        "", ""):
-        # set default settings
-        for option, default_value in nameday_settings.iteritems():
-            if not weechat.config_is_set_plugin(option):
-                weechat.config_set_plugin(option, default_value)
+                        '', ''):
+        # load config
+        nameday_load_config()
+
         # new command
-        weechat.hook_completion("namedays", "list of name days",
-                                "nameday_completion_namedays_cb", "")
-        weechat.hook_command("nameday",
-                             "Display name days",
-                             "[* | number | date | name]",
-                             "     *: display list of name days in a new buffer\n"
-                             "number: display name day for today and <number> days in future\n"
-                             "  date: display name day for this date, format is day/month (for example: 31/01)\n"
-                             "  name: display date for this name\n\n"
-                             "A bar item \"nameday\" can be used in a bar.\n\n"
-                             "Examples:\n"
-                             "  /nameday *      display list of name days in a new buffer\n"
-                             "  /nameday        display name day for today and tomorrow\n"
-                             "  /nameday 2      display name day for today, tomorrow, and after tomorrow\n"
-                             "  /nameday 31/01  display name day for january, 31\n"
-                             "  /nameday roger  display day for name \"roger\"",
-                             "*|%(namedays)", "nameday_cmd_cb", "")
+        weechat.hook_completion('namedays', 'list of name days',
+                                'nameday_completion_namedays_cb', '')
+        weechat.hook_command(SCRIPT_COMMAND,
+                             'Display name days',
+                             '[* | number | date | name]',
+                             '     *: display list of name days in a new buffer\n'
+                             'number: display name day for today and <number> days in future\n'
+                             '  date: display name day for this date, format is day/month (for example: 31/01)\n'
+                             '  name: display date for this name\n\n'
+                             'A bar item "nameday" can be used in a bar.\n\n'
+                             'Examples:\n'
+                             '  /nameday *          display list of name days in a new buffer\n'
+                             '  /nameday            display name day for today and tomorrow\n'
+                             '  /nameday 2          display name day for today, tomorrow, and after tomorrow\n'
+                             '  /nameday 20/01      display name day for january, 20th\n'
+                             '  /nameday sébastien  display day for name "sébastien"',
+                             '*|%(namedays)', 'nameday_cmd_cb', '')
+
         # new item
         nameday_build_item()
-        weechat.bar_item_new("nameday", "nameday_item_cb", "")
+        weechat.bar_item_new(SCRIPT_BAR_ITEM, 'nameday_item_cb', '')
+
         # timer
-        weechat.hook_timer(3600 * 24 * 1000, 3600 * 24, 0, "nameday_timer_cb", "")
+        weechat.hook_timer(3600 * 24 * 1000, 3600 * 24, 0, 'nameday_timer_cb', '')
+
         # config
-        weechat.hook_config("plugins.var.python." + SCRIPT_NAME + ".*", "nameday_config_cb", "")
+        weechat.hook_config('plugins.var.python.' + SCRIPT_NAME + '.*', 'nameday_config_cb', '')
