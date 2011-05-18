@@ -22,13 +22,16 @@
 #
 # History:
 #
+# 2011-05-18, Sébastien Helleu <flashcode@flashtux.org>:
+#     version 0.2: add options for aliases, start on load, list of commands to
+#                  ignore; add default value in help of script options
 # 2011-05-15, Sébastien Helleu <flashcode@flashtux.org>:
 #     version 0.1: initial release
 #
 
 SCRIPT_NAME    = 'cmd_help'
 SCRIPT_AUTHOR  = 'Sébastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '0.1'
+SCRIPT_VERSION = '0.2'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC    = 'Contextual command line help'
 
@@ -58,12 +61,17 @@ cmdhelp_option_infolist_fields = {}
 # script options
 cmdhelp_settings_default = {
     'display_no_help'  : ['on',         'display "No help" when command is not found'],
+    'start_on_load'    : ['off',        'auto start help when script is loaded'],
     'stop_on_enter'    : ['on',         'enter key stop help'],
     'timer'            : ['0',          'number of seconds help is displayed (0 = display until help is toggled)'],
     'prefix'           : ['[',          'string displayed before help'],
     'suffix'           : [']',          'string displayed after help'],
     'format_option'    : ['(${white:type}) ${description_nls}', 'format of help for options: free text with identifiers using format: ${name} or ${color:name}: color is a WeeChat color (optional), name is a field of infolist "option"'],
     'max_options'      : ['5',          'max number of options displayed in list'],
+    'ignore_commands'  : ['map,me,die,restart', 'comma-separated list of commands (without leading "/") to ignore'],
+    'color_alias'      : ['white',      'color for text "Alias"'],
+    'color_alias_name' : ['green',      'color for alias name'],
+    'color_alias_value': ['green',      'color for alias value'],
     'color_delimiters' : ['lightgreen', 'color for delimiters'],
     'color_no_help'    : ['red',        'color for text "No help"'],
     'color_list_count' : ['white',      'color for number of commands/options in list found'],
@@ -99,6 +107,7 @@ def config_cb(data, option, value):
     return weechat.WEECHAT_RC_OK
 
 def command_run_cb(data, buffer, command):
+    """Callback for "command_run" hook."""
     global cmdhelp_hooks, cmdhelp_settings
     if cmdhelp_hooks['modifier'] and cmdhelp_settings['stop_on_enter'] == 'on':
         unhook(('timer', 'modifier'))
@@ -214,12 +223,25 @@ def get_help_command(plugin, input_cmd, input_args):
     if input_cmd == 'set' and input_args:
         return get_help_option(input_args)
     infolist = weechat.infolist_get('hook', '', 'command,%s' % input_cmd)
+    cmd_plugin_name = ''
+    cmd_command = ''
     cmd_args = ''
+    cmd_desc = ''
     while weechat.infolist_next(infolist):
+        cmd_plugin_name = weechat.infolist_string(infolist, 'plugin_name') or 'core'
+        cmd_command = weechat.infolist_string(infolist, 'command')
         cmd_args = weechat.infolist_string(infolist, 'args_nls')
+        cmd_desc = weechat.infolist_string(infolist, 'description')
         if weechat.infolist_pointer(infolist, 'plugin') == plugin:
             break
     weechat.infolist_free(infolist)
+    if cmd_plugin_name == 'alias':
+        return '%sAlias %s%s%s => %s%s' % (weechat.color(cmdhelp_settings['color_alias']),
+                                           weechat.color(cmdhelp_settings['color_alias_name']),
+                                           cmd_command,
+                                           weechat.color(cmdhelp_settings['color_alias']),
+                                           weechat.color(cmdhelp_settings['color_alias_value']),
+                                           cmd_desc)
     if input_args:
         cmd_args = get_command_arguments(input_args, cmd_args)
     if not cmd_args:
@@ -231,15 +253,24 @@ def get_list_commands(plugin, input_cmd, input_args):
     global cmdhelp_settings
     infolist = weechat.infolist_get('hook', '', 'command,%s*' % input_cmd)
     commands = []
+    plugin_names = []
     while weechat.infolist_next(infolist):
         commands.append(weechat.infolist_string(infolist, 'command'))
+        plugin_names.append(weechat.infolist_string(infolist, 'plugin_name') or 'core')
     weechat.infolist_free(infolist)
     if commands:
-        return '%s%d commands: %s%s' % (
-            weechat.color(cmdhelp_settings['color_list_count']),
-            len(commands),
-            weechat.color(cmdhelp_settings['color_list']),
-            ', '.join(commands))
+        if len(commands) > 1 or commands[0].lower() != input_cmd.lower():
+            commands2 = []
+            for index, command in enumerate(commands):
+                if commands.count(command) > 1:
+                    commands2.append('%s(%s)' % (command, plugin_names[index]))
+                else:
+                    commands2.append(command)
+            return '%s%d commands: %s%s' % (
+                weechat.color(cmdhelp_settings['color_list_count']),
+                len(commands2),
+                weechat.color(cmdhelp_settings['color_list']),
+                ', '.join(commands2))
     return None
 
 def input_modifier_cb(data, modifier, modifier_data, string):
@@ -259,6 +290,8 @@ def input_modifier_cb(data, modifier, modifier_data, string):
             return string
         if len(items) > 1:
             arguments = items[1]
+    if command[1:].lower() in cmdhelp_settings['ignore_commands'].split(','):
+        return string
     plugin = weechat.buffer_get_pointer(weechat.current_buffer(), 'plugin')
     msg_help = get_help_command(plugin, command[1:], arguments) or get_list_commands(plugin, command[1:], arguments)
     if not msg_help:
@@ -278,14 +311,15 @@ def input_modifier_cb(data, modifier, modifier_data, string):
                                cmdhelp_settings['suffix'])
 
 def timer_cb(data, remaining_calls):
+    """Timer callback."""
     global cmdhelp_hooks
     if cmdhelp_hooks['modifier']:
         unhook(('modifier',))
         weechat.bar_item_update('input_text')
     return weechat.WEECHAT_RC_OK
 
-def cmd_help_cb(data, buffer, args):
-    """Callback for /cmd_help command."""
+def cmd_help_toggle():
+    """Toggle help on/off."""
     global cmdhelp_hooks, cmdhelp_settings
     if cmdhelp_hooks['modifier']:
         unhook(('timer', 'modifier'))
@@ -301,6 +335,10 @@ def cmd_help_cb(data, buffer, args):
             except:
                 pass
     weechat.bar_item_update('input_text')
+
+def cmd_help_cb(data, buffer, args):
+    """Callback for /cmd_help command."""
+    cmd_help_toggle()
     return weechat.WEECHAT_RC_OK
 
 if __name__ == '__main__' and import_ok:
@@ -329,7 +367,7 @@ if __name__ == '__main__' and import_ok:
                 weechat.config_set_plugin(option, value[0])
                 cmdhelp_settings[option] = value[0]
             if int(version) >= 0x00030500:
-                weechat.config_set_desc_plugin(option, value[1])
+                weechat.config_set_desc_plugin(option, '%s (default: "%s")' % (value[1], value[0]))
 
         # detect config changes
         weechat.hook_config('plugins.var.python.%s.*' % SCRIPT_NAME, 'config_cb', '')
@@ -353,3 +391,7 @@ if __name__ == '__main__' and import_ok:
                              'To try: type "/server" (without pressing enter) and press F1 '
                              '(then you can add arguments and enjoy dynamic help!)',
                              '', 'cmd_help_cb', '')
+
+        # auto start help
+        if cmdhelp_settings['start_on_load'] == 'on':
+            cmd_help_toggle()
