@@ -20,6 +20,14 @@
 # http://0x80.pl/proj/aspell-python/
 ########################################################################
 
+# INSTALLTION
+# After copying this file into your python plugin directory, start weechat
+# load the script and follow futher instructions calling
+#    /help correction_completion
+# You can find these instructions as markdown on
+#    https://github.com/pSub/weechat-correction-completion/blob/master/README.md
+# too.
+
 try:
     import ctypes
     import ctypes.util
@@ -34,7 +42,7 @@ except ImportError:
 
 SCRIPT_NAME    = "correction_completion"
 SCRIPT_AUTHOR  = "Pascal Wittmann <mail@pascal-wittmann.de>"
-SCRIPT_VERSION = "0.2.1"
+SCRIPT_VERSION = "0.2.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Provides a completion for 's/typo/correct'"
 SCRIPT_COMMAND = "correction_completion"
@@ -202,8 +210,8 @@ def load_config(data = "", option = "", value = ""):
           w.config_set_plugin(option, default)
         value = w.config_get_plugin(option)
         if not aspell.aspell_config_replace(
-                        config, 
-                        option.encode(), 
+                        config,
+                        option.encode(),
                         value.encode()):
           raise Exception("Failed to replace config entry")
 
@@ -241,20 +249,28 @@ if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT
 """Usage:
 If you want to correct yourself, you often do this using the
 expression 's/typo/correct'. This plugin allows you to complete the
-first part (the typo) by pressing <Tab>. The words from the actual
+first part (the typo) by pressing *Tab*. The words from the actual
 buffer are used to complet this part. If the word can be perfectly
 matched the next word in alphabetical order is shown.
 
 The second part (the correction) can also be completed. Just press
-<Tab> and the best correction for the typo is fetched from aspell.
-If you press <Tab> again, it shows the next suggestion. The lanuage
-used for suggestions can be set over
+*Tab* after the slash and the best correction for the typo is fetched from aspell.
+If you press *Tab* again, it shows the next suggestion.
+The lanuage used for suggestions can be set with the option
 
   plugins.var.python.correction_completion.lang
 
 The aspell language pack must be installed for this language.
 
 Setup:
-Add the template %%(%(completion)s) to the default completion template
-(option weechat.completion.default_template)"""
+Add the template %%(%(completion)s) to the default completion template.
+The best way to set the template is to use the iset-plugin¹, because you can see
+there the current value before changing it. Of course you can also use the
+standard /set-command e.g.
+
+  /set weechat.completion.default_template "%%(nicks)|%%(irc_channels)|%%(%(completion)s)"
+
+Footnotes:
+¹ http://weechat.org/scripts/source/stable/iset.pl/
+"""
 %dict(completion=template), '', '', '')
