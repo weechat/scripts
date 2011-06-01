@@ -42,7 +42,7 @@ except ImportError:
 
 SCRIPT_NAME    = "correction_completion"
 SCRIPT_AUTHOR  = "Pascal Wittmann <mail@pascal-wittmann.de>"
-SCRIPT_VERSION = "0.2.2"
+SCRIPT_VERSION = "0.2.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Provides a completion for 's/typo/correct'"
 SCRIPT_COMMAND = "correction_completion"
@@ -91,9 +91,10 @@ def complete_typo(pos, input, buffer):
 
     # Get the text of the current buffer
     list = []
-    infolist = w.infolist_get('buffer_lines', buffer, '');
+    infolist = w.infolist_get('buffer_lines', buffer, '')
     while w.infolist_next(infolist):
         list.append(stripcolor(w.infolist_string(infolist, 'message')))
+    w.infolist_free(infolist)
 
     # Generate a list of words
     text = (' '.join(list)).split(' ')
