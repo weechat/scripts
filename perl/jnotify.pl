@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2010 by Nils Görs <weechatter@arcor.de>
+# Copyright (c) 2010-2011 by Nils Görs <weechatter@arcor.de>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# v0.9: fixed: mem leak, infolist not removed with infolist_free()
 # v0.8: get_color() is now using API function weechat::info_get("irc_nick_color")
 # v0.7: quakenet uses different JOIN format (JOIN #channelname instead of JOIN :#channelname)
 # v0.6: newsbar support
@@ -58,7 +59,7 @@ my $extern_command = qq(echo -en "\a");
 # my $extern_command = qq(notify-send -t 9000 -i $HOME/.weechat/120px-Weechat_logo.png "\"%C\" \"neuer User: %N\");
 
 # default values in setup file (~/.weechat/plugins.conf)
-my $version		= "0.8";
+my $version		= "0.9";
 my $prgname 		= "jnotify";
 my $description 	= "starts an external program if a user or one of your buddies JOIN a channel you are in";
 my $status		= "status";
@@ -393,10 +394,11 @@ sub info2newsbar{
 			. $channelname );
 }
 sub newsbar{
-	my $info_list = weechat::infolist_get( "perl_script", "name", "newsbar" );
-	weechat::infolist_next($info_list);
-
-	return weechat::infolist_string( $info_list, "name" ) eq 'newsbar';
+        my $info_list = weechat::infolist_get( "perl_script", "name", "newsbar" );
+        weechat::infolist_next($info_list);
+        my $newsbar = weechat::infolist_string( $info_list, "name" ) eq 'newsbar';
+        weechat::infolist_free($info_list);
+        return $newsbar if (defined $newsbar);
 }
 # newsbar support ends here
 sub init{
