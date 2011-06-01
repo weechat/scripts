@@ -23,12 +23,14 @@
 #
 # History:
 #
+# 2011-05-31, Elián Hanisch <lambdae2@gmail.com>:
+#     version 1.4: Sort list of buffers by activity.
 # 2011-04-25, Sébastien Helleu <flashcode@flashtux.org>:
 #     version 1.3: add info "go_running" (used by script input_lock.rb)
 # 2010-11-01, Sébastien Helleu <flashcode@flashtux.org>:
 #     version 1.2: use high priority for hooks to prevent conflict with other
 #                  plugins/scripts (WeeChat >= 0.3.4 only)
-# 2010-03-25, m4v <lambdae2@gmail.com>:
+# 2010-03-25, Elián Hanisch <lambdae2@gmail.com>:
 #     version 1.1: use a space for match the end of a string
 # 2009-11-16, Sébastien Helleu <flashcode@flashtux.org>:
 #     version 1.0: add new option for displaying short names
@@ -57,7 +59,7 @@ import weechat
 
 SCRIPT_NAME    = "go"
 SCRIPT_AUTHOR  = "Sébastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "1.3"
+SCRIPT_VERSION = "1.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Quick jump to buffers"
 
@@ -71,6 +73,7 @@ settings = {
     "color_name_highlight_selected": "red,brown",
     "message"                      : "Go to: ",
     "short_name"                   : "off",
+    "sort_by_activity"             : "off",
 }
 
 # hooks management
@@ -179,17 +182,33 @@ def get_matching_buffers(input):
         else:
             name = weechat.infolist_string(infolist, "name")
         number = weechat.infolist_integer(infolist, "number")
+        pointer = weechat.infolist_pointer(infolist, "pointer")
         matching = name.lower().find(input) >= 0
         if not matching and input[-1] == ' ':
             matching = name.lower().endswith(input.strip())
         if not matching and input.isdigit():
             matching = str(number).startswith(input)
         if len(input) == 0 or matching:
-            list.append({"number": number, "name": name})
-            if len(input) == 0 and weechat.infolist_pointer(infolist, "pointer") == weechat.current_buffer():
+            list.append({"number": number, "name": name, "pointer": pointer})
+            if len(input) == 0 and pointer == weechat.current_buffer():
                 buffers_pos = len(list) - 1
     weechat.infolist_free(infolist)
-    return list
+    if not weechat.config_string_to_boolean(weechat.config_get_plugin('sort_by_activity')):
+        return list
+    # sort buffers like in hotlist.
+    hotlist = []
+    infolist = weechat.infolist_get("hotlist", "", "")
+    while weechat.infolist_next(infolist):
+        hotlist.append(weechat.infolist_pointer(infolist, "buffer_pointer"))
+    weechat.infolist_free(infolist)
+    last_index = len(hotlist)
+    def priority(b):
+        try:
+            return hotlist.index(b["pointer"])
+        except ValueError:
+            # not in hotlist, always last.
+            return last_index
+    return sorted(list, key=priority)
 
 def buffers_to_string(buffers, pos, input):
     """ Return string built using list of buffers found (matching user input) """
