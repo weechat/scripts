@@ -189,7 +189,14 @@
 #
 #
 #   History:
-#   2011-03-02
+#   2011-05-31
+#   version 0.2.5: bug fixes:
+#   * /omode -o nick wouldn't work due to the deopNow switch.
+#   * unban_completer could fetch the same masks several times.
+#   * removing ban forwards falied when using exact mask.
+#   * user nick wasn't updated in every call.
+#
+#   2011-02-02
 #   version 0.2.4: fix python 2.5 compatibility
 #
 #   2011-01-09
@@ -244,7 +251,7 @@
 
 SCRIPT_NAME    = "chanop"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.2.4"
+SCRIPT_VERSION = "0.2.5"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Helper script for IRC Channel Operators"
 
@@ -446,9 +453,25 @@ def cachedPattern(f):
 def hostmaskPattern(f):
     """Check if pattern is for match a hostmask and remove ban forward if there's one."""
     def checkPattern(pattern, arg):
+        # XXX this needs a refactor
         if is_hostmask(pattern):
-            pattern, _, channel = pattern.partition('$') # nick!user@host$#channel
-            return f(pattern, arg)
+            # nick!user@host$#channel
+            if '$' in pattern:
+                pattern = pattern.partition('$')[0]
+            if isinstance(arg, list):
+                arg = [ s for s in arg if is_hostmask(s) ]
+            elif not is_hostmask(arg):
+                return ''
+
+            rt = f(pattern, arg)
+            # this doesn't match any mask in args with a channel forward
+            pattern += '$*'
+            if isinstance(arg, list):
+                rt.extend(f(pattern, arg))
+            elif not rt:
+                rt = f(pattern, arg)
+            return rt
+
         return ''
     return checkPattern
 
@@ -726,6 +749,9 @@ class ChanopBuffers(object):
         self.buffer = buffer
         if buffer not in self._buffer:
             self._buffer[buffer] = BufferVariables(buffer)
+        else:
+            # update nick, it might have changed.
+            self.vars.nick = weechat.info_get('irc_nick', self.vars.server)
 
     @property
     def vars(self):
@@ -1241,6 +1267,7 @@ class MaskHandler(ServerChannelDict):
         def fetch(server, channel, execute=None):
             self.fetch(server, channel, mode, execute)
 
+        # XXX monkey punching is BAD!
         cache = MaskCache(mode)
         cache.fetch = fetch
 
@@ -1276,6 +1303,7 @@ class MaskHandler(ServerChannelDict):
             pass
         
         if not self.queue:
+            self.queue.append((server, channel, mode))
             self._fetch(server, channel, mode)
         elif (server, channel, mode) not in self.queue:
             self.queue.append((server, channel, mode))
@@ -1288,8 +1316,8 @@ class MaskHandler(ServerChannelDict):
         if not buffer:
             return
         cmd = '/mode %s %s' %(channel, mode)
-        #say('Fetching %s masks (+%s channelmode).' %(channel, mode))
         self._hide_msg = True
+        debug('fetching masks: %s', cmd)
         weechat.command(buffer, cmd)
 
     def _maskCallback(self, data, modifier, modifier_data, string):
@@ -1340,8 +1368,10 @@ class MaskHandler(ServerChannelDict):
                 return string
         finally:
             if self.queue:
-                next = self.queue.pop(0)
-                self._fetch(*next)
+                del self.queue[0]
+                if self.queue:
+                    next = self.queue[0]
+                    self._fetch(*next)
             else:
                 self._hide_msg = False
 
@@ -1672,9 +1702,9 @@ class CommandWithOp(CommandChanop):
     def parser(self, args):
         CommandChanop.parser(self, args)
         args = args.split()
-        if '-o' in args:
+        if args[-1] in ('-o', '--deop'):
             self.deopNow = True
-            del args[args.index('-o')]
+            del args[-1]
             self.args = ' '.join(args)
         if not self.args:
             raise NoArguments
@@ -1683,9 +1713,12 @@ class CommandWithOp(CommandChanop):
         self.irc.Op()
         self.execute_op(*args)
 
-        if self.autodeop and self.get_config_boolean('autodeop'):
-            delay = self.get_config_int('autodeop_delay')
-            if delay > 0 and not self.deopNow:
+        if (self.autodeop and self.get_config_boolean('autodeop')) or self.deopNow:
+            if self.deopNow:
+                delay = 0
+            else:
+                delay = self.get_config_int('autodeop_delay')
+            if delay > 0:
                 if self.deopHook:
                     weechat.unhook(self.deopHook)
                 self.vars.deopHook = weechat.hook_timer(delay * 1000, 0, 1,
