@@ -18,9 +18,13 @@
 # Set WeeChat and plugins options interactively.
 #
 # History:
+# 2011-05-29, nils_2 <weechatter@arcor.de>:
+#     version 1.7: added: version check for future needs
+#                  added: new option (scroll_horiz) and usage of scroll_horiz function (weechat >= 0.3.6 required)
+#                  fixed: help_bar did not pop up immediately using key-shortcut
 # 2011-02-19, nils_2 <weechatter@arcor.de>:
-#     version 1.6: display all possible values in help bar, fix bug with options
-#                  never loaded when starting
+#     version 1.6: added: display of all possible values in help bar (show_help_extra_info)
+#                  fixed: external user options never loaded when starting iset first time
 # 2011-02-13, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 1.5: use new help format for command arguments
 # 2011-02-03, nils_2 <weechatter@arcor.de>:
@@ -65,9 +69,10 @@
 
 use strict;
 
-my $version = "1.6";
+my $version = "1.7";
 
 my $iset_buffer = "";
+my $wee_version_number = "";
 my @options_names = ();
 my @options_types = ();
 my @options_values = ();
@@ -80,6 +85,7 @@ my $options_name_copy = "";
 my $iset_filter_title = "";
 my %options = ("show_help_bar"              => "on",
                "show_help_extra_info"       => "on",
+               "scroll_horiz"               => "10%",
                "color_option"               => "default",
                "color_option_selected"      => "white",
                "color_type"                 => "brown",
@@ -194,6 +200,8 @@ sub iset_init
         weechat::buffer_set($iset_buffer, "key_bind_ctrl-L",        "/iset **refresh");
         weechat::buffer_set($iset_buffer, "key_bind_meta2-A",       "/iset **up");
         weechat::buffer_set($iset_buffer, "key_bind_meta2-B",       "/iset **down");
+        weechat::buffer_set($iset_buffer, "key_bind_meta2-23~",     "/iset **left");
+        weechat::buffer_set($iset_buffer, "key_bind_meta2-24~" ,    "/iset **right");
         weechat::buffer_set($iset_buffer, "key_bind_meta- ",        "/iset **toggle");
         weechat::buffer_set($iset_buffer, "key_bind_meta-+",        "/iset **incr");
         weechat::buffer_set($iset_buffer, "key_bind_meta--",        "/iset **decr");
@@ -573,6 +581,14 @@ sub iset_cmd_cb
                 iset_check_line_outside_window();
             }
         }
+        if ($args eq "**left" && $wee_version_number ne "" && $wee_version_number >= 0x00030600)
+        {
+          weechat::command($iset_buffer,"/window scroll_horiz -".$options{scroll_horiz});
+        }
+        if ($args eq "**right" && $wee_version_number ne "" && $wee_version_number >= 0x00030600)
+        {
+          weechat::command($iset_buffer,"/window scroll_horiz ".$options{scroll_horiz});
+        }
         if ($args eq "**scroll_top")
         {
             my $old_current_line = $current_line;
@@ -629,6 +645,7 @@ sub iset_cmd_cb
             else
             {
                 weechat::config_set_plugin("show_help_bar", "on");
+                iset_show_bar(1);
             }
         }
         if ($args eq "**set")
@@ -799,12 +816,16 @@ sub toggle_config_by_set
 
 weechat::register("iset", "Sebastien Helleu <flashcode\@flashtux.org>", $version, "GPL3",
                   "Interactive Set for configuration options", "iset_end", "");
+
+$wee_version_number = weechat::info_get("version_number", "");
+
 weechat::hook_command("iset", "Interactive set", "f <file> || s <section> || [=]<text>",
                       "f file    : show options for a file\n".
                       "s section : show options for a section\n".
                       "text      : show options with 'text' in name\n".
                       weechat::config_get_plugin("value_search_char")."text     : show options with 'text' in value\n\n".
                       "Keys for iset buffer:\n".
+                      "f11,f12        : move iset content left/right\n".
                       "up,down        : move one option up/down\n".
                       "pgup,pdwn      : move one page up/down\n".
                       "ctrl+'L'       : refresh options and screen\n".
