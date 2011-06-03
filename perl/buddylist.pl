@@ -16,8 +16,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 1.2.1 : fixed: bitlbee_service was not set, for new added buddy
 # v1.2  : added: function "hide_bar = always" (requested by: Emralegna)
-#       : added: buddies will be separated by msn/jabber etc.pp. on bitlbee server (requested by: ArcAngel)
+#       : added: buddies will be separated by protocol (msn/jabber etc.pp.) on bitlbee server (requested by: ArcAngel)
 #       : added: options "text.online", "text.away", "text.offline" (maybe usefull for color-blind people:-) 
 #       : added: function weechat_config_set_desc_plugin() (only for weechat >= v0.3.5)
 # v1.1  : fixed: offline users on bitlbee were shown as away. (reported and beta-testing by javuchi)
@@ -61,7 +62,7 @@
 use strict;
 
 my $prgname		= "buddylist";
-my $version		= "1.2";
+my $version		= "1.2.1";
 my $description		= "displays a buddylist in a bar-item.";
 
 # -------------------------------[ config ]-------------------------------------
@@ -331,6 +332,9 @@ sub build_buddylist{
           return $str if ( $servertest eq "Fail" );                                             # no server with buddies online!
         }
 
+        my $visual = " ";                                                       # placeholder after servername
+        my $cr = "\n";
+        $visual  = $cr if (($default_options{position} eq "left") || ($default_options{position} eq "right"));
 
 # get bar position (left/right/top/bottom) and sort (default/status)
 	my $option = weechat::config_get("weechat.bar.$prgname.position");
@@ -352,9 +356,6 @@ sub build_buddylist{
 		      next;									# first sorted buddy is offline (2)
 		  }
 
-			my $visual = " ";							# placeholder after servername
-				my $cr = "\n";
-			$visual  = $cr if (($default_options{position} eq "left") || ($default_options{position} eq "right"));
 
 			my $color_server = get_server_status($s);				# get server color
 			if ($color_server eq "1"){
@@ -422,10 +423,10 @@ sub build_buddylist{
 	if ($str eq ""){
 	    my $network_away_check = weechat::config_integer(weechat::config_get("irc.server_default.away_check"));
 	    if ($network_away_check == 0 and $default_options{use_redirection} ne "on"){
-		$str = "value from option \"irc.server_default.away_check\" is 0. It has to be >= 1 or you have to use option \"plugins.var.perl.buddylist.use.redirection = on\".";
+		$str = "value from option \"irc.server_default.away_check\" is 0.".$visual."It has to be >= 1 or you have to use option".$visual."\"plugins.var.perl.buddylist.use.redirection = on\".";
 	    }else{
-		return $str = "Searching for buddies, please wait..." if ($network_away_check == 0);
-		$str = "Please wait, building buddylist (this could take $network_away_check minutes)... probably there are no buddies in your buddylist for connected server, or you are not connected to a server, or your buddies are all offline";
+		return $str = "Searching for buddies,".$visual."please wait..." if ($network_away_check == 0);
+		$str = "Please wait, building buddylist".$visual."(this could take $network_away_check minutes)...".$visual."probably there are no buddies in your".$visual."buddylist for connected server,".$visual."or you are not connected to a server".$visual."or your buddies are all offline";
 	    }
 	}
 	return $str;
@@ -608,6 +609,7 @@ sub settings{
 		foreach ( split( / +/, $args ) ) {
 			if ($cmd eq "add"){
 				$nick_structure{$servername}{$_}{status} = 2;
+                                $nick_structure{$servername}{$_}{bitlbee_service} = "";
 				buddylist_save();
 			}
 			if ($cmd eq "del" and exists $nick_structure{$servername}{$_}){
