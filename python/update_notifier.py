@@ -19,6 +19,7 @@
 # Allows you to visually see if there are updates to your weechat system
 
 #Versions
+# 0.4 drubin  - changed default weechat hostname
 # 0.3 nils_2  - third release.
 #             - *fixed bug* every time the item_bar was updated, script did a read access to homepage
 #             - get python 2.x binary for hook_process (fix problem when python 3.x is default python
@@ -35,7 +36,7 @@
 
 SCRIPT_NAME    = "update_notifier"
 SCRIPT_AUTHOR  = "drubin <drubin at smartcube.co.za>"
-SCRIPT_VERSION = "0.3"
+SCRIPT_VERSION = "0.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Notifiers users of updates to weechat."
 
@@ -68,7 +69,7 @@ settings = {
 infos = ["stable","stable_number","git","next_stable","next_stable_number","next_stable_date"]
 
 #Not a config because it should not change ever
-BASE_URL = "http://www.weechat.net/info/"
+BASE_URL = "http://www.weechat.org/info/"
 BAR_NAME = "updnotf"
 
 #List of proccesses
