@@ -19,6 +19,8 @@
 # Display sidebar with list of buffers.
 #
 # History:
+# 2011-06-06, Nils G <weechatter@arcor.de>:
+#     v2.3: added: missed option "color_whitelist_default"
 # 2011-03-23, Sebastien Helleu <flashcode@flashtux.org>:
 #     v2.2: fix color of nick prefix with WeeChat >= 0.3.5
 # 2011-02-13, Nils G <weechatter@arcor.de>:
@@ -91,7 +93,7 @@
 
 use strict;
 
-my $version = "2.2";
+my $version = "2.3";
 
 # -------------------------------[ config ]-------------------------------------
 
@@ -111,6 +113,7 @@ my %default_options = ("short_names"               => "on",
                        "color_default"             => "default",
                        "color_number"              => "lightgreen",
                        "color_whitelist_buffers"   => "",
+                       "color_whitelist_default"   => "",
                        "color_whitelist_low"       => "",
                        "color_whitelist_message"   => "",
                        "color_whitelist_private"   => "",
@@ -261,7 +264,28 @@ sub build_buffers
         {
             next;
         }
-        my $color = $options{"color_default"};
+
+        my $color = "";
+        # whitelist buffer?
+        if (grep /^$buffer->{"name"}$/, @whitelist_buffers)
+        {
+            # options empty?
+            if ($options{"color_whitelist_default"} eq "")
+            {
+                $color = $options{"color_default"};
+            }
+            else
+            {
+                # use color
+                $color = $options{"color_whitelist_default"};
+            }
+        }
+        else
+        {
+            # no whitelist buffer
+            $color = $options{"color_default"};
+        }
+
         $color = "default" if ($color eq "");
         my $bg = "";
 
