@@ -48,10 +48,30 @@
 #       ;;
 #   esac
 # done
+#
+# Alternative for xset:
+#
+# #!/bin/bash
+#
+# xset -display ":0" q|grep "Monitor"|awk ' { print $3 $4 } '|
+# while read MONITOR; do
+#    case "$MONITOR" in
+#      Off)
+#        rm ~/.available
+#        ;;
+#      On)
+#        touch ~/.available
+#        ;;
+#    esac
+# done
 # ------------------------------------------------------------------------
 # Changelog:
 # Version 1.0 released - March 27, 2011
 #  -Initial release
+# Version 1.0.1 released - March 31, 2011
+#  -Handles improper commands
+# Version 1.0.2 release - Jun 15, 2011
+#  -Added alternative for xset users (credit: sherpa9 at irc.freenode.net)
 
 try:
   import weechat as w
@@ -64,7 +84,7 @@ except Exception:
 
 SCRIPT_NAME     = "fileaway"
 SCRIPT_AUTHOR   = "javagamer"
-SCRIPT_VERSION  = "1.0"
+SCRIPT_VERSION  = "1.0.2"
 SCRIPT_LICENSE  = "GPL3"
 SCRIPT_DESC     = "Set away status based on presence of a file"
 debug           = 0
@@ -126,7 +146,10 @@ def fileaway_cb(data, buffer, args):
             }
   if args:
     words = args.strip().partition(' ')
-    response[words[0]](words[2])
+    if words[0] in response:
+      response[words[0]](words[2])
+    else:
+      w.prnt('', "Fileaway error: %s not a recognized command.  Try /help fileaway" % words[0])
   w.prnt('', "fileaway: enabled: %s interval: %s away message: \"%s\" filepath: %s" % 
     (w.config_get_plugin('status'), w.config_get_plugin('interval'), 
     w.config_get_plugin('awaymessage'), w.config_get_plugin('filepath')))
