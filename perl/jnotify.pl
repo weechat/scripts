@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# v1.0: added: internal weechat command(s) can be used.
 # v0.9: fixed: mem leak, infolist not removed with infolist_free()
 # v0.8: get_color() is now using API function weechat::info_get("irc_nick_color")
 # v0.7: quakenet uses different JOIN format (JOIN #channelname instead of JOIN :#channelname)
@@ -58,10 +59,14 @@ my $extern_command = qq(echo -en "\a");
 # this is my favorite. Displays weechat-logo + channel + nick using system-notification.
 # my $extern_command = qq(notify-send -t 9000 -i $HOME/.weechat/120px-Weechat_logo.png "\"%C\" \"neuer User: %N\");
 
+# example to run an internal command:
+# /echo -b %C -level 3 %N joined channel
+
+
 # default values in setup file (~/.weechat/plugins.conf)
-my $version		= "0.9";
+my $version		= "1.0";
 my $prgname 		= "jnotify";
-my $description 	= "starts an external program if a user or one of your buddies JOIN a channel you are in";
+my $description 	= "starts an internal command or external program if a user or one of your buddies JOIN a channel you are in";
 my $status		= "status";
 my $default_status	= "on";
 my $block_current_buffer= "off";
@@ -69,6 +74,7 @@ my $whitelist		= "whitelist";
 my $default_whitelist	= "jn-whitelist.txt";
 my $blacklist		= "blacklist";
 my $default_blacklist	= "jn-blacklist.txt";
+my $command_chars       = "/";
 my %Hooks               = ();
 my %Allowed = ();
 my %Disallowed = ();
@@ -80,42 +86,45 @@ weechat::register($prgname, "Nils Görs <weechatter\@arcor.de>", $version,
 # commands used by jnotify. Type: /help jnotify
 weechat::hook_command($prgname, $description,
 
-	"<toggle> | <status> | <block> | <wl> | <wl> | <wl_add> / <wl_del> / <bl_add> / <bl_del> [nick_1 [... nick_n]]", 
+        "<toggle> | <status> | <block> | <wl> | <wl> | <wl_add> / <wl_del> / <bl_add> / <bl_del> [nick_1 [... nick_n]]", 
 
-	"<toggle>           $prgname between on and off\n".
-	"<status>           tells you if $prgname is on or off\n".
-	"<block>            toggle the 'block current channel' option on/off\n".
-	"<wl>               shows entries in whitelist\n".
-	"<bl>               shows entries in blacklist\n".
-	"<wl_add> [nick(s)] add nick(s) to the whitelist\n".
-	"<wl_del> [nick(s)] delete nick(s) from the whitelist\n".
-	"<bl_add> [nick(s)] add nick(s) to the blacklist\n".
-	"<bl_del> [nick(s)] delete nick(s) from the blacklist\n".
-	"\n".
-	"Options:\n".
-	"'status'   : status of $prgname (on/off)\n".
-	"'whitelist': path/file-name to store a list of nicks, channels and servers you would like to be inform if someone joins.\n".
-	"'blacklist': path/file-name to store a list of nicks, channels and servers you would like to ignore.\n".
-	"'cmd'      : command that should be executed if a user joins a channel you are in.\n".
-	"             '%N' will be replaced with users nick\n".
-	"             '%C' will be replaced with name of channel\n".
-	"             '%S' will be replaced with the internal server name (use '/server' to see the internal server names)\n".
-	"'block_current_buffer': if option is 'on', notices will be blocked if user joins the channel you are currently in. Other channels will be displayed.\n".
-	"'block_all_buffers'   : if option is 'on', all channels will be blocked and notification will be shown for whitelist entries only.\n".
-	"'use_newsbar'         : if option is 'on' and newsbar.pl is running notices will be printed there.\n".
-	"\n".
-	"Examples:\n".
-	"Show entries in whitelist:\n".
-	"/$prgname wl\n".
-	"Add entries to blacklist (nick, server, channel):\n".
-	"/$prgname bl_add nickname freenode #weechat\n".
-	"Delete entries from whitelist (channel, nick, server):\n".
-	"/$prgname wl_del #weechat nickname freenode\n".
-	"Toggle option block_current_buffer (on|off):\n".
-	"/$prgname block\n".
-	"Set the variable for the external command (i recommend to use /iset script):\n".
-	" /set plugins.var.perl.$prgname.cmd \"notify-send -t 9000 -i ~/.weechat/some_pic.png \"Channel: %C on Server: %S\" \"new User: %N\"\n",
-	"toggle|status|block|wl|bl|wl_add|wl_del|bl_add|bl_del", "switch", "");
+        "<toggle>           $prgname between on and off\n".
+        "<status>           tells you if $prgname is on or off\n".
+        "<block>            toggle the 'block current channel' option on/off\n".
+        "<wl>               shows entries in whitelist\n".
+        "<bl>               shows entries in blacklist\n".
+        "<wl_add> [nick(s)] add nick(s) to the whitelist\n".
+        "<wl_del> [nick(s)] delete nick(s) from the whitelist\n".
+        "<bl_add> [nick(s)] add nick(s) to the blacklist\n".
+        "<bl_del> [nick(s)] delete nick(s) from the blacklist\n".
+        "\n".
+        "Options:\n".
+        "'status'   : status of $prgname (on/off)\n".
+        "'whitelist': path/file-name to store a list of nicks, channels and servers you would like to be inform if someone joins.\n".
+        "'blacklist': path/file-name to store a list of nicks, channels and servers you would like to ignore.\n".
+        "'cmd'      : command that should be executed if a user joins a channel you are in.\n".
+        "             '%N' will be replaced with users nick\n".
+        "             '%C' will be replaced with name of channel\n".
+        "             '%S' will be replaced with the internal server name (use '/server' to see the internal server names)\n".
+        "to execute internal weechat command(s) you have to initiate the command line with a weechat command_char (\"/\" or weechat.look.command_chars)\n".
+        "'block_current_buffer': if option is 'on', notices will be blocked if user joins the channel you are currently in. Other channels will be displayed.\n".
+        "'block_all_buffers'   : if option is 'on', all channels will be blocked and notification will be shown for whitelist entries only.\n".
+        "'use_newsbar'         : if option is 'on' and newsbar.pl is running notices will be printed there.\n".
+        "\n".
+        "Examples:\n".
+        "Show entries in whitelist:\n".
+        "  /$prgname wl\n".
+        "Add entries to blacklist (nick, server, channel):\n".
+        "  /$prgname bl_add nickname freenode #weechat\n".
+        "Delete entries from whitelist (channel, nick, server):\n".
+        "  /$prgname wl_del #weechat nickname freenode\n".
+        "Toggle option block_current_buffer (on|off):\n".
+        "  /$prgname block\n".
+        "Set the variable for the external command (i recommend to use /iset script):\n".
+        "  /set plugins.var.perl.$prgname.cmd \"notify-send -t 9000 -i ~/.weechat/some_pic.png \"Channel: %C on Server: %S\" \"new User: %N\"\n".
+        "Set the variable for an internal command (script /echo):\n".
+        "  /set plugins.var.perl.$prgname.cmd \"/echo -b %C -level 3 %N joined channel\"",
+        "toggle|status|block|wl|bl|wl_add|wl_del|bl_add|bl_del", "switch", "");
 
 init();
 weechat::hook_config( "plugins.var.perl.$prgname.$status", 'toggled_by_set', "" );
@@ -150,7 +159,13 @@ sub _notify {
         $external_command =~ s/%N/$newnick/;					# replace string '%N' with $newnick
         $external_command =~ s/%S/$server_name/;				# replace string '%S' with $server_name
 
-        system( $external_command . "&" );					# start external program
+        my $command_char = substr($external_command,0,1);                       # get first char of external command.
+
+        if ( index($command_chars,$command_char) == -1) {
+          system( $external_command . "&" );                                    # start external program
+        }else{
+          weechat::command("",$external_command);                               # start internalt command
+        }
     }
 }
 
@@ -190,6 +205,8 @@ sub notify_me {
 
 sub toggled_by_set{
 	my $value = $_[2];
+
+        $command_chars = weechat::config_string( weechat::config_get("weechat.look.command_chars") ) . "/";
 
 	if ($value ne 'on')
 	{
@@ -427,7 +444,10 @@ sub init{
 	weechat::config_set_plugin("block_all_buffers", "off")
 		if (weechat::config_get_plugin("block_all_buffers") eq "");
 
+
 	list_read('whitelist', \%Allowed);
 	list_read('blacklist', \%Disallowed);
+
+        $command_chars = weechat::config_string( weechat::config_get("weechat.look.command_chars") ) . "/";
 }
 sub DEBUG {weechat::print('', "***\t" . $_[0]);}
