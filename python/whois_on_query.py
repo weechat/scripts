@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2011-07-06, ArZa <arza@arza.us>:
+#     version 0.4: fix target buffer for command
 # 2011-05-31, Elián Hanisch <lambdae2@gmail.com>:
 #     version 0.3: depends on WeeChat 0.3.2
 #       use irc_is_nick instead of irc_is_channel.
@@ -43,7 +45,7 @@ except ImportError:
 
 SCRIPT_NAME    = "whois_on_query"
 SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.3"
+SCRIPT_VERSION = "0.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Whois on query"
 
@@ -64,21 +66,23 @@ def unhook_all():
 def signal_irc_pv_opened(data, signal, signal_data):
     global irc_pv_hook, irc_out_hook
     if weechat.buffer_get_string(signal_data, "plugin") == "irc":
-        channel = weechat.buffer_get_string(signal_data, "localvar_channel")
-        if weechat.info_get("irc_is_nick", channel) == "1":
+        nick = weechat.buffer_get_string(signal_data, "localvar_channel")
+        if weechat.info_get("irc_is_nick", nick) == "1":
             # query open, wait for a msg to come (query was open by user) or if we send a msg out
             # (query was open by us)
             unhook_all()
             server = weechat.buffer_get_string(signal_data, "localvar_server")
-            irc_pv_hook = weechat.hook_signal("irc_pv", "signal_irc_pv", channel)
+            irc_pv_hook = weechat.hook_signal("irc_pv", "signal_irc_pv", 
+                                              "%s,%s" % (signal_data, nick))
             irc_out_hook = weechat.hook_signal(server + ",irc_out_PRIVMSG", "signal_irc_out", '')
     return weechat.WEECHAT_RC_OK
 
 def signal_irc_pv(data, signal, signal_data):
-    if signal_data.strip(':').startswith(data):
+    buffer, nick = data.split(',')
+    if signal_data.strip(':').startswith(nick):
         # ok, run command
-        command = weechat.config_get_plugin("command").replace("$nick", data)
-        weechat.command(signal_data, command)
+        command = weechat.config_get_plugin("command").replace("$nick", nick)
+        weechat.command(buffer, command)
     unhook_all()
     return weechat.WEECHAT_RC_OK
 
