@@ -18,6 +18,9 @@
 # Set WeeChat and plugins options interactively.
 #
 # History:
+# 2011-07-21, nils_2 <weechatter@arcor.de>:
+#     version 1.8: added: option "show_plugin_description" (alt+p)
+#                  fixed: typos in /help iset (lower case for alt+'x' keys)
 # 2011-05-29, nils_2 <weechatter@arcor.de>:
 #     version 1.7: added: version check for future needs
 #                  added: new option (scroll_horiz) and usage of scroll_horiz function (weechat >= 0.3.6 required)
@@ -69,7 +72,7 @@
 
 use strict;
 
-my $version = "1.7";
+my $version = "1.8";
 
 my $iset_buffer = "";
 my $wee_version_number = "";
@@ -85,6 +88,7 @@ my $options_name_copy = "";
 my $iset_filter_title = "";
 my %options = ("show_help_bar"              => "on",
                "show_help_extra_info"       => "on",
+               "show_plugin_description"    => "on",
                "scroll_horiz"               => "10%",
                "color_option"               => "default",
                "color_option_selected"      => "white",
@@ -126,10 +130,12 @@ sub iset_title
         my $option_txt  = " option";
         my $opt_txt = $option_txt;
         $opt_txt = $option_txt.$postfix if (@options_names > 1);
+        my $show_plugin_descr_txt = "";
+        $show_plugin_descr_txt = " (plugins description hidden)" if ($options{show_plugin_description} eq "off");
         weechat::buffer_set($iset_buffer, "title",
                             "Interactive set (iset.pl v$version)  |  "
                             .$iset_filter_title.weechat::color("yellow").$filter.weechat::color("default")."  |  "
-                            .@options_names.$opt_txt);
+                            .@options_names.$opt_txt . $show_plugin_descr_txt);
     }
 }
 
@@ -212,6 +218,7 @@ sub iset_init
         weechat::buffer_set($iset_buffer, "key_bind_meta-meta2-1~", "/iset **scroll_top");
         weechat::buffer_set($iset_buffer, "key_bind_meta-meta2-4~", "/iset **scroll_bottom");
         weechat::buffer_set($iset_buffer, "key_bind_meta-v",        "/iset **toggle_help");
+        weechat::buffer_set($iset_buffer, "key_bind_meta-p",        "/iset **toggle_show_plugin_desc");
         weechat::buffer_set($iset_buffer, "localvar_set_iset_filter", $filter);
     }
 }
@@ -223,28 +230,31 @@ sub iset_get_options
     @options_values = ();
     @options_is_null = ();
     $option_max_length = 0;
-    my %options = ();
+    my %options_internal = ();
     my $i = 0;
+
     my $infolist = weechat::infolist_get("option", "", $filter);
     while (weechat::infolist_next($infolist))
     {
         my $name = weechat::infolist_string($infolist, "full_name");
+          next if ( $options{show_plugin_description} eq 'off' and index ($name, "plugins.desc.") != -1 );
         my $type = weechat::infolist_string($infolist, "type");
         my $value = weechat::infolist_string($infolist, "value");
         my $is_null = weechat::infolist_integer($infolist, "value_is_null");
-        $options{$name}{"type"} = $type;
-        $options{$name}{"value"} = $value;
-        $options{$name}{"is_null"} = $is_null;
+
+        $options_internal{$name}{"type"} = $type;
+        $options_internal{$name}{"value"} = $value;
+        $options_internal{$name}{"is_null"} = $is_null;
         $option_max_length = length($name) if (length($name) > $option_max_length);
         $i++;
     }
     weechat::infolist_free($infolist);
-    foreach my $name (sort keys %options)
+    foreach my $name (sort keys %options_internal)
     {
         push(@options_names, $name);
-        push(@options_types, $options{$name}{"type"});
-        push(@options_values, $options{$name}{"value"});
-        push(@options_is_null, $options{$name}{"is_null"});
+        push(@options_types, $options_internal{$name}{"type"});
+        push(@options_values, $options_internal{$name}{"value"});
+        push(@options_is_null, $options_internal{$name}{"is_null"});
     }
 }
 
@@ -256,7 +266,7 @@ sub iset_get_values
     @options_values = ();
     @options_is_null = ();
     $option_max_length = 0;
-    my %options = ();
+    my %options_internal = ();
     my $i = 0;
     my $infolist = weechat::infolist_get("option", "", "*");
     $var_value =~ tr/[a-z][0-9].=-_!//cd;  # kill meta chars
@@ -264,25 +274,26 @@ sub iset_get_values
     while (weechat::infolist_next($infolist))
     {
         my $name = weechat::infolist_string($infolist, "full_name");
+          next if ( $options{show_plugin_description} eq 'off' and index ($name, "plugins.desc.") != -1 );
         my $type = weechat::infolist_string($infolist, "type");
         my $value = weechat::infolist_string($infolist, "value");
         my $is_null = weechat::infolist_integer($infolist, "value_is_null");
         if (lc($value) =~ m/$var_value/)
         { 
-            $options{$name}{"type"} = $type;
-            $options{$name}{"value"} = $value;
-            $options{$name}{"is_null"} = $is_null;
+            $options_internal{$name}{"type"} = $type;
+            $options_internal{$name}{"value"} = $value;
+            $options_internal{$name}{"is_null"} = $is_null;
             $option_max_length = length($name) if (length($name) > $option_max_length);
         }
         $i++;
     }
     weechat::infolist_free($infolist);
-    foreach my $name (sort keys %options)
+    foreach my $name (sort keys %options_internal)
     {
         push(@options_names, $name);
-        push(@options_types, $options{$name}{"type"});
-        push(@options_values, $options{$name}{"value"});
-        push(@options_is_null, $options{$name}{"is_null"});
+        push(@options_types, $options_internal{$name}{"type"});
+        push(@options_values, $options_internal{$name}{"value"});
+        push(@options_is_null, $options_internal{$name}{"is_null"});
     }
         weechat::buffer_set($iset_buffer, "localvar_set_iset_filter", $var_value);
 }
@@ -648,6 +659,19 @@ sub iset_cmd_cb
                 iset_show_bar(1);
             }
         }
+        if ($args eq "**toggle_show_plugin_desc")
+        {
+            if ($options{show_plugin_description} eq "on")
+            {
+                weechat::config_set_plugin("show_plugin_description", "off");
+                iset_full_refresh();
+            }
+            else
+            {
+                weechat::config_set_plugin("show_plugin_description", "on");
+                iset_full_refresh();
+            }
+        }
         if ($args eq "**set")
         {
             my $quote = "";
@@ -810,7 +834,7 @@ sub toggle_config_by_set
     my ($pointer, $name, $value) = @_;
     $name = substr($name, length("plugins.var.perl.iset."), length($name));
     $options{$name} = $value;
-    iset_refresh();
+    iset_full_refresh();
     return weechat::WEECHAT_RC_OK;
 }
 
@@ -832,11 +856,12 @@ weechat::hook_command("iset", "Interactive set", "f <file> || s <section> || [=]
                       "alt+space      : toggle boolean on/off\n".
                       "alt+'+'        : increase value (for integer or color)\n".
                       "alt+'-'        : decrease value (for integer or color)\n".
-                      "alt+'I',alt+'R': reset value of option\n".
-                      "alt+'I',alt+'U': unset option\n".
+                      "alt+'i',alt+'r': reset value of option\n".
+                      "alt+'i',alt+'u': unset option\n".
                       "alt+enter      : set new value for option (edit it with command line)\n".
                       "text,enter     : set a new filter using command line (use '*' to see all options)\n".
-                      "alt+'V'        : toggle help bar\n\n".
+                      "alt+'v'        : toggle help bar on/off\n".
+                      "alt+'p'        : toggle option \"show_plugin_description\" on/off\n\n".
                       "Examples:\n".
                       "  show options for file 'weechat'\n".
                       "    /iset f weechat\n".
