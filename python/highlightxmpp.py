@@ -1,6 +1,7 @@
-# HighlightXMPP for IRC. Requires WeeChat >= 0.3.0.
+# HighlightXMPP 0.3 for IRC. Requires WeeChat >= 0.3.0 and Python >= 2.6.
+# Repo: https://github.com/jpeddicord/weechat-highlightxmpp
 # 
-# Copyright (c) 2009-2010 Jacob Peddicord <jpeddicord@ubuntu.com>
+# Copyright (c) 2009-2011 Jacob Peddicord <jpeddicord@ubuntu.com>
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,21 +19,31 @@
 #######
 #
 # You must configure this plugin before using:
+#
 #   JID messages are sent from:
 #     /set plugins.var.python.highlightxmpp.jid someid@jabber.org
+#   alternatively, to use a specific resource:
+#     /set plugins.var.python.highlightxmpp.jid someid@jabber.org/resource
+#
 #   Password for the above JID:
 #     /set plugins.var.python.highlightxmpp.password abcdef
-#   JID messages are sent *to* (if not set, defaults to the same jid):
-#     /set plugins.var.python.highlightxmpp.jid myid@jabber.org
+#
+#   JID messages are sent *to* (if not set, defaults to the same jid as above):
+#     /set plugins.var.python.highlightxmpp.to myid@jabber.org
 
 from time import sleep
+import warnings
 import weechat as w
-import xmpp
+
+# the XMPP module currently has a lot of deprecations
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    import xmpp
 
 info = (
     'highlightxmpp',
     'Jacob Peddicord <jpeddicord@ubuntu.com>',
-    '0.2',
+    '0.3',
     'GPL3',
     "Relay highlighted & private IRC messages over XMPP (Jabber)",
     '',
@@ -69,28 +80,34 @@ def connect_xmpp():
 
 def send_xmpp(data, signal, msg, trial=1):
     global client
-    # connect to xmpp if we need to
-    if not connect_xmpp():
+
+    # ignore XMPP's deprecation warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+
+        # connect to xmpp if we need to
+        if not connect_xmpp():
+            return w.WEECHAT_RC_OK
+        jid_to = w.config_get_plugin('to')
+
+        # send to self if no target set
+        if not jid_to:
+            jid_to = w.config_get_plugin('jid')
+
+        # send the message
+        msg = xmpp.protocol.Message(jid_to, msg, typ='chat')
+        try:
+            client.send(msg)
+        except IOError:
+            # every now and then the connection will still exist but a send will
+            # fail. catch that here and try to reconnect. isConnected() should
+            # start to realize that once this exception is triggered.
+            if trial > 3:
+                w.prnt('', "XMPP: Could not send to server.")
+            else:
+                sleep(0.5)
+                send_xmpp(data, signal, msg, trial + 1)
         return w.WEECHAT_RC_OK
-    jid_to = w.config_get_plugin('to')
-    # send to self if no target set
-    if not jid_to:
-        jid_to = w.config_get_plugin('jid')
-    # send the message
-    msg = xmpp.protocol.Message(jid_to, msg)
-    try:
-        client.send(msg)
-    except IOError:
-        # every now and then the connection will still exist but a send will
-        # fail. catch that here and try to reconnect. isConnected() should
-        # start to realize that once this exception is triggered.
-        if trial > 3:
-            w.prnt('', "XMPP: Could not send to server.")
-        else:
-            w.prnt('', "XMPP: Sending failed. Trying again...")
-            sleep(0.5)
-            send_xmpp(data, signal, msg, trial + 1)
-    return w.WEECHAT_RC_OK
 
 # register with weechat
 if w.register(*info):
@@ -101,4 +118,3 @@ if w.register(*info):
     # and finally our hooks
     w.hook_signal('weechat_highlight', 'send_xmpp', '')
     w.hook_signal('weechat_pv', 'send_xmpp', '')
-
