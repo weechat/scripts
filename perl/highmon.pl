@@ -1,6 +1,6 @@
 #
 # highmon.pl - Highlight Monitoring for weechat 0.3.0
-# Version 2.2
+# Version 2.2.1
 #
 # Add 'Highlight Monitor' buffer/bar to log all highlights in one spot
 #
@@ -46,6 +46,9 @@
 # /set plugins.var.perl.highmon.bar_lines
 #  Changes the amount of lines the output bar will hold.
 #  (Only appears once output has been set to bar, defaults to 10)
+# /set plugins.var.perl.highmon.bar_scrolldown
+#  Toggles the bar scrolling at the bottom when new highlights are received
+#  (Only appears once output has been set to bar, defaults to off)
 #
 # /set plugins.var.perl.highmon.nick_prefix
 # /set plugins.var.perl.highmon.nick_suffix
@@ -58,6 +61,9 @@
 #
 
 # History:
+# 2011-08-07, Sitaktif <romainchossart_at_gmail.com>:
+#	v2.2.1:	-feature: Add "bar_scrolldown" option to have the bar display the latest hl at anytime
+#		-fix: Set up bar-specific config at startup if 'output' is already configured as 'bar'
 # 2010-12-22, KenjiE20 <longbow@longbowslair.co.uk>:
 #	v2.2:	-change: Use API instead of config to find channel colours, ready for 0.3.4 and 256 colours
 # 2010-12-13, idl0r & KenjiE20 <longbow@longbowslair.co.uk>:
@@ -149,6 +155,9 @@ Setting this to 'on' will only put messages in the highmon buffer when you set y
 ".weechat::color("bold")."/set plugins.var.perl.highmon.bar_lines".weechat::color("-bold")."
  Changes the amount of lines the output bar will hold.
  (Only appears once output has been set to bar, defaults to 10)
+".weechat::color("bold")."/set plugins.var.perl.highmon.bar_scrolldown".weechat::color("-bold")."
+ Toggles the bar scrolling at the bottom when new highlights are received
+ (Only appears once output has been set to bar, defaults to off)
 
 ".weechat::color("bold")."/set plugins.var.perl.highmon.nick_prefix".weechat::color("-bold")."
 ".weechat::color("bold")."/set plugins.var.perl.highmon.nick_suffix".weechat::color("-bold")."
@@ -453,6 +462,20 @@ sub highmon_config_init
 		weechat::config_set_plugin("output", "buffer");
 	}
 
+	# Set bar config in case output was set to "bar" before even changing the setting
+	if (weechat::config_get_plugin("output") eq "bar")
+	{
+		# Output bar lines default
+		if (!(weechat::config_is_set_plugin ("bar_lines")))
+		{
+			weechat::config_set_plugin("bar_lines", "10");
+		}
+		if (!(weechat::config_is_set_plugin ("bar_scrolldown")))
+		{
+			weechat::config_set_plugin("bar_scrolldown", "off");
+		}
+	}
+
 	# Check for exisiting prefix/suffix chars, and setup accordingly
 	$prefix = weechat::config_get("irc.look.nick_prefix");
 	$prefix = weechat::config_string($prefix);
@@ -524,6 +547,10 @@ sub highmon_config_cb
 			if (!(weechat::config_is_set_plugin ("bar_lines")))
 			{
 				weechat::config_set_plugin("bar_lines", "10");
+			}
+			if (!(weechat::config_is_set_plugin ("bar_scrolldown")))
+			{
+				weechat::config_set_plugin("bar_scrolldown", "off");
 			}
 			# Make a bar if doesn't exist
 			highmon_bar_open();
@@ -776,6 +803,11 @@ sub highmon_print
 		push (@bar_lines, $outstr);
 		# Trigger update
 		weechat::bar_item_update("highmon");
+
+		if (weechat::config_get_plugin("bar_scrolldown") eq "on")
+		{
+			weechat::command("", "/bar scroll highmon * ye")
+		}
 	}
 }
 
@@ -948,7 +980,7 @@ sub format_buffer_name
 }
 
 # Check result of register, and attempt to behave in a sane manner
-if (!weechat::register("highmon", "KenjiE20", "2.2", "GPL3", "Highlight Monitor", "", ""))
+if (!weechat::register("highmon", "KenjiE20", "2.2.1", "GPL3", "Highlight Monitor", "", ""))
 {
 	# Double load
 	weechat::print ("", "\tHighmon is already loaded");
