@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2009-2011 Sebastien Helleu <flashcode@flashtux.org>
+# Copyright (C) 2009-2011 Sébastien Helleu <flashcode@flashtux.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,16 +21,18 @@
 #
 # History:
 #
-# 2011-03-11, Sebastien Helleu <flashcode@flashtux.org>:
+# 2011-08-20, Sébastien Helleu <flashcode@flashtux.org>:
+#     version 0.3: fix typo in /help translate
+# 2011-03-11, Sébastien Helleu <flashcode@flashtux.org>:
 #     version 0.2: get python 2.x binary for hook_process (fix problem when
 #                  python 3.x is default python version)
-# 2009-10-15, Sebastien Helleu <flashcode@flashtux.org>:
+# 2009-10-15, Sébastien Helleu <flashcode@flashtux.org>:
 #     version 0.1: initial release
 #
 
 SCRIPT_NAME    = "translate"
-SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_AUTHOR  = "Sébastien Helleu <flashcode@flashtux.org>"
+SCRIPT_VERSION = "0.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Translate string using Google translate API"
 
@@ -229,7 +231,7 @@ if __name__ == "__main__" and import_ok:
                              "      /key bind meta-tmeta-t /translate\n"
                              "  - translate input with alt-t + alt-r (reverse of from_to):\n"
                              "      /key bind meta-tmeta-r /translate !\n"
-                             "  - translate input from english to italian with alt-w + alt-i:\n"
+                             "  - translate input from english to italian with alt-t + alt-i:\n"
                              "      /key bind meta-tmeta-i /translate en_it\n"
                              "  - translate last word in input with alt-t + alt-w (using default from_to):\n"
                              "      /key bind meta-tmeta-w /translate +\n"
