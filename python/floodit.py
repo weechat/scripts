@@ -23,12 +23,14 @@
 # History:
 #
 # 2011-08-20, Sébastien Helleu <flashcode@flashtux.org>:
+#     version 0.2: add "q" (or "quit") to close floodit buffer
+# 2011-08-20, Sébastien Helleu <flashcode@flashtux.org>:
 #     version 0.1: initial release
 #
 
 SCRIPT_NAME    = 'floodit'
 SCRIPT_AUTHOR  = 'Sébastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '0.1'
+SCRIPT_VERSION = '0.2'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC    = 'Flood\'it game'
 
@@ -239,6 +241,8 @@ def floodit_input_buffer(data, buffer, input):
             floodit_new_game()
         elif args[0] in ('n', 'new'):
             floodit_new_game()
+        elif args[0] in ('q', 'quit'):
+            weechat.buffer_close(floodit['buffer'])
         elif args[0] == '+':
             floodit_change_size(+1)
         elif args[0] == '-':
@@ -266,7 +270,7 @@ def floodit_init():
             weechat.buffer_set(floodit['buffer'], 'type', 'free')
             weechat.buffer_set(floodit['buffer'], 'title',
                                'Flood it! | alt-f or mouse: flood, alt-n: new game, alt-+/-: adjust board zoom | '
-                               'Command line: (n)ew, (s)ingle, (v)ersus, (d)emo (+delay), +/-: change size')
+                               'Command line: (n)ew, (s)ingle, (v)ersus, (d)emo (+delay), +/-: change size, (q)uit')
             weechat.buffer_set(floodit['buffer'], 'key_bind_meta2-D', '/floodit left')
             weechat.buffer_set(floodit['buffer'], 'key_bind_meta2-C', '/floodit right')
             weechat.buffer_set(floodit['buffer'], 'key_bind_meta-f',  '/floodit flood')
