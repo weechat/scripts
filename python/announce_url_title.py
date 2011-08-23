@@ -39,6 +39,8 @@
 # 
 #
 # History:
+# 2011-08-23, Deltafire
+#   version 14: ignore filtered lines
 # 2011-03-11, Sebastien Helleu <flashcode@flashtux.org>
 #   version 13: get python 2.x binary for hook_process (fix problem when python 3.x is default python version)
 # 2010-12-10, xt
@@ -76,8 +78,8 @@ from fnmatch import fnmatch
 
 SCRIPT_NAME    = "announce_url_title"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "13"
-SCRIPT_LICENSE = "GPL"
+SCRIPT_VERSION = "14"
+SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Announce URL titles to channel or locally"
 
 settings = {
@@ -121,8 +123,8 @@ def unescape(s):
 def url_print_cb(data, buffer, time, tags, displayed, highlight, prefix, message):
     global buffer_name, urls, ignore_buffers
 
-    # Do not trigger on notices
-    if prefix == '--':
+    # Do not trigger on filtered lines and notices
+    if not displayed or prefix == '--':
         return w.WEECHAT_RC_OK
 
     msg_buffer_name = w.buffer_get_string(buffer, "name")
