@@ -2,6 +2,7 @@
 #
 # Copyright (C) 2009-2011 Sébastien Helleu <flashcode@flashtux.org>
 # Copyright (C) 2010 m4v <lambdae2@gmail.com>
+# Copyright (C) 2011 stfn <stfnmd@googlemail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,6 +24,9 @@
 #
 # History:
 #
+# 2011-08-24, stfn <stfnmd@googlemail.com>:
+#     version 1.5: /go with name argument jumps directly to buffer
+#                  Remember cursor position in buffer input
 # 2011-05-31, Elián Hanisch <lambdae2@gmail.com>:
 #     version 1.4: Sort list of buffers by activity.
 # 2011-04-25, Sébastien Helleu <flashcode@flashtux.org>:
@@ -55,11 +59,11 @@
 #     version 0.1: initial release
 #
 
-import weechat
+import weechat, re
 
 SCRIPT_NAME    = "go"
 SCRIPT_AUTHOR  = "Sébastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "1.4"
+SCRIPT_VERSION = "1.5"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Quick jump to buffers"
 
@@ -86,6 +90,7 @@ hooks = {}
 
 # input before command /go (we'll restore it later)
 saved_input = ""
+saved_input_pos = 0
 
 # last user input (if changed, we'll update list of matching buffers)
 old_input = None
@@ -96,12 +101,13 @@ buffers_pos = 0
 
 if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
                     SCRIPT_DESC, "go_unload_script", ""):
-    weechat.hook_command("go", "Quick jump to buffers", "",
+    weechat.hook_command("go", "Quick jump to buffers", "[name]",
+                         "name: directly jump to buffer by name (without argument, list is displayed)\n\n" +
                          "You can bind command to a key, for example:\n" +
                          "  /key bind meta-g /go\n\n" +
                          "You can use completion key (commonly Tab and shift-Tab) to select " +
                          "next/previous buffer in list.",
-                         "", "go_cmd", "")
+                         "%(buffers_names)", "go_cmd", "")
     for option, default_value in settings.iteritems():
         if weechat.config_get_plugin(option) == "":
             weechat.config_set_plugin(option, default_value)
@@ -145,24 +151,40 @@ def hook_all():
 
 def go_start(buffer):
     """ Start go on buffer """
-    global saved_input, old_input, buffers_pos
+    global saved_input, saved_input_pos, old_input, buffers_pos
     hook_all()
     saved_input = weechat.buffer_get_string(buffer, "input")
+    saved_input_pos = weechat.buffer_get_integer(buffer, "input_pos")
     weechat.buffer_set(buffer, "input", "")
     old_input = None
     buffers_pos = 0
 
 def go_end(buffer):
     """ End go on buffer """
-    global saved_input, old_input
+    global saved_input, saved_input_pos, old_input
     unhook_all()
     weechat.buffer_set(buffer, "input", saved_input)
+    weechat.buffer_set(buffer, "input_pos", str(saved_input_pos))
     old_input = None
+
+def go_now(buffer, args):
+    """ Go to buffer specified by args """
+    buffers = get_matching_buffers(args)
+    # Prefer buffer that matches at beginning
+    for index in range(len(buffers)):
+        if re.search(r"^#?" + re.escape(args), buffers[index]["name"]):
+            weechat.command(buffer, "/buffer " + str(buffers[index]["number"]))
+            return None
+    # Otherwise, just take first buffer in list
+    if len(buffers) > 0:
+        weechat.command(buffer, "/buffer " + str(buffers[0]["number"]))
 
 def go_cmd(data, buffer, args):
     """ Command "/go": just hook what we need """
     global hooks
-    if "modifier" in hooks:
+    if args:
+        go_now(buffer, args)
+    elif "modifier" in hooks:
         go_end(buffer)
     else:
         go_start(buffer)
