@@ -47,6 +47,11 @@
 #
 #
 #   History:
+#   2011-08-14
+#   version 0.5:
+#   * make time format configurable.
+#   * print to private buffer based on msgbuffer setting.
+#
 #   2011-01-09
 #   version 0.4.1: bug fixes
 #
@@ -75,7 +80,7 @@
 
 SCRIPT_NAME    = "country"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.4.1"
+SCRIPT_VERSION = "0.5"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Prints user's country and local time in whois replies"
 SCRIPT_COMMAND = "country"
@@ -103,6 +108,7 @@ database_file = 'GeoIPCountryWhois.csv'
 
 ### config
 settings = {
+        'time_format': '%x %X %Z',
         'show_in_whois': 'on', 
         'show_localtime': 'on'
         }
@@ -162,7 +168,7 @@ def string_time(dt):
     if not dt: return '--'
     color_delimiter = weechat.color('chat_delimiters')
     color_chat = weechat.color('chat')
-    date = dt.strftime('%x %X %Z')
+    date = dt.strftime(weechat.config_get_plugin("time_format"))
     tz = dt.strftime('UTC%z')
     return '%s%s %s(%s%s%s)' % (color_chat,
                                 date,
@@ -475,7 +481,9 @@ def whois_cb(data, signal, signal_data):
     nick, user, host = signal_data.split()[3:6]
     server = signal[:signal.find(',')]
     #debug('%s | %s | %s' %(data, signal, signal_data))
-    buffer = weechat.buffer_search('irc', 'server.%s' %server)
+    buffer = weechat.buffer_search('irc', '%s.%s' %(server, nick))
+    if weechat.config_string(weechat.config_get('irc.msgbuffer.whois')) != "private" or buffer == "":
+        buffer = weechat.buffer_search('irc', 'server.%s' %server)
     host = get_ip_from_userhost(user, host)
     print_country(host, buffer, quiet=True, broken=True, nick=nick)
     return WEECHAT_RC_OK
