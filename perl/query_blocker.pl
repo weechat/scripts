@@ -34,6 +34,10 @@
 #
 # -----------------------------------------------------------------------------
 # History:
+# 2011-09-17, nils:
+#     version 0.4:
+#     FIX:         infolist() not freed
+#
 # 2010-12-20, nils:
 #     version 0.3:
 #     FIX:         find_color_nick(), now using API function weechat::info_get("irc_nick_color")
@@ -60,7 +64,7 @@ use strict;
 
 my $SCRIPT      = 'query_blocker';
 my $AUTHOR      = 'rettub <rettub@gmx.net>';
-my $VERSION     = '0.3';
+my $VERSION     = '0.4';
 my $LICENSE     = 'GPL3';
 my $DESCRIPTION = 'Simple blocker for private message (i.e. spam)';
 my $COMMAND     = "query_blocker";             # new command name
@@ -82,7 +86,7 @@ Arguments:
 Script Options:
     whitelist:           path/file-name to store/read nicks not to be blocked.
     block_queries:       'on', 'off' to enable or disable $COMMAND.
-    auto_message:        Messages to inform used that you don't like to get private messages without asking first.
+    auto_message:        Messages to inform user that you don't like to get private messages without asking first.
                          '%N' will be replaced with users nick.
                          default: 'Right now I ignore all queries - perhaps not all :)'
     auto_message_prefix: Prefix for auto message, may not be empty!
@@ -177,8 +181,9 @@ sub info2newsbar {
 sub newsbar {
     my $info_list = weechat::infolist_get( "perl_script", "name", "newsbar" );
     weechat::infolist_next($info_list);
-
-    return weechat::infolist_string( $info_list, "name" ) eq 'newsbar';
+    my $newsbar = weechat::infolist_string( $info_list, "name" ) eq 'newsbar';
+    weechat::infolist_free($info_list);
+    return $newsbar if (defined $newsbar);
 }
 #}}}
 
