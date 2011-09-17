@@ -29,10 +29,15 @@
 # /set plugins.var.python.purgelogs.blacklist "#weechat,#weechat-fr,nils_2"
 #
 # History:
+# 2011-09-17: nils_2 (freenode.#weechat)
+#       0.3 : added: search for log-files smaller than age/size (new functions: age_ls and size_ls)
 # 2011-03-11: nils_2 (freenode.#weechat)
 #       0.2 : added blacklist option
 # 2011-02-18: nils_2 (freenode.#weechat)
 #       0.1 : initial release
+#
+# Development is currently hosted at
+# https://github.com/weechatter/weechat-scripts
 #
 # TODO: waiting for "/logger disable all" and "/logger enable all"
 
@@ -48,14 +53,16 @@ except Exception:
 
 SCRIPT_NAME    = "purgelogs"
 SCRIPT_AUTHOR  = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.3"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "delete weechatlog-files by age or size (YOU ARE USING THIS SCRIPT AT YOUR OWN RISK!)"
 
 purgelogs_commands = {
     "delete" : "argument for security reasons",
-    "size"   : "in <Kib> for log-files to purge",
-    "age"    : "in <days> for log-files to purge (maximum value: 9999)",
+    "size"   : "greater than <Kib> for log-files to purge",
+    "size_ls": "less than <Kib> for log-files to purge",
+    "age"    : "older than <days> for log-files to purge (maximum value: 9999)",
+    "age_ls" : "younger than <days> for log-files to purge",
 }
 purgelogs_options = {
     "blacklist": ""            # comma separated list of buffers (short name)
@@ -69,27 +76,44 @@ def purgelogs_cb(data, buffer, args):
     return w.WEECHAT_RC_OK
   argv = args.split(None, 2)
   """ argument "check" is set? """
+  if len(argv) == 0:                    # no arguments given
+    w.command("","/help purgelogs")     # print help page
+    return w.WEECHAT_RC_OK
+
+  if len(argv) == 1:
+    if argv[0] not in purgelogs_commands:
+      w.prnt("", "%s%s: unknown keyword \"%s\""
+                         % (w.prefix("error"), SCRIPT_NAME, argv[0]))
+      return w.WEECHAT_RC_OK
+  if len(argv) < 2:
+    w.prnt("", "%s%s: no value given"
+                         % (w.prefix("error"), SCRIPT_NAME))
+    return w.WEECHAT_RC_OK
+  if is_number(argv[1]) is False:
+    w.prnt("", "%s%s: wrong value \"%s\""
+                         % (w.prefix("error"), SCRIPT_NAME, argv[1]))
+    return w.WEECHAT_RC_OK
+
   if len(argv) == 3:
     if argv[2] == "delete":
       check_only = False      # delete
       w.command("","/mute /plugin unload logger")
   else:
-    check_only = True         # show only
     w.prnt("", "weechat-logs:")
+    check_only = True         # show only
 
-  if len(argv) >= 1:
-    if argv[0] not in purgelogs_commands:
-      w.prnt("", "%s %s: unknown keyword \"%s\""
-                         % (w.prefix("error"), SCRIPT_NAME, argv[0]))
-    if is_number(argv[1]) is False:
-      w.prnt("", "%s %s: wrong value \"%s\""
-                         % (w.prefix("error"), SCRIPT_NAME, argv[1]))
-    if argv[0] in ["", "age"]:
-      i = 0
-      dellog_by_date(argv[1])
-    if argv[0] in ["", "size"]:
-      i = 0
-      dellog_by_size(argv[1])
+  if argv[0] in ["", "age_ls"]:
+    i = 0
+    dellog_by_date_less(argv[1])
+  if argv[0] in ["", "size_ls"]:
+    i = 0
+    dellog_by_size_less(argv[1])
+  if argv[0] in ["", "age"]:
+    i = 0
+    dellog_by_date(argv[1])
+  if argv[0] in ["", "size"]:
+    i = 0
+    dellog_by_size(argv[1])
   if check_only is False:
     w.command("","/mute /plugin load logger")
   return w.WEECHAT_RC_OK
@@ -102,6 +126,16 @@ def dellog_by_date(age):
 def dellog_by_size(size):
   global basedir
   getdirs(basedir, int(size), "by_size")
+  return
+
+def dellog_by_date_less(age):
+  global basedir
+  getdirs(basedir, int(age), "ls_age")
+  return
+
+def dellog_by_size_less(size):
+  global basedir
+  getdirs(basedir, int(size), "ls_size")
   return
 
 def get_path():
@@ -125,32 +159,48 @@ def getdirs(basedir, value, search):
           if "by_age" in search:
             if value > 9999:
               return
-            found_file = datecheck(root, file, value)
+            found_file = datecheck("by_age",root, file, value)
           elif "by_size" in search:
-            found_file = sizecheck(root, file, value)
+            found_file = sizecheck("by_size",root, file, value)
+          elif "ls_age" in search:
+            if value < 0:
+              return
+            found_file = datecheck("ls_age",root, file, value)
+          elif "ls_size" in search:
+            found_file = sizecheck("ls_size",root, file, value)
     if i == 0:
       w.prnt("", "no log-files matched.")
 
-def datecheck(root, file, age):
+def datecheck(mode,root, file, age):
     basedate = date.today() - timedelta(days=age)
     fname = os.path.join(root, file)
     used = os.stat(fname).st_mtime                                # st_mtime=modified, st_atime=accessed
     year, day, month = time.localtime(used)[:3]
     lastused = date(year, day, month)
-    if lastused < basedate:                                       # get files older than age days
-      file_action(root,file,"by_age")                             # return age
-    return                                                        # Not old enough
+    if mode == "by_age":
+      if lastused < basedate:                                     # get files older than age days
+        file_action(root,file,"by_age")                           # return age
+      return                                                      # Not old enough
+    elif mode == "ls_age":
+      if lastused > basedate:                                     # get files younger than age days
+        file_action(root,file,"by_age")                           # return age
+      return
 
-def sizecheck(root, file, size):
+def sizecheck(mode,root, file, size):
     filesize = 0
     filesize = int(os.path.getsize(os.path.join(root, file)))     # filesize in bytes
     size = size * 1024                                            # user option (KiB) to bytes
-    if filesize >= size:                                          # get files greater than size
-      file_action(root,file,filesize)                             # return file size
-    return                                                        # not large enough
+    if mode == "by_size":
+      if filesize >= size:                                        # get files greater than size
+        file_action(root,file,filesize)                           # return file size
+      return                                                      # not large enough
+    elif mode == "ls_size":
+      if filesize <= size:                                        # get files smaller than size
+        file_action(root,file,filesize)                           # return file size
+      return                                                      # not large enough
 
 def file_action(root, file, size):
-  global check_only, i
+  global check_only, mode_mute,i
   fname=os.path.join(root, file)
   if check_only is True:
     if size == "by_age":                                          # by age?
@@ -210,24 +260,33 @@ def update_blacklist(*args):
 if __name__ == "__main__":
     if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
                   SCRIPT_DESC, "", ""):
-        str_commands = ""
-        for cmd in (purgelogs_commands.keys()):
-          str_commands += "   " + cmd + ": " + purgelogs_commands[cmd] + "\n";
-
+#        str_commands = ""
+#        for cmd in (purgelogs_commands.keys()):
+#          str_commands += "   " + cmd + ": " + purgelogs_commands[cmd] + "\n";
         w.hook_command("purgelogs",
                              "delete weechatlog-files by date or size",
-                             "[age] <days> | [size] <in KiB> | [delete]",
-                             str_commands + "\n"
+                             "[age|age_ls] <days> || [size|size_ls] <in KiB> || [delete]",
+                             "       size : greater than <Kib> for log-files to purge\n"
+                             "    size_ls : less than <Kib> for log-files to purge\n"
+                             "        age : older than <days> for log-files to purge (maximum value: 9999)\n"
+                             "     age_ls : younger than <days> for log-files to purge\n"
+                             "     delete : argument for security reasons\n"
+                             "\n"
+#                             str_commands + "\n"
                              "Examples:\n"
                              "  show log-files older than 100 days\n"
                              "    /" + SCRIPT_NAME + " age 100\n"
                              "  purge log-files older than 100 days\n"
                              "    /" + SCRIPT_NAME + " age 100 delete\n"
+                             "  show log-files younger than 10 days\n"
+                             "    /" + SCRIPT_NAME + " age_ls 10\n"
+                             "  purge log-files younger than 10 days\n"
+                             "    /" + SCRIPT_NAME + " age_ls 10 delete\n"
                              "  show log-files greater than 100 KiB\n"
                              "    /" + SCRIPT_NAME + " size 100\n"
                              "  purge log-files greater than 100 KiB\n"
                              "    /" + SCRIPT_NAME + " size 100 delete\n",
-                             "age|size",
+                             "age|age_ls|size|size_ls %-",
                              "purgelogs_cb", "")
     w.hook_config('plugins.var.python.%s.blacklist' %SCRIPT_NAME, 'update_blacklist', '')
 
