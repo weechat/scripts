@@ -13,9 +13,6 @@ High-priority channels must be set using this command:
 The argument must be a list of channels separated by commas, e.g.:
     /chanpriority #chan1,#chan2,#chan3
 
-HOME:
-https://github.com/OriginalCopy/patches-and-tools/blob/master/scripts/chanpriority.py
-
 LICENSE:
 
 This program is free software: you can redistribute it and/or modify
@@ -36,7 +33,7 @@ import weechat
 
 SCRIPT_COMMAND = "chanpriority"
 SCRIPT_AUTHOR = "Paul Barbu Gh. <paullik.paul@gmail.com>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_NAME = "chanpriority"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Allows you to set high-priority channels, see /help chanpriority"
@@ -118,8 +115,6 @@ High-priority channels must be set using this command:
 
 The argument must be a list of channels separated by commas, e.g.:
     /chanpriority #chan1,#chan2,#chan3
-
-HOME: https://github.com/OriginalCopy/patches-and-tools/blob/master/scripts/chanpriority.py
 
 LICENSE: GPL v3
 
