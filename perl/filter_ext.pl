@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# Copyright (c) 2010 by rettub <rettub@gmx.net>
+# Copyright (c) 2010-2011 by rettub <rettub@gmx.net>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -29,6 +29,10 @@
 # -----------------------------------------------------------------------------
 # Changelog:
 #
+# Version 0.04 2011-09-17
+#
+#   FIX: infolists not freed
+#
 # Version 0.03 2010-01-18
 #
 #   FIX: use weechat::print_date_tags() to list filters
@@ -50,7 +54,7 @@ use 5.006;
 use strict;
 use warnings;
 
-my $Version = 0.03;
+my $Version = 0.04;
 
 sub version {
     $Version;
@@ -158,6 +162,7 @@ sub list {
                   . ( $enabled ? 'enabled  ' : 'disabled' ) );
         }
     }
+    weechat::infolist_free($infolist);
 }
 
 sub toggle {
@@ -174,6 +179,7 @@ sub toggle {
             weechat::command( "", "/filter $cmd $fname" );
         }
     }
+    weechat::infolist_free($infolist);
 }
 
 sub del {
@@ -188,6 +194,7 @@ sub del {
             weechat::command( "", "/filter del $fname" );
         }
     }
+    weechat::infolist_free($infolist);
 }
 
 sub filter_ext {
