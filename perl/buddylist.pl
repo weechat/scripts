@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 1.3.1 : fixed: perl error: Use of uninitialized value in string comparison (reported by ArcAngel)
 # 1.3   : added: mouse support (weechat >= v0.3.6)
 #       : added: nick completion for add/del
 #       : improved: hide_bar function (for example after /upgrade).
@@ -61,13 +62,17 @@
 # 0.2   : work-around for crash when searching nick in buffer without nicklist (function nicklist_search_nick) removed 
 # 0.1   : initial release
 #
+# Development is currently hosted at
+# https://github.com/weechatter/weechat-scripts
+#
 # TODO:
 # /monitor function:
 # :holmes.freenode.net 730 * :weechatter!~nils@mue-99-999-999-999.dsl.xxxxx.de
+
 use strict;
 
 my $prgname		= "buddylist";
-my $version		= "1.3";
+my $version		= "1.3.1";
 my $description		= "display status from your buddies a bar-item.";
 
 # -------------------------------[ config ]-------------------------------------
@@ -352,7 +357,6 @@ return weechat::WEECHAT_RC_OK;
 # build buddylist in bar
 my $str = "";
 my $number;
-
 my $bitlbee_service_separator = "";
 my $bitlbee_service_separator_copy = "";
 sub build_buddylist{
@@ -386,6 +390,7 @@ sub build_buddylist{
 
                   # sort list by status (online => away => offline) for internal use.
                   my ($n) = ( sort { $nick_structure{$s}{$a}->{status} <=> $nick_structure{$s}{$b}->{status}} keys %{$nick_structure{$s}} );
+                  $nick_structure{$s}{$n}{bitlbee_service} = "" if ( not defined $nick_structure{$s}{$n}{bitlbee_service} );
                   if ($nick_structure{$s}{$n}{status} eq "2" and $default_options{hide_server} eq "on"){	# status from first buddy in list!
 		      next;									# first sorted buddy is offline (2)
 		  }
@@ -418,6 +423,7 @@ sub build_buddylist{
                                   $status_output_copy = $status_output;
 
                                 # write each bitlbee_service only once
+                                $nick_structure{$s}{$n}{bitlbee_service} = "" if ( not defined $nick_structure{$s}{$n}{bitlbee_service} );
                                 $bitlbee_service_separator = $nick_structure{$s}{$n}{bitlbee_service};
                                 if ( $bitlbee_service_separator ne "" and $bitlbee_service_separator_copy ne $bitlbee_service_separator ){
                                   $str .= weechat::color($default_options{display_social_net_color}) . "(" . $bitlbee_service_separator . ") " . $visual;
