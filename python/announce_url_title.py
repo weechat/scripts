@@ -39,6 +39,9 @@
 # 
 #
 # History:
+# 2011-09-04, Deltafire
+#   version 15: fix remote execution exploit due to unescaped ' character in urls;
+#               small bug fix for version 14 changes
 # 2011-08-23, Deltafire
 #   version 14: ignore filtered lines
 # 2011-03-11, Sebastien Helleu <flashcode@flashtux.org>
@@ -78,7 +81,7 @@ from fnmatch import fnmatch
 
 SCRIPT_NAME    = "announce_url_title"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "14"
+SCRIPT_VERSION = "15"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Announce URL titles to channel or locally"
 
@@ -99,7 +102,7 @@ settings = {
 
 
 octet = r'(?:2(?:[0-4]\d|5[0-5])|1\d\d|\d{1,2})'
-ipAddr = r'%s(?:\.%s){3}' % (octet, octet)
+ipAddr = r'%s(?:\,.%s){3}' % (octet, octet)
 # Base domain regex off RFC 1034 and 1738
 label = r'[0-9a-z][-0-9a-z]*[0-9a-z]?'
 domain = r'%s(?:\.%s)*\.[a-z][-0-9a-z]*[a-z]?' % (label, label)
@@ -124,7 +127,7 @@ def url_print_cb(data, buffer, time, tags, displayed, highlight, prefix, message
     global buffer_name, urls, ignore_buffers
 
     # Do not trigger on filtered lines and notices
-    if not displayed or prefix == '--':
+    if displayed == '0' or prefix == '--':
         return w.WEECHAT_RC_OK
 
     msg_buffer_name = w.buffer_get_string(buffer, "name")
@@ -158,6 +161,7 @@ def url_print_cb(data, buffer, time, tags, displayed, highlight, prefix, message
     ignorelist = w.config_get_plugin('url_ignore').split(',')
     for url in urlRe.findall(message):
 
+        url = url.replace("'", "%27") # Save a whole load of hassle trying to escape the ' char
         ignore = False
         for ignore_part in ignorelist:
             if ignore_part.strip():
