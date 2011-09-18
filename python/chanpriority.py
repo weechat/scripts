@@ -11,7 +11,10 @@ High-priority channels must be set using this command:
     /chanpriority [#channels]+
 
 The argument must be a list of channels separated by commas, e.g.:
-    /chanpriority #chan1,#chan2,#chan3
+    /chanpriority #chan1, #chan2, #chan3
+
+Channels can also be set using the format: network.#channel:
+    /chanpriority #chan1, freenode.#weechat, network.org.#channel
 
 LICENSE:
 
@@ -33,12 +36,40 @@ import weechat
 
 SCRIPT_COMMAND = "chanpriority"
 SCRIPT_AUTHOR = "Paul Barbu Gh. <paullik.paul@gmail.com>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.4"
 SCRIPT_NAME = "chanpriority"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Allows you to set high-priority channels, see /help chanpriority"
 
 whitelist = []
+
+def reorder_buffers():
+    """Reorders the buffers once the whitelist has changed
+    """
+
+    count = 2
+    chan = ""
+
+    ilist = weechat.infolist_get("buffer", "", "")
+
+    for chan in whitelist:
+        if -1 == chan.find(".#"): #network name is not set, matching by short_name
+            weechat.infolist_reset_item_cursor(ilist)
+
+            while weechat.infolist_next(ilist):
+                if weechat.infolist_string(ilist, "short_name") == chan:
+                    chan = weechat.infolist_string(ilist, "name")
+                    break
+
+        buff = weechat.buffer_search("irc", chan)
+
+        if buff:
+            weechat.buffer_set(buff, "number", str(count))
+            count += 1
+
+    weechat.infolist_free(ilist)
+
+    return weechat.WEECHAT_RC_OK
 
 def get_whitelist(data, option, value):
     """Assign the config values of the whitelist option to the whitelist global
@@ -49,6 +80,8 @@ def get_whitelist(data, option, value):
     t = weechat.config_get_plugin("whitelist")
     whitelist = t.split(",")
 
+    reorder_buffers()
+
     return weechat.WEECHAT_RC_OK
 
 def set_whitelist(data, option, value):
@@ -56,13 +89,15 @@ def set_whitelist(data, option, value):
     """
     chanlist = ""
 
-    t = value.split(",")
+    t = value.replace(' ', '').split(",")
     for chan in t:
-        if 2 <= len(chan) and "#" == chan[0]:
+        if 2 <= len(chan) and ("#" == chan[0] or "#" == chan[chan.find(".#")+1]):
             chanlist = chanlist + chan + ","
 
+    chanlist=chanlist[:-1] #remove the trailing comma
+
     weechat.config_set_plugin("whitelist", chanlist)
-    weechat.prnt("", "whitelist set to: '{0}'".format(chanlist))
+    weechat.prnt("", "Chanpriority list set to: '{0}'".format(chanlist))
 
     return weechat.WEECHAT_RC_OK
 
@@ -82,7 +117,7 @@ def on_join(data, signal, signal_data):
 
     (chan, network, buffer) = join_meta(data, signal, signal_data)
 
-    if chan in whitelist:
+    if network + "." + chan in whitelist or chan in whitelist:
         weechat.buffer_set(buffer, "number", "2")
 
     return weechat.WEECHAT_RC_OK
@@ -114,7 +149,10 @@ High-priority channels must be set using this command:
     /chanpriority [#channels]+
 
 The argument must be a list of channels separated by commas, e.g.:
-    /chanpriority #chan1,#chan2,#chan3
+    /chanpriority #chan1, #chan2, #chan3
+
+Channels can also be set using the format: network.#channel:
+    /chanpriority #chan1, freenode.#weechat, network.org.#channel
 
 LICENSE: GPL v3
 
