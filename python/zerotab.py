@@ -1,8 +1,12 @@
+# -*- coding: utf-8 -*-
+#
 # Script Name: Zerotab.py
 # Script Author: Lucian Adamson <lucian.adamson@yahoo.com>
 # Script License: GPL
 # Alternate Contact: Freenode IRC nick i686
 #
+# 2011-09-20, Nils Görs <weechatter@arcor.de>:
+#     version 1.4: fixed: latest nick from join/part messages were used.
 # 2010-12-04, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 1.3: use tag "nick_xxx" (WeeChat >= 0.3.4 only)
 # 2010-08-03, Sebastien Helleu <flashcode@flashtux.org>:
@@ -13,7 +17,7 @@
 
 SCRIPT_NAME='zerotab'
 SCRIPT_AUTHOR='Lucian Adamson <lucian.adamson@yahoo.com>'
-SCRIPT_VERSION='1.3'
+SCRIPT_VERSION='1.4'
 SCRIPT_LICENSE='GPL'
 SCRIPT_DESC='Will tab complete the last nick in channel without typing anything first. This is good for rapid conversations.'
 
@@ -40,25 +44,25 @@ def my_completer(data, buffer, command):
 
 def hook_print_cb(data, buffer, date, tags, displayed, highlight, prefix, message):
     global latest_speaker
-    nick = None
-    if int(weechat_version) >= 0x00030400:
-        # in version >= 0.3.4, there is a tag "nick_xxx" for each message
-        alltags = tags.split(',')
-        for tag in alltags:
-            if tag.startswith('nick_'):
-                nick = tag[5:]
-                break
-    else:
-        # in older versions, no tag, so extract nick from printed message
-        # this is working, except for irc actions (/me ...)
-        if tags.find('irc_privmsg') >= 0:
+    alltags = tags.split(',')
+    if 'notify_message' in alltags:
+        nick = None
+        if int(weechat_version) >= 0x00030400:
+            # in version >= 0.3.4, there is a tag "nick_xxx" for each message
+            for tag in alltags:
+                if tag.startswith('nick_'):
+                    nick = tag[5:]
+                    break
+        else:
+            # in older versions, no tag, so extract nick from printed message
+            # this is working, except for irc actions (/me ...)
             nick = prefix
             if re.match('^[@%+~*&!-]', nick):
                 nick = nick[1:]
-    if nick:
-        local_nick = weechat.buffer_get_string(buffer, "localvar_nick")
-        if nick != local_nick:
-            latest_speaker[buffer] = nick
+        if nick:
+            local_nick = weechat.buffer_get_string(buffer, "localvar_nick")
+            if nick != local_nick:
+                latest_speaker[buffer] = nick
     return weechat.WEECHAT_RC_OK
 
 if __name__ == "__main__" and import_ok:
