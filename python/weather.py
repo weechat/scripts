@@ -23,6 +23,10 @@
 #
 # History:
 #
+# 2011-09-21, tigrmesh
+#   version 0.2: - get python 2.x binary for hook_process (fix problem
+#                - when python 3.x is default python version)
+#                - code taken from FlashCode's update to gweather.py
 # 2011-02-02, kinabalu <andrew@mysticcoders.com>
 #   version 0.1: - initial code to display weather in channel and easier config
 #
@@ -48,7 +52,7 @@ from sys import version_info
 
 SCRIPT_NAME     = "weather"
 SCRIPT_AUTHOR   = "Andrew Lombardi <andrew@mysticcoders.com>"
-SCRIPT_VERSION  = "0.1"
+SCRIPT_VERSION  = "0.2"
 SCRIPT_LICENSE  = "GPL3"
 SCRIPT_DESC     = "In channel text to display weather from Google"
 DEGREE_SYMBOL   = u"\u00B0"
@@ -256,8 +260,9 @@ def weather_cb(server, buffer, argList):
         gweather_hook_process = ''
 
     # Fire up the weather informationg fetching
+    python2_bin = weechat.info_get("python2_bin", "") or "python"
     gweather_hook_process = weechat.hook_process(\
-        "python -c \"import urllib2;\
+        python2_bin + " -c \"import urllib2;\
                      handler = " + command + ";\
                      print handler.info().dict['content-type'];\
                      print handler.read();\
