@@ -26,11 +26,12 @@ use warnings;
 my %SCRIPT = (
 	name => 'xclip',
 	author => 'stfn <stfnmd@googlemail.com>',
-	version => '0.1',
+	version => '0.2',
 	license => 'GPL3',
 	desc => 'Paste content from X11 clipboard',
 );
 my $TIMEOUT = 10 * 1000;
+my $BUF = "";
 
 weechat::register($SCRIPT{"name"}, $SCRIPT{"author"}, $SCRIPT{"version"}, $SCRIPT{"license"}, $SCRIPT{"desc"}, "", "");
 weechat::hook_command($SCRIPT{"name"}, $SCRIPT{"desc"}, "", "You should bind the command to a key, e.g. \"/key bind ctrl-V /xclip\"", "", "command_cb", "");
@@ -49,16 +50,22 @@ sub process_cb
 	my $buffer = $data;
 
 	if ($return_code == 0 && $out) {
-		$out =~ s/[\t\n\r]/ /g; # strip some escape sequences
-		$out =~ s/ {2,}/ /g; # strip multiple spaces
+		$BUF .= $out;
+		$BUF =~ s/[\t\n\r]/ /g; # strip some escape sequences
+		$BUF =~ s/ {2,}/ /g; # strip multiple spaces
 
 		my $input = weechat::buffer_get_string($buffer, "input");
 		my $pos = weechat::buffer_get_integer($buffer, "input_pos");
-		substr($input, $pos, 0, $out);
-		$pos += length($out);
+		substr($input, $pos, 0, $BUF);
+		$pos += length($BUF);
+		$BUF = "";
 
 		weechat::buffer_set($buffer, "input", $input);
 		weechat::buffer_set($buffer, "input_pos", $pos);
+	} elsif ($return_code == weechat::WEECHAT_HOOK_PROCESS_RUNNING && $out) {
+		$BUF .= $out;
+	} else {
+		$BUF = "";
 	}
 
 	return weechat::WEECHAT_RC_OK;
