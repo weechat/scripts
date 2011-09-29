@@ -30,16 +30,20 @@
 #     Self-explanatory, disables/enables automodes.
 #     Valid values: 'on', 'off' Default: 'on'
 #
+#   2011-09-20
+#   version 0.1.1: fix bug with channels with uppercase letters.
+#
 ###
 
 SCRIPT_NAME    = "automode"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.1.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Script for auto op/voice users when they join."
 
 try:
     import weechat
+    from weechat import prnt
     WEECHAT_RC_OK = weechat.WEECHAT_RC_OK
     import_ok = True
 except ImportError:
@@ -48,6 +52,13 @@ except ImportError:
     import_ok = False
 
 from fnmatch import fnmatch
+
+def debug(s, *args):
+    if not isinstance(s, basestring):
+        s = str(s)
+    if args:
+        s = s %args
+    prnt('', '%s\t%s' % (script_nick, s))
 
 # settings
 settings = { 'enabled': 'on' }
@@ -148,15 +159,15 @@ def join_cb(data, signal, signal_data):
     prefix = prefix[1:].lower()
     if channel[0] == ':':
         channel = channel[1:]
-    channel = channel.lower()
     server = signal[:signal.find(',')]
     for type in ('op', 'halfop', 'voice'):
-        list = get_config_list('.'.join((server, channel, type)))
+        list = get_config_list('.'.join((server.lower(), channel.lower(), type)))
         for pattern in list:
             #debug('checking: %r - %r', prefix, pattern)
             if fnmatch(prefix, pattern):
                 buffer = weechat.buffer_search('irc', '%s.%s' %(server, channel))
-                weechat.command(buffer, '/%s %s' %(type, prefix[:prefix.find('!')]))
+                if buffer:
+                    weechat.command(buffer, '/%s %s' %(type, prefix[:prefix.find('!')]))
                 return WEECHAT_RC_OK
     return WEECHAT_RC_OK
 
