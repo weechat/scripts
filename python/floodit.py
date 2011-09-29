@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2011 Sébastien Helleu <flashcode@flashtux.org>
+# Copyright (C) 2011 Sebastien Helleu <flashcode@flashtux.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,15 +22,17 @@
 #
 # History:
 #
-# 2011-08-20, Sébastien Helleu <flashcode@flashtux.org>:
+# 2011-09-29, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 0.3: fix error on floodit buffer after /upgrade
+# 2011-08-20, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.2: add "q" (or "quit") to close floodit buffer
-# 2011-08-20, Sébastien Helleu <flashcode@flashtux.org>:
+# 2011-08-20, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.1: initial release
 #
 
 SCRIPT_NAME    = 'floodit'
-SCRIPT_AUTHOR  = 'Sébastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '0.2'
+SCRIPT_AUTHOR  = 'Sebastien Helleu <flashcode@flashtux.org>'
+SCRIPT_VERSION = '0.3'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC    = 'Flood\'it game'
 
@@ -508,3 +510,7 @@ if __name__ == '__main__' and import_ok:
                              '- Game ends when neither you nor WeeChat can paint new squares any more.\n'
                              '- You win if you have more squares of your color than WeeChat.',
                              'single|versus', 'floodit_cmd_cb', '')
+
+        # if buffer already exists (after /upgrade), init floodit
+        if weechat.buffer_search('python', 'floodit'):
+            floodit_init()
