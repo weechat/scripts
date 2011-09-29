@@ -35,18 +35,24 @@
 # The latest version can be obtained from either http://www.inexistent.com/ or
 # http://imbezol.org/sysinfo/
 #
-# ported to weechat (http://www.weechat.org/) by Nils Görs. Therefore Copyright
+# ported to weechat (http://www.weechat.org/) by Nils Görs. Copyright
 # (c) 2011 Nils Görs
 #
+# 2011-09-27: 0.2 nils_2 <weechatter@arcor.de>
+#           : recognition for linux kernel 3.x added
+#           : option "channel" changed to "-channel"
 # 2011-06-03: initial release
 #           : ported to weechat by nils_2@freenode.#weechat
 #           : based on sysinfo 2.81.16
+#
+# Development is currently hosted at
+# https://github.com/weechatter/weechat-scripts
 
 use POSIX qw(floor);
 use strict;
 
 my $PRGNAME     = "sysinfo";
-my $VERSION     = "0.1";
+my $VERSION     = "0.2";
 my $DESCR       = "provides a system info command";
 
 # Set up the arrays and variables first.
@@ -171,6 +177,7 @@ my $d7		= 1 if $darwin && $osv =~ /^7\.\d+\.\d+/;
 my $d8		= 1 if $darwin && $osv =~ /^8\.\d+\.\d+/;
 my $d9		= 1 if $darwin && $osv =~ /^9\.\d+\.\d+/;
 my $l26		= 1 if $linux && $osv =~ /^2\.6/;
+my $l30         = 1 if $linux && $osv =~ /^3\../;
 my $f_old	= 1 if $freebsd && $osv =~ /^4\.1-/ || $osv =~ /^4\.0-/ || $osv =~ /^3/ || $osv =~ /^2/;
 
 my $progArgs = $ARGV[0];
@@ -186,7 +193,7 @@ sub cmd_sysinfo {
     my ($data, $buffer, $args) = ($_[0], $_[1], $_[2]);
     my $i = 0;
     my $to_channel = 0;
-    if ( $args eq "channel" ){
+    if ( $args eq "-channel" ){
       $args = "";
       $to_channel = 1;
     }
@@ -194,7 +201,7 @@ sub cmd_sysinfo {
     if ( $args ne ""){                                                 # use user-command settings
       my @args_array=split(/ /,$args);
       $i = $args_array[0] if ( $args_array[0]  =~ /^\d*$/ );
-        if (grep(m/^channel$/, @args_array)){
+        if (grep(m/^-channel$/, @args_array)){
           $to_channel = 1;
         }
         if (grep(m/^hostname$/, @args_array)){
@@ -667,7 +674,7 @@ sub meminfo {
 
 sub memoryusage {
 	if($linux) {
-		if($l26) {
+		if($l26 or $l30) {
 			$vara = &meminfo("MemTotal:") * 1024;
 			$varb = &meminfo("Buffers:") * 1024;
 			$varc = &meminfo("Cached:") * 1024;
@@ -875,25 +882,25 @@ sub init_config
 weechat::register($PRGNAME, "Nils Görs <weechatter\@arcor.de>", $VERSION,
                   "GPL3", $DESCR, "", "");
 init_config();
-weechat::hook_command($PRGNAME, $DESCR, "hostname || os || cpu || processes || uptime || loadaverage || battery || memory || disk || network || channel || users || distro",
-                      "hostname   : show hostname\n".
-                      "os         : show os\n".
-                      "cpu        : show cpu\n".
-                      "processes  : show amount of processes\n".
-                      "uptime     : show uptime\n".
-                      "loadaverage: show load average\n".
-                      "battery    : show battery status\n".
-                      "memory     : show memory usage\n".
-                      "disk       : show disk usage\n".
-                      "network    : show network traffic\n".
-                      "channel    : print output to channel\n".
-                      "users      : show number of users on the system\n".
-                      "distro     : show distro\n".
+weechat::hook_command($PRGNAME, $DESCR, "hostname || os || cpu || processes || uptime || loadaverage || battery || memory || disk || network || users || distro || -channel",
+                      "   hostname : show hostname\n".
+                      "         os : show os\n".
+                      "        cpu : show cpu\n".
+                      "  processes : show amount of processes\n".
+                      "     uptime : show uptime\n".
+                      "loadaverage : show load average\n".
+                      "    battery : show battery status\n".
+                      "     memory : show memory usage\n".
+                      "       disk : show disk usage\n".
+                      "    network : show network traffic\n".
+                      "      users : show number of users on the system\n".
+                      "     distro : show distro\n".
+                      "   -channel : print output to channel\n".
                       "\n".
                       "Options:\n".
                       "plugins.var.perl.$PRGNAME.nic    : comma separated list to specify your NIC interface name (wlan0,eth0,etc)\n".
                       "plugins.var.perl.$PRGNAME.nicname: comma separated list with name for interface (wireless,cable,etc)\n",
-                      "hostname|os|cpu|processes|uptime|loadaverage|battery|memory|disk|network|channel|users|distro|%*", "cmd_sysinfo", "");
+                      "hostname|os|cpu|processes|uptime|loadaverage|battery|memory|disk|network|users|distro|-channel%*", "cmd_sysinfo", "");
 
 weechat::hook_config("plugins.var.perl.$PRGNAME.*", "toggle_config_by_set", "");
 $col1 = weechat::color ("reset");
