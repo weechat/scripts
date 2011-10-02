@@ -23,6 +23,8 @@
 # History:
 #
 # 2011-10-02, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 0.4: fix end of game when player blows up
+# 2011-10-02, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.3: end game (win) if all squares without mines are explored
 # 2011-10-02, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.2: add option "utf8" (to disable utf-8 chars for grid and flags)
@@ -32,7 +34,7 @@
 
 SCRIPT_NAME    = 'minesweeper'
 SCRIPT_AUTHOR  = 'Sebastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '0.3'
+SCRIPT_VERSION = '0.4'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC    = 'Minesweeper game'
 
@@ -401,6 +403,8 @@ def minesweeper_all_squares_explored():
     explored = 0
     for x, line in enumerate(minesweeper['board']):
         for y, status in enumerate(line):
+            if status[1] == '*':
+                return False
             if not status[0] and status[1].isdigit():
                 explored += 1
     return explored == (minesweeper['size'] * minesweeper['size']) - minesweeper['mines'][minesweeper['size']]
@@ -487,7 +491,7 @@ def minesweeper_cmd_cb(data, buffer, args):
             minesweeper_timer_start()
             minesweeper['cursor'] = True
             minesweeper_explore(minesweeper['x'], minesweeper['y'])
-            if minesweeper_all_squares_explored():
+            if not minesweeper['end'] and minesweeper_all_squares_explored():
                 minesweeper['end'] = 'win'
             minesweeper_display()
     if args == 'new':
@@ -522,7 +526,7 @@ def minesweeper_mouse_cb(data, hsignal, hashtable):
                 minesweeper_timer_start()
                 if key.startswith('button1'):
                     minesweeper_explore(x, y)
-                    if minesweeper_all_squares_explored():
+                    if not minesweeper['end'] and minesweeper_all_squares_explored():
                         minesweeper['end'] = 'win'
                     minesweeper_display()
                 elif key.startswith('button2'):
