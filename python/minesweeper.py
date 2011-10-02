@@ -23,12 +23,14 @@
 # History:
 #
 # 2011-10-02, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 0.2: add option "utf8" (to disable utf-8 chars for grid and flags)
+# 2011-10-02, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.1: initial release
 #
 
 SCRIPT_NAME    = 'minesweeper'
 SCRIPT_AUTHOR  = 'Sebastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '0.1'
+SCRIPT_VERSION = '0.2'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC    = 'Minesweeper game'
 
@@ -79,6 +81,7 @@ minesweeper_settings_default = {
     'color_digits'      : ('21,126,34,209,201,185,15,160,9',
                            'blue,magenta,green,brown,lightmagenta,default,white,red,lightred',
                            'comma-separated list of 9 colors (for digits 1-9)'),
+    'utf8'              : ('on',      'on',        'use utf-8 chars to draw grid and flags (your terminal/font must support these chars)'),
     'zoom'              : ('',        '',          'zoom for board: 0 or 1 (size of squares: 0 = 4x2, 1 = 6x3 (better), empty means automatic zoom according to size of window)'),
 }
 minesweeper_settings = {}
@@ -101,11 +104,15 @@ def minesweeper_display_status():
     hours = minesweeper['time'] / 3600
     minutes = (minesweeper['time'] % 3600) / 60
     seconds = (minesweeper['time'] % 3600) % 60
+    if minesweeper_settings['utf8'] == 'on':
+        flag = '⚑'
+    else:
+        flag = 'p'
     weechat.prnt_y(minesweeper['buffer'], 2 + (minesweeper['size'] * (minesweeper['zoom'] + 2)),
-                   '⚑ %3d%s/%-3d%s%5d:%02d:%02d  %s' % (minesweeper['flags'], weechat.color('green'),
-                                                        minesweeper['mines'][minesweeper['size']],
-                                                        weechat.color('reset'), hours, minutes, seconds,
-                                                        msgend))
+                   '%s %3d%s/%-3d%s%5d:%02d:%02d  %s' % (flag, minesweeper['flags'], weechat.color('green'),
+                                                         minesweeper['mines'][minesweeper['size']],
+                                                         weechat.color('reset'), hours, minutes, seconds,
+                                                         msgend))
 
 def minesweeper_display(clear=False):
     """Display status and board."""
@@ -114,7 +121,15 @@ def minesweeper_display(clear=False):
         return
     if clear:
         weechat.buffer_clear(minesweeper['buffer'])
-    str_grid = '▁▁▁%s ' % ('▁' * minesweeper['zoom'] * 2)
+    if minesweeper_settings['utf8'] == 'on':
+        hbar = '▁'
+        vbar = '▕'
+        flag = '⚑'
+    else:
+        hbar = '_'
+        vbar = '|'
+        flag = 'p'
+    str_grid = '%s%s%s%s ' % (hbar, hbar, hbar, hbar * minesweeper['zoom'] * 2)
     weechat.prnt_y(minesweeper['buffer'], 0, '%s%s' % (weechat.color(minesweeper_settings['color_grid']), str_grid * minesweeper['size']))
     color_explosion = '%s,%s' % (minesweeper_settings['color_grid'], minesweeper_settings['color_explosion_bg'])
     color_explosion_text = '%s,%s' % (minesweeper_settings['color_flag'], minesweeper_settings['color_explosion_bg'])
@@ -143,20 +158,20 @@ def minesweeper_display(clear=False):
                 if status[0] and minesweeper['cheat']:
                     char = '*'
                 if minesweeper['zoom'] == 0:
-                    str_lines[0] += '%s %s ▕%s' % (weechat.color(color_nostatus), char, weechat.color('reset'))
-                    str_lines[1] += '%s▁▁▁▕%s' % (weechat.color(color_nostatus), weechat.color('reset'))
+                    str_lines[0] += '%s %s %s%s' % (weechat.color(color_nostatus), char, vbar, weechat.color('reset'))
+                    str_lines[1] += '%s%s%s%s' % (weechat.color(color_nostatus), hbar * 3, vbar, weechat.color('reset'))
                 else:
-                    str_lines[0] += '%s     ▕%s' % (weechat.color(color_nostatus), weechat.color('reset'))
-                    str_lines[1] += '%s  %s  ▕%s' % (weechat.color(color_nostatus), char, weechat.color('reset'))
-                    str_lines[2] += '%s▁▁▁▁▁▕%s' % (weechat.color(color_nostatus), weechat.color('reset'))
+                    str_lines[0] += '%s     %s%s' % (weechat.color(color_nostatus), vbar, weechat.color('reset'))
+                    str_lines[1] += '%s  %s  %s%s' % (weechat.color(color_nostatus), char, vbar, weechat.color('reset'))
+                    str_lines[2] += '%s%s%s%s' % (weechat.color(color_nostatus), hbar * 5, vbar, weechat.color('reset'))
             elif status[1] == 'F':
                 if minesweeper['zoom'] == 0:
-                    str_lines[0] += '%s %s⚑%s ▕%s' % (weechat.color(color_flag), weechat.color(color_flag_text), weechat.color(color_flag), weechat.color('reset'))
-                    str_lines[1] += '%s▁▁▁▕%s' % (weechat.color(color_flag), weechat.color('reset'))
+                    str_lines[0] += '%s %s%s%s %s%s' % (weechat.color(color_flag), weechat.color(color_flag_text), flag, weechat.color(color_flag), vbar, weechat.color('reset'))
+                    str_lines[1] += '%s%s%s%s' % (weechat.color(color_flag), hbar * 3, vbar, weechat.color('reset'))
                 else:
-                    str_lines[0] += '%s     ▕%s' % (weechat.color(color_flag), weechat.color('reset'))
-                    str_lines[1] += '%s  %s⚑%s  ▕%s' % (weechat.color(color_flag), weechat.color(color_flag_text), weechat.color(color_flag), weechat.color('reset'))
-                    str_lines[2] += '%s▁▁▁▁▁▕%s' % (weechat.color(color_flag), weechat.color('reset'))
+                    str_lines[0] += '%s     %s%s' % (weechat.color(color_flag), vbar, weechat.color('reset'))
+                    str_lines[1] += '%s  %s%s%s  %s%s' % (weechat.color(color_flag), weechat.color(color_flag_text), flag, weechat.color(color_flag), vbar, weechat.color('reset'))
+                    str_lines[2] += '%s%s%s%s' % (weechat.color(color_flag), hbar * 5, vbar, weechat.color('reset'))
             elif status[1].isdigit():
                 char = status[1]
                 if char == '0':
@@ -165,32 +180,32 @@ def minesweeper_display(clear=False):
                 else:
                     color_digit_text = minesweeper['color_digits'][int(status[1]) - 1]
                 if minesweeper['zoom'] == 0:
-                    str_lines[0] += '%s %s%s%s ▕%s' % (
-                        weechat.color(color_digit), weechat.color(color_digit_text + color_digit_text_bg), char, weechat.color(color_digit), weechat.color('reset'))
-                    str_lines[1] += '%s▁▁▁▕%s' % (weechat.color(color_digit), weechat.color('reset'))
+                    str_lines[0] += '%s %s%s%s %s%s' % (
+                        weechat.color(color_digit), weechat.color(color_digit_text + color_digit_text_bg), char, weechat.color(color_digit), vbar, weechat.color('reset'))
+                    str_lines[1] += '%s%s%s%s' % (weechat.color(color_digit), hbar * 3, vbar, weechat.color('reset'))
                 else:
-                    str_lines[0] += '%s     ▕%s' % (weechat.color(color_digit), weechat.color('reset'))
-                    str_lines[1] += '%s  %s%s%s  ▕%s' % (
-                        weechat.color(color_digit), weechat.color(color_digit_text + color_digit_text_bg), char, weechat.color(color_digit), weechat.color('reset'))
-                    str_lines[2] += '%s▁▁▁▁▁▕%s' % (weechat.color(color_digit), weechat.color('reset'))
+                    str_lines[0] += '%s     %s%s' % (weechat.color(color_digit), vbar, weechat.color('reset'))
+                    str_lines[1] += '%s  %s%s%s  %s%s' % (
+                        weechat.color(color_digit), weechat.color(color_digit_text + color_digit_text_bg), char, weechat.color(color_digit), vbar, weechat.color('reset'))
+                    str_lines[2] += '%s%s%s%s' % (weechat.color(color_digit), hbar * 5, vbar, weechat.color('reset'))
             elif status[1] == '+':
                 if minesweeper['zoom'] == 0:
-                    str_lines[0] += '%s %s*%s ▕%s' % (weechat.color(color_mine), weechat.color(color_mine_text), weechat.color(color_mine), weechat.color('reset'))
-                    str_lines[1] += '%s▁▁▁▕%s' % (weechat.color(color_mine), weechat.color('reset'))
+                    str_lines[0] += '%s %s*%s %s%s' % (weechat.color(color_mine), weechat.color(color_mine_text), weechat.color(color_mine), vbar, weechat.color('reset'))
+                    str_lines[1] += '%s%s%s%s' % (weechat.color(color_mine), hbar * 3, vbar, weechat.color('reset'))
                 else:
-                    str_lines[0] += '%s     ▕%s' % (weechat.color(color_mine), weechat.color('reset'))
-                    str_lines[1] += '%s  %s*%s  ▕%s' % (weechat.color(color_mine), weechat.color(color_mine_text), weechat.color(color_mine), weechat.color('reset'))
-                    str_lines[2] += '%s▁▁▁▁▁▕%s' % (weechat.color(color_mine), weechat.color('reset'))
+                    str_lines[0] += '%s     %s%s' % (weechat.color(color_mine), vbar, weechat.color('reset'))
+                    str_lines[1] += '%s  %s*%s  %s%s' % (weechat.color(color_mine), weechat.color(color_mine_text), weechat.color(color_mine), vbar, weechat.color('reset'))
+                    str_lines[2] += '%s%s%s%s' % (weechat.color(color_mine), hbar * 5, vbar, weechat.color('reset'))
             elif status[1] == '*':
                 if minesweeper['zoom'] == 0:
-                    str_lines[0] += '%s %s*%s ▕%s' % (
-                        weechat.color(color_explosion), weechat.color(color_explosion_text), weechat.color(color_explosion), weechat.color('reset'))
-                    str_lines[1] += '%s▁▁▁▕%s' % (weechat.color(color_explosion), weechat.color('reset'))
+                    str_lines[0] += '%s %s*%s %s%s' % (
+                        weechat.color(color_explosion), weechat.color(color_explosion_text), weechat.color(color_explosion), vbar, weechat.color('reset'))
+                    str_lines[1] += '%s%s%s%s' % (weechat.color(color_explosion), hbar * 3, vbar, weechat.color('reset'))
                 else:
-                    str_lines[0] += '%s     ▕%s' % (weechat.color(color_explosion), weechat.color('reset'))
-                    str_lines[1] += '%s  %s*%s  ▕%s' % (
-                        weechat.color(color_explosion), weechat.color(color_explosion_text), weechat.color(color_explosion), weechat.color('reset'))
-                    str_lines[2] += '%s▁▁▁▁▁▕%s' % (weechat.color(color_explosion), weechat.color('reset'))
+                    str_lines[0] += '%s     %s%s' % (weechat.color(color_explosion), vbar, weechat.color('reset'))
+                    str_lines[1] += '%s  %s*%s  %s%s' % (
+                        weechat.color(color_explosion), weechat.color(color_explosion_text), weechat.color(color_explosion), vbar, weechat.color('reset'))
+                    str_lines[2] += '%s%s%s%s' % (weechat.color(color_explosion), hbar * 5, vbar, weechat.color('reset'))
         for i, str_line in enumerate(str_lines):
             weechat.prnt_y(minesweeper['buffer'], 1 + (y * len(str_lines)) + i, str_line)
     minesweeper_display_status()
