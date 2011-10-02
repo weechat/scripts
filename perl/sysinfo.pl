@@ -38,6 +38,8 @@
 # ported to weechat (http://www.weechat.org/) by Nils Görs. Copyright
 # (c) 2011 Nils Görs
 #
+# 2011-10-01: 0.3 nils_2 <weechatter@arcor.de>
+#           : bar_item added (idea by Banton)
 # 2011-09-27: 0.2 nils_2 <weechatter@arcor.de>
 #           : recognition for linux kernel 3.x added
 #           : option "channel" changed to "-channel"
@@ -52,7 +54,7 @@ use POSIX qw(floor);
 use strict;
 
 my $PRGNAME     = "sysinfo";
-my $VERSION     = "0.2";
+my $VERSION     = "0.3";
 my $DESCR       = "provides a system info command";
 
 # Set up the arrays and variables first.
@@ -125,12 +127,41 @@ my %options = ( 'showhostname'          => 'on',
                 'showdiskusage'         => 'on',
                 'shownetworktraffic'    => 'off',
                 'color'                 => 'default',
+                'text_color'            => 'default',
                 'nic'                   => '',
                 'nicname'               => '',
+                'baritems'              => 'memory',
+                'refresh'               => '0',         # default : 0 = off
+                'text_dummy'            => '-',
+                'text_hostname'         => 'Host: ',
+                'text_distro'           => 'Distro: ',
+                'text_os'               => 'OS: ',
+                'text_users'            => 'Users: ',
+                'text_cpu'              => 'CPU: ',
+                'text_processes'        => 'Processes: ',
+                'text_uptime'           => 'Uptime: ',
+                'text_loadaverage'      => 'Load Average: ',
+                'text_battery'          => 'Battery: ',
+                'text_memoryusage'      => 'Memory Usage: ',
+                'text_diskusage'        => 'Disk Usage: ',
+                'text_network'          => 'Network: ',
+);
+
+my %desc_options = ('baritems'          => 'comma separated list with name(s) of systeminformation to be displayed in a bar',
+                    'refresh'           => 'refresh rate in seconds for info-bar (0 means off)',
+                    'nic'               => 'comma separated list to specify your NIC interface name(s) (wlan0,eth0,etc)',
+                    'nicname'           => 'comma separated list with name(s) for interface(s) (wireless,cable,etc)',
+                    'color'             => 'color for optionsname',
+                    'text_color'        => 'text color for results',
+                    'text_dummy'        => 'separator between different options',
+
 );
 
 my $col1 = '';                                 # reset color
 my $col2 = '';
+my $bar_item = "";
+my %Hooks       = ();
+my $weechat_version = "";
 
 ###############################################
 ### Nothing below here should need changed. ###
@@ -268,6 +299,54 @@ sub cmd_sysinfo {
       init_config();
     }
 
+sysinfo();
+my $output;
+
+  if($options{showhostname} eq "on")             { $output  = weechat::color($options{color}) . $options{text_hostname} .weechat::color($options{text_color}).$osn.weechat::color($options{color}).$options{text_dummy} . $col1; }
+  if($options{showos} eq "on")                   { $output .= weechat::color($options{color}) . $options{text_os} .weechat::color($options{text_color}).$uname.weechat::color($options{color}).$options{text_dummy} . $col1; }
+
+
+
+if($linux && $options{showdistro} eq "on" && length $distro > 0 ) { 
+        $output .= weechat::color($options{color}) . $options{text_distro} . weechat::color($options{text_color}) .$distro;
+        if (length $distrov > 0) {
+                $output .= " ".$distrov;
+        }
+        $output .= weechat::color($options{color}).$options{text_dummy} . $col1;
+}
+
+if($options{showcpu} eq "on")                   { $output .= weechat::color($options{color}) . $options{text_cpu} . weechat::color($options{text_color}).$cpu . weechat::color($options{color}) . $options{text_dummy} . $col1; }
+
+if($options{showprocesses} eq "on")             { $output .= weechat::color($options{color}) . $options{text_processes} . weechat::color($options{text_color}) . &processes . weechat::color($options{color}) . $options{text_dummy} . $col1; }
+
+if($options{showuptime} eq "on")                { $output .= weechat::color($options{color}) . $options{text_uptime} . weechat::color($options{text_color}) . &uptime . weechat::color($options{color}) . $options{text_dummy} . $col1; }
+
+if($options{showusers} eq "on")                 { $output .= weechat::color($options{color}) . $options{text_users} . weechat::color($options{text_color}) . &users . weechat::color($options{color}) . $options{text_dummy} . $col1; }
+
+if($options{showloadaverage} eq "on")           { $output .= weechat::color($options{color}) . $options{text_loadaverage} . weechat::color($options{text_color}) . &loadaverage . weechat::color($options{color}) . $options{text_dummy} . $col1; }
+
+if($options{showbattery} eq "on")               { $output .= weechat::color($options{color}) . $options{text_battery} . weechat::color($options{text_color}) . &battery . weechat::color($options{color}) . $options{text_dummy} . $col1; }
+
+if($options{showmemoryusage} eq "on")           { $output .= weechat::color($options{color}) . $options{text_memoryusage} . weechat::color($options{text_color}) . &memoryusage . weechat::color($options{color}) . $options{text_dummy} . $col1; }
+
+if($options{showdiskusage} eq "on")             { $output .= weechat::color($options{color}) . $options{text_diskusage} . weechat::color($options{text_color}) . &diskusage . weechat::color($options{color}) . $options{text_dummy} . $col1; }
+
+if($options{shownetworktraffic} eq "on")        { $output .= weechat::color($options{color}) . $options{text_network} . weechat::color($options{text_color}) . &networktraffic . $col1; }
+  return weechat::WEECHAT_RC_OK if ( not defined $output or $output eq "");
+$output =~ s/$options{text_dummy}$col1$//g;
+
+
+  if ( $to_channel == 1 ){
+    $output = weechat::string_remove_color($output, "");
+    weechat::command(weechat::current_buffer(),"/say " . $output);
+  }elsif ( $to_channel == 0 ){
+    weechat::print(weechat::current_buffer(),$output);
+  }
+
+  return weechat::WEECHAT_RC_OK;
+
+}
+sub sysinfo{
 if($linux) {
 	@cpuinfo		= &openfile("/proc/cpuinfo");
 	@meminfo		= &openfile("/proc/meminfo");
@@ -522,42 +601,7 @@ if($options{showcpu} eq "on") {
 	$cpu	=~ s/ +/ /g;
 }
 
-my $output;
-
-  if($options{showhostname} eq "on")             { $output  = $col1."Hostname".weechat::color($options{color}).": ".$col1.$osn.weechat::color($options{color})." - "; }
-  if($options{showos} eq "on")                   { $output .= $col1."OS".weechat::color($options{color}).": ".$col1.$uname.weechat::color($options{color})." - "; }
-
-
-
-if($linux && $options{showdistro} eq "on" && length $distro > 0 ) { 
-        $output .= $col1."Distro".weechat::color($options{color}).": ".$col1.$distro;
-        if (length $distrov > 0) {
-                $output .= " ".$distrov;
-        }
-        $output .= weechat::color($options{color})." - ";
-}
-
-if($options{showcpu} eq "on")                   { $output .= $col1."CPU".weechat::color($options{color}).": ".$col1.$cpu.weechat::color($options{color})." - "; }
-if($options{showprocesses} eq "on")             { $output .= $col1."Processes".weechat::color($options{color}).": ".$col1.&processes.weechat::color($options{color})." - "; }
-if($options{showuptime} eq "on")                { $output .= $col1."Uptime".weechat::color($options{color}).": ".$col1.&uptime.weechat::color($options{color})." - "; }
-if($options{showusers} eq "on")                 { $output .= $col1."Users".weechat::color($options{color}).": ".$col1.&users.weechat::color($options{color})." - "; }
-if($options{showloadaverage} eq "on")           { $output .= $col1."Load Average".weechat::color($options{color}).": ".$col1.&loadaverage.weechat::color($options{color})." - "; }
-if($options{showbattery} eq "on")               { $output .= $col1."Battery".weechat::color($options{color}).": ".$col1.&battery.weechat::color($options{color})." - "; }
-if($options{showmemoryusage} eq "on")           { $output .= $col1."Memory Usage".weechat::color($options{color}).": ".$col1.&memoryusage.weechat::color($options{color})." - "; }
-if($options{showdiskusage} eq "on")             { $output .= $col1."Disk Usage".weechat::color($options{color}).": ".$col1.&diskusage; }
-if($options{shownetworktraffic} eq "on")        { $output .= &networktraffic; }
-  return weechat::WEECHAT_RC_OK if ( not defined $output or $output eq "");
-$output =~ s/ - $//g;
-
-
-  if ( $to_channel == 1 ){
-    $output = weechat::string_remove_color($output, "");
-    weechat::command(weechat::current_buffer(),"/say " . $output);
-  }elsif ( $to_channel == 0 ){
-    weechat::print(weechat::current_buffer(),$output);
-  }
-
-  return weechat::WEECHAT_RC_OK;
+#end of sysinfo()
 }
 
 sub batteryacpi {
@@ -753,9 +797,9 @@ sub networktraffic {
 	if($nic[$vara] ne "") {
 		while($vara lt $varb) {
 			if($nic[$vara] ne "") {
-				if ($varz eq "") {
-					$varz = weechat::color($options{color})." - ".$col1;
-				}
+#				if ($varz eq "") {
+#					$varz = weechat::color($options{color}).$options{text_dummy};
+#				}
 				if($darwin || $freebsd || $dragonfly) {
 					$varx = &networkinfobsd($nic[$vara], 6);
 					$vary = &networkinfobsd($nic[$vara], 9);
@@ -772,10 +816,12 @@ sub networktraffic {
 					$varx = &networkinfolinux($nic[$vara], 0);
 					$vary = &networkinfolinux($nic[$vara], 8);
 				}
-				$varz .= $nicname[$vara]." Traffic (".$nic[$vara].")".weechat::color($options{color}).": ".$col1.$varx."MB In/".$vary."MB Out - ";
+				$varz .= $nicname[$vara]." Traffic (".$nic[$vara].")".weechat::color($options{text_color}).": ".$varx."MB In/".$vary."MB Out - ";
 			}
 			$vara++;
 		}
+                $varz =~ s/ - $//g;
+
 		return $varz;
 	}
 }
@@ -852,14 +898,83 @@ sub users {
 	return $var;
 }
 
+# -------------------------------[ item ]-------------------------------------
 
-# -------------------------------[ weechat ]-------------------------------------
+sub create_item{
+my $output = "";
+ sysinfo();
+foreach ( split( /,/, $options{'baritems'} ) ) {
+    my $arg = $_;
+    $output .= weechat::color($options{color}) . $options{text_hostname} . weechat::color($options{text_color}) . $osn . $options{text_dummy} . $col1 if ($arg eq "hostname" );
+    $output .= weechat::color($options{color}) . $options{text_os} . weechat::color($options{text_color}) . $uname . $options{text_dummy} . $col1 if ($arg eq "os" );
+    $output .= weechat::color($options{color}) . $options{text_cpu} . weechat::color($options{text_color}) . $cpu . $options{text_dummy} . $col1 if ($arg eq "cpu" );
+    $output .= weechat::color($options{color}) . $options{text_processes} . weechat::color($options{text_color}) . &processes . $options{text_dummy} . $col1 if ($arg eq "processes" );
+    $output .= weechat::color($options{color}) . $options{text_uptime} . weechat::color($options{text_color}) . &uptime . $options{text_dummy} . $col1 if ($arg eq "uptime" );
+    $output .= weechat::color($options{color}) . $options{text_loadaverage} . weechat::color($options{text_color}) . &loadaverage . $options{text_dummy} . $col1 if ($arg eq "loadaverage" );
+    $output .= weechat::color($options{color}) . $options{text_battery} . weechat::color($options{text_color}) . &battery . $options{text_dummy} . $col1 if ($arg eq "battery" );
+    $output .= weechat::color($options{color}) . $options{text_memoryusage} . weechat::color($options{text_color}) . &memoryusage . $options{text_dummy} . $col1 if ($arg eq "memory" );
+    $output .= weechat::color($options{color}) . $options{text_diskusage} . weechat::color($options{text_color}) . &diskusage . $options{text_dummy} . $col1 if ($arg eq "disk" );
+    $output .= weechat::color($options{color}) . $options{text_network} . weechat::color($options{text_color}) . &networktraffic . $options{text_dummy} . $col1 if ($arg eq "network" );
+    $output .= weechat::color($options{color}) . $options{text_users} . weechat::color($options{text_color}) . &users . $options{text_dummy} . $col1 if ($arg eq "users" );
+    $output .= weechat::color($options{color}) . $options{text_distro} . weechat::color($options{text_color}) . $distrov . $options{text_dummy} . $col1 if ($arg eq "distro" );
+}
+
+$output =~ s/$options{text_dummy}$col1$//g;
+$output .= $col1;                               # stop with color(reset)
+
+return $output;
+}
+
+sub baritems_update{
+    weechat::bar_item_update($PRGNAME);
+    return weechat::WEECHAT_RC_OK
+}
+
+# -------------------------------[ hooks ]-------------------------------------
+sub hook_timer{
+       $Hooks{timer} = weechat::hook_timer($options{refresh} * 1000, 0 , 0, "baritems_update", "");
+                if ($Hooks{timer} eq '')
+                {
+                        weechat::print("","ERROR: can't enable $PRGNAME, hook failed");
+                        return 0;
+                }
+        $bar_item = weechat::bar_item_new($PRGNAME, "create_item", "");
+        weechat::bar_item_update($PRGNAME);
+        return 1;
+}
+sub unhook_timer{
+        weechat::bar_item_remove($bar_item);
+        weechat::unhook($Hooks{timer}) if %Hooks;
+        %Hooks = ();
+}
+
+# -------------------------------[ config ]-------------------------------------
 sub toggle_config_by_set
 {
     my ($pointer, $name, $value) = @_;
     $name = substr($name, length("plugins.var.perl.".$PRGNAME."."), length($name));
     $options{$name} = $value;
-    return weechat::WEECHAT_RC_OK;
+
+        if ($options{refresh} ne "0"){
+                if (defined $Hooks{timer}) {
+                        unhook_timer();
+                        hook_timer();
+                        return weechat::WEECHAT_RC_OK;
+                }
+        }
+        if ($options{refresh} eq "0"){
+                if (defined $Hooks{timer}) {
+                        unhook_timer();
+                }
+        }else{
+                if (not defined $Hooks{timer}){
+                        weechat::config_set_plugin("refresh", "0") unless hook_timer();         # fall back to '0', if hook fails
+                }
+        }
+
+
+weechat::bar_item_update($PRGNAME);
+return weechat::WEECHAT_RC_OK;
 }
 
 sub init_config
@@ -875,13 +990,25 @@ sub init_config
             $options{$option} = weechat::config_get_plugin($option);
         }
     }
+  # help text for options
+  if ( ($weechat_version ne "") && (weechat::info_get("version_number", "") >= 0x00030500) ) {    # v0.3.5
+    foreach my $desc_options (keys %desc_options)
+    {
+      weechat::config_set_desc_plugin($desc_options,$desc_options{$desc_options});
+    }
+
+  }
 }
 
 # -------------------------------[ init ]-------------------------------------
 # first function called by a WeeChat-script.
 weechat::register($PRGNAME, "Nils Görs <weechatter\@arcor.de>", $VERSION,
                   "GPL3", $DESCR, "", "");
+$weechat_version = weechat::info_get("version_number", "");
+
 init_config();
+hook_timer() if ($options{refresh} ne "0");
+
 weechat::hook_command($PRGNAME, $DESCR, "hostname || os || cpu || processes || uptime || loadaverage || battery || memory || disk || network || users || distro || -channel",
                       "   hostname : show hostname\n".
                       "         os : show os\n".
@@ -898,8 +1025,12 @@ weechat::hook_command($PRGNAME, $DESCR, "hostname || os || cpu || processes || u
                       "   -channel : print output to channel\n".
                       "\n".
                       "Options:\n".
-                      "plugins.var.perl.$PRGNAME.nic    : comma separated list to specify your NIC interface name (wlan0,eth0,etc)\n".
-                      "plugins.var.perl.$PRGNAME.nicname: comma separated list with name for interface (wireless,cable,etc)\n",
+                      "plugins.var.perl.$PRGNAME.nic     : comma separated list to specify your NIC interface name(s) (wlan0,eth0,etc)\n".
+                      "plugins.var.perl.$PRGNAME.nicname : comma separated list with name(s) for interface(s) (wireless,cable,etc)\n".
+                      "plugins.var.perl.$PRGNAME.baritems: comma separated list with name(s) of systeminformation to be displayed in a bar\n".
+                      "plugins.var.perl.$PRGNAME.refresh : refresh rate in seconds for info-bar (0 means off)\n".
+                      "add \"$PRGNAME\" to weechat.bar.status.items, to use $PRGNAME as an item in status-bar.\n".
+                      "",
                       "hostname|os|cpu|processes|uptime|loadaverage|battery|memory|disk|network|users|distro|-channel%*", "cmd_sysinfo", "");
 
 weechat::hook_config("plugins.var.perl.$PRGNAME.*", "toggle_config_by_set", "");
