@@ -23,6 +23,8 @@
 # History:
 #
 # 2011-10-02, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 0.3: end game (win) if all squares without mines are explored
+# 2011-10-02, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.2: add option "utf8" (to disable utf-8 chars for grid and flags)
 # 2011-10-02, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.1: initial release
@@ -30,7 +32,7 @@
 
 SCRIPT_NAME    = 'minesweeper'
 SCRIPT_AUTHOR  = 'Sebastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '0.2'
+SCRIPT_VERSION = '0.3'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC    = 'Minesweeper game'
 
@@ -394,6 +396,15 @@ def minesweeper_all_flags_ok():
                 number_ok += 1
     return number_ok == minesweeper['mines'][minesweeper['size']]
 
+def minesweeper_all_squares_explored():
+    global minesweeper
+    explored = 0
+    for x, line in enumerate(minesweeper['board']):
+        for y, status in enumerate(line):
+            if not status[0] and status[1].isdigit():
+                explored += 1
+    return explored == (minesweeper['size'] * minesweeper['size']) - minesweeper['mines'][minesweeper['size']]
+
 def minesweeper_flag(x, y):
     """Add/remove flag."""
     global minesweeper
@@ -476,6 +487,8 @@ def minesweeper_cmd_cb(data, buffer, args):
             minesweeper_timer_start()
             minesweeper['cursor'] = True
             minesweeper_explore(minesweeper['x'], minesweeper['y'])
+            if minesweeper_all_squares_explored():
+                minesweeper['end'] = 'win'
             minesweeper_display()
     if args == 'new':
         minesweeper_new_game()
@@ -509,6 +522,8 @@ def minesweeper_mouse_cb(data, hsignal, hashtable):
                 minesweeper_timer_start()
                 if key.startswith('button1'):
                     minesweeper_explore(x, y)
+                    if minesweeper_all_squares_explored():
+                        minesweeper['end'] = 'win'
                     minesweeper_display()
                 elif key.startswith('button2'):
                     minesweeper_flag(x, y)
@@ -547,7 +562,7 @@ if __name__ == '__main__' and import_ok:
                              '- use mouse left button (or alt-space) to explore a square, if you think there is no mine under '
                              '(if there is a mine, you lose!)\n'
                              '- use mouse right button (or alt-f) to put/remove flag on square, if you think there is a mine under\n'
-                             '- you win if you put all flags on mines.\n'
+                             '- you win if you put all flags on mines, of if all squares without mine are explored.\n\n'
                              'Good luck!',
                              '16col|256col', 'minesweeper_cmd_cb', '')
 
