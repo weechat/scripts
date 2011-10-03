@@ -22,6 +22,9 @@
 #
 # History:
 #
+# 2011-10-03, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 0.5: stop timer when game ends (win with flags remaining) or when
+#                  minesweeper buffer is not displayed
 # 2011-10-02, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.4: fix end of game when player blows up
 # 2011-10-02, Sebastien Helleu <flashcode@flashtux.org>:
@@ -34,7 +37,7 @@
 
 SCRIPT_NAME    = 'minesweeper'
 SCRIPT_AUTHOR  = 'Sebastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '0.4'
+SCRIPT_VERSION = '0.5'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC    = 'Minesweeper game'
 
@@ -260,7 +263,8 @@ def minesweeper_config_cb(data, option, value):
 def minesweeper_timer_cb(data, remaining_calls):
     """Callback for timer."""
     global minesweeper
-    minesweeper['time'] += 1
+    if minesweeper['buffer'] and weechat.buffer_get_integer(minesweeper['buffer'], 'num_displayed') > 0:
+        minesweeper['time'] += 1
     minesweeper_display_status()
     return weechat.WEECHAT_RC_OK
 
@@ -302,6 +306,12 @@ def minesweeper_new_game():
     minesweeper['end'] = ''
     minesweeper_display(clear=True)
 
+def minesweeper_end(end):
+    """End of game."""
+    global minesweeper
+    minesweeper['end'] = end
+    minesweeper_timer_stop()
+
 def minesweeper_change_size(add):
     """Change size of board."""
     global minesweeper
@@ -333,6 +343,7 @@ def minesweeper_input_buffer(data, buffer, input):
 def minesweeper_close_buffer(data, buffer):
     """Called when minesweeper buffer is closed."""
     global minesweeper
+    minesweeper_timer_stop()
     minesweeper['buffer'] = ''
     return weechat.WEECHAT_RC_OK
 
@@ -420,8 +431,7 @@ def minesweeper_flag(x, y):
             status[1] = 'F'
             minesweeper['flags'] -= 1
             if minesweeper['flags'] == 0 and minesweeper_all_flags_ok():
-                minesweeper['end'] = 'win'
-                minesweeper_timer_stop()
+                minesweeper_end('win')
         else:
             status[1] = ' '
             minesweeper['flags'] += 1
@@ -435,8 +445,7 @@ def minesweeper_explore(x, y):
         if status[1] == ' ':
             if status[0]:
                 status[1] = '*'
-                minesweeper['end'] = 'lose'
-                minesweeper_timer_stop()
+                minesweeper_end('lose')
                 minesweeper_show_solution()
             else:
                 number_around = minesweeper_number_around(x, y)
@@ -492,7 +501,7 @@ def minesweeper_cmd_cb(data, buffer, args):
             minesweeper['cursor'] = True
             minesweeper_explore(minesweeper['x'], minesweeper['y'])
             if not minesweeper['end'] and minesweeper_all_squares_explored():
-                minesweeper['end'] = 'win'
+                minesweeper_end('win')
             minesweeper_display()
     if args == 'new':
         minesweeper_new_game()
@@ -527,7 +536,7 @@ def minesweeper_mouse_cb(data, hsignal, hashtable):
                 if key.startswith('button1'):
                     minesweeper_explore(x, y)
                     if not minesweeper['end'] and minesweeper_all_squares_explored():
-                        minesweeper['end'] = 'win'
+                        minesweeper_end('win')
                     minesweeper_display()
                 elif key.startswith('button2'):
                     minesweeper_flag(x, y)
