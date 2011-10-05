@@ -3,29 +3,35 @@
 # growl.py
 # Copyright (c) 2011 Sorin Ionescu <sorin.ionescu@gmail.com>
 #
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
 
 
 SCRIPT_NAME = 'growl'
 SCRIPT_AUTHOR = 'Sorin Ionescu <sorin.ionescu@gmail.com>'
-SCRIPT_VERSION = '1.0.1'
-SCRIPT_LICENSE = 'GPL3'
+SCRIPT_VERSION = '1.0.2'
+SCRIPT_LICENSE = 'MIT'
 SCRIPT_DESC = 'Sends Growl notifications upon events.'
 
 
 # Changelog
 #
+# 2011-10-04: v1.0.2 Growl 1.3 requires GNTP.
 # 2011-09-25: v1.0.1 Always show highlighted messages if set on.
 # 2011-03-27: v1.0.0 Initial release.
 
@@ -60,15 +66,17 @@ try:
     import re
     import os
     import weechat
-    import Growl
+    from gntp.notifier import GrowlNotifier
     IMPORT_OK = True
 except ImportError as error:
     IMPORT_OK = False
     if str(error) == 'No module named weechat':
         print('This script must be run under WeeChat.')
         print('Get WeeChat at http://www.weechat.org.')
-    if str(error) == 'No module named Growl':
-        weechat.prnt('', 'Growl: Python bindings are not installed.')
+    elif str(error) == 'No module named notifier':
+        weechat.prnt('', 'Growl GNTP Python bindings are not installed.')
+    else:
+        weechat.prnt('', "Growl could not be loaded, '%s'." % (error))
 
 
 # -----------------------------------------------------------------------------
@@ -425,7 +433,7 @@ def main():
     name = "WeeChat"
     hostname = weechat.config_get_plugin('hostname')
     password = weechat.config_get_plugin('password')
-    icon = Growl.Image.imageFromPath(
+    icon = 'file://{0}'.format(
         os.path.join(
             weechat.info_get("weechat_dir", ""),
             weechat.config_get_plugin('icon')))
@@ -445,7 +453,7 @@ def main():
         hostname = None
     if len(password) == 0:
         password = None
-    growl = Growl.GrowlNotifier(
+    growl = GrowlNotifier(
         applicationName=name,
         hostname=hostname,
         password=password,
