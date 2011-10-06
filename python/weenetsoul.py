@@ -1,15 +1,20 @@
 # -*- coding: utf-8 -*-
 # Copyright (C) 2011 godric <godric@0x3f.fr>
 # License: WTF
+# 
+# Changelog
+# v1.1
+# + re-implemented state change
+# + changed pattern and color in nicklist
 
 SCRIPT_NAME    = 'weenetsoul'
 SCRIPT_AUTHOR  = 'godric <godric@0x3f.fr>'
-SCRIPT_VERSION = '1.0'
+SCRIPT_VERSION = '1.1'
 SCRIPT_LICENSE = 'WTF'
 SCRIPT_DESC    = 'Netsoul protocol for WeeChat'
 
 import weechat
-import socket, hashlib, urllib, datetime, re
+import time, socket, hashlib, urllib, datetime, re
 
 ########################################
 # Netsoul network functions
@@ -36,16 +41,17 @@ class weeNSUser :
     def prnt(self, buffer = '', prefix = '') :
         hcolor = weechat.color('separator')
         ncolor = weechat.color('chat_nick')
+        prefix = prefix+hcolor
         weechat.prnt(buffer, "%s%s=============== %s[%s] (%s) %s===============\n" % (prefix, hcolor, ncolor, self.login, self.fd, hcolor))
-        weechat.prnt(buffer, "%s   Data . . . . . . . . : %s\n" % (prefix, self.data))
-        weechat.prnt(buffer, "%s   Location . . . . . . : %s\n" % (prefix, self.location))
+        weechat.prnt(buffer, '%s   Host . . . . . . . . : %s\n' % (prefix, self.ip))
+        weechat.prnt(buffer, "%s   Machine type . . . . : %s\n" % (prefix, self.machtype))
         weechat.prnt(buffer, "%s   Group. . . . . . . . : %s\n" % (prefix, self.group))
         weechat.prnt(buffer, "%s   State. . . . . . . . : %s\n" % (prefix, self.state))
-        weechat.prnt(buffer, "%s   State change time. . : %s\n" % (prefix, datetime.datetime.fromtimestamp(self.state_time).strftime('%d/%m/%Y %H:%M:%S')))
-        weechat.prnt(buffer, "%s   Machine type . . . . : %s\n" % (prefix, self.machtype))
-        weechat.prnt(buffer, '%s   Host . . . . . . . . : %s\n' % (prefix, self.ip))
-        weechat.prnt(buffer, "%s   Connection time. . . : %s\n" % (prefix, datetime.datetime.fromtimestamp(self.connection_time).strftime('%d/%m/%Y %H:%M:%S')))
-        weechat.prnt(buffer, "%s   Last time seen . . . : %s\n" % (prefix, datetime.datetime.fromtimestamp(self.lastseen_time).strftime('%d/%m/%Y %H:%M:%S')))
+        weechat.prnt(buffer, "%s   Data . . . . . . . . : %s\n" % (prefix, self.data))
+        weechat.prnt(buffer, "%s   Location . . . . . . : %s\n" % (prefix, self.location))
+        weechat.prnt(buffer, "%s   Connected at . . . . : %s\n" % (prefix, datetime.datetime.fromtimestamp(self.connection_time).strftime('%d/%m/%Y %H:%M:%S')))
+        weechat.prnt(buffer, "%s   Last Activity. . . . : %s\n" % (prefix, datetime.datetime.fromtimestamp(self.lastseen_time).strftime('%d/%m/%Y %H:%M:%S')))
+        weechat.prnt(buffer, "%s   Last status change . : %s\n" % (prefix, datetime.datetime.fromtimestamp(self.state_time).strftime('%d/%m/%Y %H:%M:%S')))
         weechat.prnt(buffer, "%s   Trust (User/client). : (%d/%d)\n" % (prefix, self.user_trust, self.client_trust))
         weechat.prnt(buffer, "%s%s==============================================" % (prefix, hcolor))
 
@@ -165,11 +171,13 @@ class weeNSServer :
             line, ignored, buffer = self.netbuffer.partition("\n")
             index = len(line) + 1
             self.netbuffer = self.netbuffer[index:]
-            weechat.prnt(self.buffer, '%s -> [%s]' % (weechat.prefix('join'), line))
+            weechat.prnt(self.buffer, '%s[%s]' % (
+              weechat.prefix('join'),
+              line))
             self._ns_parse(line)
 
     def send(self, data) :
-        weechat.prnt(self.buffer, '%s <- [%s]' % (weechat.prefix('quit'), data))
+        weechat.prnt(self.buffer, '%s[%s]' % (weechat.prefix('quit'), data))
         self.socket.send('%s\n' % data)
     
     def isConnected(self) :
@@ -201,7 +209,7 @@ class weeNSServer :
     def setupNicklist(self) :
         contact_list = self.getOption('contacts').replace(' ', '').split(',')
         for login in contact_list :
-            weechat.nicklist_add_group(self.buffer, '', login, '', 1)
+            weechat.nicklist_add_group(self.buffer, '', login, 'lightcyan', 1)
             self.contacts[login] = {}
         self._ns_user_cmd_who('{%s}' % ','.join(contact_list))
         self._ns_user_cmd_watch_log_user(','.join(contact_list))
@@ -213,7 +221,7 @@ class weeNSServer :
                 weechat.nicklist_remove_nick(self.buffer, self.contacts[user.login][user.fd].nick)
                 del self.contacts[user.login][user.fd]
             if remove is False :
-                user.nick = weechat.nicklist_add_nick(self.buffer, group, ' [:%s]@[%s]/[%s]' % (user.fd, user.location, user.data), '', '', '', 1)
+                user.nick = weechat.nicklist_add_nick(self.buffer, group, ' :%s%s@%s%s' % (user.fd, weechat.color('separator'), weechat.color('default'), user.location), '', '', '', 1)
                 self.contacts[user.login][user.fd] = user
 
 
@@ -224,7 +232,6 @@ class weeNSServer :
         location = urllib.quote(self.getOption('location'))
         data = urllib.quote(self.getOption('data'))
         crypt = hashlib.md5('%s-%s/%s%s' % (secret, ip, port, self.getOption('password'))).hexdigest()
-        weechat.prnt(self.buffer, '%s-%s/%s%s' % (secret, ip, port, self.getOption('password')))
         self.send("ext_user_log %s %s %s %s" % (self.getOption('login'), crypt, location, data))
         
     def _ns_user_cmd_msg_user(self, login, msg) :
@@ -236,6 +243,9 @@ class weeNSServer :
 
     def _ns_user_cmd_watch_log_user(self, friends) :
         self.send("user_cmd watch_log_user {%s}" % friends)
+
+    def _ns_state(self, state) :
+        self.send("state %s:%s" % (state, int(time.time())))
 
     def _ns_parse(self, data) :
         arglist = data.split(' ')
@@ -287,9 +297,7 @@ class weeNSServer :
         match = re.match(r, ' '.join(arglist[3:]))
         if match is not None :
             groups = match.groups()
-            user = weeNSUser(fd = groups[0], login = groups[1], ip = groups[2], connection_time = groups[3], lastseen_time = groups[4], user_trust = groups[5], 
-                             client_trust = groups[6], machtype = groups[7], location = urllib.unquote(groups[8]), group = groups[9], 
-                             state = urllib.unquote(groups[10]), state_time = groups[11] or 0, data = urllib.unquote(groups[12]))
+            user = weeNSUser(fd = groups[0], login = groups[1], ip = groups[2], connection_time = groups[3], lastseen_time = groups[4], user_trust = groups[5], client_trust = groups[6], machtype = groups[7], location = urllib.unquote(groups[8]), group = groups[9], state = urllib.unquote(groups[10]), state_time = groups[11] or 0, data = urllib.unquote(groups[12]))
             self.updateNicklist(user)
             user.prnt(self.buffer, weechat.prefix('network'))
 
@@ -299,8 +307,11 @@ class weeNSServer :
             user = self.contacts[user.login][user.fd]
             state = arglist[4].split(':')
             user.state = urllib.unquote(state[0])
-            user.state_time = state[1]
+            user.state_time = int(time.time())
             self.updateNicklist(user)
+            chat = self.getChatByRecipient(fd = user.fd)
+            if chat is not None :
+                weechat.prnt(chat.buffer, '%s%s%s changed state : %s' % (weechat.prefix('network'), weechat.color('nick_color'), user.login, user.state))
 
     def _ns_parse_user_cmd_login(self, arglist) :
         user = self._ns_parse_from(arglist[1])        
@@ -366,6 +377,8 @@ def weeNS_hook_cmd_ns(data, buffer, args) :
             weechat.prnt(buffer, 'Message recipient must be of type login_x[:fd]')
     elif arglist[0] == 'who' and server.isConnected() and len(arglist) > 1 :
         server._ns_user_cmd_who(arglist[1])
+    elif arglist[0] == 'state' and server.isConnected() and len(arglist) > 1 :
+        server._ns_state(arglist[1])
     else :
         weechat.prnt(buffer, '%sNo such command, wrong argument count, or you need to (dis)connect' % weechat.prefix('error'))
     return weechat.WEECHAT_RC_OK
