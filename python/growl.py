@@ -24,13 +24,13 @@
 
 SCRIPT_NAME = 'growl'
 SCRIPT_AUTHOR = 'Sorin Ionescu <sorin.ionescu@gmail.com>'
-SCRIPT_VERSION = '1.0.2'
+SCRIPT_VERSION = '1.0.3'
 SCRIPT_LICENSE = 'MIT'
 SCRIPT_DESC = 'Sends Growl notifications upon events.'
 
 
 # Changelog
-#
+# 2011-10-10: v1.0.3 Handle Growl exceptions.
 # 2011-10-04: v1.0.2 Growl 1.3 requires GNTP.
 # 2011-09-25: v1.0.1 Always show highlighted messages if set on.
 # 2011-03-27: v1.0.0 Initial release.
@@ -73,10 +73,10 @@ except ImportError as error:
     if str(error) == 'No module named weechat':
         print('This script must be run under WeeChat.')
         print('Get WeeChat at http://www.weechat.org.')
-    elif str(error) == 'No module named notifier':
-        weechat.prnt('', 'Growl GNTP Python bindings are not installed.')
+    elif str(error) == 'No module named gntp.notifier':
+        weechat.prnt('', 'growl: GNTP bindings are not installed')
     else:
-        weechat.prnt('', "Growl could not be loaded, '%s'." % (error))
+        weechat.prnt('', "growl: error: %s" % error)
 
 
 # -----------------------------------------------------------------------------
@@ -133,6 +133,7 @@ DISPATCH_TABLE = {
 
 STATE = {
     'growl': None,
+    'icon': None,
     'is_away': False
 }
 
@@ -412,12 +413,22 @@ def growl_notify(notification, title, description, priority=None):
     '''Returns whether Growl notifications should be sticky.'''
     growl = STATE['growl']
     is_away = STATE['is_away']
+    icon = STATE['icon']
     is_sticky = False
     if weechat.config_get_plugin('sticky') == 'on':
         is_sticky = True
     if weechat.config_get_plugin('sticky_away') == 'on' and is_away:
         is_sticky = True
-    growl.notify(notification, title, description, '', is_sticky, priority)
+    try:
+        growl.notify(
+            noteType=notification,
+            title=title,
+            description=description,
+            icon=icon,
+            sticky=is_sticky,
+            priority=priority)
+    except Exception as error:
+        weechat.prnt('', 'growl: {0}'.format(str(error)))
 
 
 # -----------------------------------------------------------------------------
@@ -459,8 +470,12 @@ def main():
         password=password,
         notifications=notifications,
         applicationIcon=icon)
-    growl.register()
+    try:
+        growl.register()
+    except Exception as error:
+        weechat.prnt('', 'growl: {0}'.format(str(error)))
     STATE['growl'] = growl
+    STATE['icon'] = icon
     # Register hooks.
     weechat.hook_signal(
         'irc_server_connected',
