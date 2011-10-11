@@ -24,12 +24,13 @@
 
 SCRIPT_NAME = 'growl'
 SCRIPT_AUTHOR = 'Sorin Ionescu <sorin.ionescu@gmail.com>'
-SCRIPT_VERSION = '1.0.3'
+SCRIPT_VERSION = '1.0.4'
 SCRIPT_LICENSE = 'MIT'
 SCRIPT_DESC = 'Sends Growl notifications upon events.'
 
 
 # Changelog
+# 2011-10-11: v1.0.4 Handle import errors better.
 # 2011-10-10: v1.0.3 Handle Growl exceptions.
 # 2011-10-04: v1.0.2 Growl 1.3 requires GNTP.
 # 2011-09-25: v1.0.1 Always show highlighted messages if set on.
@@ -70,14 +71,13 @@ try:
     IMPORT_OK = True
 except ImportError as error:
     IMPORT_OK = False
-    if str(error) == 'No module named weechat':
+    if str(error).find('weechat') != -1:
         print('This script must be run under WeeChat.')
         print('Get WeeChat at http://www.weechat.org.')
-    elif str(error) == 'No module named gntp.notifier':
+    elif str(error).find('notifier') != -1:
         weechat.prnt('', 'growl: GNTP bindings are not installed')
     else:
-        weechat.prnt('', "growl: error: %s" % error)
-
+        weechat.prnt('', 'growl: {0}'.format(error))
 
 # -----------------------------------------------------------------------------
 # Globals
@@ -428,7 +428,7 @@ def growl_notify(notification, title, description, priority=None):
             sticky=is_sticky,
             priority=priority)
     except Exception as error:
-        weechat.prnt('', 'growl: {0}'.format(str(error)))
+        weechat.prnt('', 'growl: {0}'.format(error))
 
 
 # -----------------------------------------------------------------------------
@@ -473,7 +473,7 @@ def main():
     try:
         growl.register()
     except Exception as error:
-        weechat.prnt('', 'growl: {0}'.format(str(error)))
+        weechat.prnt('', 'growl: {0}'.format(error))
     STATE['growl'] = growl
     STATE['icon'] = icon
     # Register hooks.
