@@ -20,6 +20,7 @@
 # for settings see help page
 #
 # history:
+# 0.8.1: fixed: regex()
 # 0.8: added: option "avail_buffer" and "nicks" (please read help-page) (suggested by ldvx)
 #    : fixed: blacklist_channels wasn't load at start
 #    : fixed: nick_prefixes wasn't displayed since v0.7
@@ -50,7 +51,7 @@
 
 use strict;
 my $prgname	= "colorize_lines";
-my $version	= "0.8";
+my $version	= "0.8.1";
 my $description	= "colors text in chat area with according nick color. Highlight messages will be fully highlighted in chat area";
 
 # default values
@@ -130,7 +131,7 @@ if ( lc($nick_wo_suffix) eq lc($my_nick) ){                                     
 
 # whitelist nicks
 if ( $default_options{var_nicks} ne "" ){                                                       # nicks is not empty
-  unless (grep /\Q$servername.$nick_wo_suffix\E/i, @nick_list){
+  unless (grep /^\Q$servername.$nick_wo_suffix\E$/i, @nick_list){
 #  my $search_nick = (grep /^$servername.$nick_wo_suffix$/i, @nick_list);                        # nick in list?
     return $string;
   }
