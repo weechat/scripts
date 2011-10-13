@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+#
 # Copyright (c) 2010 by John Anderson <sontek@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
@@ -14,6 +16,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # History
+# 2011-10-12, Łukasz P. Michalik <lmi@ift.uni.wroc.pl>:
+#   version 0.4: Shorten urls in private buffers as well
 # 2010-11-08, John Anderson <sontek@gmail.com>:
 #   version 0.3: Get python 2.x binary for hook_process (fixes problem
 #                when python 3.x is default python version, requires
@@ -27,7 +31,7 @@ from urllib2 import urlopen
 
 SCRIPT_NAME    = "shortenurl"
 SCRIPT_AUTHOR  = "John Anderson <sontek@gmail.com>"
-SCRIPT_VERSION = "0.3"
+SCRIPT_VERSION = "0.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Shorten long incoming and outgoing URLs"
 
@@ -84,7 +88,8 @@ def command_input_callback(data, buffer, command):
 
 
 def hook_print_callback(data, buffer, date, tags, displayed, highlight, prefix, message):
-    if 'notify_message' in tags.split(','):
+    all_tags = tags.split(',')
+    if 'notify_message' in all_tags or 'notify_private' in all_tags:
         return match_url(message, buffer, False)
 
     return weechat.WEECHAT_RC_OK
