@@ -7,7 +7,11 @@
 
 # This script provides command /kickban2. You probably want to alias it to /kb: /alias kb kickban2
 
-weechat::register("kickban", "ArZa <arza\@arza.us>", "0.1", "GPL3", "A new, customizable kickban command", "", "");
+# Changelog:
+# 15.10.2011 0.2 fix bug with ban when host isn't found in memory
+# 08.07.2011 0.1 initial release
+
+weechat::register("kickban", "ArZa <arza\@arza.us>", "0.2", "GPL3", "A new, customizable kickban command", "", "");
 weechat::hook_command(
   "kickban2",
   "A new, customizable kickban command", "[-nuhsd#] nick[,nick2...] [reason]",
@@ -76,7 +80,7 @@ sub kickban {
   
   for(my $i=0; $i<=$#args+1; $i++){ my $arg=$args[$i] || last; # go through arguments
     if($arg=~/^\-/){ # begins '-': banmask/time switches
-      foreach ("n","u","h","s","d"){ $banmask{$_}=1 if $arg=~/$_/; } # set banmask type
+      foreach("n","u","h","s","d"){ $banmask{$_}=1 if $arg=~/$_/; } # set banmask type
       if($arg=~/(\d+)/){ $time=$1; } # any number = unban time
     }else{ # the rest is nicks (and reason)
       @nicks=split(/,/, $arg);
@@ -89,10 +93,7 @@ sub kickban {
   
   if(!%banmask){ $banmask{$_}=1 foreach (split(/,/, weechat::config_get_plugin("banmask"))); } # get the banmask from the setting if it's not given as an argument
   
-  if($banmask{"h"}){ # host -> subdomain and domain
-    $banmask{"s"}=1;
-    $banmask{"d"}=1;
-  }
+  if($banmask{"h"}){ $banmask{"s"}=$banmask{"d"}=1; } # host -> subdomain and domain
   
   $reason=weechat::config_get_plugin("kick_reason") unless $reason; # get the reason from the setting if it's not given as an argument
   
@@ -107,11 +108,12 @@ sub kickban {
   while(weechat::infolist_next($infolist)){ # go through the infolist
     foreach my $nick (@nicks) { # go through nicks to be kicked
       if(lc(weechat::infolist_string($infolist, "name")) eq lc($nick)){ # if match (case insensitive)
-        my $ban=gen_mask($nick, split(/@/, weechat::infolist_string($infolist, "host"))); # split variable host from infolist to user and host, get banmask
+        my $host=weechat::infolist_string($infolist, "host") || next;
+        my $ban=gen_mask($nick, split(/@/, $host)); # split variable host from infolist to user and host, get banmask
         weechat::command($buffer, "/kick $nick $reason") if weechat::config_get_plugin("kick_first") ne "off"; # kick before ban
         weechat::command($buffer, "/ban $ban"); # ban
         weechat::command($buffer, "/kick $nick $reason") if weechat::config_get_plugin("kick_first") eq "off"; # kick after ban
-        weechat::command($buffer, "/wait ".60*$time." /unban $ban") if $time;        
+        weechat::command($buffer, "/wait ".60*$time." /unban $ban") if $time;
         undef $nick;
       }
     }
