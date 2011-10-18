@@ -18,6 +18,9 @@
 # Set WeeChat and plugins options interactively.
 #
 # History:
+# 2011-10-16, nils_2 <weechatter@arcor.de>:
+#     version 2.0: add support for left-mouse-button and more sensitive mouse gesture (for integer/color options)
+#                : add help text for mouse support
 # 2011-09-20, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 1.9: add mouse support, fix iset buffer, fix errors on first load under FreeBSD
 # 2011-07-21, nils_2 <weechatter@arcor.de>:
@@ -75,7 +78,7 @@
 use strict;
 
 my $PRGNAME = "iset";
-my $VERSION = "1.9";
+my $VERSION = "2.0";
 my $DESCR   = "Interactive Set for configuration options";
 my $AUTHOR  = "Sebastien Helleu <flashcode\@flashtux.org>";
 my $LICENSE = "GPL3";
@@ -111,7 +114,8 @@ my %options = ("show_help_bar"              => "on",
                "color_help_default_value"   => "green",
                "value_search_char"          => "=",
     );
-my %mouse_keys = ("\@chat(perl.$PRGNAME):button2*" => "hsignal:iset_mouse",
+my %mouse_keys = ("\@chat(perl.$PRGNAME):button1" => "hsignal:iset_mouse",
+                  "\@chat(perl.$PRGNAME):button2*" => "hsignal:iset_mouse",
                   "\@chat(perl.$PRGNAME):wheelup" => "/repeat 5 /iset **up",
                   "\@chat(perl.$PRGNAME):wheeldown" => "/repeat 5 /iset **down");
 
@@ -922,10 +926,16 @@ sub hook_focus_iset_cb
 sub iset_hsignal_mouse_cb
 {
     my ($data, $signal, %hash) = ($_[0], $_[1], %{$_[2]});
- 
+
     if ($hash{"_buffer_name"} eq $PRGNAME && ($hash{"_buffer_plugin"} eq "perl"))
     {
-        if ($hash{"_key"} eq "button2")
+        if ($hash{"_key"} eq "button1")
+        {
+                $current_line = $hash{"_chat_line_y"};
+                iset_refresh_line($current_line);
+                iset_refresh();
+        }
+        elsif ($hash{"_key"} eq "button2")
         {
             if ($options_types[$hash{"_chat_line_y"}] eq "boolean")
             {
@@ -942,28 +952,45 @@ sub iset_hsignal_mouse_cb
                 weechat::command("", "/$PRGNAME **set");
             }
         }
-        elsif ($hash{"_key"} eq "button2-gesture-left")
+        elsif ($hash{"_key"} eq "button2-gesture-left" or $hash{"_key"} eq "button2-gesture-left-long")
         {
             if ($options_types[$hash{"_chat_line_y"}] eq "integer" or ($options_types[$hash{"_chat_line_y"}] eq "color"))
             {
                 $current_line = $hash{"_chat_line_y"};
                 iset_refresh_line($current_line);
                 iset_refresh();
-                weechat::command("", "/$PRGNAME **decr");
+                my $distance = distance($hash{"_chat_line_x"},$hash{"_chat_line_x2"});
+                weechat::command("", "/repeat $distance /$PRGNAME **decr");
             }
         }
-        elsif ($hash{"_key"} eq "button2-gesture-right")
+        elsif ($hash{"_key"} eq "button2-gesture-right" or $hash{"_key"} eq "button2-gesture-right-long")
         {
             if ($options_types[$hash{"_chat_line_y"}] eq "integer"  or ($options_types[$hash{"_chat_line_y"}] eq "color"))
             {
                 $current_line = $hash{"_chat_line_y"};
                 iset_refresh_line($current_line);
                 iset_refresh();
-                weechat::command("", "/$PRGNAME **incr");
+                my $distance = distance($hash{"_chat_line_x"},$hash{"_chat_line_x2"});
+                weechat::command("", "/repeat $distance /$PRGNAME **incr");
             }
         }
     }
 }
+sub distance{
+  my ($x1,$x2) = ($_[0], $_[1]);
+    my $distance;
+    $distance = $x1 - $x2;
+    $distance = abs($distance);
+    if ( $distance > 0 ){
+      use integer;
+      $distance  =  $distance / 3;
+      $distance = 1 if ( $distance == 0 );
+    }elsif ( $distance == 0 ){
+      $distance = 1;
+    }
+ return $distance;
+}
+
 # -----------------------------------[ main ]-----------------------------------------
 weechat::register($PRGNAME, $AUTHOR, $VERSION, $LICENSE,
                   $DESCR, "iset_end", "");
@@ -989,7 +1016,14 @@ weechat::hook_command($PRGNAME, "Interactive set", "f <file> || s <section> || [
                       "alt+enter      : set new value for option (edit it with command line)\n".
                       "text,enter     : set a new filter using command line (use '*' to see all options)\n".
                       "alt+'v'        : toggle help bar on/off\n".
-                      "alt+'p'        : toggle option \"show_plugin_description\" on/off\n\n".
+                      "alt+'p'        : toggle option \"show_plugin_description\" on/off\n".
+                      "\n".
+                      "standard mouse actions:\n".
+                      "wheel up / wheel down                  : move option up/down\n".
+                      "left-mouse-button                      : select an option from list\n".
+                      "right-mouse-button                     : toggle boolean (on/off) or set a new value for option (edit it with command line)\n".
+                      "right-mouse-button + gesture left/right: increase/decrease value (for integer or color)\n".
+                      "\n".
                       "Examples:\n".
                       "  show options for file 'weechat'\n".
                       "    /iset f weechat\n".
