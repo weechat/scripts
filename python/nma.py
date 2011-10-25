@@ -1,16 +1,19 @@
-# Author: sitaktif <sitaktif AT gmail DOT com>
+# Author: sitaktif <romainchossart AT gmail DOT com>
 # This plugin calls the pynma bindings via python when somebody says your nickname, sends you a query, etc.
 # Requires Weechat 0.3.0
 # To make it work, you need to get pynma.py from NotifyMyAndroid website or on github - https://github.com/uskr/pynma . Just put it in the same folder as the script)
 # Released under GNU GPL v2
 # Heavily based on lavaramano's script "notify.py" v. 0.0.5
 #
+# Todo: Do not send my own messages on query channels
+# 2011-09-19, sitaktif
+#     version 1.0.1: Corrected a bug with debug functions
 # 2011-07-22, sitaktif
-#     version 1.0.0: initial release
+#     version 1.0.0: Initial release
 
 import weechat
 
-weechat.register("nma", "sitaktif", "1.0.0", "GPL", "nma: Receive notifications on NotifyMyAndroid app.", "", "")
+weechat.register("nma", "sitaktif", "1.0.1", "GPL2", "nma: Receive notifications on NotifyMyAndroid app.", "", "")
 
 # script options
 settings = {
@@ -108,7 +111,7 @@ def notify_show(data, bufferp, uber_empty, tagsn, isdisplayed,
             weechat.config_get_plugin('show_priv_msg') == "on"):
         ret = show_notification("IRC private message",
         notif_body, int(weechat.config_get_plugin("priv_msg_emergency")))
-        _debug("", "Message sent: %s. Return: %s." % (notif_body, ret))
+        _debug("Message sent: %s. Return: %s." % (notif_body, ret))
 
     # Highlight (your nick is quoted)
     elif (ishilight == "1" and
@@ -120,7 +123,7 @@ def notify_show(data, bufferp, uber_empty, tagsn, isdisplayed,
         _debug("Message sent: %s. Return: %s." % (notif_body, ret))
 
     if ret is not None:
-        _debug("", str(ret))
+        _debug(str(ret))
 
     return weechat.WEECHAT_RC_OK
 
