@@ -19,6 +19,9 @@
 # Display sidebar with list of buffers.
 #
 # History:
+# 2011-10-30, Nils G <weechatter@arcor.de>:
+#     2.5: add new options "show_number_char" and "color_number_char",
+#          add help-description for options
 # 2011-08-24, Sébastien Helleu <flashcode@flashtux.org>:
 #     v2.4: add mouse support
 # 2011-06-06, Nils G <weechatter@arcor.de>:
@@ -95,33 +98,36 @@
 
 use strict;
 
-my $version = "2.4";
+my $version = "2.5";
 
 # -------------------------------[ config ]-------------------------------------
 
-my %default_options = ("short_names"               => "on",
-                       "indenting"                 => "on",
-                       "indenting_number"          => "on",
-                       "hide_merged_buffers"       => "off",
-                       "show_number"               => "on",
-                       "show_prefix"               => "off",
-                       "show_prefix_empty"         => "on",
-                       "sort"                      => "number",  # "number" or "name"
-                       "color_hotlist_low"         => "white",
-                       "color_hotlist_message"     => "yellow",
-                       "color_hotlist_private"     => "lightgreen",
-                       "color_hotlist_highlight"   => "magenta",
-                       "color_current"             => "lightcyan,red",
-                       "color_default"             => "default",
-                       "color_number"              => "lightgreen",
-                       "color_whitelist_buffers"   => "",
-                       "color_whitelist_default"   => "",
-                       "color_whitelist_low"       => "",
-                       "color_whitelist_message"   => "",
-                       "color_whitelist_private"   => "",
-                       "color_whitelist_highlight" => "",
+my %default_options = (
+    "short_names"               => ["on", "display short names (remove text before first \".\" in buffer name) (default: on)"],
+    "indenting"                 => ["on", "use indenting for some buffers like IRC channels (default: on)"],
+    "indenting_number"          => ["on", "use indenting for numbers (default: on)"],
+    "hide_merged_buffers"       => ["off", "hide merged buffers (default: off)"],
+    "show_number"               => ["on", "display channel number (default: on)"],
+    "show_number_char"          => [".", "display a char after channel number (default: \".\")"],
+    "show_prefix"               => ["off", "show your prefix for channel (default: off)"],
+    "show_prefix_empty"         => ["on", "use a placeholder for channels without prefix (default: on)"],
+    "sort"                      => ["number", "sort buffer-list by \"number\" or \"name\" (default: number)"],
+    "color_hotlist_low"         => ["white", "change color of buffer name if a low message received. color, which may be \"fg\" or \"fg,bg\" (default: white)"],
+    "color_hotlist_message"     => ["yellow", "change color of buffer name if a normal message received. color, which may be \"fg\" or \"fg,bg\" (default: yellow)"],
+    "color_hotlist_private"     => ["lightgreen", "change color of buffer name if a private message received. color, which may be \"fg\" or \"fg,bg\" (default: lightgreen)"],
+    "color_hotlist_highlight"   => ["magenta", "change color of buffer name if a highlight messaged received. color, which may be \"fg\" or \"fg,bg\" (default: magenta)"],
+    "color_current"             => ["lightcyan,red", "color for current buffer (default: lightcyan,red)"],
+    "color_default"             => ["default", "default color for buffer name (default: default)"],
+    "color_number"              => ["lightgreen", "color for buffer number (default: lightgreen)"],
+    "color_number_char"         => ["lightgreen", "color for buffer number char (default: lightgreen)"],
+    "color_whitelist_buffers"   => ["", "comma separated list of buffers for using a differnt color scheme (for example: freenode.#weechat,freenode.#weechat-fr)"],
+    "color_whitelist_default"   => ["", "default color for whitelist buffer name"],
+    "color_whitelist_low"       => ["", "low color of whitelist buffer name"],
+    "color_whitelist_message"   => ["", "message color of whitelist buffer name"],
+    "color_whitelist_private"   => ["", "private color of whitelist buffer name"],
+    "color_whitelist_highlight" => ["", "highlight color of whitelist buffer name"],
+);
 
-    );
 my %mouse_keys = ("\@item(buffers):button1*" => "hsignal:buffers_mouse");
 my %options;
 my %hotlist_level = (0 => "low", 1 => "message", 2 => "private", 3 => "highlight");
@@ -132,12 +138,17 @@ my @buffers_focus = ();
 
 weechat::register("buffers", "Sébastien Helleu <flashcode\@flashtux.org>", $version,
                   "GPL3", "Sidebar with list of buffers", "", "");
+my $weechat_version = weechat::info_get("version_number", "") || 0;
 
 foreach my $option (keys %default_options)
 {
     if (!weechat::config_is_set_plugin($option))
     {
-        weechat::config_set_plugin($option, $default_options{$option});
+        weechat::config_set_plugin($option, $default_options{$option}[0]);
+    }
+    if ($weechat_version >= 0x00030500)
+    {
+        weechat::config_set_desc_plugin($option, $default_options{$option}[1]);
     }
 }
 buffers_read_options();
@@ -150,7 +161,6 @@ weechat::hook_signal("buffer_*", "buffers_signal_buffer", "");
 weechat::hook_signal("hotlist_*", "buffers_signal_hotlist", "");
 weechat::hook_config("plugins.var.perl.buffers.*", "buffers_signal_config", "");
 weechat::bar_item_update("buffers");
-my $weechat_version = weechat::info_get("version_number", "") || 0;
 if ($weechat_version >= 0x00030600)
 {
     weechat::hook_focus("buffers", "buffers_focus_buffers", "");
@@ -172,7 +182,7 @@ sub buffers_read_options
 sub build_buffers
 {
     my $str = "";
-    
+
     # get bar position (left/right/top/bottom)
     my $position = "left";
     my $option_position = weechat::config_get("weechat.bar.buffers.position");
@@ -180,7 +190,7 @@ sub build_buffers
     {
         $position = weechat::config_string($option_position);
     }
-    
+
     # read hotlist
     my %hotlist;
     my $infolist = weechat::infolist_get("hotlist", "", "");
@@ -190,7 +200,7 @@ sub build_buffers
             weechat::infolist_integer($infolist, "priority");
     }
     weechat::infolist_free($infolist);
-    
+
     # read buffers list
     @buffers_focus = ();
     my @buffers;
@@ -245,7 +255,7 @@ sub build_buffers
     }
     @buffers = (@buffers, @current2, @current1);
     weechat::infolist_free($infolist);
-    
+
     # sort buffers by number, name or shortname
     my %sorted_buffers;
     if (1)
@@ -268,7 +278,7 @@ sub build_buffers
             $number++;
         }
     }
-    
+
     # build string with buffers
     $old_number = -1;
     foreach my $key (sort keys %sorted_buffers)
@@ -278,7 +288,7 @@ sub build_buffers
         {
             next;
         }
-        
+
         push(@buffers_focus, $buffer);
         my $color = "";
         # whitelist buffer?
@@ -344,7 +354,9 @@ sub build_buffers
                     .$buffer->{"number"}
                     .weechat::color("default")
                     .$color_bg
-                    .".";
+                    .weechat::color($options{"color_number_char"})
+                    .$options{"show_number_char"}
+                    .$color_bg;
             }
             else
             {
@@ -416,8 +428,7 @@ sub build_buffers
         $str .= "\n";
         $old_number = $buffer->{"number"};
     }
-    
-    
+
     return $str;
 }
 
