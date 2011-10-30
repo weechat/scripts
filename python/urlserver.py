@@ -44,6 +44,9 @@
 # History:
 #
 # 2011-10-30, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 0.3: escape HTML chars for page with list of URLs, add option
+#                  "http_prefix_suffix", disable highlights on urlserver buffer
+# 2011-10-30, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.2: fix error on loading of file "urlserver_list.txt" when it is empty
 # 2011-10-30, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.1: initial release
@@ -51,7 +54,7 @@
 
 SCRIPT_NAME    = 'urlserver'
 SCRIPT_AUTHOR  = 'Sebastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '0.2'
+SCRIPT_VERSION = '0.3'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC    = 'Shorten URLs with own HTTP server'
 
@@ -68,7 +71,7 @@ except ImportError:
     import_ok = False
 
 try:
-    import os, string, ast, datetime, socket, re, base64
+    import os, string, ast, datetime, socket, re, base64, cgi
 except ImportError, message:
     print('Missing package(s) for %s: %s' % (SCRIPT_NAME, message))
     import_ok = False
@@ -98,6 +101,7 @@ urlserver_settings_default = {
     'http_url_prefix'   : ('', 'prefix to add in URLs to prevent external people to scan your URLs (for example: prefix "xx" will give URL: http://host.com:1234/xx/8)'),
     'http_embed_image'  : ('off', 'embed images in HTML page (BE CAREFUL: the HTTP referer will be sent to site hosting image!)'),
     'http_embed_youtube': ('off', 'embed youtube videos in HTML page (BE CAREFUL: the HTTP referer will be sent to youtube!)'),
+    'http_prefix_suffix': (' ', 'suffix displayed between prefix and message in HTML page'),
     # message filter settings
     'msg_ignore_buffers': ('core.weechat,python.grep', 'comma-separated list (without spaces) of buffers to ignore (full name like "irc.freenode.#weechat")'),
     'msg_ignore_tags'   : ('irc_quit,irc_part,notify_none', 'comma-separated list (without spaces) of tags (or beginning of tags) to ignore (for example, use "notify_none" to ignore self messages or "nick_weebot" to ignore messages from nick "weebot")'),
@@ -196,8 +200,9 @@ def urlserver_server_reply_list(conn, sort='-time'):
         content += '  <tr>'
         url = item[3]
         obj = ''
-        message = item[4].split('\t', 1)
-        message = ' | '.join(message).replace(url, '<a href="%s" title="%s">%s</a>' % (urlserver_short_url(key), url, url))
+        message = cgi.escape(item[4].replace(url, '\x01\x02\x03\x04')).split('\t', 1)
+        strjoin = ' %s ' % urlserver_settings['http_prefix_suffix'].replace(' ', '&nbsp;')
+        message = strjoin.join(message).replace('\x01\x02\x03\x04', '<a href="%s" title="%s">%s</a>' % (urlserver_short_url(key), url, url))
         if urlserver_settings['http_embed_image'] == 'on' and url.lower()[-4:] in ('.jpg', '.png', '.gif'):
             obj = '<div class="obj"><img src="%s" title="%s" alt="%s"></div>' % (url, url, url)
         elif urlserver_settings['http_embed_youtube'] == 'on' and 'youtube.com/' in url:
@@ -368,15 +373,16 @@ def urlserver_display_url_detail(key):
     nick = url[1]
     if nick:
         nick += ' @ '
-    weechat.prnt(urlserver['buffer'], '%s, %s%s%s%s: %s%s%s -> %s' % (url[0],
-                                                                      nick,
-                                                                      weechat.color('chat_buffer'),
-                                                                      url[2],
-                                                                      weechat.color('reset'),
-                                                                      weechat.color(urlserver_settings['color']),
-                                                                      urlserver_short_url(key),
-                                                                      weechat.color('reset'),
-                                                                      url[3]))
+    weechat.prnt_date_tags(urlserver['buffer'], 0, 'notify_none',
+                           '%s, %s%s%s%s: %s%s%s -> %s' % (url[0],
+                                                           nick,
+                                                           weechat.color('chat_buffer'),
+                                                           url[2],
+                                                           weechat.color('reset'),
+                                                           weechat.color(urlserver_settings['color']),
+                                                           urlserver_short_url(key),
+                                                           weechat.color('reset'),
+                                                           url[3]))
 
 def urlserver_buffer_input_cb(data, buffer, input_data):
     if input_data in ('q', 'Q'):
