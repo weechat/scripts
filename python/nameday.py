@@ -23,6 +23,8 @@
 #
 # History:
 #
+# 2011-10-30, Sébastien Helleu <flashcode@flashtux.org>:
+#     version 1.1: fix colors in output of /nameday
 # 2011-05-06, Sébastien Helleu <flashcode@flashtux.org>:
 #     version 1.0: add some missing names and color based on gender
 # 2010-01-14, Sébastien Helleu <flashcode@flashtux.org>:
@@ -38,7 +40,7 @@
 
 SCRIPT_NAME    = 'nameday'
 SCRIPT_AUTHOR  = 'Sébastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '1.0'
+SCRIPT_VERSION = '1.1'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC    = 'Display name days in bar item and buffer'
 
@@ -307,17 +309,16 @@ def nameday_print(days):
     elif days > 50:
         days = 50
     if days > 0:
-        string += ' ('
+        string += '%s (' % weechat.color('reset')
         for i in range(1, days + 1):
             if i > 1:
-                string += ', '
+                string += '%s, ' % weechat.color('reset')
             date2 = date.fromtimestamp(current_time + ((3600 * 24) * i))
-            string += '%s%02d/%02d: %s' % (weechat.color('chat'),
-                                           date2.day, date2.month,
-                                           nameday_get_date(date2, gender=True,
-                                                            colorMale='color_male',
-                                                            colorFemale='color_female'))
-        string += ')'
+            string += '%02d/%02d: %s' % (date2.day, date2.month,
+                                         nameday_get_date(date2, gender=True,
+                                                          colorMale='color_male',
+                                                          colorFemale='color_female'))
+        string += '%s)' % weechat.color('reset')
     weechat.prnt('', string)
 
 def nameday_search(name):
