@@ -44,12 +44,14 @@
 # History:
 #
 # 2011-10-30, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 0.2: fix error on loading of file "urlserver_list.txt" when it is empty
+# 2011-10-30, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.1: initial release
 #
 
 SCRIPT_NAME    = 'urlserver'
 SCRIPT_AUTHOR  = 'Sebastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '0.1'
+SCRIPT_VERSION = '0.2'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC    = 'Shorten URLs with own HTTP server'
 
@@ -534,8 +536,11 @@ def urlserver_read_urls():
         try:
             urlserver['urls'] = ast.literal_eval(open(filename, 'r').read())
             keys = urlserver['urls'].keys()
-            keys.sort()
-            urlserver['number'] = keys[-1] + 1
+            if keys:
+                keys.sort()
+                urlserver['number'] = keys[-1] + 1
+            else:
+                urlserver['number'] = 0
         except:
             weechat.prnt('', '%surlserver: error reading file "%s"' % (weechat.prefix('error'), filename))
 
