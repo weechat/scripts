@@ -43,6 +43,9 @@
 #
 # History:
 #
+# 2011-10-31, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 0.4: add options "http_embed_youtube_size" and "http_bg_color",
+#                  add extensions jpeg/bmp/svg for embedded images
 # 2011-10-30, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.3: escape HTML chars for page with list of URLs, add option
 #                  "http_prefix_suffix", disable highlights on urlserver buffer
@@ -54,7 +57,7 @@
 
 SCRIPT_NAME    = 'urlserver'
 SCRIPT_AUTHOR  = 'Sebastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '0.3'
+SCRIPT_VERSION = '0.4'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC    = 'Shorten URLs with own HTTP server'
 
@@ -94,27 +97,29 @@ urlserver = {
 # script options
 urlserver_settings_default = {
     # HTTP server settings
-    'http_hostname'     : ('', 'force hostname (or IP) for URLs (empty value = auto-detect current hostname)'),
-    'http_port'         : ('', 'force port for listening (empty value = find a random free port)'),
-    'http_allowed_ips'  : ('', 'regex for IPs allowed to use server (example: "^(123.45.67.89|192.160.*)$")'),
-    'http_auth'         : ('', 'login and password (format: "login:password") required to access to page with list of URLs'),
-    'http_url_prefix'   : ('', 'prefix to add in URLs to prevent external people to scan your URLs (for example: prefix "xx" will give URL: http://host.com:1234/xx/8)'),
-    'http_embed_image'  : ('off', 'embed images in HTML page (BE CAREFUL: the HTTP referer will be sent to site hosting image!)'),
-    'http_embed_youtube': ('off', 'embed youtube videos in HTML page (BE CAREFUL: the HTTP referer will be sent to youtube!)'),
-    'http_prefix_suffix': (' ', 'suffix displayed between prefix and message in HTML page'),
+    'http_hostname'      : ('', 'force hostname (or IP) for URLs (empty value = auto-detect current hostname)'),
+    'http_port'          : ('', 'force port for listening (empty value = find a random free port)'),
+    'http_allowed_ips'   : ('', 'regex for IPs allowed to use server (example: "^(123.45.67.89|192.160.*)$")'),
+    'http_auth'          : ('', 'login and password (format: "login:password") required to access to page with list of URLs'),
+    'http_url_prefix'    : ('', 'prefix to add in URLs to prevent external people to scan your URLs (for example: prefix "xx" will give URL: http://host.com:1234/xx/8)'),
+    'http_bg_color'      : ('#f4f4f4', 'background color for HTML page'),
+    'http_embed_image'   : ('off', 'embed images in HTML page (BE CAREFUL: the HTTP referer will be sent to site hosting image!)'),
+    'http_embed_youtube' : ('off', 'embed youtube videos in HTML page (BE CAREFUL: the HTTP referer will be sent to youtube!)'),
+    'http_embed_youtube_size': ('480*350', 'size for embedded youtube video, format is "xxx*yyy"'),
+    'http_prefix_suffix' : (' ', 'suffix displayed between prefix and message in HTML page'),
     # message filter settings
-    'msg_ignore_buffers': ('core.weechat,python.grep', 'comma-separated list (without spaces) of buffers to ignore (full name like "irc.freenode.#weechat")'),
-    'msg_ignore_tags'   : ('irc_quit,irc_part,notify_none', 'comma-separated list (without spaces) of tags (or beginning of tags) to ignore (for example, use "notify_none" to ignore self messages or "nick_weebot" to ignore messages from nick "weebot")'),
-    'msg_require_tags'  : ('nick_', 'comma-separated list (without spaces) of tags (or beginning of tags) required to shorten URLs (for example "nick_" to shorten URLs only in messages from other users)'),
-    'msg_ignore_regex'  : ('', 'ignore messages matching this regex'),
+    'msg_ignore_buffers' : ('core.weechat,python.grep', 'comma-separated list (without spaces) of buffers to ignore (full name like "irc.freenode.#weechat")'),
+    'msg_ignore_tags'    : ('irc_quit,irc_part,notify_none', 'comma-separated list (without spaces) of tags (or beginning of tags) to ignore (for example, use "notify_none" to ignore self messages or "nick_weebot" to ignore messages from nick "weebot")'),
+    'msg_require_tags'   : ('nick_', 'comma-separated list (without spaces) of tags (or beginning of tags) required to shorten URLs (for example "nick_" to shorten URLs only in messages from other users)'),
+    'msg_ignore_regex'   : ('', 'ignore messages matching this regex'),
     'msg_ignore_dup_urls': ('off', 'ignore duplicated URLs (do not add an URL in list if it is already)'),
     # display settings
-    'color'             : ('darkgray', 'color for urls displayed'),
-    'display_urls'      : ('on', 'display URLs below messages'),
-    'url_min_length'    : ('0', 'minimum length for an URL to be shortened (0 = shorten all URLs)'),
-    'urls_amount'       : ('100', 'number of URLs to keep in memory (and in file when script is not loaded)'),
-    'buffer_short_name' : ('off', 'use buffer short name on dedicated buffer'),
-    'debug'             : ('off', 'print some debug messages'),
+    'color'              : ('darkgray', 'color for urls displayed'),
+    'display_urls'       : ('on', 'display URLs below messages'),
+    'url_min_length'     : ('0', 'minimum length for an URL to be shortened (0 = shorten all URLs)'),
+    'urls_amount'        : ('100', 'number of URLs to keep in memory (and in file when script is not loaded)'),
+    'buffer_short_name'  : ('off', 'use buffer short name on dedicated buffer'),
+    'debug'              : ('off', 'print some debug messages'),
 }
 urlserver_settings = {}
 
@@ -203,14 +208,21 @@ def urlserver_server_reply_list(conn, sort='-time'):
         message = cgi.escape(item[4].replace(url, '\x01\x02\x03\x04')).split('\t', 1)
         strjoin = ' %s ' % urlserver_settings['http_prefix_suffix'].replace(' ', '&nbsp;')
         message = strjoin.join(message).replace('\x01\x02\x03\x04', '<a href="%s" title="%s">%s</a>' % (urlserver_short_url(key), url, url))
-        if urlserver_settings['http_embed_image'] == 'on' and url.lower()[-4:] in ('.jpg', '.png', '.gif'):
+        if urlserver_settings['http_embed_image'] == 'on' and url.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.svg')):
             obj = '<div class="obj"><img src="%s" title="%s" alt="%s"></div>' % (url, url, url)
         elif urlserver_settings['http_embed_youtube'] == 'on' and 'youtube.com/' in url:
             m = re.search('v=([\w\d]+)', url)
             if m:
                 yid = m.group(1)
-                obj = '<div class="obj"><iframe id="%s" type="text/html" width="640" height="390" ' \
-                    'src="http://www.youtube.com/embed/%s?enablejsapi=1"></iframe></div>' %(yid, yid)
+                try:
+                    size = urlserver_settings['http_embed_youtube_size'].split('*')
+                    width = int(size[0])
+                    height = int(size[1])
+                except:
+                    width = 480
+                    height = 350
+                obj = '<div class="obj"><iframe id="%s" type="text/html" width="%d" height="%d" ' \
+                    'src="http://www.youtube.com/embed/%s?enablejsapi=1"></iframe></div>' % (yid, width, height, yid)
         content += '<td class="nowrap">%s</td><td class="nowrap">%s</td><td class="nowrap">%s</td><td>' % (item[0], item[1], item[2])
         content += '%s%s</td></tr>\n' % (message, obj)
     content += '</table>'
@@ -220,16 +232,16 @@ def urlserver_server_reply_list(conn, sort='-time'):
         '<meta http-equiv="content-type" content="text/html; charset=utf-8" />\n' \
         '<style type="text/css" media="screen">' \
         '<!--\n' \
-        '  html { font-family: Verdana, Arial, Helvetica; font-size: 12px }\n' \
+        '  html { font-family: Verdana, Arial, Helvetica; font-size: 12px; background: %s }\n' \
         '  .urls table { border-collapse: collapse }\n' \
-        '  .urls table td,th { border: solid 1px #DDDDDD; padding: 4px; font-size: 12px }\n' \
+        '  .urls table td,th { border: solid 1px #cccccc; padding: 4px; font-size: 12px }\n' \
         '  .nowrap { white-space: nowrap }\n' \
         '  .obj { text-align: center; margin-top: 1em }\n' \
         '-->' \
         '</style>\n' \
         '</head>\n' \
         '<body>\n%s\n</body>\n' \
-        '</html>' %content
+        '</html>' % (urlserver_settings['http_bg_color'], content)
     urlserver_server_reply(conn, '200 OK', '', html)
 
 def urlserver_server_fd_cb(data, fd):
