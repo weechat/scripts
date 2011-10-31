@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (C) 2011 godric <godric@0x3f.fr>
-# License: WTF
-# 
+# License: WTFPL
+#
 # Changelog
 # v1.1
 # + re-implemented state change
@@ -10,7 +10,7 @@
 SCRIPT_NAME    = 'weenetsoul'
 SCRIPT_AUTHOR  = 'godric <godric@0x3f.fr>'
 SCRIPT_VERSION = '1.1'
-SCRIPT_LICENSE = 'WTF'
+SCRIPT_LICENSE = 'WTFPL'
 SCRIPT_DESC    = 'Netsoul protocol for WeeChat'
 
 import weechat
@@ -21,7 +21,7 @@ import time, socket, hashlib, urllib, datetime, re
 ########################################
 
 class weeNSUser :
-    def __init__(self, login, data = '', location = '', group = '', state = '', state_time = 0, machtype = '', 
+    def __init__(self, login, data = '', location = '', group = '', state = '', state_time = 0, machtype = '',
                  ip = '', connection_time = 0, lastseen_time = 0, user_trust = 0, client_trust = 0, fd = '') :
         self.login = login
         self.fd = fd
@@ -77,7 +77,7 @@ class weeNSChat :
         if login != self.login :
             self.updateBuffer(login)
         weechat.prnt(self.buffer, '%s%s\t%s' % (weechat.color("chat_nick"), self.login, message))
-            
+
     def send(self, message) :
         weechat.prnt(self.buffer, '%s%s\t%s' % (weechat.color("chat_nick_self"), self.server.getOption('login'), message))
         recipient = self.login if self.fd is None else ':'+self.fd
@@ -98,25 +98,25 @@ class weeNSServer :
         self.chats = []
         self.contacts = {}
         self.options = {
-            'host'     : weechat.config_new_option(weeNS_config_file, weeNS_config_server_section, 
+            'host'     : weechat.config_new_option(weeNS_config_file, weeNS_config_server_section,
                                                    'host', 'string', 'Server Host (default: ns-server.epita.fr)', '', 0, 0,
                                                    'ns-server.epita.fr', 'ns-server.epita.fr', 0, '', '', '', '', '', ''),
-            'port'     : weechat.config_new_option(weeNS_config_file, weeNS_config_server_section, 
+            'port'     : weechat.config_new_option(weeNS_config_file, weeNS_config_server_section,
                                                    'port', 'string', 'Server Port (default: 4242)', '', 0, 0,
                                                    '4242', '4242', 0, '', '', '', '', '', ''),
-            'login'    : weechat.config_new_option(weeNS_config_file, weeNS_config_server_section, 
+            'login'    : weechat.config_new_option(weeNS_config_file, weeNS_config_server_section,
                                                    'login', 'string', 'User login (ie: login_x)', '', 0, 0,
                                                    'login_x', 'login_x', 0, '', '', '', '', '', ''),
-            'password' : weechat.config_new_option(weeNS_config_file, weeNS_config_server_section, 
+            'password' : weechat.config_new_option(weeNS_config_file, weeNS_config_server_section,
                                                    'password', 'string', 'User password (ie: your SOCKS password)', '', 0, 0,
                                                    'xxxxxx', 'xxxxxx', 0, '', '', '', '', '', ''),
-            'location' : weechat.config_new_option(weeNS_config_file, weeNS_config_server_section, 
+            'location' : weechat.config_new_option(weeNS_config_file, weeNS_config_server_section,
                                                    'location', 'string', 'User location (ie: at home)', '', 0, 0,
                                                    '-', '-', 0, '', '', '', '', '', ''),
-            'data'     : weechat.config_new_option(weeNS_config_file, weeNS_config_server_section, 
+            'data'     : weechat.config_new_option(weeNS_config_file, weeNS_config_server_section,
                                                    'data', 'string', 'User data (ie: j\'aime les chips)', '', 0, 0,
                                                    '-', '-', 0, '', '', '', '', '', ''),
-            'contacts' : weechat.config_new_option(weeNS_config_file, weeNS_config_server_section, 
+            'contacts' : weechat.config_new_option(weeNS_config_file, weeNS_config_server_section,
                                                    'contacts', 'string', 'Comma separated login list (ie: sb,rn)', '', 0, 0,
                                                    '', '', 0, '', '', '', '', '', '')}
 
@@ -162,7 +162,7 @@ class weeNSServer :
         self.hook_fd = weechat.hook_fd(self.socket.fileno(), 1, 0, 0, 'weeNS_hook_fd_cb', '')
 
     def recv(self) :
-#        while 1337 :            
+#        while 1337 :
         data = self.socket.recv(512)
         if len(data) == 0 :
             return self.disconnect()
@@ -179,7 +179,7 @@ class weeNSServer :
     def send(self, data) :
         weechat.prnt(self.buffer, '%s[%s]' % (weechat.prefix('quit'), data))
         self.socket.send('%s\n' % data)
-    
+
     def isConnected(self) :
         return (self.socket is not None)
 
@@ -233,7 +233,7 @@ class weeNSServer :
         data = urllib.quote(self.getOption('data'))
         crypt = hashlib.md5('%s-%s/%s%s' % (secret, ip, port, self.getOption('password'))).hexdigest()
         self.send("ext_user_log %s %s %s %s" % (self.getOption('login'), crypt, location, data))
-        
+
     def _ns_user_cmd_msg_user(self, login, msg) :
         msg = unicode(msg, 'utf-8').encode('iso-8859-1')
         self.send("user_cmd msg_user %s msg %s" % (login, urllib.quote(msg)))
@@ -258,7 +258,7 @@ class weeNSServer :
                 self._ns_parse_user_cmd_msg(arglist)
             elif arglist[3] == 'who':
                 self._ns_parse_user_cmd_who(arglist)
-            elif arglist[3] == 'login' : 
+            elif arglist[3] == 'login' :
                 self._ns_parse_user_cmd_login(arglist)
             elif arglist[3] == 'logout' :
                 self._ns_parse_user_cmd_logout(arglist)
@@ -269,10 +269,10 @@ class weeNSServer :
         r = re.compile('([0-9]+):user:([0-9]+)/([0-9]+):([_a-z]+)@([0-9.]+):([^ :]+):([^ :]+):([^ :]+)');
         match = re.match(r, str)
         groups = match.groups()
-        user = weeNSUser(fd = groups[0], client_trust = groups[1], user_trust = groups[2], login = groups[3], 
+        user = weeNSUser(fd = groups[0], client_trust = groups[1], user_trust = groups[2], login = groups[3],
                          ip = groups[4], machtype = groups[5], location = groups[6], group = groups[7])
         return user
-    
+
     def _ns_parse_salut(self, arglist) :
         self._ns_auth_ag()
         self._ns_ext_user_log(arglist[2], arglist[3], arglist[4])
@@ -314,7 +314,7 @@ class weeNSServer :
                 weechat.prnt(chat.buffer, '%s%s%s changed state : %s' % (weechat.prefix('network'), weechat.color('nick_color'), user.login, user.state))
 
     def _ns_parse_user_cmd_login(self, arglist) :
-        user = self._ns_parse_from(arglist[1])        
+        user = self._ns_parse_from(arglist[1])
         self._ns_user_cmd_who(':%s' % user.fd)
         chat = self.getChatByRecipient(fd = user.fd)
         if chat is not None :
@@ -336,7 +336,7 @@ def weeNS_buffer_input_cb(data, buffer, input_data) :
     if server.isConnected() :
         server.getChatByBuffer(buffer).send(input_data)
     return weechat.WEECHAT_RC_OK
-    
+
 def weeNS_buffer_close_cb(data, buffer) :
     global server
     context = server.getChatByBuffer(buffer)
