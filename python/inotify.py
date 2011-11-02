@@ -90,6 +90,10 @@
 #
 #
 #   History:
+#   2011-11-02, Sebastien Helleu <flashcode@flashtux.org>:
+#   version 0.1.3: use local variable "channel" in buffer instead of reading "short_name",
+#                  fix command for hook_process (remove line break before "-c")
+#
 #   2011-03-11, Sebastien Helleu <flashcode@flashtux.org>:
 #   version 0.1.2: get python 2.x binary for hook_process (fix problem when
 #                  python 3.x is default python version)
@@ -105,7 +109,7 @@
 
 SCRIPT_NAME    = "inotify"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.1.2"
+SCRIPT_VERSION = "0.1.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Notifications for WeeChat."
 SCRIPT_COMMAND = "inotify"
@@ -391,8 +395,7 @@ def msg_flush(*args):
 
 # command MUST be within single quotes, otherwise the shell would try to expand stuff and it might
 # be real nasty, somebody could run arbitrary code with a highlight.
-rpc_process_cmd = """
- -c '
+rpc_process_cmd = """ -c '
 import xmlrpclib
 try:
     server = xmlrpclib.Server("%(server_uri)s")
@@ -499,7 +502,7 @@ def notify_msg(workaround, buffer, time, tags, display, hilight, prefix, msg):
                 and not is_displayed(buffer):
             #debug('%sSending notification: %s' %(weechat.color('lightgreen'), channel), prefix='NOTIFY')
             if not private:
-                channel = weechat.buffer_get_string(buffer, 'short_name')
+                channel = weechat.buffer_get_string(buffer, 'localvar_channel')
                 if channel not in ignore_channel:
                     send_notify(msg, channel=channel, nick=prefix)
             else:
