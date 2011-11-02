@@ -16,10 +16,13 @@
 #
 # 
 use IO::Socket::INET;
+use WWW::Curl::Easy;
+use URI::Escape;
+
 use strict;
 use vars qw( %cmode $strmon_buffer $command_buffer $strmon_help $version $daemon_file $strmon_tag );
 
-$version = "0.4.5";
+$version = "0.5.0";
 weechat::register( "strmon", "Stravy", $version, "GPL",
   "Messages monitoring and notifications", "", "" );
 
@@ -51,7 +54,7 @@ $daemon_file=<<'AFP';
 #
 # This is a notify daemon associated with weechat script strmon,
 # it uses mplayer (http://www.mplayerhq.hu) for sound notifications
-# and qnotify for osd notifications.
+# and notify-send for osd notifications.
 #
 # It has to be run on the local machine, default port is 9867, but can
 # be changed using --localport=xxxx on the command line
@@ -174,24 +177,22 @@ $daemon_file=<<'AFP';
       $text=format_text($text);
       
       my $message="";
-      $message="<b><font size=2 color='$chancolor'>$chan  </font></b>";
-      $message.="<b><font size=2 color='$nickcolor'>$nick </font></b>";
+      $message="<b><font size=3 color='$chancolor'>$chan  </font></b>";
+      $message.="<b><font size=3 color='$nickcolor'>$nick </font></b>";
       $pic=$picdir."/".$pic unless ($pic=~/^\//);
       $message.="<img src='$pic'><br>";      
-      $message.="<font size=1>$text</font>";
+      $message.="<font size=3>$text</font>";
       
       unless ($mod==2)
         {
-        my $command="qnotify  -x 50 -y 50  -z '$bgcolor' -n '$fgcolor' --no-shadow -m \"$message\" &";
+        my $command="notify-send \"$message\" ";
         system($command);
-#         print("$command\n");
         }
       unless ($mod==1)
         {
         $sound=$sounddir."/".$sound unless ($sound=~/^\//);
         my $command="mplayer -ao alsa $sound 1 > /dev/null 2> /dev/null &";
         system($command);
-#         print("$command\n");
         }
       $ret="Notification done";
       return $ret;
@@ -216,7 +217,7 @@ $daemon_file=<<'AFP';
         {
         my $pic=$1;
         $pic=$picdir."/".$pic unless ($pic=~/^\//);
-        my $command="qnotify -x 50 -y 50 -z white -n black --no-shadow -m \"<img src='$pic'>\" &";
+        my $command="notify-send \"<img src='$pic'>\" &";
         system($command);
         $ret="done";
         } elsif ($ligne=~/^daemon play "(.*)"/)
@@ -280,6 +281,8 @@ this will redirect localhost:9867 on the remote machine to
 localhost:9867 on the local machine thus allowing strmon.pl weechat script
 to access the notification daemon on local machine.
 
+In this version, notifo support has been added (smartphone notification), 
+see http://notifo.com/ to get an account.
 
 strmon is configured by entering commands either with 
      /strmon command
@@ -327,6 +330,16 @@ is considered to be relative to \$HOME/.config/strmon_daemon/pics (res. /sounds)
 
             ex : color fgcolor #ffffff
                  color fgcolor black
+
+  notifo [on|off]
+  notifo test
+  notifo user [username]
+  notifo secret [API_secret]
+    without arguments : print current status of notifo use.
+    test : try to send a test notification
+    on|off : set use of notifo notifications
+    user [username] : print or set username for notifo account
+    secret [API_secret] : print or set user's api_secret for notifo account
 
   daemon [on|off]
   daemon write
@@ -449,7 +462,7 @@ sub strmon_buffer_input
         } elsif ($main eq 'open')
         {
         strmon_buffer_open();
-        }  elsif ($main eq 'mode')
+        } elsif ($main eq 'mode')
         {
         # mode
         strmon_mode_command($args);
@@ -457,6 +470,10 @@ sub strmon_buffer_input
         {
         # color
         strmon_color_command($args);
+        } elsif ($main eq 'notifo')
+        {
+        # notifo
+        strmon_notifo_command($args);
         } elsif ($main eq 'daemon')
         {
         # daemon
@@ -549,6 +566,59 @@ sub strmon_color_command
         }
     return weechat::WEECHAT_RC_OK;
 }
+
+
+sub strmon_notifo_command
+{
+    my $args=shift @_;
+    my $usenotifo=weechat::config_get_plugin("usenotifo");
+    my $user=weechat::config_get_plugin("notifo_user");
+    my $secret=weechat::config_get_plugin("notifo_secret");
+    $args=~/^(\S*)\s*(.*)$/;
+    my $first=$1;
+    my $second=$2;
+    if ($first eq '')
+        {
+        # print usage
+        weechat::print_date_tags($command_buffer,time,$strmon_tag,"Use of notifo is currently : $usenotifo");
+        } elsif (($first eq 'on') || ($first eq 'off'))
+        {
+        weechat::config_set_plugin('usenotifo',$first);
+        weechat::print_date_tags($command_buffer,time,$strmon_tag,"Use of notifo set to : $first");
+        } elsif ($first eq 'user')
+        {
+        if ($second eq '')
+            {
+            weechat::print_date_tags($command_buffer,time,$strmon_tag,"Notifo user is : $user");
+            } else
+            {
+            weechat::config_set_plugin('notifo_user',$second);
+            weechat::print_date_tags($command_buffer,time,$strmon_tag,"Notifo user set to : $second");
+            }
+        } elsif ($first eq 'secret')
+        {
+        if ($second eq '')
+            {
+            weechat::print_date_tags($command_buffer,time,$strmon_tag,"Notifo secret is : $secret");
+            } else
+            {
+            weechat::config_set_plugin('notifo_secret',$second);
+            weechat::print_date_tags($command_buffer,time,$strmon_tag,"Notifo secret set to : $second");
+            }
+        } elsif ($first eq 'test')
+        {
+            # test notifo
+            my $testdata='1 irc.#test Nickname : This is a test message';
+            strmon_notifo_execute($testdata);
+            weechat::print_date_tags($command_buffer,time,$strmon_tag,"Notifo test done");
+        } else
+        {
+        weechat::print_date_tags($command_buffer,time,$strmon_tag,"Wrong argument for notifo command.");   
+        }
+
+    return weechat::WEECHAT_RC_OK;
+}
+
 
 sub strmon_daemon_command
 {
@@ -1121,6 +1191,24 @@ sub strmon_buffer_open
 sub strmon_default_settings
 {
 # set default values
+# use notifo
+if (! weechat::config_is_set_plugin("usenotifo"))
+    {
+    weechat::config_set_plugin("usenotifo","off");
+    }
+
+# notifo user
+if (! weechat::config_is_set_plugin("notifo_user"))
+    {
+    weechat::config_set_plugin("notifo_user","nouser");
+    }
+
+# notifo secret
+if (! weechat::config_is_set_plugin("notifo_secret"))
+    {
+    weechat::config_set_plugin("notifo_secret","nosecret");
+    }
+
 # use daemon
 if (! weechat::config_is_set_plugin("usedaemon"))
     {
@@ -1220,21 +1308,86 @@ sub strmon_buffer_close
     return weechat::WEECHAT_RC_OK;
 }
 
+sub strmon_notifo_execute
+{
+    (my $data) =  @_;
+    my $nout=weechat::string_remove_color($data,"");
+    $nout=~/^(\d+)\s(\S+)\s(\S+)\s:\s(.*)$/;
+    my $nchan=$1;
+    my $chan=$2;
+    my $nick=$3;
+    my $msg=$4;
+
+    my $curl = new WWW::Curl::Easy;
+    my @fields;
+
+    push @fields,"label=".uri_escape($chan);
+    push @fields,"msg=".uri_escape($msg);
+    push @fields,"title=".uri_escape($nick);
+    push @fields,"uri=".uri_escape("http://www.google.com/");
+
+    my $pdata=join("&",@fields);
+
+    $curl->setopt(CURLOPT_POSTFIELDS, $pdata);
+    $curl->setopt(CURLOPT_URL, 'https://api.notifo.com/v1/send_notification');
+    my $credential=weechat::config_get_plugin("notifo_user").":".weechat::config_get_plugin("notifo_secret");
+    $curl->setopt(CURLOPT_USERPWD,$credential);
+    $curl->setopt(CURLOPT_SSL_VERIFYPEER,0);
+
+    # redirect response into variable $response_body
+    my $response_body;
+    open (my $fileid,">",\$response_body);
+    $curl->setopt(CURLOPT_WRITEDATA,$fileid);
+
+    # Starts the actual request
+    my $retcode = $curl->perform;
+
+    # Write an output in case of problems
+    if ($retcode == 0) {
+        # parse result
+        $response_body=~/^\{"status":"(.+)","response_code":(\d+),"response_message":"(.+)"\}/;
+        my $rstatus=$1;
+        my $rcode=$2;
+        my $rmsg=$3;        
+
+        if ($rstatus ne 'success') {
+            weechat::print_date_tags($command_buffer,time,$strmon_tag,"A notifo error happened :  Status = $rstatus  Code = $rcode  Msg = $rmsg");
+            }
+
+        } else {
+            weechat::print_date_tags($command_buffer,time,$strmon_tag,"A curl error happened : ".$curl->strerror($retcode)." ($retcode)");
+        }
+    # free data
+    undef(@fields);
+    close($fileid);
+}
 
 sub strmon_notify
 {
     (my $mode, my $pic, my $sound, my $bg_color, my $fg_color, my $chan_color, my $nick_color, my $data) = @_;
     my $ret=0;
-    # return if use of daemon is disabled
-    return $ret if (weechat::config_get_plugin('usedaemon') eq 'off');
-    my $port = weechat::config_get_plugin("notifyport");
-    if (my $sock = IO::Socket::INET->new(PeerAddr => 'localhost',
-                                    PeerPort => $port+0,
-                                    Proto => 'tcp'))
+    my $usedaemon=weechat::config_get_plugin('usedaemon');
+    my $usenotifo=weechat::config_get_plugin('usenotifo');
+    
+    # Daemon notification
+    if ($usedaemon eq 'on')
         {
-        my $out="$mode \"$pic\" \"$sound\" $bg_color $fg_color $chan_color $nick_color ".weechat::string_remove_color($data,"")."\n";
-        print $sock $out;
-        $sock->shutdown(2);
+        my $port = weechat::config_get_plugin("notifyport");
+        if (my $sock = IO::Socket::INET->new(PeerAddr => 'localhost',
+                                        PeerPort => $port+0,
+                                        Proto => 'tcp'))
+            {
+            my $out="$mode \"$pic\" \"$sound\" $bg_color $fg_color $chan_color $nick_color ".weechat::string_remove_color($data,"")."\n";
+            print $sock $out;
+            $sock->shutdown(2);
+            $ret=1;
+            }
+        }
+
+    # notifo notification
+    if ($usenotifo eq 'on')
+        {
+        strmon_notifo_execute($data);
         $ret=1;
         }
     return $ret;
