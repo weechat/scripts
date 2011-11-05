@@ -22,7 +22,7 @@ use URI::Escape;
 use strict;
 use vars qw( %cmode $strmon_buffer $command_buffer $strmon_help $version $daemon_file $strmon_tag );
 
-$version = "0.5.0";
+$version = "0.5.1";
 weechat::register( "strmon", "Stravy", $version, "GPL",
   "Messages monitoring and notifications", "", "" );
 
@@ -1321,10 +1321,17 @@ sub strmon_notifo_execute
     my $curl = new WWW::Curl::Easy;
     my @fields;
 
+    # Try to find an url in the message to send with the notification
+    my $url="http://www.google.com/";
+    if ($msg=~/(https?:\/\/\S+)/)
+        {
+        $url=$1;
+        }   
+
     push @fields,"label=".uri_escape($chan);
     push @fields,"msg=".uri_escape($msg);
     push @fields,"title=".uri_escape($nick);
-    push @fields,"uri=".uri_escape("http://www.google.com/");
+    push @fields,"uri=".uri_escape($url);
 
     my $pdata=join("&",@fields);
 
