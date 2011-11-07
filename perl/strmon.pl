@@ -22,7 +22,7 @@ use URI::Escape;
 use strict;
 use vars qw( %cmode $strmon_buffer $command_buffer $strmon_help $version $daemon_file $strmon_tag );
 
-$version = "0.5.1";
+$version = "0.5.2";
 weechat::register( "strmon", "Stravy", $version, "GPL",
   "Messages monitoring and notifications", "", "" );
 
@@ -1312,7 +1312,9 @@ sub strmon_notifo_execute
 {
     (my $data) =  @_;
     my $nout=weechat::string_remove_color($data,"");
-    $nout=~/^(\d+)\s(\S+)\s(\S+)\s:\s(.*)$/;
+    # do not notify unformatted messages (such as channel messages when monitoring 
+    # a buffer)
+    return unless($nout=~/^(\d+)\s(\S+)\s(\S+)\s:\s(.*)$/);
     my $nchan=$1;
     my $chan=$2;
     my $nick=$3;
