@@ -20,13 +20,14 @@
 # for settings see help page
 #
 # history:
+# 1.0: fixed: irc.look.nick_prefix wasn't supported
 # 0.9: added: option "own_nick" (idea by travkin)
 #    : new value (always) for option highlight
 #    : clean up code
 # 0.8.1: fixed: regex()
 # 0.8: added: option "avail_buffer" and "nicks" (please read help-page) (suggested by ldvx)
 #    : fixed: blacklist_channels wasn't load at start
-#    : fixed: nick_prefixes wasn't displayed since v0.7
+#    : fixed: nick_modes wasn't displayed since v0.7
 #    : rewrote init() routine
 #    : thanks to stfn for hint with unescaped variables in regex.
 # 0.7: fixed: bug when irc.look.nick_suffix was set (reported and beta-testing by: hw2) (>= weechat 0.3.4)
@@ -54,7 +55,7 @@
 
 use strict;
 my $prgname	= "colorize_lines";
-my $version	= "0.9";
+my $version	= "1.0";
 my $description	= "colors text in chat area with according nick color. Highlight messages will be fully highlighted in chat area";
 
 # default values
@@ -144,6 +145,13 @@ if ( $nick_suffix ne "" ){
   my $nick_suffix_color = weechat::color( weechat::config_color( weechat::config_get( "irc.color.nick_suffix" )));
   $nick_suffix_with_color = $nick_suffix_color . $nick_suffix;
 }
+# recreate irc.look.nick_prefix and irc.color.nick_prefix
+my $nick_prefix_with_color = "";
+my $nick_prefix = weechat::config_string( weechat::config_get("irc.look.nick_prefix"));
+if ( $nick_prefix ne "" ){
+  my $nick_prefix_color = weechat::color( weechat::config_color( weechat::config_get( "irc.color.nick_prefix" )));
+  $nick_prefix_with_color = $nick_prefix_color . $nick_prefix;
+}
 
 # check for action (/me)
 my $prefix_action_with_color = "";
@@ -181,7 +189,7 @@ if ( weechat::config_boolean(weechat::config_get("weechat.look.nickmode")) ==  1
             $nick = $prefix_action_with_color;
             $nick_mode = "";                                                                            # clear nick_mode for /me
           }else{
-            $nick = $nick_wo_suffix . $nick_suffix_with_color;
+            $nick = $nick_prefix_with_color . $nick_color . $nick_wo_suffix . $nick_suffix_with_color;
           }
 	  $line = $nick_mode . $nick_color . $nick . "\t" . $nick_color . $line . weechat::color('reset');
 	  return $line;
@@ -241,7 +249,7 @@ my $nick_color = weechat::info_get('irc_nick_color', $nick_wo_suffix);          
 			    return $line;
 			  }
 		    $line = colorize_nicks($high_color,$modifier_data,$line);
-		    $line = $nick_mode . $high_color . $nick . $nick_suffix_with_color . "\t" . $high_color . $line . weechat::color('reset');
+		    $line = $nick_mode . $high_color . $nick_prefix_with_color . $nick . $nick_suffix_with_color . "\t" . $high_color . $line . weechat::color('reset');
 		    return $line;
 		  }
 	      }
@@ -262,7 +270,7 @@ my $nick_color = weechat::info_get('irc_nick_color', $nick_wo_suffix);          
 # highlight whole line
 	if ( $var_hl_max_level_nicks_add eq 0 ){
 	      $line = colorize_nicks($high_color,$modifier_data,$line);
-	      $line = $nick_mode . $high_color . $nick . $nick_suffix_with_color . "\t" . $high_color . $line . weechat::color('reset');
+	      $line = $nick_prefix_with_color . $nick_mode . $high_color . $nick . $nick_suffix_with_color . "\t" . $high_color . $line . weechat::color('reset');
 	      return $line;
 	}
 	}
@@ -298,7 +306,7 @@ if ( $default_options{var_avail_buffer} ne "all" ){                             
 		my $color_highlight_bg = weechat::config_color(weechat::config_get("weechat.color.chat_highlight_bg"));
 		my $high_color = weechat::color("$color_highlight,$color_highlight_bg");
 		$line = colorize_nicks($high_color,$modifier_data,$line);
-		$line = $nick_mode . $high_color . $nick . $nick_suffix_with_color . "\t" . $high_color . $line . weechat::color('reset');
+		$line = $nick_prefix_with_color . $nick_mode . $high_color . $nick . $nick_suffix_with_color . "\t" . $high_color . $line . weechat::color('reset');
 		return $line;
 	    }
 	  }
@@ -313,7 +321,7 @@ if ( $default_options{var_avail_buffer} ne "all" ){                             
 	  }
 
       $line = colorize_nicks($nick_color,$modifier_data,$line);
-      $line = $nick_mode . $nick_color . $nick . $nick_suffix_with_color .  "\t" . $nick_color . $line . weechat::color('reset');  # create new line nick_color+nick+separator+text
+      $line = $nick_prefix_with_color . $nick_mode . $nick_color . $nick . $nick_suffix_with_color .  "\t" . $nick_color . $line . weechat::color('reset');  # create new line nick_color+nick+separator+text
       return $line;
     }else{
       return $string;										# return original string
