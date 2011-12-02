@@ -24,6 +24,8 @@
 #
 # History:
 #
+# 2011-11-29, quazgaa <quazgaa@gmail.com>
+#     version 0.2.1: fix: take refresh_rate into account for bandwidth calculation
 # 2009-10-15, xt <xt@bash.no>:
 #     version 0.2: error checking from output command
 # 2009-10-14, xt <xt@bash.no>:
@@ -32,7 +34,7 @@
 
 SCRIPT_NAME    = "bandwidth"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.2.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Displays network interface bandwidth on a bar"
 
@@ -68,6 +70,8 @@ def bandwidth_item_cb(data, buffer, args):
     global last_i, last_o
     
     device = weechat.config_get_plugin('device')
+    refresh_rate = float(weechat.config_get_plugin('refresh_rate'))
+
     pipe = os.popen(''' awk -v interface="%s"     'BEGIN { gsub(/\./, "\\\\.", interface) } \\
                 $1 ~ "^" interface ":" {
                     split($0, a, /: */); $0 = a[2]; \
@@ -87,8 +91,8 @@ def bandwidth_item_cb(data, buffer, args):
     cur_i = float(cur_i)
     cur_o = float(cur_o)
 
-    i = (cur_i - last_i)/1024 # KiB
-    o = (cur_o - last_o)/1024 # KiB
+    i = (cur_i - last_i)/refresh_rate/1024 # KiB
+    o = (cur_o - last_o)/refresh_rate/1024 # KiB
 
     if last_i == cur_i:
         return ''
