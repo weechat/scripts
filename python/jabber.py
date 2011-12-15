@@ -26,6 +26,8 @@
 # Happy chat, enjoy :)
 #
 # History:
+# 2011-12-15, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 0.9: fix utf-8 encoding problem on jid
 # 2011-03-21, Isaac Raway <isaac.raway@gmail.com>:
 #     version 0.8: search chat buffer before opening it
 # 2011-02-13, Sebastien Helleu <flashcode@flashtux.org>:
@@ -69,7 +71,7 @@
 
 SCRIPT_NAME    = "jabber"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.8"
+SCRIPT_VERSION = "0.9"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Jabber/XMPP protocol for WeeChat"
 SCRIPT_COMMAND = SCRIPT_NAME
@@ -593,7 +595,7 @@ class Server:
         body = node.getBody()
         if not jid or not body:
             return
-        buddy = self.search_buddy_list(str(jid).encode("utf-8"), by='jid')
+        buddy = self.search_buddy_list(self.stringify_jid(jid), by='jid')
         if not buddy:
             buddy = self.add_buddy(jid=jid)
         # If a chat buffer exists for the buddy, receive the message with that
