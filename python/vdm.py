@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2009-2011 Sebastien Helleu <flashcode@flashtux.org>
+# Copyright (C) 2009-2012 Sebastien Helleu <flashcode@flashtux.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2012-01-03, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 1.1: make script compatible with Python 3.x
 # 2011-03-11, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 1.0: get python 2.x binary for hook_process (fix problem when
 #                  python 3.x is default python version)
@@ -46,11 +48,11 @@
 #     version 0.1: initial release
 #
 
-import weechat, xml.dom.minidom
+import weechat, sys, xml.dom.minidom
 
 SCRIPT_NAME    = "vdm"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "1.0"
+SCRIPT_VERSION = "1.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Display content of viedemerde.fr/fmylife.com website"
 
@@ -121,7 +123,7 @@ if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
                          "All arguments for this command can be used as input "
                          "on VDM buffer.",
                          "", "vdm_cmd", "")
-    for option, default_value in settings.iteritems():
+    for option, default_value in settings.items():
         if weechat.config_get_plugin(option) == "":
             weechat.config_set_plugin(option, default_value)
 
@@ -148,14 +150,20 @@ def vdm_display(vdm):
     if weechat.config_get_plugin("reverse") == "on":
         vdm2.reverse()
     for index, item in enumerate(vdm2):
+        item_id = item["id"]
+        item_text = item["text"]
+        if sys.version_info < (3,):
+            # python 2.x: convert unicode to str (in python 3.x, id and text are already strings)
+            item_id = item_id.encode("UTF-8")
+            item_text = item_text.encode("UTF-8")
         weechat.prnt_date_tags(vdm_buffer,
                                0, "notify_message",
                                "%s%s%s%s%s" %
                                (weechat.color(weechat.config_get_plugin("color_number")),
-                                item["id"].encode("UTF-8"),
+                                item_id,
                                 separator,
                                 weechat.color(colors[0]),
-                                item["text"].encode("UTF-8")))
+                                item_text))
         colors.append(colors.pop(0))
         if index == len(vdm) - 1:
             weechat.prnt(vdm_buffer, "------")
