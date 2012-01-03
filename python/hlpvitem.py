@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2009 by FlashCode <flashcode@flashtux.org>
+# Copyright (C) 2009-2012 Sebastien Helleu <flashcode@flashtux.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,13 +26,15 @@
 #
 # History:
 #
-# 2009-10-02, FlashCode <flashcode@flashtux.org>:
+# 2012-01-03, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 0.2: make script compatible with Python 3.x
+# 2009-10-02, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.1: initial release
 #
 
 SCRIPT_NAME    = "hlpvitem"
-SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Item with highlight/private messages"
 
@@ -41,8 +43,8 @@ import_ok = True
 try:
     import weechat
 except:
-    print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print("This script must be run under WeeChat.")
+    print("Get WeeChat now at: http://www.weechat.org/")
     import_ok = False
 
 # script options
@@ -73,7 +75,7 @@ def hlpv_timer():
 def hlpv_timer_cb(data, remaining_calls):
     """ Called when a message must be removed from list. """
     global hlpv_messages
-    
+
     if len(hlpv_messages):
         hlpv_messages.pop(0)
         weechat.bar_item_update("hlpv")
@@ -84,7 +86,7 @@ def hlpv_timer_cb(data, remaining_calls):
 def hlpv_item_add(buffer, highlight, prefix, message):
     """ Add message to list of messages (will be displayed by item). """
     global hlpv_messages
-    
+
     if highlight == "1":
         color_type = weechat.config_string(weechat.config_get("weechat.color.status_data_highlight"))
         color_string_highlight = weechat.config_get_plugin("color_string_highlight")
@@ -142,7 +144,7 @@ def hlpv_print_cb(data, buffer, date, tags, displayed, highlight, prefix, messag
 def hlpv_item_cb(data, buffer, args):
     """ Callback for building hlpv item. """
     global hlpv_messages
-    
+
     if len(hlpv_messages) > 0:
         return hlpv_messages[0]
     return ""
@@ -152,7 +154,7 @@ if __name__ == "__main__" and import_ok:
                         SCRIPT_LICENSE, SCRIPT_DESC,
                         "", ""):
         # set default settings
-        for option, default_value in hlpv_settings.iteritems():
+        for option, default_value in hlpv_settings.items():
             if not weechat.config_is_set_plugin(option):
                 weechat.config_set_plugin(option, default_value)
         # new item
