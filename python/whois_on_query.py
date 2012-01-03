@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2009-2011 Sebastien Helleu <flashcode@flashtux.org>
+# Copyright (C) 2009-2012 Sebastien Helleu <flashcode@flashtux.org>
 # Copyright (C) 2011 Elián Hanisch <lambdae2@gmail.com>
 # Copyright (C) 2011 ArZa <arza@arza.us>
 #
@@ -24,6 +24,8 @@
 #
 # History:
 #
+# 2012-01-03, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 0.6: make script compatible with Python 3.x
 # 2011-10-17, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.5: add option "self_query" to do whois on self query,
 #       add help for options (WeeChat >= 0.3.5)
@@ -50,7 +52,7 @@ except ImportError:
 
 SCRIPT_NAME    = 'whois_on_query'
 SCRIPT_AUTHOR  = 'Sebastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '0.5'
+SCRIPT_VERSION = '0.6'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC    = 'Whois on query'
 
@@ -87,7 +89,7 @@ def signal_irc_pv_opened(data, signal, signal_data):
                 # query open, wait for a msg to come (query was open by user) or if we send a msg out
                 # (query was open by us)
                 server = weechat.buffer_get_string(signal_data, 'localvar_server')
-                irc_pv_hook = weechat.hook_signal('irc_pv', 'signal_irc_pv', 
+                irc_pv_hook = weechat.hook_signal('irc_pv', 'signal_irc_pv',
                                                   '%s,%s' % (signal_data, nick))
     return weechat.WEECHAT_RC_OK
 
@@ -105,7 +107,7 @@ if __name__ == '__main__' and import_ok:
                         SCRIPT_DESC, '', ''):
         # set default settings
         version = weechat.info_get('version_number', '') or 0
-        for option, value in woq_settings_default.iteritems():
+        for option, value in woq_settings_default.items():
             if not weechat.config_is_set_plugin(option):
                 weechat.config_set_plugin(option, value[0])
             if int(version) >= 0x00030500:
