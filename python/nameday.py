@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2003-2011 Sébastien Helleu <flashcode@flashtux.org>
+# Copyright (C) 2003-2012 Sebastien Helleu <flashcode@flashtux.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,24 +23,26 @@
 #
 # History:
 #
-# 2011-10-30, Sébastien Helleu <flashcode@flashtux.org>:
+# 2012-01-03, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 1.2: make script compatible with Python 3.x
+# 2011-10-30, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 1.1: fix colors in output of /nameday
-# 2011-05-06, Sébastien Helleu <flashcode@flashtux.org>:
+# 2011-05-06, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 1.0: add some missing names and color based on gender
-# 2010-01-14, Sébastien Helleu <flashcode@flashtux.org>:
+# 2010-01-14, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.9: add color options and options to display dates in bar item
-# 2010-01-13, Sébastien Helleu <flashcode@flashtux.org>:
+# 2010-01-13, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.8: conversion to python (script renamed to nameday.py),
 #                  conversion to WeeChat 0.3.0+
-# 2007-08-10, Sébastien Helleu <flashcode@flashtux.org>:
+# 2007-08-10, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.7
-# 2003-12-06, Sébastien Helleu <flashcode@flashtux.org>:
+# 2003-12-06, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.1: initial release (fete.pl)
 #
 
 SCRIPT_NAME    = 'nameday'
-SCRIPT_AUTHOR  = 'Sébastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '1.1'
+SCRIPT_AUTHOR  = 'Sebastien Helleu <flashcode@flashtux.org>'
+SCRIPT_VERSION = '1.2'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC    = 'Display name days in bar item and buffer'
 
@@ -57,9 +59,9 @@ except ImportError:
     import_ok = False
 
 try:
-    import time, unicodedata
+    import sys, time, unicodedata
     from datetime import date
-except ImportError, message:
+except ImportError as message:
     print('Missing package(s) for %s: %s' % (SCRIPT_NAME, message))
     import_ok = False
 
@@ -190,7 +192,12 @@ nameday_i18n = {
 
 def nameday_remove_accents(string):
     """Remove accents from string."""
-    return unicodedata.normalize('NFKD', unicode(string, 'UTF-8')).encode('ASCII', 'ignore')
+    if sys.version_info >= (3,):
+        # python 3.x
+        return unicodedata.normalize('NFKD', string).encode('ASCII', 'ignore').decode('UTF-8')
+    else:
+        # python 2.x
+        return unicodedata.normalize('NFKD', unicode(string, 'UTF-8')).encode('ASCII', 'ignore')
 
 def nameday_get_country():
     """Return country."""
@@ -423,7 +430,7 @@ def nameday_timer_cb(data, remaining_calls):
 def nameday_load_config():
     global nameday_settings_default, nameday_settings
     version = weechat.info_get("version_number", "") or 0
-    for option, value in nameday_settings_default.iteritems():
+    for option, value in nameday_settings_default.items():
         if weechat.config_is_set_plugin(option):
             nameday_settings[option] = weechat.config_get_plugin(option)
         else:
