@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2011 Sebastien Helleu <flashcode@flashtux.org>
+# Copyright (C) 2011-2012 Sebastien Helleu <flashcode@flashtux.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2012-01-03, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 0.4: make script compatible with Python 3.x
 # 2011-09-29, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.3: fix error on floodit buffer after /upgrade
 # 2011-08-20, Sebastien Helleu <flashcode@flashtux.org>:
@@ -32,7 +34,7 @@
 
 SCRIPT_NAME    = 'floodit'
 SCRIPT_AUTHOR  = 'Sebastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '0.3'
+SCRIPT_VERSION = '0.4'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC    = 'Flood\'it game'
 
@@ -49,7 +51,7 @@ except ImportError:
 
 try:
     import random, copy
-except ImportError, message:
+except ImportError as message:
     print('Missing package(s) for %s: %s' % (SCRIPT_NAME, message))
     import_ok = False
 
@@ -103,7 +105,7 @@ def floodit_display(clear=False):
     if floodit['mode'] == 'single':
         board = copy.deepcopy(floodit['board'])
         floodit_flood_xy(board, 0, 0, board[0][0])
-        percent = (floodit_count_color(board, -1) * 100) / (floodit['size'] * floodit['size'])
+        percent = (floodit_count_color(board, -1) * 100) // (floodit['size'] * floodit['size'])
         str_status = '%2d/%d%s (%d%%)' % (floodit['count'], floodit['count_max'],
                                           weechat.color('chat'), percent)
         message_end = { 'win': '** CONGRATS! **', 'lose': '...GAME OVER!...' }
@@ -197,8 +199,7 @@ def floodit_new_game():
 def floodit_change_size(add):
     """Change size of board."""
     global floodit
-    keys = floodit['sizes'].keys()
-    keys.sort()
+    keys = sorted(floodit['sizes'])
     index = keys.index(floodit['size']) + add
     if index >= 0 and index < len(keys):
         floodit['size'] = keys[index]
@@ -346,7 +347,7 @@ def floodit_build_combs(combs, curlist, maxsize, excludecolor):
         combs.append(curlist)
     else:
         curlist.append(-1)
-        colors = range(0, len(floodit['colors']))
+        colors = list(range(0, len(floodit['colors'])))
         random.shuffle(colors)
         for i in colors:
             if i == excludecolor:
@@ -462,8 +463,8 @@ def floodit_mouse_cb(data, hsignal, hashtable):
                         color = i
                         break
             elif y >= floodit['zoom'] + 2:
-                x = x / ((floodit['zoom'] + 1) * 2)
-                y = (y - floodit['zoom'] - 2) / (floodit['zoom'] + 1)
+                x = x // ((floodit['zoom'] + 1) * 2)
+                y = (y - floodit['zoom'] - 2) // (floodit['zoom'] + 1)
                 if y < floodit['size'] and x < floodit['size']:
                     color = floodit['board'][y][x]
             if color >= 0:
@@ -476,7 +477,7 @@ if __name__ == '__main__' and import_ok:
                         SCRIPT_DESC, '', ''):
         # set default settings
         version = weechat.info_get("version_number", "") or 0
-        for option, value in floodit_settings_default.iteritems():
+        for option, value in floodit_settings_default.items():
             if weechat.config_is_set_plugin(option):
                 floodit_settings[option] = weechat.config_get_plugin(option)
             else:
