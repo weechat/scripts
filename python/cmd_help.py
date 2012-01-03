@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2011 Sébastien Helleu <flashcode@flashtux.org>
+# Copyright (C) 2011-2012 Sebastien Helleu <flashcode@flashtux.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,16 +22,18 @@
 #
 # History:
 #
-# 2011-05-18, Sébastien Helleu <flashcode@flashtux.org>:
+# 2012-01-03, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 0.3: make script compatible with Python 3.x
+# 2011-05-18, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.2: add options for aliases, start on load, list of commands to
 #                  ignore; add default value in help of script options
-# 2011-05-15, Sébastien Helleu <flashcode@flashtux.org>:
+# 2011-05-15, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.1: initial release
 #
 
 SCRIPT_NAME    = 'cmd_help'
-SCRIPT_AUTHOR  = 'Sébastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '0.2'
+SCRIPT_AUTHOR  = 'Sebastien Helleu <flashcode@flashtux.org>'
+SCRIPT_VERSION = '0.3'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC    = 'Contextual command line help'
 
@@ -48,7 +50,7 @@ except ImportError:
 
 try:
     import re
-except ImportError, message:
+except ImportError as message:
     print('Missing package(s) for %s: %s' % (SCRIPT_NAME, message))
     import_ok = False
 
@@ -360,7 +362,7 @@ if __name__ == '__main__' and import_ok:
 
         # set default settings
         version = weechat.info_get("version_number", "") or 0
-        for option, value in cmdhelp_settings_default.iteritems():
+        for option, value in cmdhelp_settings_default.items():
             if weechat.config_is_set_plugin(option):
                 cmdhelp_settings[option] = weechat.config_get_plugin(option)
             else:
