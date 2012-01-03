@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2009-2011 Sébastien Helleu <flashcode@flashtux.org>
+# Copyright (C) 2009-2012 Sebastien Helleu <flashcode@flashtux.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,18 +21,20 @@
 #
 # History:
 #
-# 2011-08-20, Sébastien Helleu <flashcode@flashtux.org>:
+# 2012-01-03, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 0.4: make script compatible with Python 3.x
+# 2011-08-20, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.3: fix typo in /help translate
-# 2011-03-11, Sébastien Helleu <flashcode@flashtux.org>:
+# 2011-03-11, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.2: get python 2.x binary for hook_process (fix problem when
 #                  python 3.x is default python version)
-# 2009-10-15, Sébastien Helleu <flashcode@flashtux.org>:
+# 2009-10-15, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.1: initial release
 #
 
 SCRIPT_NAME    = "translate"
-SCRIPT_AUTHOR  = "Sébastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.3"
+SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
+SCRIPT_VERSION = "0.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Translate string using Google translate API"
 
@@ -41,20 +43,14 @@ import_ok = True
 try:
     import weechat
 except:
-    print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print("This script must be run under WeeChat.")
+    print("Get WeeChat now at: http://www.weechat.org/")
     import_ok = False
 
 try:
-    import simplejson
-except:
-    print "Package python-simplejson must be installed for script '%s'." % SCRIPT_NAME
-    import_ok = False
-
-try:
-    import lxml.html
-except:
-    print "Package python-lxml must be installed for script '%s'." % SCRIPT_NAME
+    import json, lxml.html
+except ImportError as message:
+    print('Missing package(s) for %s: %s' % (SCRIPT_NAME, message))
     import_ok = False
 
 # script options
@@ -139,7 +135,7 @@ def translate_extract_options(options):
 def translate_cmd_cb(data, buffer, args):
     """ Command /translate """
     global translate_input_before, translate_hook_process, translate_stdout, translate_options
-    
+
     # undo last translation
     if args == "<":
         current_input = weechat.buffer_get_string(buffer, "input")
@@ -148,22 +144,22 @@ def translate_cmd_cb(data, buffer, args):
         elif translate_input_after != "" and current_input != translate_input_after:
             weechat.buffer_set(buffer, "input", translate_input_after)
         return weechat.WEECHAT_RC_OK
-    
+
     # default options
     translate_options = { "lang": weechat.config_get_plugin("from_to").split("_"),
                           "word": False,
                           "before_marker": "",
                           "string": args }
-    
+
     # read options in command arguments
     translate_extract_options(translate_options)
-    
+
     # if there's no string given as argument of command, then use buffer input
     extract = False
     if translate_options["string"] == "":
         translate_options["string"] = weechat.buffer_get_string(buffer, "input")
         extract = True
-    
+
     # keep only text after marker for translation
     marker = weechat.config_get_plugin("marker")
     if marker != "":
@@ -172,25 +168,25 @@ def translate_cmd_cb(data, buffer, args):
             translate_options["before_marker"] = translate_options["string"][0:pos]
             translate_options["string"] = translate_options["string"][pos+len(marker):]
             extract = True
-    
+
     # read options in text
     if extract:
         translate_extract_options(translate_options)
-    
+
     # keep only last word if option "1 word" is enabled
     if translate_options["word"]:
         words = translate_options["string"].split(" ")
         translate_options["string"] = words[-1]
-    
+
     # no text to translate? exit!
     if translate_options["string"] == "":
         return weechat.WEECHAT_RC_OK
-    
+
     # cancel current process if there is one
     if translate_hook_process != "":
         weechat.unhook(translate_hook_process)
         translate_hook_process = ""
-    
+
     # translate!
     translate_stdout = ""
     args_urlopen = "'%s', data = urllib.urlencode({'langpair': '%s|%s', 'v': '1.0', 'q': '%s', })" \
@@ -200,7 +196,7 @@ def translate_cmd_cb(data, buffer, args):
     translate_hook_process = weechat.hook_process(
         python2_bin + " -c \"import urllib; print urllib.urlopen(" + args_urlopen + ").read()\"",
         10 * 1000, "translate_process_cb", "")
-    
+
     return weechat.WEECHAT_RC_OK
 
 if __name__ == "__main__" and import_ok:
@@ -208,7 +204,7 @@ if __name__ == "__main__" and import_ok:
                         SCRIPT_LICENSE, SCRIPT_DESC,
                         "", ""):
         # set default settings
-        for option, default_value in translate_settings.iteritems():
+        for option, default_value in translate_settings.items():
             if not weechat.config_is_set_plugin(option):
                 weechat.config_set_plugin(option, default_value)
         # new command
