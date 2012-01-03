@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2011 Sebastien Helleu <flashcode@flashtux.org>
+# Copyright (C) 2011-2012 Sebastien Helleu <flashcode@flashtux.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2012-01-03, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 0.6: make script compatible with Python 3.x
 # 2011-10-03, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.5: stop timer when game ends (win with flags remaining) or when
 #                  minesweeper buffer is not displayed
@@ -37,7 +39,7 @@
 
 SCRIPT_NAME    = 'minesweeper'
 SCRIPT_AUTHOR  = 'Sebastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '0.5'
+SCRIPT_VERSION = '0.6'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC    = 'Minesweeper game'
 
@@ -54,7 +56,7 @@ except ImportError:
 
 try:
     import random, copy
-except ImportError, message:
+except ImportError as message:
     print('Missing package(s) for %s: %s' % (SCRIPT_NAME, message))
     import_ok = False
 
@@ -108,8 +110,8 @@ def minesweeper_display_status():
     else:
         if minesweeper['flags'] == 0:
             msgend = '%sSome bad flags, remove and go on!' % weechat.color('yellow')
-    hours = minesweeper['time'] / 3600
-    minutes = (minesweeper['time'] % 3600) / 60
+    hours = minesweeper['time'] // 3600
+    minutes = (minesweeper['time'] % 3600) // 60
     seconds = (minesweeper['time'] % 3600) % 60
     if minesweeper_settings['utf8'] == 'on':
         flag = '⚑'
@@ -298,8 +300,8 @@ def minesweeper_new_game():
             if not minesweeper['board'][y][x][0]:
                 break
         minesweeper['board'][y][x][0] = True
-    minesweeper['x'] = minesweeper['size'] / 2
-    minesweeper['y'] = minesweeper['size'] / 2
+    minesweeper['x'] = minesweeper['size'] // 2
+    minesweeper['y'] = minesweeper['size'] // 2
     minesweeper['flags'] = minesweeper['mines'][minesweeper['size']]
     minesweeper_timer_stop()
     minesweeper['time'] = 0
@@ -315,8 +317,7 @@ def minesweeper_end(end):
 def minesweeper_change_size(add):
     """Change size of board."""
     global minesweeper
-    keys = minesweeper['mines'].keys()
-    keys.sort()
+    keys = sorted(minesweeper['mines'])
     index = keys.index(minesweeper['size']) + add
     if index >= 0 and index < len(keys):
         minesweeper['size'] = keys[index]
@@ -461,7 +462,7 @@ def minesweeper_cmd_cb(data, buffer, args):
         index = 0
         if args == '16col':
             index = 1
-        for option, value in minesweeper_settings_default.iteritems():
+        for option, value in minesweeper_settings_default.items():
             if option.startswith('color_'):
                 weechat.config_set_plugin(option, value[index])
                 minesweeper_settings[option] = value[index]
@@ -529,8 +530,8 @@ def minesweeper_mouse_cb(data, hsignal, hashtable):
         y = int(hashtable.get('_chat_line_y', '-1'))
         key = hashtable.get('_key', '')
         if x >= 0 and y >= 1:
-            x = x / (4 + (minesweeper['zoom'] * 2))
-            y = (y - 1) / (minesweeper['zoom'] + 2)
+            x = x // (4 + (minesweeper['zoom'] * 2))
+            y = (y - 1) // (minesweeper['zoom'] + 2)
             if x >= 0 and x <= minesweeper['size'] - 1 and y >= 0 and y <= minesweeper['size'] - 1:
                 minesweeper_timer_start()
                 if key.startswith('button1'):
@@ -547,7 +548,7 @@ if __name__ == '__main__' and import_ok:
                         SCRIPT_DESC, '', ''):
         # set default settings
         version = weechat.info_get('version_number', '') or 0
-        for option, value in minesweeper_settings_default.iteritems():
+        for option, value in minesweeper_settings_default.items():
             if weechat.config_is_set_plugin(option):
                 minesweeper_settings[option] = weechat.config_get_plugin(option)
             else:
