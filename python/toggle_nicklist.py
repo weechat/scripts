@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2009 by xt <xt@bash.no>
+# Copyright (C) 2009 xt <xt@bash.no>
+# Copyright (C) 2009-2012 Sebastien Helleu <flashcode@flashtux.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,24 +20,28 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
-# 2010-06-03, Nils Görs <weechatter@arcor.de>
+#
+# 2012-01-03, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 0.7: make script compatible with Python 3.x,
+#                  use string_match of WeeChat API
+# 2010-06-03, Nils Görs <weechatter@arcor.de>:
 #     version 0.6: option "toggle" added
-# 2010-02-03, Alex Barrett <al.barrett@gmail.com>
+# 2010-02-03, Alex Barrett <al.barrett@gmail.com>:
 #     version 0.5: support wildcards in buffers list
-# 2009-06-23, FlashCode
+# 2009-06-23, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.4: use modifier to show/hide nicklist on a buffer
-# 2009-06-23, xt
+# 2009-06-23, xt <xt@bash.no>:
 #     version 0.3: use hiding/showing instead of disabling nicklist
-# 2009-06-23, xt
+# 2009-06-23, xt <xt@bash.no>:
 #     version 0.2: use better check if buffer has nicklist
-# 2009-06-22, xt <xt@bash.no>
+# 2009-06-22, xt <xt@bash.no>:
 #     version 0.1: initial release
 
 import weechat as w
 
 SCRIPT_NAME    = "toggle_nicklist"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.6"
+SCRIPT_VERSION = "0.7"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Auto show and hide nicklist depending on buffer name"
 
@@ -68,13 +73,13 @@ def nicklist_cmd_cb(data, buffer, args):
     else:
         current_buffer_name = w.buffer_get_string(buffer, 'plugin') + '.' + w.buffer_get_string(buffer, 'name')
         if args == 'toggle':
-	    toggle = w.config_get_plugin('action')
-	    if toggle == 'show':
-		w.config_set_plugin('action', 'hide')
-		w.command('', '/window refresh')
-	    elif toggle == 'hide':
-		w.config_set_plugin('action', 'show')
-		w.command('', '/window refresh')
+            toggle = w.config_get_plugin('action')
+            if toggle == 'show':
+                w.config_set_plugin('action', 'hide')
+                w.command('', '/window refresh')
+            elif toggle == 'hide':
+                w.config_set_plugin('action', 'show')
+                w.command('', '/window refresh')
         if args == 'show':
             w.config_set_plugin('action', 'show')
             #display_action()
@@ -101,51 +106,33 @@ def nicklist_cmd_cb(data, buffer, args):
                 w.command('', '/window refresh')
             else:
                 w.prnt('', '%s: buffer "%s" is not in list' % (SCRIPT_NAME, current_buffer_name))
-    
+
     return w.WEECHAT_RC_OK
 
 def check_nicklist_cb(data, modifier, modifier_data, string):
     ''' The callback that checks if nicklist should be displayed '''
-    
+
     buffer = w.window_get_pointer(modifier_data, "buffer")
     if buffer:
         buffer_name = w.buffer_get_string(buffer, 'plugin') + '.' + w.buffer_get_string(buffer, 'name')
         buffers_list = w.config_get_plugin('buffers')
         if w.config_get_plugin('action') == 'show':
             for buffer_mask in buffers_list.split(','):
-                if string_match(unicode(buffer_name), unicode(buffer_mask)):
+                if w.string_match(buffer_name, buffer_mask, 1):
                     return "1"
             return "0"
         else:
             for buffer_mask in buffers_list.split(','):
-                if string_match(unicode(buffer_name), unicode(buffer_mask)):
+                if w.string_match(buffer_name, buffer_mask, 1):
                     return "0"
             return "1"
     return "1"
 
-def string_match(value, mask):
-    """Tests whether a string matches a mask.
-
-    A mask can start or end with * representing wildcards. Any other * are
-    matched as literal characters. An empty mask will never match.
-    """
-
-    if mask == '':
-        return False
-    if mask[0] == '*' and mask[-1] == '*':
-        return value.find(mask[1:-1]) > -1
-    if mask[0] == '*':
-         index = value.rfind(mask[1:])
-         return len(value[index:]) == len(mask[1:])
-    if mask[-1] == '*':
-        return value.find(mask[:-1]) == 0
-    return value == mask
-
 if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, "", ""):
-    for option, default_value in settings.iteritems():
+    for option, default_value in settings.items():
         if not w.config_is_set_plugin(option):
             w.config_set_plugin(option, default_value)
-    
+
     w.hook_command(SCRIPT_COMMAND,
                    "Show or hide nicklist on some buffers",
                    "[show|hide|toggle|add|remove]",
