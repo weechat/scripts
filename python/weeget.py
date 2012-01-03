@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2009-2011 Sebastien Helleu <flashcode@flashtux.org>
+# Copyright (C) 2009-2012 Sebastien Helleu <flashcode@flashtux.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,10 +18,12 @@
 
 #
 # WeeChat scripts manager.
-# (this script requires WeeChat 0.3.0 (or newer) and python 2.5)
+# (this script requires WeeChat >= 0.3.0 and python >= 2.6)
 #
 # History:
 #
+# 2012-01-03, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 1.5: make script compatible with Python 3.x
 # 2011-03-25, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 1.4: add completion with installed scripts for action "remove"
 # 2011-03-10, Sebastien Helleu <flashcode@flashtux.org>:
@@ -60,7 +62,7 @@
 
 SCRIPT_NAME    = "weeget"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "1.4"
+SCRIPT_VERSION = "1.5"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "WeeChat scripts manager"
 
@@ -71,14 +73,14 @@ import_ok = True
 try:
     import weechat
 except ImportError:
-    print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print("This script must be run under WeeChat.")
+    print("Get WeeChat now at: http://www.weechat.org/")
     import_ok = False
 
 try:
-    import os, stat, time, gzip, hashlib, xml.dom.minidom
-except ImportError, message:
-    print "Missing package(s) for %s: %s" % (SCRIPT_NAME, message)
+    import sys, os, stat, time, gzip, hashlib, xml.dom.minidom
+except ImportError as message:
+    print("Missing package(s) for %s: %s" % (SCRIPT_NAME, message))
     import_ok = False
 
 CONFIG_FILE_NAME = "wg"
@@ -131,7 +133,7 @@ def wg_config_init():
                                         "wg_config_reload_cb", "")
     if wg_config_file == "":
         return
-    
+
     # section "color"
     section_color = weechat.config_new_section(
         wg_config_file, "color", 0, 0, "", "", "", "", "", "", "", "", "", "")
@@ -162,7 +164,7 @@ def wg_config_init():
         wg_config_file, section_color,
         "language", "color", "Color for language names", "", 0, 0,
         "lightblue", "lightblue", 0, "", "", "", "", "", "")
-    
+
     # section "scripts"
     section_scripts = weechat.config_new_section(
         wg_config_file, "scripts", 0, 0, "", "", "", "", "", "", "", "", "", "")
@@ -217,13 +219,35 @@ def wg_config_create_dir():
     """ Create weeget directory. """
     dir = wg_config_get_dir()
     if not os.path.isdir(dir):
-        os.makedirs(dir, mode=0700)
+        os.makedirs(dir, mode=0o700)
 
 def wg_config_get_cache_filename():
     """ Get local cache filename, based on URL. """
     global wg_config_option
     return wg_config_get_dir() + os.sep + \
            os.path.basename(weechat.config_string(wg_config_option["scripts_url"]))
+
+# =============================[ download file ]==============================
+
+def wg_download_file(url, filename, timeout, callback, callback_data):
+    """Download a file with an URL. Return hook_process created."""
+    script = [ "import sys",
+               "try:",
+               "    if sys.version_info >= (3,):",
+               "        import urllib.request",
+               "        response = urllib.request.urlopen('%s')" % url,
+               "    else:",
+               "        import urllib2",
+               "        response = urllib2.urlopen(urllib2.Request('%s'))" % url,
+               "    f = open('%s', 'wb')" % filename,
+               "    f.write(response.read())",
+               "    response.close()",
+               "    f.close()",
+               "except Exception as e:",
+               "    print('error:' + str(e))" ]
+    return weechat.hook_process("python -c \"%s\"" % "\n".join(script),
+                                timeout,
+                                callback, callback_data)
 
 # ================================[ scripts ]=================================
 
@@ -233,7 +257,7 @@ def wg_search_script_by_name(name):
     Name can be short name ('weeget') or full name ('weeget.py').
     """
     global wg_scripts
-    for id, script in wg_scripts.iteritems():
+    for id, script in wg_scripts.items():
         if script["name"] == name or script["full_name"] == name:
             return script
     return None
@@ -260,7 +284,7 @@ def wg_is_local_script_loaded(filename):
     filename2 = filename
     if filename2.startswith("autoload/"):
         filename2 = filename2[9:]
-    for name, path in wg_loaded_scripts.iteritems():
+    for name, path in wg_loaded_scripts.items():
         if path.endswith(filename) or path.endswith(filename2):
             return True
     return False
@@ -278,9 +302,10 @@ def wg_get_local_script_status(script):
         local_name = local_dir + os.sep + script["full_name"]
     if os.path.isfile(local_name):
         status["installed"] = "1"
-        f = file(local_name, "rb")
+        f = open(local_name, "rb")
         md5 = hashlib.md5()
         md5.update(f.read())
+        f.close()
         local_md5 = md5.hexdigest()
         if local_md5 != script["md5sum"]:
             status["obsolete"] = "1"
@@ -329,7 +354,7 @@ def wg_get_local_scripts_status():
     local_scripts_status = []
     local_scripts = wg_get_local_scripts()
     if len(local_scripts) > 0:
-        for language, files in local_scripts.iteritems():
+        for language, files in local_scripts.items():
             for file in files:
                 script_status = { "unknown": "", "obsolete": "", "running": "" }
                 name_with_ext = os.path.basename(file)
@@ -352,7 +377,7 @@ def wg_search_scripts(search):
     if search == "":
         return wg_scripts
     scripts_matching = {}
-    for id, script in wg_scripts.iteritems():
+    for id, script in wg_scripts.items():
         if script["name"].lower().find(search) >= 0 \
            or script["language"].lower().find(search) >= 0 \
            or script["desc_en"].lower().find(search) >= 0 \
@@ -392,8 +417,8 @@ def wg_list_scripts(search, installed=False):
             else:
                 weechat.prnt("", "Scripts for WeeChat %s:"
                              % weechat.info_get("version", ""))
-        sorted_scripts = sorted(scripts_matching.iteritems(),
-                                key=lambda(k,v):v["name"])
+        sorted_scripts = sorted(scripts_matching.items(),
+                                key=lambda s: s[1]["name"])
         length_max_name = 0
         for item in sorted_scripts:
             length = len(item[1]["name"])
@@ -545,20 +570,8 @@ def wg_install_next_script():
                     wg_hook_process["script"] = ""
                 wg_current_script_install = script
                 filename = wg_config_get_dir() + os.sep + script["full_name"]
-                python2_bin = weechat.info_get("python2_bin", "") or "python"
-                wg_hook_process["script"] = weechat.hook_process(
-                    python2_bin + " -c \"import urllib, urllib2\n"
-                    "req = urllib2.Request('" + script["url"] + "')\n"
-                    "try:\n"
-                    "    response = urllib2.urlopen(req)\n"
-                    "    file = open('" + filename + "', 'w')\n"
-                    "    file.write(response.read())\n"
-                    "    response.close()\n"
-                    "    file.close()\n"
-                    "except urllib2.URLError, e:\n"
-                    "    print 'error:%s' % e.code\n"
-                    "\"",
-                    TIMEOUT_SCRIPT, "wg_process_script_cb", "")
+                wg_hook_process["script"] = wg_download_file(script["url"], filename, TIMEOUT_SCRIPT,
+                                                             "wg_process_script_cb", "")
                 # this function will be called again when script will be
                 # downloaded
                 return
@@ -632,7 +645,7 @@ def wg_upgrade_scripts():
     if len(wg_scripts) == 0:
         return
     scripts_to_upgrade = []
-    for id, script in wg_scripts.iteritems():
+    for id, script in wg_scripts.items():
         status = wg_get_local_script_status(script)
         if status["installed"] and status["obsolete"]:
             scripts_to_upgrade.append(script["name"])
@@ -692,7 +705,7 @@ def wg_execute_action():
         else:
             weechat.prnt("", "%s%s: unknown action \"%s\""
                          % (weechat.prefix("error"), SCRIPT_NAME, wg_action))
-    
+
     # reset action
     wg_action = ""
     wg_action_args = ""
@@ -757,8 +770,12 @@ def wg_parse_xml():
                 for node in scriptNode.childNodes:
                     if node.nodeType == node.ELEMENT_NODE:
                         if node.firstChild != None:
-                            nodename = node.nodeName.encode("utf-8")
-                            value = node.firstChild.data.encode("utf-8")
+                            nodename = node.nodeName
+                            value = node.firstChild.data
+                            if sys.version_info < (3,):
+                                # python 2.x: convert unicode to str (in python 3.x, id and text are already strings)
+                                nodename = nodename.encode("utf-8")
+                                value = value.encode("utf-8")
                             script[nodename] = value
                 if script["language"] in SCRIPT_EXTENSION:
                     script["full_name"] = script["name"] + "." + SCRIPT_EXTENSION[script["language"]]
@@ -796,20 +813,8 @@ def wg_update_cache():
     wg_config_create_dir()
     url = weechat.config_string(wg_config_option["scripts_url"])
     filename = wg_config_get_cache_filename()
-    python2_bin = weechat.info_get("python2_bin", "") or "python"
-    wg_hook_process["update"] = weechat.hook_process(
-        python2_bin + " -c \"import urllib, urllib2\n"
-        "req = urllib2.Request('" + url + "')\n"
-        "try:\n"
-        "    response = urllib2.urlopen(req)\n"
-        "    file = open('" + filename + "', 'w')\n"
-        "    file.write(response.read())\n"
-        "    response.close()\n"
-        "    file.close()\n"
-        "except urllib2.URLError, e:\n"
-        "    print 'error:%s' % e.code\n"
-        "\"",
-        TIMEOUT_UPDATE, "wg_process_update_cb", "")
+    wg_hook_process["update"] = wg_download_file(url, filename, TIMEOUT_UPDATE,
+                                                 "wg_process_update_cb", "")
 
 def wg_read_scripts(download_list=True):
     """ Read scripts list (download list if needed and asked). """
@@ -842,10 +847,10 @@ def wg_cmd(data, buffer, args):
     argv = args.strip().split(" ", 1)
     if len(argv) == 0:
         return weechat.WEECHAT_RC_OK
-    
+
     wg_action = ""
     wg_action_args = ""
-    
+
     # check arguments
     if len(argv) < 2:
         if argv[0] == "show" or \
@@ -854,7 +859,7 @@ def wg_cmd(data, buffer, args):
             weechat.prnt("", "%s: too few arguments for action \"%s\""
                          % (SCRIPT_NAME, argv[0]))
             return weechat.WEECHAT_RC_OK
-    
+
     # execute asked action
     if argv[0] == "update":
         wg_update_cache()
@@ -864,7 +869,7 @@ def wg_cmd(data, buffer, args):
         if len(argv) > 1:
             wg_action_args = argv[1]
         wg_read_scripts()
-    
+
     return weechat.WEECHAT_RC_OK
 
 def wg_completion_scripts_cb(data, completion_item, buffer, completion):
@@ -872,7 +877,7 @@ def wg_completion_scripts_cb(data, completion_item, buffer, completion):
     global wg_scripts
     wg_read_scripts(download_list=False)
     if len(wg_scripts) > 0:
-        for id, script in wg_scripts.iteritems():
+        for id, script in wg_scripts.items():
             weechat.hook_completion_list_add(completion, script["full_name"],
                                              0, weechat.WEECHAT_LIST_POS_SORT)
     return weechat.WEECHAT_RC_OK
@@ -882,7 +887,7 @@ def wg_completion_scripts_installed_cb(data, completion_item, buffer, completion
     global wg_scripts
     wg_read_scripts(download_list=False)
     if len(wg_scripts) > 0:
-        for id, script in wg_scripts.iteritems():
+        for id, script in wg_scripts.items():
             status = wg_get_local_script_status(script)
             if status["installed"]:
                 weechat.hook_completion_list_add(completion, script["full_name"],
@@ -894,7 +899,7 @@ def wg_completion_scripts_tags_cb(data, completion_item, buffer, completion):
     global wg_scripts
     wg_read_scripts(download_list=False)
     if len(wg_scripts) > 0:
-        for id, script in wg_scripts.iteritems():
+        for id, script in wg_scripts.items():
             if script["tags"]:
                 for tag in script["tags"].split(","):
                     weechat.hook_completion_list_add(completion, tag,
