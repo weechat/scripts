@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2010 by FlashCode <flashcode@flashtux.org>
+# Copyright (C) 2010-2012 Sebastien Helleu <flashcode@flashtux.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,9 @@
 #
 # History:
 #
-# 2010-02-09, FlashCode <flashcode@flashtux.org>:
+# 2012-01-03, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 0.2: make script compatible with Python 3.x
+# 2010-02-09, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.1: initial release
 #
 
@@ -31,15 +33,15 @@ import_ok = True
 try:
     import weechat
 except:
-    print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print("This script must be run under WeeChat.")
+    print("Get WeeChat now at: http://www.weechat.org/")
     import_ok = False
 
 import re
 
 SCRIPT_NAME    = "dcc_antispam"
-SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Antispam for DCC file/chat requests"
 
@@ -72,7 +74,7 @@ dcc_regex_dcc_send = re.compile(r"\S+ PRIVMSG \S+ :\01DCC (SEND|CHAT) ([^\01]+)\
 def dcc_is_blocked(dcc):
     """ Return True if dcc is blocked, False if dcc is not blocked. """
     global dcc_settings_regex
-    for key, value in dcc.iteritems():
+    for key, value in dcc.items():
         if key in dcc_settings_regex:
             if weechat.config_get_plugin(key) != "":
                 for regex in dcc_settings_regex[key]:
@@ -124,7 +126,7 @@ def dcc_privmsg_modifier_cb(data, modifier, modifier_data, string):
                                      (SCRIPT_NAME, dcc["name"], weechat.info_get("irc_nick_from_host", string),
                                       dcc["size"], dcc["ip"], dcc["port"]))
                 return ""
-    
+
     return string
 
 def dcc_build_regex():
@@ -151,7 +153,7 @@ if __name__ == "__main__" and import_ok:
                         SCRIPT_LICENSE, SCRIPT_DESC,
                         "", ""):
         # set default settings
-        for option, default_value in dcc_settings.iteritems():
+        for option, default_value in dcc_settings.items():
             if not weechat.config_is_set_plugin(option):
                 weechat.config_set_plugin(option, default_value)
         dcc_build_regex()
