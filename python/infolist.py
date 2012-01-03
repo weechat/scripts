@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2008-2010 by FlashCode <flashcode@flashtux.org>
+# Copyright (C) 2008-2012 Sebastien Helleu <flashcode@flashtux.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,19 +18,22 @@
 # Display infolist in a buffer.
 #
 # History:
+#
+# 2012-01-03, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 0.4: make script compatible with Python 3.x
 # 2010-01-23, m4v <lambdae2@gmail.com>:
 #     version 0.3: user can give a pointer as argument
-# 2010-01-18, FlashCode <flashcode@flashtux.org>:
+# 2010-01-18, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.2: use tag "no_filter" for lines displayed, fix display bug
 #                  when infolist is empty
-# 2009-11-30, FlashCode <flashcode@flashtux.org>:
+# 2009-11-30, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.1: first version
-# 2008-12-12, FlashCode <flashcode@flashtux.org>:
+# 2008-12-12, Sebastien Helleu <flashcode@flashtux.org>:
 #     script creation
 
 SCRIPT_NAME    = "infolist"
-SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.3"
+SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
+SCRIPT_VERSION = "0.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Display infolist in a buffer"
 
@@ -39,8 +42,8 @@ import_ok = True
 try:
     import weechat
 except:
-    print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print("This script must be run under WeeChat.")
+    print("Get WeeChat now at: http://www.weechat.org/")
     import_ok = False
 
 infolist_buffer = ""
