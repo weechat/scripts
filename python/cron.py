@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2010-2011 Sebastien Helleu <flashcode@flashtux.org>
+# Copyright (C) 2010-2012 Sebastien Helleu <flashcode@flashtux.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2012-01-03, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 0.4: make script compatible with Python 3.x
 # 2011-02-13, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.3: use new help format for command arguments
 # 2010-07-31, Sebastien Helleu <flashcode@flashtux.org>:
@@ -34,7 +36,7 @@
 
 SCRIPT_NAME    = "cron"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.3"
+SCRIPT_VERSION = "0.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Time-based scheduler, like cron and at"
 
@@ -43,15 +45,15 @@ import_ok = True
 try:
     import weechat
 except:
-    print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print("This script must be run under WeeChat.")
+    print("Get WeeChat now at: http://www.weechat.org/")
     import_ok = False
 
 try:
     import os, stat, time
     from datetime import datetime, timedelta
-except ImportError, message:
-    print "Missing package(s) for %s: %s" % (SCRIPT_NAME, message)
+except ImportError as message:
+    print("Missing package(s) for %s: %s" % (SCRIPT_NAME, message))
     import_ok = False
 
 # script options
@@ -79,7 +81,7 @@ cron_commands = {
 # ================================[ cron jobs ]===============================
 
 class AlwaysMatch(set):
-    def __contains__(self, item): 
+    def __contains__(self, item):
         return True
     def __str__(self):
         return "*"
@@ -145,7 +147,7 @@ def cron_set2str(obj):
 
 class CronJob(object):
     """ Class for a job in crontab. """
-    def __init__(self, minute=alwaysMatch, hour=alwaysMatch, 
+    def __init__(self, minute=alwaysMatch, hour=alwaysMatch,
                  monthday=alwaysMatch, month=alwaysMatch, weekday=alwaysMatch,
                  repeat="*", buffer="core.weechat", command=""):
         self.minute = minute
@@ -547,7 +549,7 @@ if __name__ == "__main__" and import_ok:
                         SCRIPT_LICENSE, SCRIPT_DESC,
                         "cron_unload", ""):
         # set default settings
-        for option, default_value in cron_settings.iteritems():
+        for option, default_value in cron_settings.items():
             if not weechat.config_is_set_plugin(option):
                 weechat.config_set_plugin(option, default_value)
         # completions for commands
