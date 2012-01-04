@@ -19,6 +19,9 @@
 # Display sidebar with list of buffers.
 #
 # History:
+#
+# 2012-01-04, Sébastien Helleu <flashcode@flashtux.org>:
+#     2.7: fix regex lookup in whitelist buffers list
 # 2011-12-04, Nils G <weechatter@arcor.de>:
 #     2.6: add own config file (buffers.conf)
 #          add new behavior for indenting (under_name)
@@ -87,7 +90,7 @@
 use strict;
 
 # -------------------------------[ internal ]-------------------------------------
-my $version = "2.6";
+my $version = "2.7";
 
 my $BUFFERS_CONFIG_FILE_NAME = "buffers";
 my $buffers_config_file;
@@ -418,16 +421,16 @@ sub build_buffers
             $bg = weechat::config_color( $options{"color_none_channel_bg"} );
         }
         # default whitelist buffer?
-        if (grep /^$buffer->{"name"}$/, @whitelist_buffers)
+        if (grep {$_ eq $buffer->{"name"}} @whitelist_buffers)
         {
-                $color = weechat::config_color( $options{"color_whitelist_default"} );
+            $color = weechat::config_color( $options{"color_whitelist_default"} );
         }
 
         $color = "default" if ($color eq "");
 
         if (exists $hotlist{$buffer->{"pointer"}})
         {
-            if (grep /^$buffer->{"name"}$/, @whitelist_buffers)
+            if (grep {$_ eq $buffer->{"name"}} @whitelist_buffers)
             {
                 $bg = weechat::config_color( $options{"color_whitelist_".$hotlist_level{$hotlist{$buffer->{"pointer"}}}."_bg"} );
                 $color = weechat::config_color( $options{"color_whitelist_".$hotlist_level{$hotlist{$buffer->{"pointer"}}}."_fg"}  );
