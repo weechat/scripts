@@ -2,6 +2,8 @@
 
 Based on the idea of Flavius Aspra <flavius.as@gmail.com>
 
+Author: Barbu Paul - Gheorghe <paullik.paul@gmail.com>
+
 When joining channels the buffers will be arranged from high to low priority.
 Buffers containing high-priority channels will be in the head of the list:
 Positions: 2, 3, 4, ...
@@ -35,8 +37,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import weechat
 
 SCRIPT_COMMAND = "chanpriority"
-SCRIPT_AUTHOR = "Paul Barbu Gh. <paullik.paul@gmail.com>"
-SCRIPT_VERSION = "0.4"
+SCRIPT_AUTHOR = "Barbu Paul - Gh. <paullik.paul@gmail.com>"
+SCRIPT_VERSION = "0.5"
 SCRIPT_NAME = "chanpriority"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Allows you to set high-priority channels, see /help chanpriority"
@@ -129,7 +131,7 @@ def join_meta(data, signal, signal_data):
     that will be opened after joining
     """
 
-    chan = signal_data.rpartition(":")[-1]
+    chan = signal_data[signal_data.find("#"):]
     network = signal.partition(",")[0]
     buffer = weechat.buffer_search("irc", network + "." + chan)
 
@@ -157,4 +159,6 @@ Channels can also be set using the format: network.#channel:
 LICENSE: GPL v3
 
 Based on the idea of Flavius Aspra <flavius.as@gmail.com>
+
+Author: Barbu Paul - Gheorghe <paullik.paul@gmail.com>
 """, "", "set_whitelist", "")
