@@ -6,6 +6,8 @@
 # Heavily based on lavaramano's script "notify.py" v. 0.0.5
 #
 # Todo: Do not send my own messages on query channels
+# 2012-01-05 Ac-town
+#     version 1.0.2: Fixes a few typos I ran into and adds only_away. Only_away only sends notifications if you are marked away.
 # 2011-09-19, sitaktif
 #     version 1.0.1: Corrected a bug with debug functions
 # 2011-07-22, sitaktif
@@ -13,7 +15,7 @@
 
 import weechat
 
-weechat.register("nma", "sitaktif", "1.0.1", "GPL2", "nma: Receive notifications on NotifyMyAndroid app.", "", "")
+weechat.register("nma", "sitaktif", "1.0.2", "GPL2", "nma: Receive notifications on NotifyMyAndroid app.", "", "")
 
 # script options
 settings = {
@@ -26,6 +28,7 @@ settings = {
     "show_hilights"        : "on",
     "show_priv_msg"        : "on",
     "smart_notification"   : "off",
+    "only_away"            : "off",
     "debug"                : "off",
 }
 
@@ -101,6 +104,11 @@ def notify_show(data, bufferp, uber_empty, tagsn, isdisplayed,
     if (weechat.config_get_plugin('smart_notification') == "on" and
             bufferp == weechat.current_buffer()):
         return weechat.WEECHAT_RC_OK
+
+    if (weechat.config_get_plugin('only_away') == "on" and not
+            weechat.buffer_get_string(bufferp, 'localvar_away')):
+        return weechat.WEECHAT_RC_OK
+
     ret = None
 
     notif_body = "%s%s%s%s" % (weechat.config_get_plugin('nick_separator_left'), 
@@ -110,7 +118,7 @@ def notify_show(data, bufferp, uber_empty, tagsn, isdisplayed,
     if (weechat.buffer_get_string(bufferp, "localvar_type") == "private" and
             weechat.config_get_plugin('show_priv_msg') == "on"):
         ret = show_notification("IRC private message",
-        notif_body, int(weechat.config_get_plugin("priv_msg_emergency")))
+        notif_body, int(weechat.config_get_plugin("emergency_priv_msg")))
         _debug("Message sent: %s. Return: %s." % (notif_body, ret))
 
     # Highlight (your nick is quoted)
@@ -119,7 +127,7 @@ def notify_show(data, bufferp, uber_empty, tagsn, isdisplayed,
         bufname = (weechat.buffer_get_string(bufferp, "short_name") or
                 weechat.buffer_get_string(bufferp, "name"))
         ret = show_notification(bufname, notif_body,
-                int(weechat.config_get_plugin("hilights_emergency")))
+                int(weechat.config_get_plugin("emergency_hilights")))
         _debug("Message sent: %s. Return: %s." % (notif_body, ret))
 
     if ret is not None:
