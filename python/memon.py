@@ -22,15 +22,18 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import weechat, subprocess
+import weechat, subprocess, re
 
 SCRIPT_COMMAND = 'memon'
 SCRIPT_AUTHOR = 'Paul Barbu - Gheorghe <paullik.paul@gmail.com>'
-SCRIPT_VERSION = '0.2'
+SCRIPT_VERSION = '0.3'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC = 'Freenode memo notifications, see /help memon'
 
 MEMOSERVICE = 'MemoServ!MemoServ@services'
+
+new_memo_from = re.compile('.+:You have a new memo from');
+connect_memo = re.compile('.+:You have \d+ new memo')
 
 state = None
 time = '5000'
@@ -87,9 +90,10 @@ def get_time(data, buffer, args):
 
 def notify(data, signal, signal_data):
     if state and MEMOSERVICE in signal_data:
-        msg = signal_data.rpartition(':')[2]
+        if new_memo_from.match(signal_data) or connect_memo.match(signal_data):
+            msg = signal_data.rpartition(':')[2]
 
-        subprocess.call(['/usr/bin/notify-send', 'MemoN', '{0}'.format(msg), '-t', time], shell=False)
+            subprocess.call(['/usr/bin/notify-send', 'MemoN', '{0}'.format(msg), '-t', time], shell=False)
 
     return weechat.WEECHAT_RC_OK
 
