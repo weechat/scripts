@@ -43,6 +43,8 @@
 #
 # History:
 #
+# 2012-01-19, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 0.6: add option "http_hostname_display"
 # 2012-01-03, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.5: make script compatible with Python 3.x
 # 2011-10-31, Sebastien Helleu <flashcode@flashtux.org>:
@@ -59,7 +61,7 @@
 
 SCRIPT_NAME    = 'urlserver'
 SCRIPT_AUTHOR  = 'Sebastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '0.5'
+SCRIPT_VERSION = '0.6'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC    = 'Shorten URLs with own HTTP server'
 
@@ -99,7 +101,8 @@ urlserver = {
 # script options
 urlserver_settings_default = {
     # HTTP server settings
-    'http_hostname'      : ('', 'force hostname (or IP) for URLs (empty value = auto-detect current hostname)'),
+    'http_hostname'      : ('', 'force hostname/IP in bind of socket (empty value = auto-detect current hostname)'),
+    'http_hostname_display': ('', 'display this hostname in shortened URLs'),
     'http_port'          : ('', 'force port for listening (empty value = find a random free port)'),
     'http_allowed_ips'   : ('', 'regex for IPs allowed to use server (example: "^(123.45.67.89|192.160.*)$")'),
     'http_auth'          : ('', 'login and password (format: "login:password") required to access to page with list of URLs'),
@@ -147,7 +150,7 @@ def urlserver_short_url(number):
     prefix = ''
     if urlserver_settings['http_url_prefix']:
         prefix = '%s/' % urlserver_settings['http_url_prefix']
-    return 'http://%s:%s/%s%s' % (urlserver_settings['http_hostname'] or socket.getfqdn(),
+    return 'http://%s:%s/%s%s' % (urlserver_settings['http_hostname_display'] or urlserver_settings['http_hostname'] or socket.getfqdn(),
                                   urlserver['socket'].getsockname()[1],
                                   prefix, base62_encode(number))
 
