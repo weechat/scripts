@@ -18,13 +18,15 @@
 
 # This script colors nicks in IRC channels in the actual message
 # not just in the prefix section.
-# 
+#
 #
 # History:
+# 2012-01-14, nesthib
+#   version 11: input_text_display hook and modifier to colorize nicks in input bar
 # 2010-12-22, xt
 #   version 10: hook config option for updating blacklist
 # 2010-12-20, xt
-#   version 0.9: hook new config option for weechat 0.3.4 
+#   version 0.9: hook new config option for weechat 0.3.4
 # 2010-11-01, nils_2
 #   version 0.8: hook_modifier() added to communicate with rainbow_text
 # 2010-10-01, xt
@@ -48,7 +50,7 @@ w = weechat
 
 SCRIPT_NAME    = "colorize_nicks"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "10"
+SCRIPT_VERSION = "11"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Use the weechat nick colors in the chat area"
 
@@ -56,6 +58,7 @@ settings = {
     "blacklist_channels"        : '',     # comma separated list of channels (use short_name)
     "blacklist_nicks"           : 'so,root',  # comma separated list of nicks
     "min_nick_length"           : '2',    # length
+    "colorize_input"            : 'off',  # boolean
 }
 
 
@@ -92,7 +95,12 @@ def colorize_cb(data, modifier, modifier_data, line):
     if channel in ignore_channels:
         return line
 
-    min_length = int(w.config_get_plugin('min_nick_length'))
+    try:
+        min_length = int(w.config_get_plugin('min_nick_length'))
+    except ValueError:
+        w.prnt('', '%sError with option min_nick_length, should be a integer' % weechat.prefix('error'))
+        w.config_set_plugin('min_nick_length', settings['min_nick_length'])
+
     reset = w.color('reset')
 
     for words in valid_nick_re.findall(line):
@@ -106,6 +114,47 @@ def colorize_cb(data, modifier, modifier_data, line):
 
     return line
 
+def colorize_input_cb(data, modifier, modifier_data, line):
+    ''' Callback that does the colorizing in input '''
+
+    global ignore_nicks, ignore_channels, colored_nicks
+
+    try:
+        min_length = int(w.config_get_plugin('min_nick_length'))
+    except ValueError:
+        w.prnt('', '%sError with option min_nick_length, should be a integer' % weechat.prefix('error'))
+        w.config_set_plugin('min_nick_length', settings['min_nick_length'])
+
+    if w.config_get_plugin('colorize_input') == 'on':
+        pass
+    elif w.config_get_plugin('colorize_input') == 'off':
+        return line
+    else:
+        w.prnt('', '%sError with option colorize_input, should be on or off' % weechat.prefix('error'))
+        w.config_set_plugin('colorize_input', settings['colorize_input'])
+        return line
+
+    buffer = w.current_buffer()
+    # Check if buffer has colorized nicks
+    if not buffer in colored_nicks:
+        return line
+
+    channel = w.buffer_get_string(buffer,'name')
+    if channel in ignore_channels:
+        return line
+
+    reset = w.color('reset')
+
+    for words in valid_nick_re.findall(line):
+        prefix, nick = words[0], words[1]
+        # Check that nick is not ignored and longer than minimum length
+        if len(nick) < min_length or nick in ignore_nicks:
+            continue
+        if nick in colored_nicks[buffer]:
+            nick_color = colored_nicks[buffer][nick]
+            line = line.replace(nick, '%s%s%s' %(nick_color, nick, reset))
+
+    return line
 
 def populate_nicks(*args):
     ''' Fills entire dict with all nicks weechat can see and what color it has
@@ -199,13 +248,15 @@ if __name__ == "__main__":
             PREFIX_COLORS[key] = w.color(w.config_string(w.config_get('weechat.look.%s'%value)))
 
         update_blacklist() # Set blacklist
-        populate_nicks() # Run it once to get data ready 
+        populate_nicks() # Run it once to get data ready
         w.hook_signal('nicklist_nick_added', 'add_nick', '')
         w.hook_signal('nicklist_nick_removed', 'remove_nick', '')
         w.hook_modifier('weechat_print', 'colorize_cb', '')
         # Hook config for changing colors
         w.hook_config('weechat.color.chat_nick_colors', 'populate_nicks', '')
-        # Hook for working togheter with other scripts (like rainbow)
+        # Hook for working togheter with other scripts (like colorize_lines)
         w.hook_modifier('colorize_nicks', 'colorize_cb', '')
+        # Hook for modifying input
+        w.hook_modifier('250|input_text_display', 'colorize_input_cb', '')
         # Hook for updating blacklist (this could be improved to use fnmatch)
         weechat.hook_config('plugins.var.python.%s.blacklist*' %SCRIPT_NAME, 'update_blacklist', '')
