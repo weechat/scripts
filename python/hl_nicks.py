@@ -29,11 +29,11 @@ except Exception:
     print("Get WeeChat now at: http://www.weechat.org/")
     quit()
 
-import getopt, argparse, re
+import argparse, re
 
 name = "hl_nicks"
 author = "nesthib <nesthib@gmail.com>"
-version = "0.1"
+version = "0.1.1"
 license = "GPL"
 description = "Generates a list of nicks in input by selecting nicks using flags and patterns"
 shutdown_function = ""
@@ -66,7 +66,7 @@ def get_nicklist(server, channel):
     if ignore_list == '':
         ignore_match = lambda x: False
     else:
-        ignore_match = re.compile(ignore_list.replace(',', '|'), regex_flags).match
+        ignore_match = re.compile('(%s)$' % ignore_list.replace(',', '|'), regex_flags).match
 
     server = w.buffer_get_string(w.current_buffer(), 'localvar_server')
     my_nick = w.info_get('irc_nick', server)
