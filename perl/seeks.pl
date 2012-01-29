@@ -14,10 +14,13 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 #
-# (this script requires WeeChat 0.3.0 or newer)
+# (this script requires WeeChat 0.3.6 or newer)
 #
 # Changelog :
-# 27/04/11 First working version !
+#
+# 2012-01-29, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 0.3: fix parsing of IRC message (now requires WeeChat >= 0.3.6)
+# 2011-04-27: First working version !
 
 use strict;
 use URI::Escape;
@@ -25,7 +28,7 @@ use JSON;
 use utf8;
 
 my $SCRIPT_NAME = "seeks";
-my $VERSION = "0.2";
+my $VERSION = "0.3";
 
 # default values in setup file (~/.weechat/plugins.conf)
 my %options = ( 'node'          => 'http://seeks.kafe-in.net',
@@ -56,7 +59,7 @@ sub message_callback
                 $channel =~ s/^.+\.//;
                 $text = weechat::buffer_get_string($signal, 'input');
         } elsif($data eq "in") {
-                my $dict = weechat::info_get_hashtable("irc_parse_message", { "message" => $signal_data });
+                my $dict = weechat::info_get_hashtable("irc_message_parse", { "message" => $signal_data });
                 $buffer = $signal;
                 $buffer =~ s/,.*$//;
                 $buffer = $buffer.".".$$dict{channel};
