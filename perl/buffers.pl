@@ -19,6 +19,8 @@
 # Display sidebar with list of buffers.
 #
 # History:
+# 2012-01-29, Nils G <weechatter@arcor.de>:
+#     2.9: add options "name_size_max" and "name_crop_suffix"
 # 2012-01-08, Nils G <weechatter@arcor.de>:
 #     2.8: fix indenting for option "show_number off"
 #          fix unset of buffer activity in hotlist when buffer was moved with mouse
@@ -107,7 +109,7 @@
 
 use strict;
 # -------------------------------[ internal ]-------------------------------------
-my $version = "2.8";
+my $version = "2.9";
 
 my $BUFFERS_CONFIG_FILE_NAME = "buffers";
 my $buffers_config_file;
@@ -198,19 +200,20 @@ my %default_options_color =
 
 my %default_options_look =
 (
- "color_whitelist_buffers" => ["whitelist_buffers", "string", "comma separated list of buffers for using a differnt color scheme (for example: freenode.#weechat,freenode.#weechat-fr)", "", 0, 0,"", "", 0, "", "", "buffers_signal_config_whitelist", "", "", ""],
-
- "hide_merged_buffers" => ["hide_merged_buffers", "boolean", "hide merged buffers", "", 0, 0,"off", "off", 0, "", "", "buffers_signal_config", "", "", ""],
- "indenting" => ["indenting", "integer", "use indenting for channel and query buffers. This option only takes effect if bar is left/right positioned", "off|on|under_name", 0, 0,"off", "off", 0, "", "", "buffers_signal_config", "", "", ""],
- "indenting_number" => ["indenting_number", "boolean", "use indenting for numbers. This option only takes effect if bar is left/right positioned", "", 0, 0,"on", "on", 0, "", "", "buffers_signal_config", "", "", ""],
- "short_names" => ["short_names", "boolean", "display short names (remove text before first \".\" in buffer name)", "", 0, 0,"on", "on", 0, "", "", "buffers_signal_config", "", "", ""],
- "show_number" => ["show_number", "boolean", "display channel number in front of buffername", "", 0, 0,"on", "on", 0, "", "", "buffers_signal_config", "", "", ""],
- "show_number_char" => ["number_char", "string", "display a char after channel number", "", 0, 0,".", ".", 0, "", "", "buffers_signal_config", "", "", ""],
- "show_prefix" => ["prefix", "boolean", "show your prefix for channel", "", 0, 0,"off", "off", 0, "", "", "buffers_signal_config", "", "", ""],
- "show_prefix_empty" => ["prefix_empty", "boolean", "use a placeholder for channels without prefix", "", 0, 0,"on", "on", 0, "", "", "buffers_signal_config", "", "", ""],
- "sort" => ["sort", "integer", "sort buffer-list by \"number\" or \"name\"", "number|name", 0, 0,"number", "number", 0, "", "", "buffers_signal_config", "", "", ""],
- "core_to_front" => ["core_to_front", "boolean", "core buffer and buffers with free content will be listed first. Take only effect if buffer sort is by name", "", 0, 0,"off", "off", 0, "", "", "buffers_signal_config", "", "", ""],
+ "color_whitelist_buffers" =>   ["whitelist_buffers", "string", "comma separated list of buffers for using a differnt color scheme (for example: freenode.#weechat,freenode.#weechat-fr)", "", 0, 0,"", "", 0, "", "", "buffers_signal_config_whitelist", "", "", ""],
+ "hide_merged_buffers"  =>      ["hide_merged_buffers", "boolean", "hide merged buffers", "", 0, 0,"off", "off", 0, "", "", "buffers_signal_config", "", "", ""],
+ "indenting"            =>      ["indenting", "integer", "use indenting for channel and query buffers. This option only takes effect if bar is left/right positioned", "off|on|under_name", 0, 0,"off", "off", 0, "", "", "buffers_signal_config", "", "", ""],
+ "indenting_number"     =>      ["indenting_number", "boolean", "use indenting for numbers. This option only takes effect if bar is left/right positioned", "", 0, 0,"on", "on", 0, "", "", "buffers_signal_config", "", "", ""],
+ "short_names"          =>      ["short_names", "boolean", "display short names (remove text before first \".\" in buffer name)", "", 0, 0,"on", "on", 0, "", "", "buffers_signal_config", "", "", ""],
+ "show_number"          =>      ["show_number", "boolean", "display channel number in front of buffername", "", 0, 0,"on", "on", 0, "", "", "buffers_signal_config", "", "", ""],
+ "show_number_char"     =>      ["number_char", "string", "display a char after channel number", "", 0, 0,".", ".", 0, "", "", "buffers_signal_config", "", "", ""],
+ "show_prefix"          =>      ["prefix", "boolean", "show your prefix for channel", "", 0, 0,"off", "off", 0, "", "", "buffers_signal_config", "", "", ""],
+ "show_prefix_empty"    =>      ["prefix_empty", "boolean", "use a placeholder for channels without prefix", "", 0, 0,"on", "on", 0, "", "", "buffers_signal_config", "", "", ""],
+ "sort"                 =>      ["sort", "integer", "sort buffer-list by \"number\" or \"name\"", "number|name", 0, 0,"number", "number", 0, "", "", "buffers_signal_config", "", "", ""],
+ "core_to_front"        =>      ["core_to_front", "boolean", "core buffer and buffers with free content will be listed first. Take only effect if buffer sort is by name", "", 0, 0,"off", "off", 0, "", "", "buffers_signal_config", "", "", ""],
  "jump_prev_next_visited_buffer" => ["jump_prev_next_visited_buffer", "boolean", "jump to previously or next visited buffer if you click with left/right mouse button on currently visiting buffer", "", 0, 0,"off", "off", 0, "", "", "buffers_signal_config", "", "", ""],
+ "name_size_max"        =>      ["name_size_max","integer","maximum size of buffer name. 0 means no limitation","",0,256,0,0,0, "", "", "buffers_signal_config", "", "", ""],
+ "name_crop_suffix"     =>      ["name_crop_suffix","string","contains an optional char(s) that is appended when buffer name is shortened","",0,0,"+","+",0,"","","buffers_signal_config", "", "", ""],
 );
     # section "color"
     my $section_color = weechat::config_new_section($buffers_config_file,"color", 0, 0, "", "", "", "", "", "", "", "", "", "");
@@ -336,7 +339,9 @@ sub build_buffers
             {
                 my $name = $buffer->{"name"};
                 $name = $buffer->{"short_name"} if (weechat::config_boolean( $options{"short_names"} ) eq 1);
-
+                if (weechat::config_integer($options{"name_size_max"}) >= 1){
+                    $name = substr($name,0,weechat::config_integer($options{"name_size_max"}));
+                }
                 if ( weechat::config_boolean($options{"core_to_front"}) eq 1)
                 {
                     if ( (weechat::buffer_get_string($buffer->{"pointer"}, "localvar_type") ne "channel" ) and ( weechat::buffer_get_string($buffer->{"pointer"}, "localvar_type") ne "private") )
@@ -543,11 +548,27 @@ sub build_buffers
         $str .= weechat::color($color) . weechat::color(",".$bg);
         if (weechat::config_boolean( $options{"short_names"} ) eq 1)
         {
-            $str .= $buffer->{"short_name"};
+            if (weechat::config_integer($options{"name_size_max"}) >= 1)                # check max_size of buffer name
+            {
+                $str .= substr($buffer->{"short_name"},0,weechat::config_integer($options{"name_size_max"}));
+                $str .= weechat::color(weechat::config_color( $options{"color_number_char"})).weechat::config_string($options{"name_crop_suffix"}) if (length($buffer->{"short_name"}) > weechat::config_integer($options{"name_size_max"}));
+            }
+            else
+            {
+                $str .= $buffer->{"short_name"};
+            }
         }
         else
         {
-            $str .= $buffer->{"name"};
+            if (weechat::config_integer($options{"name_size_max"}) >= 1)                # check max_size of buffer name
+            {
+                $str .= substr($buffer->{"name"},0,weechat::config_integer($options{"name_size_max"}));
+                $str .= weechat::color(weechat::config_color( $options{"color_number_char"})).weechat::config_string($options{"name_crop_suffix"}) if (length($buffer->{"name"}) > weechat::config_integer($options{"name_size_max"}));
+            }
+            else
+            {
+                $str .= $buffer->{"name"};
+            }
         }
         $str .= "\n";
         $old_number = $buffer->{"number"};
