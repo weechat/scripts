@@ -17,6 +17,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2012-01-28: nils_2,(freenode.#weechat)
+#       0.3 : adapted to bugfix #31158 and new signal hook_signal("window_switch")
+#
 # 2012-01-27: nils_2,(freenode.#weechat)
 #       0.2 : fix: bug with split windows removed (reported by meingtsla)
 #
@@ -36,12 +39,16 @@ except Exception:
 
 SCRIPT_NAME     = "server_autoswitch"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.2"
+SCRIPT_VERSION  = "0.3"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "cycle to currently used server if you are using merged server buffer"
 
 look_server = ""
 
+def window_switch_cb(data, signal, signal_data):
+    bufpointer = weechat.window_get_pointer(signal_data,"buffer")
+    buffer_switch_cb(data,signal,bufpointer)
+    return weechat.WEECHAT_RC_OK
 def buffer_switch_cb(data, signal, signal_data):
     global look_server
     look_server = ""
@@ -105,5 +112,6 @@ if __name__ == "__main__":
         version = weechat.info_get("version_number", "") or 0
         if int(version) >= 0x00030600:
             weechat.hook_signal("buffer_switch","buffer_switch_cb","")
+            weechat.hook_signal("window_switch","window_switch_cb","")
         else:
             weechat.prnt("","%s%s %s" % (weechat.prefix("error"),SCRIPT_NAME,": needs version 0.3.6 or higher"))
