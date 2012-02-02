@@ -23,6 +23,8 @@
 #
 # History:
 #
+# 2012-02-02, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 1.3: add option "reminder"
 # 2012-01-03, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 1.2: make script compatible with Python 3.x
 # 2011-10-30, Sebastien Helleu <flashcode@flashtux.org>:
@@ -42,7 +44,7 @@
 
 SCRIPT_NAME    = 'nameday'
 SCRIPT_AUTHOR  = 'Sebastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '1.2'
+SCRIPT_VERSION = '1.3'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC    = 'Display name days in bar item and buffer'
 
@@ -59,7 +61,7 @@ except ImportError:
     import_ok = False
 
 try:
-    import sys, time, unicodedata
+    import sys, time, unicodedata, re
     from datetime import date
 except ImportError as message:
     print('Missing package(s) for %s: %s' % (SCRIPT_NAME, message))
@@ -82,6 +84,7 @@ nameday_settings_default = {
     'item_color_female_next' : ('magenta', 'color for female names in item (next days)'),
     'color_male'             : ('cyan',    'color for male names'),
     'color_female'           : ('magenta', 'color for female names'),
+    'reminder'               : ('',        'comma-separated list of names or dates (format: DD/MM) for which a reminder is displayed'),
 }
 nameday_settings = {}
 
@@ -304,7 +307,6 @@ def nameday_list():
 def nameday_print(days):
     """Print name day for today and option N days in future."""
     global nameday_i18n
-    country = nameday_get_country()
     today = date.today()
     current_time = time.time()
     string = '%02d/%02d: %s' % (today.day, today.month,
@@ -328,6 +330,41 @@ def nameday_print(days):
         string += '%s)' % weechat.color('reset')
     weechat.prnt('', string)
 
+def nameday_reminder(month=0, day=0, tag='notify_highlight'):
+    """Display reminder for given date (or nothing if no reminder defined for today)."""
+    global namedays, nameday_settings
+    country = nameday_get_country()
+    if month < 1 or day < 1:
+        today = date.today()
+        month = today.month
+        day = today.day
+    nameday = nameday_remove_accents(namedays[country][month - 1][day - 1]).lower()
+    nameday_words = re.sub('[^a-z ]', '', nameday.replace(',', ' ')).split()
+    reminder = False
+    for name in nameday_settings['reminder'].split(','):
+        if name:
+            pos = name.find('/')
+            if pos >= 0:
+                if day == int(name[:pos]) and month == int(name[pos+1:]):
+                    reminder = True
+                    break
+            else:
+                wordsfound = True
+                for word in name.strip().lower().split():
+                    if word and word not in nameday_words:
+                        wordsfound = False
+                if wordsfound:
+                    reminder = True
+                    break
+    if reminder:
+        weechat.prnt_date_tags('', 0, tag,
+                               '*\tReminder: %02d/%02d: %s' %
+                               (day, month,
+                                nameday_get_month_day(month - 1, day - 1,
+                                                      gender=True,
+                                                      colorMale='color_male',
+                                                      colorFemale='color_female')))
+
 def nameday_search(name):
     """Search a name."""
     global namedays
@@ -347,11 +384,25 @@ def nameday_search(name):
             day += 1
         month += 1
 
+def nameday_search_reminders():
+    """Search and display dates for reminders."""
+    global namedays
+    country = nameday_get_country()
+    month = 0
+    while month < len(namedays[country]):
+        day = 0
+        while day < len(namedays[country][month]):
+            nameday_reminder(month + 1, day + 1, '')
+            day += 1
+        month += 1
+
 def nameday_cmd_cb(data, buffer, args):
     """Command /nameday."""
     if args:
         if args == '*':
             nameday_list()
+        elif args == '!':
+            nameday_search_reminders()
         elif args.isdigit():
             nameday_print(int(args))
         elif args.find('/') >= 0:
@@ -366,6 +417,7 @@ def nameday_cmd_cb(data, buffer, args):
             nameday_search(args)
     else:
         nameday_print(1)
+        nameday_reminder()
     return weechat.WEECHAT_RC_OK
 
 def nameday_item_cb(data, buffer, args):
@@ -425,11 +477,12 @@ def nameday_timer_cb(data, remaining_calls):
     """Called each day at midnight to change item content."""
     nameday_build_item()
     weechat.bar_item_update('nameday')
+    nameday_reminder()
     return weechat.WEECHAT_RC_OK
 
 def nameday_load_config():
     global nameday_settings_default, nameday_settings
-    version = weechat.info_get("version_number", "") or 0
+    version = weechat.info_get('version_number', '') or 0
     for option, value in nameday_settings_default.items():
         if weechat.config_is_set_plugin(option):
             nameday_settings[option] = weechat.config_get_plugin(option)
@@ -458,11 +511,12 @@ if __name__ == '__main__' and import_ok:
                                 'nameday_completion_namedays_cb', '')
         weechat.hook_command(SCRIPT_COMMAND,
                              'Display name days',
-                             '[* | number | date | name]',
+                             '[* | number | date | name | !]',
                              '     *: display list of name days in a new buffer\n'
                              'number: display name day for today and <number> days in future\n'
                              '  date: display name day for this date, format is day/month (for example: 31/01)\n'
-                             '  name: display date for this name\n\n'
+                             '  name: display date for this name\n'
+                             '     !: display reminder dates for names defined in option "reminder"\n\n'
                              'A bar item "nameday" can be used in a bar.\n\n'
                              'Examples:\n'
                              '  /nameday *          display list of name days in a new buffer\n'
@@ -470,7 +524,7 @@ if __name__ == '__main__' and import_ok:
                              '  /nameday 2          display name day for today, tomorrow, and after tomorrow\n'
                              '  /nameday 20/01      display name day for january, 20th\n'
                              '  /nameday sébastien  display day for name "sébastien"',
-                             '*|%(namedays)', 'nameday_cmd_cb', '')
+                             '*|!|%(namedays)', 'nameday_cmd_cb', '')
 
         # new item
         nameday_build_item()
@@ -481,3 +535,6 @@ if __name__ == '__main__' and import_ok:
 
         # config
         weechat.hook_config('plugins.var.python.' + SCRIPT_NAME + '.*', 'nameday_config_cb', '')
+
+        # reminder
+        nameday_reminder()
