@@ -18,7 +18,9 @@
 # Set WeeChat and plugins options interactively.
 #
 # History:
-# 2012-01-14, nils_2 <weechatter@arcor.de>:
+# 2012-02-02, nils_2 <weechatter@arcor.de>:
+#     version 2.3: fixed: refresh problem with new search results and cursor was outside window.
+#                : add: new option "current_line" in title bar
 #     version 2.2: fixed: refresh error when toggling plugins description
 # 2011-11-05, nils_2 <weechatter@arcor.de>:
 #     version 2.1: use own config file (iset.conf), fix own help color (used immediately)
@@ -82,7 +84,7 @@
 use strict;
 
 my $PRGNAME = "iset";
-my $VERSION = "2.2";
+my $VERSION = "2.3";
 my $DESCR   = "Interactive Set for configuration options";
 my $AUTHOR  = "Sebastien Helleu <flashcode\@flashtux.org>";
 my $LICENSE = "GPL3";
@@ -116,6 +118,8 @@ sub iset_title
 {
     if ($iset_buffer ne "")
     {
+        my $current_line_text = "";
+        $current_line_text = ($current_line + 1) . "/" if (weechat::config_boolean($options_iset{"show_current_line"}) == 1);
         $iset_filter_title = "Filter: " if ($iset_filter_title eq "");
         $filter = "*" if ($filter eq "");
         my $postfix = "s";
@@ -127,7 +131,7 @@ sub iset_title
         weechat::buffer_set($iset_buffer, "title",
                             "Interactive set (iset.pl v$VERSION)  |  "
                             .$iset_filter_title.weechat::color("yellow").$filter.weechat::color("default")."  |  "
-                            .@options_names.$opt_txt . $show_plugin_descr_txt);
+                            .$current_line_text.@options_names.$opt_txt . $show_plugin_descr_txt);
     }
 }
 
@@ -383,6 +387,9 @@ sub iset_full_refresh
         if (weechat::config_boolean($options_iset{"show_plugin_description"}) == 1)
         {
             iset_set_current_line($current_line);
+        }else
+        {
+            $current_line = $#options_names if ($current_line > $#options_names);
         }
         iset_refresh();
         weechat::command($iset_buffer, "/window refresh");
@@ -517,6 +524,7 @@ sub iset_config_cb
                     $options_values[$index] = weechat::infolist_string($infolist, "value");
                     $options_is_null[$index] = weechat::infolist_integer($infolist, "value_is_null");
                     iset_refresh_line($index);
+                    iset_title($iset_filter_title) if ($option_name eq "iset.look.show_current_line");
                 }
                 else
                 {
@@ -709,11 +717,13 @@ sub iset_cmd_cb
             {
                 weechat::config_option_set($options_iset{"show_plugin_description"},0,1);
                 iset_full_refresh();
+                iset_check_line_outside_window();
             }
             else
             {
                 weechat::config_option_set($options_iset{"show_plugin_description"},1,1);
                 iset_full_refresh();
+                iset_check_line_outside_window();
             }
         }
         if ($args eq "**set")
@@ -1070,6 +1080,10 @@ sub iset_config_init
         $iset_config_file, $section_look,
         "scroll_horiz", "integer", "scroll content of iset buffer n%", "", 1, 100,
         "10", "10", 0, "", "", "", "", "", "");
+    $options_iset{"show_current_line"} = weechat::config_new_option(
+        $iset_config_file, $section_look,
+        "show_current_line", "boolean", "show current line in title bar.", "", 0, 0,
+        "on", "on", 0, "", "", "", "", "", "");
 }
 
 sub iset_config_reload_cb
