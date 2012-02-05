@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2012-02-05, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 1.6: use URL transfer from API (for WeeChat >= 0.3.7)
 # 2012-01-03, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 1.5: make script compatible with Python 3.x
 # 2011-03-25, Sebastien Helleu <flashcode@flashtux.org>:
@@ -62,7 +64,7 @@
 
 SCRIPT_NAME    = "weeget"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "1.5"
+SCRIPT_VERSION = "1.6"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "WeeChat scripts manager"
 
@@ -231,23 +233,30 @@ def wg_config_get_cache_filename():
 
 def wg_download_file(url, filename, timeout, callback, callback_data):
     """Download a file with an URL. Return hook_process created."""
-    script = [ "import sys",
-               "try:",
-               "    if sys.version_info >= (3,):",
-               "        import urllib.request",
-               "        response = urllib.request.urlopen('%s')" % url,
-               "    else:",
-               "        import urllib2",
-               "        response = urllib2.urlopen(urllib2.Request('%s'))" % url,
-               "    f = open('%s', 'wb')" % filename,
-               "    f.write(response.read())",
-               "    response.close()",
-               "    f.close()",
-               "except Exception as e:",
-               "    print('error:' + str(e))" ]
-    return weechat.hook_process("python -c \"%s\"" % "\n".join(script),
-                                timeout,
-                                callback, callback_data)
+    version = weechat.info_get("version_number", "") or 0
+    if int(version) >= 0x00030700:
+        return weechat.hook_process_hashtable("url:%s" % url,
+                                              { "file_out": filename },
+                                              timeout,
+                                              callback, callback_data)
+    else:
+        script = [ "import sys",
+                   "try:",
+                   "    if sys.version_info >= (3,):",
+                   "        import urllib.request",
+                   "        response = urllib.request.urlopen('%s')" % url,
+                   "    else:",
+                   "        import urllib2",
+                   "        response = urllib2.urlopen(urllib2.Request('%s'))" % url,
+                   "    f = open('%s', 'wb')" % filename,
+                   "    f.write(response.read())",
+                   "    response.close()",
+                   "    f.close()",
+                   "except Exception as e:",
+                   "    print('error:' + str(e))" ]
+        return weechat.hook_process("python -c \"%s\"" % "\n".join(script),
+                                    timeout,
+                                    callback, callback_data)
 
 # ================================[ scripts ]=================================
 
