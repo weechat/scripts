@@ -19,6 +19,8 @@
 # Display sidebar with list of buffers.
 #
 # History:
+# 2012-02-07, Nils G <weechatter@arcor.de>:
+#     3.0: fix: buffers did not update directly during window_switch (reported by FiXato)
 # 2012-01-29, Nils G <weechatter@arcor.de>:
 #     2.9: add options "name_size_max" and "name_crop_suffix"
 # 2012-01-08, Nils G <weechatter@arcor.de>:
@@ -109,7 +111,7 @@
 
 use strict;
 # -------------------------------[ internal ]-------------------------------------
-my $version = "2.9";
+my $version = "3.0";
 
 my $BUFFERS_CONFIG_FILE_NAME = "buffers";
 my $buffers_config_file;
@@ -134,6 +136,7 @@ weechat::bar_new("buffers", "0", "0", "root", "", "left", "horizontal",
                  "vertical", "0", "0", "default", "default", "default", "1",
                  "buffers");
 weechat::hook_signal("buffer_*", "buffers_signal_buffer", "");
+weechat::hook_signal("window_switch", "buffers_signal_buffer", "");
 weechat::hook_signal("hotlist_*", "buffers_signal_hotlist", "");
 weechat::bar_item_update("buffers");
 if ($weechat_version >= 0x00030600)
