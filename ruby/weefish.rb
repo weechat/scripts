@@ -30,6 +30,9 @@
 #     /delkey [nick/channel] <secure key>
 #
 # History:
+#   2012-02-08 bazerka <bazerka@irssi.org>
+#     version 0.4: fix in_privmsg to work with user targeted privmsg.
+#                  bypass decrypting in_privmsg when no key is found.
 #   2011-03-08 tp <tp@unreal.dk>
 #     version 0.3: fixed crypt/blowfish bug for ruby >= 1.9
 #   2010-09-06, tp <tp@unreal.dk>
@@ -44,7 +47,7 @@ def message buffer, message
 end
 
 def weechat_init
-  Weechat.register "weefish", "Tobias Petersen", "0.3", "GPL3", "FiSH encryption/decryption", "", ""
+  Weechat.register "weefish", "Tobias Petersen", "0.4", "GPL3", "FiSH encryption/decryption", "", ""
   
   Weechat.hook_modifier "irc_in_privmsg", "in_privmsg", ""
   Weechat.hook_modifier "irc_out_privmsg", "out_privmsg", ""
@@ -130,11 +133,19 @@ def delkey data, buffer, string
 end
 
 def in_privmsg data, signal, server, args
-  if args =~ /^(:.*? PRIVMSG (.*?) :)(\+OK|mcps) (.*)$/
-    key = Weechat.config_string Weechat.config_get("plugins.var.ruby.weefish.key.#{server}.#{$2}")
-    fish = IRC::FiSH.new key
-    if decrypted = fish.decrypt($4)
-      return $1+decrypted
+  if args =~ /^(:(.*?)!.*? PRIVMSG (.*?) :)(\+OK|mcps) (.*)$/
+	# If the PRIVMSG target ($3) is our current nick, we need the source nick ($2) to select the key
+    # config variable. Otherwise, assume it's a channel and use that to select the key instead.
+    selector = $3 == Weechat.info_get("irc_nick", server) ? $2 : $3
+    key = Weechat.config_string Weechat.config_get("plugins.var.ruby.weefish.key.#{server}.#{selector}")
+    
+    # If we couldn't find a key, don't attempt to decrypt the message as Crypt::Blowfish will raise an
+    # invalid key length error on initialisation.
+	unless key.empty?
+      fish = IRC::FiSH.new key
+      if decrypted = fish.decrypt($5)
+        return $1+decrypted
+      end
     end
   end
   return args
