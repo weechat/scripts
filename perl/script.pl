@@ -17,6 +17,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # History:
+#  2012-02-06: nils_2 <weechatter@arcor.de>:
+# version 1.0: complete rewrite of script.
+#            : add: multi-script capability
 #  2012-01-29: nils_2 <weechatter@arcor.de>:
 # version 0.7: add; confirmation for auto(un)load option and error messages added
 #            : fix: not installed script was loaded using option "unload"
@@ -45,8 +48,9 @@
 
 use strict;
 use File::Basename;
+
 my $PRGNAME     = "script";
-my $VERSION     = "0.7";
+my $VERSION     = "1.0";
 my $AUTHOR      = "Nils Görs <weechatter\@arcor.de>";
 my $LICENCE     = "GPL3";
 my $DESCR       = "to load/reload/unload script (language independent) and also to create/remove symlink";
@@ -54,7 +58,6 @@ my $DESCR       = "to load/reload/unload script (language independent) and also 
 # internal values
 my $weechat_version = "";
 my $home_dir        = "";
-my $fifo_filename   = "";
 my %script_suffix = (
                     "python_script"    => ".py",
                     "perl_script"      => ".pl",
@@ -79,23 +82,17 @@ my %options = ("autoload_load"          => ["off","load script after a symlink w
 );
 
 
-# -----------------------------[ programm ]-----------------------------------
-sub my_command_cb{
-my ($getargs) = lc($_[2]);
-my $execute_command = "";
-my $hit = 0;
-return weechat::WEECHAT_RC_OK if ($getargs eq "");
-
-my @args=split(/ /, $getargs);
-
-if ($args[0] eq "list"){
-my $str = "";
-my $color1 = weechat::color(weechat::config_color(weechat::config_get("weechat.color.chat_buffer")));
-my $color_reset = weechat::color("reset");
+# -----------------------------[ main commands ]-----------------------------------
+sub list_scripts
+{
+    my $str = "";
+    my $color1 = weechat::color(weechat::config_color(weechat::config_get("weechat.color.chat_buffer")));
+    my $color_reset = weechat::color("reset");
     foreach my $script_suffix (keys %script_suffix){
-      $script_counter{$script_suffix} = 0;
-      my $infolist = weechat::infolist_get($script_suffix,"","");
-        while (weechat::infolist_next($infolist)){
+        $script_counter{$script_suffix} = 0;
+        my $infolist = weechat::infolist_get($script_suffix,"","");
+        while (weechat::infolist_next($infolist))
+        {
             my $name = weechat::infolist_string($infolist, "name");
             my $version = weechat::infolist_string($infolist, "version");
             my $description = weechat::infolist_string($infolist, "description");
@@ -103,202 +100,364 @@ my $color_reset = weechat::color("reset");
             $script_counter{$script_suffix} ++;
             weechat::print("",$output);
         }
-      weechat::infolist_free($infolist);
+        weechat::infolist_free($infolist);
+     }
+     my $total = 0;
+     while (my ($script,$count) = each (%script_counter))
+     {
+         $total = $total + $count;
+         $str .= $color1 . $script . ": " . $color_reset . $count . ", ";
+     }
+     weechat::print("","\n" . $str . $color1 . "total: " . $color_reset . $total);
+}
+
+sub load_script
+{
+    my ($command,$script,$mute,$all) = ($_[0],$_[1],$_[2],$_[3]);
+
+    my $short_script_name = check_if_script_is_installed($script);
+    if ( $short_script_name eq "" )                                       # script not installed!
+    {
+        my $execute_command = script_loader($command,$script,$mute,$all);
+        if  ( $execute_command eq "" )
+        {
+            weechat::print("",weechat::prefix("error")."$PRGNAME: \"$command\" error. script with name \"$script\" not found.") if ($mute ne "-mute");
+            return;
+        }
+        weechat::command("","/wait 1ms $execute_command");
+    }else
+    {
+        weechat::print("",weechat::prefix("error")."$PRGNAME: \"$command\" error. script with name \"$short_script_name\" already installed. use: /$PRGNAME reload $short_script_name") if ($mute ne "-mute");
     }
-    my $total = 0;
-    while (my ($script,$count) = each (%script_counter)){
-      $total = $total + $count;
-      $str .= $color1 . $script . ": " . $color_reset . $count . ", ";
+}
+
+sub reload_script
+{
+    my ($command,$script,$mute,$all,$force) = ($_[0],$_[1],$_[2],$_[3],$_[4]);
+
+    if ( $script eq "-all" or $all eq "-all")
+    {
+        script_re_unload_cb($command,"",$mute,$all);
+        return;
     }
-      weechat::print("","\n" . $str . $color1 . "total: " . $color_reset . $total);
 
-return weechat::WEECHAT_RC_OK;
+    my $short_script_name = check_if_script_is_installed($script);
+    if ( $short_script_name eq "" )                                             # script not installed!
+    {
+        if ( $options{force_reload}[0] eq "on" or $force eq "-force")           # use force_reload ??
+        {
+            $command = "load";
+            my $execute_command = script_loader($command,$script,$mute,$all);
+            if  ( $execute_command ne "" )
+            {
+#                weechat::print("","command: $command   script: $script   exe: $execute_command");
+                weechat::command("","/wait 1ms $execute_command");
+            }else
+            {
+                weechat::print("",weechat::prefix("error")."$PRGNAME: \"$command\" error. script with name \"$short_script_name\" not found.");
+            }
+        }else
+        {
+            weechat::print("",weechat::prefix("error")."$PRGNAME: \"$command\" error. script \"$script\" not installed. Either you are using \"/$PRGNAME load $script\" or you use the \"-force\" argument.");
+        }
+    }else                                                                       # reload script!
+    {
+        my $execute_command = script_re_unload_cb($command,$short_script_name,$mute,$all);
+        if  ( $execute_command ne "" )
+        {
+#            weechat::print("","command_reload: $command   script: $script   exe: $execute_command");
+            weechat::command("","/wait 1ms $execute_command");
+        }
+    }
 }
 
-my @commands = qw(list autoload autounload force_reload load reload unload);
-my $command = (grep /^$args[0]$/ig, @commands);
+sub unload_script
+{
+    my ($command,$script,$mute,$all,$force) = ($_[0],$_[1],$_[2],$_[3],$_[4]);
 
-if  ( $command == 0 ){
-  weechat::print("",weechat::prefix("error")."$PRGNAME: Yoda says: \"$args[0]\" is not a valid command. \“Do or do not... there is no try\”...");
-  return weechat::WEECHAT_RC_OK;
-}
-if ( not defined $args[1] ){
-  weechat::print("",weechat::prefix("error")."$PRGNAME: \"$args[0]\" error. Obi-Wan says: You did not specified a script my young padawn...");
-  return weechat::WEECHAT_RC_OK;
-}
-
-  my $args_m = "";
-  my $args_a = "";
-  $args_m = "-mute"  if ( grep /^-mute$/i, @args );
-  $args_a = "-all"  if ( grep /^-all$/i, @args );
-
-
-  if ($args[0] eq "autoload" or $args[0] eq "autounload"){
-      autoload_script($args[0],$args[1],$args_m,$args_a);                       # command, scriptname, mute, all
-  }elsif ( $args[0] eq "load" or $args[0] eq "reload" or $args[0] eq "unload" ){
-      $execute_command = load_reload_script($args[0],$args[1],$args_m,$args_a); # command,scriptname,mute,all
-  }elsif( $args[0] eq "force_reload" ){
-    ($execute_command,$hit) = reunload_script_cb($args[0],$args[1],"","");      # command,scriptname,mute,all
-    $execute_command =~ s/$args[0]/reload/ if ( $execute_command ne "" );       # reload
-    ($execute_command,$hit) = load_script_cb($args[0],$args[1],"","") if ( $execute_command eq "" );
-    $execute_command =~ s/$args[0]/load/ if ( $execute_command ne "" );         # load script
-  }
-weechat::command("","/wait 1ms $execute_command") if ( $execute_command ne "");
-
-return weechat::WEECHAT_RC_OK;
+    if ( $script eq "-all" or $all eq "-all")
+    {
+        script_re_unload_cb($command,"",$mute,$all);
+        return;
+    }
+    my $short_script_name = check_if_script_is_installed($script);
+    if ( $short_script_name eq "" )                                             # script not installed!
+    {
+        weechat::print("",weechat::prefix("error")."$PRGNAME: \"$command\" error. script \"$script\" not installed.") if ($mute ne "-mute");
+    }else
+    {
+        my $execute_command = script_re_unload_cb($command,$short_script_name,$mute,$all);
+        if  ( $execute_command ne "" )
+        {
+#            weechat::print("","command_unload: $command   script: $script   exe: $execute_command");
+            weechat::command("","/wait 1ms $execute_command");
+        }
+    }
 }
 
-sub load_reload_script{
-my ($command,$script,$mute,$all) = ($_[0],$_[1],$_[2],$_[3]);
-my $hit = 0;
-my $execute_command = "";
-  return "" if ( not defined $script or $script eq "" );
-  my $command2 = $command;
-  $command = "load" if ($command2 eq "autoload");
-  $command = "unload" if ($command2 eq "autounload");
+sub autoload_script
+{
+    my ($command,$script,$mute,$all) = ($_[0],$_[1],$_[2],$_[3]);
+    my @files = get_all_scripts("autoload");
+    unless ( grep m/\/$script(.pl|.py|.rb|.tcl|.lua|.scm)$/ig, @files)
+    {
+        weechat::print("",weechat::prefix("error") . "script: \"$script\" not found.") if ($mute ne "-mute");
+        return;
+    }
+    foreach my $filename (@files)
+    {
+        if ($filename =~ /\/$script(.pl|.py|.rb|.tcl|.lua|.scm)/)
+        {
+            if ( $command eq "autoload" )
+            {
+                my $suffix = ($filename =~ m{([^.]+)$} )[0];                                            # get suffix
+                $suffix = ($filename =~ m{.*Logger$})[0] unless($suffix);
+                my (undef,$path) = fileparse $filename;                                                 # remove path
+                # if symlink don't exists, create one.
+                unless (-e $path . "/autoload/" . $script . "." . $suffix)
+                {
+                    weechat::print("",weechat::prefix("error") . "script: \"$script\" will be auto loaded.") if ($mute ne "-mute");
+                    symlink($filename , $path . "/autoload/" . $script . "." . $suffix)
+                }
+                if ( $options{autoload_load}[0] eq "on" )
+                {
+                    my $execute_command = "";
+                    my $short_script_name = check_if_script_is_installed($script);
+                    if ( $short_script_name eq "" )                                                 # script not installed!
+                    {
+                        $execute_command = script_loader("load",$script,$mute,$all);
+                    }
+                    if  ( $execute_command ne "" )
+                    {
+                        weechat::command("","/wait 1ms $execute_command");
+                    }
+                }
+            }
+        }
+    }
+}
 
-  $script =~ s/\.[^.]+$// unless (index($script,"/") <= 0);                         # delete suffix if given and no "/" in name
+sub autounload_script
+{
+    my ($command,$script,$mute,$all) = ($_[0],$_[1],$_[2],$_[3]);
+    my @files = get_all_scripts("autounload");
+    unless ( grep m/\/$script(.pl|.py|.rb|.tcl|.lua|.scm)$/ig, @files)
+    {
+        weechat::print("",weechat::prefix("error") . "script: symlink for \"$script\" not found.") if ($mute ne "-mute");
+        return;
+    }
+    foreach my $filename (@files)
+    {
+        if ($filename =~ /\/$script(.pl|.py|.rb|.tcl|.lua|.scm)/)
+        {
+            if ( $command eq "autounload" )
+            {
+                my $suffix = ($filename =~ m{([^.]+)$} )[0];                                            # get suffix
+                $suffix = ($filename =~ m{.*Logger$})[0] unless($suffix);
+                my (undef,$path) = fileparse $filename;                                                 # remove path
+                # if symlink exists, delete it.
+                if (-e $path . $script . "." . $suffix)
+                {
+                    unlink $path . $script . "." . $suffix;
+                    weechat::print("",weechat::prefix("error") . "script \"$script\" will no longer be auto loaded.") if ($mute ne "-mute");
+                }
+                if ( $options{autounload_unload}[0] eq "on" )
+                {
+                    my $execute_command = "";
+                    my $short_script_name = check_if_script_is_installed($script);
+                    if ( $short_script_name ne "" )                                                     # script installed!
+                    {
+                        unload_script("unload",$script,$mute,$all);                                     # unload script
+                    }
+                }
+            }
+        }
+    }
+}
+# -----------------------------[ subroutines ]-----------------------------------
+sub get_all_scripts
+{
+    my $command = $_[0];
 
+    my $path;
+    my @files;
 
-  if ( $command eq "reload" or $command eq "unload"){
-    ($execute_command,$hit) = reunload_script_cb($command,$script,$mute,$all);
-    return "" if ($execute_command eq "" and $command eq "unload");
-  }elsif ( $command eq "load"){
-    foreach my $plugin (keys %script_suffix){                                 # check if script is already installed.
+    while (my ($plugin,$suffix) = each (%script_suffix))
+    {
+        ($plugin,undef) = split(/_/,$plugin);
+        $path = $home_dir . "/" . $plugin . "/*" .$suffix if ($command eq "autoload");
+        $path = $home_dir . "/" . $plugin . "/autoload" . "/*" .$suffix if ($command eq "autounload");
+        my @files_glob = glob($path);
+        if (@files_glob ne "")
+        {
+            foreach my $filename (@files_glob)
+            {
+                push(@files,$filename);
+            }
+        }
+    }
+    return @files;
+}
+
+sub check_if_script_is_installed
+{
+    my ( $script ) = ($_[0]);
+    my $path = "";
+
+    if (index($script,"/") >= 0)                                                        # /path/to/script given?
+    {
+        ($script,$path) = fileparse $script;                                            # remove path
+    }
+
+    $script =~ s/\.[^.]+$// if (index($script,"/") == -1);                              # delete suffix from scriptname if no "/" in name
+    # check if script is already installed.
+    foreach my $plugin (keys %script_suffix)
+    {
         my $infolist = weechat::infolist_get( $plugin, "name", $script );
         weechat::infolist_next($infolist);
         my $script_found = weechat::infolist_string( $infolist, "name" ) eq $script;
         weechat::infolist_free($infolist);
-        if ( $script_found eq "1" ){
-          $hit = 3;                                                           # script is installed!!!
-          last;
+        if ( $script_found eq "1" )
+        {
+            return $script;
         }
     }
-    if ( $hit != 3 ){
-        ($execute_command,$hit) = load_script_cb($command,$script,$mute,$all);
-    }
-  }
-
-  unless (("autoload" or "autounload") eq $command2){
-        weechat::print("",weechat::prefix("error")."$PRGNAME: \"$command\" error. script with name \"$script\" already installed") if ( $hit == 3 );
-  }
-
-if ( $hit == 0){
-  if ( $options{force_reload}[0] eq "off" ){
-      weechat::print("",weechat::prefix("error")."$PRGNAME: \"$command\" error. script with name \"$script\" not found");
-  }elsif ( $options{force_reload}[0] eq "on" ){
-      ($execute_command,$hit) = load_script_cb($command,$script,"","");
-      $execute_command =~ s/$command/load/ if ( $execute_command ne "" );         # load script
-      weechat::print("",weechat::prefix("error")."$PRGNAME: \"force_reload\" error. script with name \"$script\" not found") if ( $hit == 0 );
-  }
+    return "";
 }
 
-$execute_command = "" if ( $hit == 2);
-return $execute_command;
-}
-
-sub load_script_cb{
-my ($command,$script,$mute,$all) = ($_[0],$_[1],$_[2],$_[3]);
-my $hit = 0;
-my $execute_command = "";
+sub script_loader{
+    my ($command,$script,$mute,$all) = ($_[0],$_[1],$_[2],$_[3]);
+    my $execute_command = "";
+    my %script_suffix_bak = %script_suffix;
     # full script path given by user
-    if (index($script,"/") >= 0){
-        while (my ($plugin,$suffix) = each (%script_suffix)){
+    if (index($script,"/") >= 0)
+    {
+        while (my ($plugin,$suffix) = each (%script_suffix_bak))
+        {
             my ($plugin,undef) = split(/_/,$plugin);
-            if ( index($script,$suffix) >= 0 ){
-                weechat::print("","/$plugin $command $script");
+            if ( index($script,$suffix) >= 0 )
+            {
                 $execute_command = "/$plugin $command $script" if ($mute eq "");
                 $execute_command = "/mute $plugin $command $script" if ($mute eq "-mute");
-                $hit = 1;
-                return ($execute_command,$hit);
+                return ($execute_command);  
             }
         }
-    }else{
+    }else
+    {
         my @files;
-        while (my ($plugin,$suffix) = each (%script_suffix)){
+        $script =~ s/\.[^.]+$//;                    # delete suffix
+        while (my ($plugin,$suffix) = each (%script_suffix_bak)){
             my ($plugin,undef) = split(/_/,$plugin);
             @files = glob($home_dir . "/" . $plugin . "/*" .$suffix);
-            foreach my $file (@files) {
-                if ( index($file,$script . $suffix) ne "-1" ){
-                    $hit = 1;
+            foreach my $file (@files)
+            {
+                if ( index($file,$script . $suffix) ne "-1" )
+                {
                     $execute_command = "/$plugin $command $script"."$suffix" if ($mute eq "");
                     $execute_command = "/mute $plugin $command $script"."$suffix" if ($mute eq "-mute");
+                    return ($execute_command);
                 }
             }
         }
      }
-return ($execute_command,$hit);
+return $execute_command;
 }
 
-sub reunload_script_cb{
-my ($command,$script,$mute,$all) = ($_[0],$_[1],$_[2],$_[3]);
-my $hit = 0;
-my $execute_command = "";
-    foreach my $script_suffix (keys %script_suffix){
-      my $infolist = weechat::infolist_get($script_suffix,"","");
+sub script_re_unload_cb
+{
+    my ($command,$script,$mute,$all) = ($_[0],$_[1],$_[2],$_[3]);
+    my $execute_command = "";
+    foreach my $script_suffix (keys %script_suffix)
+    {
+        my $infolist = weechat::infolist_get($script_suffix,"","");
             while (weechat::infolist_next($infolist)){
                 my $name = weechat::infolist_string($infolist, "name");
                 if ( $all eq "-all"){
                   my ($plugin,undef) = split(/_/,$script_suffix);
                   $execute_command = "/$plugin $command $name" if ($mute eq "");
                   $execute_command = "/mute $plugin $command $name" if ($mute eq "-mute");
+#                  weechat::print("","/wait 1ms $execute_command");
                   weechat::command("","/wait 1ms $execute_command") if ( $execute_command ne "");
-                  $hit = 2;                                                                             # no more please :-)
                 }elsif( lc($name) eq lc($script) ){
                   my ($plugin,undef) = split(/_/,$script_suffix);
                   $execute_command = "/$plugin $command $name" if ($mute eq "");
                   $execute_command = "/mute $plugin $command $name" if ($mute eq "-mute");
-                  $hit = 1;
                   last;
                 }
             }
       weechat::infolist_free($infolist);
     }
-return ($execute_command,$hit);
+return $execute_command;
 }
 
-sub autoload_script{
-    my ($command,$script,$mute,$all) = ($_[0],$_[1],$_[2],$_[3]);
-    my @files;
+# -----------------------------[ command callback ]-----------------------------------
+sub my_command_cb
+{
+    my ($getargs) = lc($_[2]);
+    my $execute_command = "";
+    return weechat::WEECHAT_RC_OK if ($getargs eq "");
 
-    while (my ($plugin,$suffix) = each (%script_suffix)){
-      my ($plugin,undef) = split(/_/,$plugin);
-      @files = glob($home_dir . "/" . $plugin . "/*" .$suffix);
-      foreach my $file (@files) {
-          if (index($file,$script . $suffix) ne "-1" ){
-              if ( $command eq "autoload" ){
-                  if ( symlink($home_dir . "/" . $plugin . "/" . $script . $suffix,$home_dir . "/" . $plugin . "/autoload/" . $script . $suffix) ){
-                      if ($mute ne "-mute"){
-                      weechat::print("",weechat::prefix("error") . $plugin . ": script " . $script . $suffix . " will be auto loaded...");
-                      }
-                  }else{
-                      weechat::print("",weechat::prefix("error") . $plugin . ": error " . $script . $suffix . " can't be auto loaded...");
-                      return;
-                  }
-              }
-              if ( $command eq "autounload" ){
-                  if ( unlink $home_dir . "/" . $plugin . "/autoload/" . $script . $suffix ){
-                      if ($mute ne "-mute"){
-                          weechat::print("",weechat::prefix("error") . $plugin . ": script " . $script . $suffix . " will no longer be auto loaded...");
-                      }
-                  }else{
-                      weechat::print("",weechat::prefix("error") . $plugin . ": error " . $script . $suffix . " can't be auto unloaded...");
-                      return;
-                  }
-              }
-          }
-      }
+    my @args=split(/ /, $getargs);
+    my @commands = qw(list autoload autounload load reload unload);
+    my $command = (grep /^$args[0]$/ig, @commands);                                     # search for a command in first option
+
+    # error checks...
+    if  ( $command == 0 )
+    {
+        weechat::print("",weechat::prefix("error")."$PRGNAME: Yoda says: \"$args[0]\" is not a valid command. \“Do or do not... there is no try\”...");
+        return weechat::WEECHAT_RC_OK;
     }
-  my $execute_command = "";
-  if ( $options{autoload_load}[0] eq "on" and $command eq "autoload" ){                 # option = on and command "autoload"?
-    $execute_command = load_reload_script("autoload",$script,$mute,$all);               # load script
-  }
-  if ( $options{autounload_unload}[0] eq "on" and $command eq "autounload" ){           # option = on and command "autounload"?
-    $execute_command = load_reload_script("autounload",$script,$mute,$all);             # unload script
-  }
-weechat::command("","/wait 1ms $execute_command") if ( $execute_command ne "")
-}
 
+    if ($args[0] eq "list")
+    {
+        list_scripts();
+        return weechat::WEECHAT_RC_OK;
+    }
+
+    if ( not defined $args[1] )
+    {
+        weechat::print("",weechat::prefix("error")."$PRGNAME: \"$args[0]\" error. Obi-Wan says: You did not specified a script my young padawn...");
+        return weechat::WEECHAT_RC_OK;
+    }
+
+    # get additional options
+    my $args_m = "";
+    my $args_a = "";
+    my $args_f = "";
+    $args_m = "-mute"  if ( grep /^-mute$/i, @args );
+    $args_a = "-all"  if ( grep /^-all$/i, @args );
+    $args_f = "-force" if ( grep /^-force$/i, @args );
+
+    my @script_array = grep !/(-all|-mute|-force)/, @args;                              # remove additional options from script list
+    push @script_array, "-all" if ( $args_a eq "-all" );
+    my $i = 0;
+    while ($i < $#script_array)
+    {
+        $i++;
+        $args[1] = $script_array[$i];
+        $i = $#script_array if ( $args_a eq "-all" );
+        # load, unload, reload, autoload, autounload
+        if ( $args[0] eq "load" )
+        {
+            load_script($args[0],$args[1],$args_m,$args_a);
+        }elsif ( $args[0] eq "reload" )
+        {
+            reload_script($args[0],$args[1],$args_m,$args_a,$args_f);
+        }elsif ( $args[0] eq "unload" )
+        {
+            unload_script($args[0],$args[1],$args_m,$args_a,$args_f);
+        }elsif ( $args[0] eq "autoload" )
+        {
+            autoload_script($args[0],$args[1],$args_m,$args_a,$args_f);
+        }elsif ( $args[0] eq "autounload" )
+        {
+            autounload_script($args[0],$args[1],$args_m,$args_a,$args_f);
+        }
+    }
+
+    return weechat::WEECHAT_RC_OK;
+}
+# -----------------------------[ completion callback ]-----------------------------------
 sub script_completion_cb
 {
 my ($data,$completion_item,$buffer,$completion) = ($_[0],$_[1],$_[2],$_[3]);
@@ -313,8 +472,10 @@ my @files;
     }
     return weechat::WEECHAT_RC_OK
 }
+
 # -----------------------------[ config ]-----------------------------------
-sub init_config{
+sub init_config
+{
     foreach my $option (keys %options){
         if (!weechat::config_is_set_plugin($option)){
             weechat::config_set_plugin($option, $options{$option}[0]);
@@ -335,11 +496,6 @@ sub toggle_config_by_set
 # insert a refresh here
     return weechat::WEECHAT_RC_OK;
 }
-
-sub description_options{
-    weechat::config_set_desc_plugin("autoload_load","load script after a symlink was created");
-    weechat::config_set_desc_plugin("autounload_unload","unload script after a symlink was removed");
-}
 # -------------------------------[ init ]-------------------------------------
 # first function called by a WeeChat-script.
 weechat::register($PRGNAME, $AUTHOR, $VERSION,
@@ -349,11 +505,11 @@ $weechat_version = weechat::info_get("version_number", "");
 $home_dir = weechat::info_get ("weechat_dir", "");
 
 weechat::hook_command($PRGNAME, $DESCR,
-                "load <script> || reload <script> || unload <script> || autoload <script> || autounload <script> || force_reload <script> || list || -all || -mute\n",
+                "load <script> || reload <script> -force || unload <script> || autoload <script> || autounload <script> || list || -all || -mute\n",
                 "         list          : list all installed scripts (by plugin)\n".
                 "         load <script> : load <script> (no suffix needed)\n".
                 "       reload <script> : reload <script>\n".
-                " force_reload <script> : first try to reload a script and load a script if not loaded (mainly for programmers)\n".
+                "                -force : tries to reload a script first and will load the script if not loaded (mainly for programmers)\n".
                 "       unload <script> : unload <script>\n".
                 "     autoload <script> : creates a symlink to start automatically a script at weechat startup\n".
                 "   autounload <script> : remove symlink from autoload\n".
@@ -363,23 +519,24 @@ weechat::hook_command($PRGNAME, $DESCR,
                 "$PRGNAME will only create/remove a symlink in \"~/.weechat/<language>/autoload\"\n".
                 "to remove/install scripts permanently use \"weeget.py\" script (http://www.weechat.org/files/scripts/weeget.py)\n".
                 "\n".
+                "You can do an action on multiple scripts at once.\n".
+                "\n".
                 "Examples:\n".
                 " reload script buddylist:\n".
                 "   /$PRGNAME reload buddylist\n".
-                " load script buddylist:\n".
-                "   /$PRGNAME load buddylist\n".
+                " load several scripts at once:\n".
+                "   /$PRGNAME load buddylist colorize_lines buffers\n".
                 " force to reload/load script buddylist:\n".
                 "   /$PRGNAME force_reload buddylist\n".
                 " create symlink for script weeget\n".
                 "   /$PRGNAME autoload weeget\n".
                 "",
-                "list %-||".
-                "load %(all_scripts) -mute %-||".
-                "reload %(python_script)|%(perl_script)|%(ruby_script)|%(tcl_script)|%(lua_script)|%(guile_script)|-all| -mute %-||".
-                "unload %(python_script)|%(perl_script)|%(ruby_script)|%(tcl_script)|%(lua_script)|%(guile_script)|-all| -mute %-||".
-                "force_reload %(python_script)|%(perl_script)|%(ruby_script)|%(tcl_script)|%(lua_script)|%(guile_script)|%(all_scripts) %-||".
-                "autoload %(all_scripts) %-||".
-                "autounload %(all_scripts) %-||",
+                "list %-".
+                "||load %(all_scripts)|-mute|%*".
+                "||reload %(python_script)|%(perl_script)|%(ruby_script)|%(tcl_script)|%(lua_script)|%(guile_script)|-all|-force|-mute|%*".
+                "||unload %(python_script)|%(perl_script)|%(ruby_script)|%(tcl_script)|%(lua_script)|%(guile_script)|-all|-mute|%*".
+                "||autoload %(all_scripts)|-mute|%*".
+                "||autounload %(all_scripts)|-mute|%*",
                 "my_command_cb", "");
 weechat::hook_completion("all_scripts", "all scripts in script directory", "script_completion_cb", "");
 weechat::hook_config("plugins.var.perl.$PRGNAME.*", "toggle_config_by_set", "");
