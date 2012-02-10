@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2009-2010 by xt <xt@bash.no>
+# Copyright (c) 2011 by mythmon <mythmon@gmail.com>
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2012-02-09, mythmon
+#   version 0.6: Allow sorting of channels
 # 2010-10-21, xt
 #   version 0.5: use ^ for ctrl
 # 2010-02-08, bazerka <bazerka@quakenet.org>
@@ -11,7 +14,7 @@
 # 2009-05-26, xt <xt@bash.no>
 #   version 0.3: only update keydict when key bindings change
 # 2009-05-16, xt <xt@bash.no>
-#   version 0.2: added support for using keybindigs instead of names.   
+#   version 0.2: added support for using keybindings instead of names.
 # 2009-05-10, xt <xt@bash.no>
 #   version 0.1: initial release.
 #
@@ -29,22 +32,34 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-''' Hotlist replacement. 
+'''Hotlist replacement.
 
-Usage: first, put [chanact] in your status bar items. 
+Usage: first, put [chanact] in your status bar items.
 " weechat.bar.status.items".
 
 Then you can bind keys to buffers with
 /key bind meta-w /buffer #weechat
 
 And then it will show as [Act: w] on your status bar.
+
+You can change the order that windows appear in the status bar by setting a
+sort rank with
+/chanact sort [num]
+
+If you leave off the number, it will print the current sort rank of a buffer.
 '''
 
-import weechat as w
+try:
+    import weechat as w
+except:
+    import sys
+    print("This script must be run inside weechat.")
+    sys.exit(1)
+
 
 SCRIPT_NAME    = "chanact"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.5"
+SCRIPT_VERSION = "0.6"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Hotlist replacement, use names and keybindings instead of numbers"
 
@@ -73,8 +88,30 @@ hooks = (
 keydict = {}
 
 
-def keydict_update(*kwargs):
-    ' Populate a python dictionary with relevant key=>buffer mappings'
+def chanact_command(data, buffer, args):
+    args = args.split(' ')
+    if args[0] == 'sort':
+        if len(args) == 1:
+            s = sort_rank(buffer)
+            w.prnt(buffer, 'Sort rank of this buffer: %d' % s)
+        elif len(args) == 2:
+            s = args[1]
+            w.buffer_set(buffer, 'localvar_set_sort', s)
+            w.prnt(buffer, 'Sort rank of this buffer set to: %s' % s)
+
+    return w.WEECHAT_RC_OK
+
+
+def sort_rank(b):
+    r = w.buffer_get_string(b, 'localvar_sort')
+    if r:
+        return int(r)
+    else:
+        return 0
+
+
+def keydict_update(*args):
+    '''Populate a python dictionary with relevant key=>buffer mappings.'''
 
     global keydict
 
@@ -101,12 +138,13 @@ def keydict_update(*kwargs):
     return w.WEECHAT_RC_OK
 
 
-def chanact_cb(*kwargs):
+def chanact_cb(*args):
     ''' Callback ran on hotlist changes '''
     global keydict
 
-    result = ''
     hotlist = w.infolist_get('hotlist', '', '')
+
+    activity = []
     while w.infolist_next(hotlist):
         priority = w.infolist_integer(hotlist, 'priority')
 
@@ -123,12 +161,12 @@ def chanact_cb(*kwargs):
 
         if number in keydict:
             number = keydict[number]
-            result += '%s%s%s' % (w.color(color), number, w.color('reset'))
+            entry = '%s%s%s' % (w.color(color), number, w.color('reset'))
         elif name in keydict:
             name = keydict[name]
-            result += '%s%s%s' % (w.color(color), name, w.color('reset'))
+            entry = '%s%s%s' % (w.color(color), name, w.color('reset'))
         elif name:
-            result += '%s%s%s:%s%s%s' % (
+            entry = '%s%s%s:%s%s%s' % (
                     w.color('default'),
                     number,
                     w.color('reset'),
@@ -136,18 +174,24 @@ def chanact_cb(*kwargs):
                     name[:int(w.config_get_plugin('item_length'))],
                     w.color('reset'))
         else:
-            result += '%s%s%s' % (
+            entry = '%s%s%s' % (
                     w.color(color),
                     number,
                     w.color(reset))
-        result += w.config_get_plugin('delimiter')
+
+        activity.append((entry, thebuffer))
+
+    activity.sort(key=lambda t: sort_rank(t[1]), reverse=True)
 
     w.infolist_free(hotlist)
-    if result:
-        result = '%s%s' % (w.config_get_plugin('message'), result.rstrip(w.config_get_plugin('delimiter')))
-    return result
+    if activity:
+        message = w.config_get_plugin('message')
+        delim = w.config_get_plugin('delimiter')
+        return message + delim.join(a[0] for a in activity)
+    else:
+        return ''
 
-def chanact_update(*kwargs):
+def chanact_update(*args):
     ''' Hooked to hotlist changes '''
 
     w.bar_item_update('chanact')
@@ -165,3 +209,8 @@ if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
 
     w.bar_item_new('chanact', 'chanact_cb', '')
     keydict_update()
+
+
+w.hook_command('chanact', 'Manipulate chanact.', 'sort [rank]',
+    'sort: Show or set the sort rank of the current buffer.',
+    'sort', 'chanact_command', '')
