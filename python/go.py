@@ -23,7 +23,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
-#
+# 2012-01-03 nils_2 <weechatter@arcor.de>
+#     version 1.7: add option use_core_instead_weechat (requested by k-man and _rane)
 # 2012-01-03, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 1.6: make script compatible with Python 3.x
 # 2011-08-24, stfn <stfnmd@googlemail.com>:
@@ -65,7 +66,7 @@ import weechat, re
 
 SCRIPT_NAME    = "go"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "1.6"
+SCRIPT_VERSION = "1.7"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Quick jump to buffers"
 
@@ -80,6 +81,7 @@ settings = {
     "message"                      : "Go to: ",
     "short_name"                   : "off",
     "sort_by_activity"             : "off",
+    "use_core_instead_weechat"     : "off",
 }
 
 # hooks management
@@ -206,6 +208,8 @@ def get_matching_buffers(input):
             name = weechat.infolist_string(infolist, "short_name")
         else:
             name = weechat.infolist_string(infolist, "name")
+        if weechat.config_get_plugin("use_core_instead_weechat") == "on" and name == "weechat":
+            name = "core"
         number = weechat.infolist_integer(infolist, "number")
         pointer = weechat.infolist_pointer(infolist, "pointer")
         matching = name.lower().find(input) >= 0
