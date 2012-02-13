@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 #
-# Clone Scanner, version 0.5 for WeeChat version 0.3
+# Clone Scanner, version 0.7 for WeeChat version 0.3
 # Latest development version: https://github.com/FiXato/weechat_scripts
 #
-#   A Clone Scanner that can manually scan channels and 
-#   automatically scans joins for users on the channel 
+#   A Clone Scanner that can manually scan channels and
+#   automatically scans joins for users on the channel
 #   with multiple nicknames from the same host.
 #
-#   Upon join by a user, the user's host is compared to the infolist of 
+#   Upon join by a user, the user's host is compared to the infolist of
 #   already connected users to see if they are already online from
 #   another nickname. If the user is a clone, it will report it.
 #   With the '/clone_scanner scan' command you can manually scan a chan.
@@ -28,7 +28,7 @@
 #
 ## History:
 ### 2011-09-11: FiXato:
-# 
+#
 # * version 0.1: initial release.
 #     * Added an on-join clone scan. Any user that joins a channel will be
 #       matched against users already on the channel.
@@ -65,19 +65,29 @@
 # * version 0.5: cs_buffer refactoring
 #     * dropping the manual cs_create_buffer call in favor for a cs_get_buffer() method
 #
+### 2012-02-10: FiXato:
+#
+# * version 0.6: Stop shoving that buffer in my face!
+#     * The clone_scanner buffer should no longer pop up by itself when you load the script.
+#       It should only pop up now when you actually a line needs to show up in the buffer.
+#
+# * version 0.7: .. but please pop it up in my current window when I ask for it
+#     * Added setting plugins.var.python.clone_scanner.autofocus
+#       This will autofocus the clone_scanner buffer in the current window if another window isn't
+#       already showing it, and of course only when the clone_scanner buffer is triggered
+#
 ## Acknowledgements:
 # * Sebastien "Flashcode" Helleu, for developing the kick-ass chat/IRC
 #    client WeeChat
 # * ArZa, whose kickban.pl script helped me get started with using the
-#   infolist results. 
+#   infolist results.
 #
-## TODO: 
+## TODO:
 #   - Add option to enable/disable public clone reporting aka msg channels
 #   - Add option to enable/disable scanning on certain channels/networks
 #   - Add cross-channel clone scan
 #   - Add cross-server clone scan
 #   - Make clone_scanner buffer optional
-#   - Add optional command redirection.
 #
 ## Copyright (c) 2011 Filip H.F. "FiXato" Slagter,
 #   <FiXato [at] Gmail [dot] com>
@@ -104,7 +114,7 @@
 #
 SCRIPT_NAME     = "clone_scanner"
 SCRIPT_AUTHOR   = "Filip H.F. 'FiXato' Slagter <fixato [at] gmail [dot] com>"
-SCRIPT_VERSION  = "0.5"
+SCRIPT_VERSION  = "0.7"
 SCRIPT_LICENSE  = "MIT"
 SCRIPT_DESC     = "A Clone Scanner that can manually scan channels and automatically scans joins for users on the channel with multiple nicknames from the same host."
 SCRIPT_COMMAND  = "clone_scanner"
@@ -121,6 +131,7 @@ except ImportError:
 import re
 cs_buffer = None
 cs_settings = (
+  ("autofocus",                           "on", "Focus the clone_scanner buffer in the current window if it isn't already displayed by a window."),
   ("display_join_messages",               "off", "Display all joins in the clone_scanner buffer"),
   ("display_onjoin_alert_clone_buffer",   "on", "Display an on-join clone alert in the clone_scanner buffer"),
   ("display_onjoin_alert_target_buffer",  "on", "Display an on-join clone alert in the buffer where the clone was detected"),
@@ -149,7 +160,7 @@ cs_settings = (
   ("colors.clone_report.subheader.message",        "chat", "The colour of the clone report subheader."),
   ("colors.clone_report.subheader.host",              "bold", "The colour of the host in the clone report subheader."),
   ("colors.clone_report.subheader.number_of_clones",  "bold", "The colour of the number of clones in the clone report subheader."),
-  
+
   ("colors.clone_report.clone.message", "chat", "The colour of the clone hit in the clone report message."),
   ("colors.clone_report.clone.match",   "chat", "The colour of the match details (masks or nicks) in the clone report."),
 
@@ -245,6 +256,9 @@ def cs_get_buffer():
     weechat.buffer_set(cs_buffer, "title", "Clone Scanner")
     weechat.buffer_set(cs_buffer, "notify", "0")
     weechat.buffer_set(cs_buffer, "nicklist", "0")
+  if weechat.config_get_plugin("autofocus") == "on":
+    if not weechat.window_search_with_buffer(cs_buffer):
+      weechat.command("", "/buffer " + weechat.buffer_get_string(cs_buffer,"name"))
 
   return cs_buffer
 
@@ -268,7 +282,7 @@ def get_channel_from_buffer_args(buffer, args):
   if match_data:
     channel_name = match_data.group(3)
     server_name = match_data.group(2)
-  
+
   return server_name, channel_name
 
 def get_clones_for_buffer(infolist_buffer_name, hostname_to_match=None):
@@ -292,7 +306,7 @@ def get_clones_for_buffer(infolist_buffer_name, hostname_to_match=None):
     matches[hostname].append({
       'nick': nick,
       'mask': "%s!%s" % (
-        format_from_config(nick, "colors.mask.nick"), 
+        format_from_config(nick, "colors.mask.nick"),
         format_from_config(ident_hostname, "colors.mask.identhost")),
       'ident': host_matchdata.group(1),
       'ident_hostname': ident_hostname,
@@ -337,7 +351,7 @@ def report_clones(clones, scanned_buffer_name, target_buffer=None):
     weechat.prnt(target_buffer, "No clones found on %s" % scanned_buffer_name)
 
 def cs_command_main(data, buffer, args):
-  if args[0:4] == 'scan':    
+  if args[0:4] == 'scan':
     server_name, channel_name = get_channel_from_buffer_args(buffer, args[5:])
     clones = get_clones_for_buffer('%s,%s' % (server_name, channel_name))
     if weechat.config_get_plugin("display_scan_report_target_buffer") == "on":
@@ -364,13 +378,10 @@ if __name__ == "__main__" and import_ok:
   if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION,
                       SCRIPT_LICENSE, SCRIPT_DESC, SCRIPT_CLOSE_CB, ""):
     cs_set_default_settings()
-
     cs_buffer = weechat.buffer_search("python", "clone_scanner")
-    cs_get_buffer()
-
     weechat.hook_signal("*,irc_in2_join", "on_join_scan_cb", "")
 
-    weechat.hook_command(SCRIPT_COMMAND, 
+    weechat.hook_command(SCRIPT_COMMAND,
                           SCRIPT_DESC,
                           "[scan] [[plugin.][network.]channel] | [help]",
                           "the target_buffer can be: \n"
