@@ -3,7 +3,7 @@
 # TONS OF THANKS TO FlashCode FOR HIS IRC CLIENT AND HIS SUPPORT ON #weechat
 #
 # -----------------------------------------------------------------------------
-# Copyright (c) 2009 by rettub <rettub@gmx.net>
+# Copyright (c) 2009-2011 by rettub <rettub@gmx.net>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -48,6 +48,14 @@
 # -----------------------------------------------------------------------------
 #
 # Changelog:
+# Version 0.13 2012-02-13, nils_2
+#   * FIX: display error with weechat.look.buffer_time_format (WeeChat >= 0.3.5)
+#
+# Version 0.12 2011-10-03, nils_2
+#
+#   * FIX: ACTION highlight (/me) did not work if flood_protection() was enabled.
+#   * IMPROVED: flood_protection() will act if ’n’ nicks are mentioned in whole message and not only at beginning of message
+#
 # Version 0.11 2010-12-20, nils_2
 #
 #   * FIX function called before weechat::register()
@@ -148,7 +156,7 @@ use POSIX qw(strftime);
 use strict;
 use warnings;
 
-my $Version = "0.11";
+my $Version = "0.13";
 
 # constants
 #
@@ -452,14 +460,24 @@ sub _bar_clear {
 
 sub _bar_date_time {
     my $dt = strftime( weechat::config_string (weechat::config_get('weechat.look.buffer_time_format')), localtime);
+    my $dt_bak = $dt;
+    my $dt_marker = 0;
+    while ( $dt_bak ~~ /\$\{[^\{\}]+\}/ ){
+        $dt_bak =~ /\$\{(.*?)\}/;
+        my $col = weechat::color($1);
+        $dt_bak =~ s/\$\{(.*?)\}/$col/;
+        $dt_marker = 1;
+    }
 
     my $dc     = weechat::color(
         weechat::config_string(weechat::config_get('weechat.color.chat_time_delimiters')));
     my $tdelim = $dc . ":" . weechat::color ("reset");
     my $ddelim = $dc . "-" . weechat::color ("reset");
     
-    $dt =~ s/:/$tdelim/g; 
-    $dt =~ s/-/$ddelim/g; 
+    $dt =~ s/:/$tdelim/g;
+    $dt =~ s/-/$ddelim/g;
+
+    $dt = $dt_bak if ($dt_marker == 1);
 
     return $dt;
 }
@@ -512,18 +530,31 @@ sub _print_formatted {
 sub check_nick_flood {
     my ( $bufferp, $message ) = @_;
 
-    my @n = split( '\s+', $message, $Nick_flood_max_nicks + 1 );
-    my $is_nick = undef;
-    for ( my $i = 0 ; $i < $Nick_flood_max_nicks ; $i++ ) {
-        last if not defined $n[$i];    # messages has less words
+    $message =~ s/\,|\.|\;|\://g;                               # remove special chars first ( for example: nickname, or nickname: )
+    my @n = split( '\s+', $message);
+    @n = &del_double(@n);                                       # remove double nicks
+    my $is_nick = 0;
+    for ( my $i = 0 ; $i < @n ; $i++ ) {
         $is_nick++ if weechat::nicklist_search_nick( $bufferp, '', $n[$i] );
     }
-    return defined $is_nick and $is_nick == $Nick_flood_max_nicks;
+
+    if ( defined $is_nick and $is_nick >= $Nick_flood_max_nicks ){
+      return defined $is_nick;
+    }elsif ( defined $is_nick and $is_nick < $Nick_flood_max_nicks ){
+      return;
+    }
+    return $is_nick = 1 if ( not defined $is_nick );
+    return;
 }
 
+sub del_double{
+  my %all=();
+  @all{@_}=1;
+  return (keys %all);
+}
 # colored output of hilighted text to bar
 sub highlights_public {
-    my ( undef, $bufferp, undef, undef, undef, $ishilight, $nick, $message ) = @_;
+    my ( $data, $bufferp, $date, $tags, $displayed, $ishilight, $nick, $message ) = @_;
 
     if ( $ishilight == 1
         and weechat::config_get_plugin('show_highlights') eq 'on' )
