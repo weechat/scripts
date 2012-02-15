@@ -17,6 +17,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # History:
+#  2012-02-11: nils_2 <weechatter@arcor.de>:
+# version 1.1: fix: rephrase of text output
 #  2012-02-06: nils_2 <weechatter@arcor.de>:
 # version 1.0: complete rewrite of script.
 #            : add: multi-script capability
@@ -50,7 +52,7 @@ use strict;
 use File::Basename;
 
 my $PRGNAME     = "script";
-my $VERSION     = "1.0";
+my $VERSION     = "1.1";
 my $AUTHOR      = "Nils Görs <weechatter\@arcor.de>";
 my $LICENCE     = "GPL3";
 my $DESCR       = "to load/reload/unload script (language independent) and also to create/remove symlink";
@@ -154,11 +156,12 @@ sub reload_script
                 weechat::command("","/wait 1ms $execute_command");
             }else
             {
+                $short_script_name = $script if ( $short_script_name eq "" );
                 weechat::print("",weechat::prefix("error")."$PRGNAME: \"$command\" error. script with name \"$short_script_name\" not found.");
             }
         }else
         {
-            weechat::print("",weechat::prefix("error")."$PRGNAME: \"$command\" error. script \"$script\" not installed. Either you are using \"/$PRGNAME load $script\" or you use the \"-force\" argument.");
+            weechat::print("",weechat::prefix("error")."$PRGNAME: \"$command\" error. script \"$script\" not loaded. You should either use \"/$PRGNAME load $script\" or use the \"-force\" argument.");
         }
     }else                                                                       # reload script!
     {
@@ -201,7 +204,7 @@ sub autoload_script
     my @files = get_all_scripts("autoload");
     unless ( grep m/\/$script(.pl|.py|.rb|.tcl|.lua|.scm)$/ig, @files)
     {
-        weechat::print("",weechat::prefix("error") . "script: \"$script\" not found.") if ($mute ne "-mute");
+        weechat::print("",weechat::prefix("error") . "$PRGNAME: \"$script\" not found.") if ($mute ne "-mute");
         return;
     }
     foreach my $filename (@files)
@@ -243,7 +246,7 @@ sub autounload_script
     my @files = get_all_scripts("autounload");
     unless ( grep m/\/$script(.pl|.py|.rb|.tcl|.lua|.scm)$/ig, @files)
     {
-        weechat::print("",weechat::prefix("error") . "script: symlink for \"$script\" not found.") if ($mute ne "-mute");
+        weechat::print("",weechat::prefix("error") . "$PRGNAME: symlink for \"$script\" not found.") if ($mute ne "-mute");
         return;
     }
     foreach my $filename (@files)
