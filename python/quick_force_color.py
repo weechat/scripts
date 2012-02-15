@@ -17,6 +17,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2012-02-14: nils_2, (freenode.#weechat)
+#       0.2 : fix: problem with foreground/background color
+#           : add: show only a given nick
 # 2012-02-01: nils_2, (freenode.#weechat)
 #       0.1 : initial release
 #
@@ -36,8 +39,8 @@ except Exception:
 
 SCRIPT_NAME     = "quick_force_color"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.1"
-SCRIPT_LICENSE  = "GPL"
+SCRIPT_VERSION  = "0.2"
+SCRIPT_LICENSE  = "GPL3"
 SCRIPT_DESC     = "quickly add/del/change entry in nick_color_force"
 
 # weechat standard colours.
@@ -59,17 +62,18 @@ def nick_colors_cmd_cb(data, buffer, args):
         return weechat.WEECHAT_RC_OK
 
     bufpointer = weechat.window_get_pointer(buffer,'buffer')                                    # current buffer
-    nick_color_force = weechat.config_string(weechat.config_get('irc.look.nick_color_force'))   # get list
 
-    if nick_color_force != '':
-        nick_color_force = nick_color_force.strip(';')                                          # remove ';' at beginning and end of string
-        colored_nicks = dict([elem.split(':') for elem in nick_color_force.split(';')])
+    create_list()
 
     if argv[0].lower() == 'list':                                                               # list all nicks
         if len(colored_nicks) == 0:
             weechat.prnt(buffer,'%sno nicks in \"irc.look.nick_color_force\"...' % weechat.prefix("error"))
             return weechat.WEECHAT_RC_OK
-        weechat.prnt(buffer,"List of nick_color_force")
+        if len(argv) == 2 and argv[1] in colored_nicks:
+            color = colored_nicks[argv[1]]                                                      # get color from given nick
+            weechat.prnt(buffer,"%s%s" % (weechat.color(color),argv[1]))
+            return weechat.WEECHAT_RC_OK
+        weechat.prnt(buffer,"List of nicks in : nick_color_force")
         for nick,color in colored_nicks.items():
             weechat.prnt(buffer,"%s%s" % (weechat.color(color),nick))
         return weechat.WEECHAT_RC_OK
@@ -80,7 +84,7 @@ def nick_colors_cmd_cb(data, buffer, args):
         else:
             colored_nicks[argv[1]] = argv[2]                                                    # add [nick] = [color]
         save_new_force_nicks()
-
+        
     if (argv[0].lower() == 'del') and (len(argv) == 2):
         if argv[1] in colored_nicks:                                                            # search if nick exists
             del colored_nicks[argv[1]]
@@ -100,34 +104,46 @@ def nick_colors_completion_cb(data, completion_item, buffer, completion):
     return weechat.WEECHAT_RC_OK
 
 def force_nick_colors_completion_cb(data, completion_item, buffer, completion):
-    nick_color_force = weechat.config_string(weechat.config_get('irc.look.nick_color_force'))   # get list
-    nick_color_force = nick_color_force.strip(';')                                              # remove ';' at beginning and end of string
-    if nick_color_force != '':
-        colored_nicks = dict([elem.split(':') for elem in nick_color_force.split(';')])
-        for nick,color in colored_nicks.items():
-            weechat.hook_completion_list_add(completion, nick, 0, weechat.WEECHAT_LIST_POS_SORT)
+    create_list()
+    for nick,color in colored_nicks.items():
+        weechat.hook_completion_list_add(completion, nick, 0, weechat.WEECHAT_LIST_POS_SORT)
     return weechat.WEECHAT_RC_OK
+    
+def create_list():
+    global nick_color_force,colored_nicks
+#        colored_nicks = dict([elem.split(':') for elem in nick_color_force.split(';')])
+    nick_color_force = weechat.config_string(weechat.config_get('irc.look.nick_color_force'))   # get list
+    if nick_color_force != '':
+        nick_color_force = nick_color_force.strip(';')                                          # remove ';' at beginning and end of string
+        for elem in nick_color_force.split(';'):                                                # split nick1:color;nick2:color
+            counter = elem.count(':')
+            if counter == 1:
+                nick,colors = elem.split(':')                                                   # nick1:color_fg,color_bg
+                colored_nicks.setdefault(nick,colors)
+            elif counter == 2:
+                nick,color_fg,color_bg = elem.split(':')                                        # nick1:color_fg:color_bg
+                colored_nicks.setdefault(nick,color_fg+':'+color_bg)
 
 # ================================[ main ]===============================
 if __name__ == "__main__":
     if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, '', ''):
-        version = weechat.info_get("version_number", "") or 0
+        version = weechat.info_get('version_number', '') or 0
         if int(version) >= 0x00030400:
             weechat.hook_command(SCRIPT_NAME,SCRIPT_DESC,
             'add <nick> <color> || del <nick< <color> || list',
             'add <nick> <color>: add a nick with its color to irc.look.nick_color_force\n'
             'del <nick>        : delete given nick with its color from irc.look.nick_color_force\n'
-            'list              : list all forced nicks with its assigned color\n\n'
+            'list <nick>       : list all forced nicks with its assigned color or optional from one nick\n\n'
             'Examples:\n'
             ' add nick nils_2 with color red:\n'
             '  /' + SCRIPT_NAME + ' add nils_2 red\n'
+            ' recolor nick nils_2 with foreground color yellow and background color blue:\n'
+            '  /' + SCRIPT_NAME + ' add nils_2 yellow:blue\n'
             ' delete nick nils_2:\n'
-            '  /' + SCRIPT_NAME + ' del nils_2\n'
-            ' recolor nick nils_2 with color blue:\n'
-            '  /' + SCRIPT_NAME + ' add nils_2 blue\n',
+            '  /' + SCRIPT_NAME + ' del nils_2\n',
             'add %(nick) %(plugin_nick_colors) %-||'
             'del %(plugin_force_nick) %-||'
-            'list %-',
+            'list %(plugin_force_nick) %-',
             'nick_colors_cmd_cb', '')
             weechat.hook_completion('plugin_nick_colors', 'nick_colors_completion', 'nick_colors_completion_cb', '')
             weechat.hook_completion('plugin_force_nick', 'force_nick_colors_completion', 'force_nick_colors_completion_cb', '')
