@@ -20,6 +20,8 @@
 # for settings see help page
 #
 # history:
+# 1.1: fixed: problems with temporary server (reported by nand`)
+#    : improved: using weechat_string_has_highlight()
 # 1.0: fixed: irc.look.nick_prefix wasn't supported
 # 0.9: added: option "own_nick" (idea by travkin)
 #    : new value (always) for option highlight
@@ -55,7 +57,7 @@
 
 use strict;
 my $prgname	= "colorize_lines";
-my $version	= "1.0";
+my $version	= "1.1";
 my $description	= "colors text in chat area with according nick color. Highlight messages will be fully highlighted in chat area";
 
 # default values
@@ -110,11 +112,14 @@ if ($default_options{var_highlight} eq "off" and $default_options{var_chat} eq "
   return $string;
 }
 
-$modifier_data =~ (m/irc;(.+?)\.(.+?)\;/);                                                      # irc;servername.channelname;
-my ($t0, $t1 , $t2) = split(/;/,$modifier_data);
+$modifier_data =~ (m/irc;(.*)\.(.*);/);
+#$modifier_data =~ (m/irc;(.+?)\.(.+?)\;/);                                                      # irc;servername.channelname;
+
+#my ($t0, $t1 , $t2) = split(/;/,$modifier_data);
 #$t1 =~ m/^(.+)\.(.+)$/;
 my $servername = $1;
 my $channel_name = $2;
+
 my $my_nick = weechat::info_get( 'irc_nick', $servername );                                     # get nick with servername (;freenode.)
 
 if ( grep /^$servername.$channel_name$/, @var_blacklist_channels ) {                            # check for blacklist_channels
@@ -124,6 +129,7 @@ if ( grep /^$servername.$channel_name$/, @var_blacklist_channels ) {            
 $string =~ m/^(.*)\t(.*)/;                                                                      # get the nick name: nick[tab]string
 my $nick = $1;                                                                                  # nick with nick_mode and color codes
 my $line = $2;                                                                                  # get written text
+
 $line = weechat::string_remove_color($line,"");                                                 # remove color-codes from line, first
 $modifier_data =~ m/nick_(.*),/;                                                                # get the nick name from modifier_data (without nick_mode and color codes!)
 my $nick_wo_suffix = $1;                                                                        # nickname without nick_suffix
@@ -234,6 +240,7 @@ my $nick_color = weechat::info_get('irc_nick_color', $nick_wo_suffix);          
 
 	    chomp($highlight_words);
 
+#            weechat::print("",$highlight_words);
 	      foreach ( split( /,+/, $highlight_words ) ) {                                     # check for highlight_words
 		  if ($_ eq ""){next;}                                                          # ignore empty string
 		    my $search_string = shell2regex($_);
@@ -255,9 +262,11 @@ my $nick_color = weechat::info_get('irc_nick_color', $nick_wo_suffix);          
 	      }
       }
 	# buffer_autoset is off.
-	if (lc($string) =~ m/(\w.*$my_nick.*)/){						# my name called in string (case insensitiv)?
+        if ( weechat::string_has_highlight($line, $my_nick) >= 1){
+#        if (lc($string) =~ m/(\w.*$my_nick.*)/){                                                # my name called in string (case insensitiv)?
 	    my $color_highlight = weechat::config_color(weechat::config_get("weechat.color.chat_highlight"));
 	    my $color_highlight_bg = weechat::config_color(weechat::config_get("weechat.color.chat_highlight_bg"));
+
 	    my $high_color = weechat::color("$color_highlight,$color_highlight_bg");
 
               if (index($modifier_data,"irc_action") >= 0){                                    # action used (/me)?
@@ -276,7 +285,7 @@ my $nick_color = weechat::info_get('irc_nick_color', $nick_wo_suffix);          
 	}
     } # highlight area finished
 
-return $string if check_whitelist_nicks($servername, $my_nick, $nick_wo_suffix);        # check for whitelist
+return $string if check_whitelist_nicks($servername, $my_nick, $nick_wo_suffix);                # check for whitelist
 # this one check for other nick!!
 if ( $default_options{var_avail_buffer} ne "all" ){                                             # check for option avail_buffer
   if ( index($modifier_data,"notify_message") > -1){                                            # message is public
@@ -304,6 +313,7 @@ if ( $default_options{var_avail_buffer} ne "all" ){                             
 	    if ( weechat::string_has_highlight_regex($line,weechat::config_string(weechat::config_get("weechat.look.highlight_regex"))) eq 1 ){
 		my $color_highlight = weechat::config_color(weechat::config_get("weechat.color.chat_highlight"));
 		my $color_highlight_bg = weechat::config_color(weechat::config_get("weechat.color.chat_highlight_bg"));
+
 		my $high_color = weechat::color("$color_highlight,$color_highlight_bg");
 		$line = colorize_nicks($high_color,$modifier_data,$line);
 		$line = $nick_prefix_with_color . $nick_mode . $high_color . $nick . $nick_suffix_with_color . "\t" . $high_color . $line . weechat::color('reset');
@@ -332,10 +342,10 @@ if ( $default_options{var_avail_buffer} ne "all" ){                             
 sub check_whitelist_nicks{
 my ( $servername, $my_nick, $nick_wo_suffix ) = @_;
   if ( $default_options{var_nicks} ne "" and $default_options{var_own_lines} eq "off" ){          # nicks in option and own_lines = off
-        return 1 unless (grep /^\Q$servername.$nick_wo_suffix\E$/i, @nick_list)             # check other nicks
+        return 1 unless (grep /^\Q$servername.$nick_wo_suffix\E$/i, @nick_list)                   # check other nicks
   }elsif ( $default_options{var_nicks} ne "" and $default_options{var_own_lines} eq "on" ){       # nicks in option and own_lines = on
       if ( $nick_wo_suffix ne $my_nick){                                                          # not my nick!
-        return 1 unless (grep /^\Q$servername.$nick_wo_suffix\E$/i, @nick_list)             # check other nicks
+        return 1 unless (grep /^\Q$servername.$nick_wo_suffix\E$/i, @nick_list)                   # check other nicks
       }
   }elsif( $default_options{var_nicks} eq "" and $default_options{var_own_lines} eq "off" ){       # no nicks and do not color my line?
       if ( $nick_wo_suffix eq $my_nick){                                                          # my nick?
