@@ -30,6 +30,15 @@ menu. For example,
 
 would allow you to open the menu with Alt+M.
 
+If your WeeChat comes with builtin cursor and mouse support, you can
+bind the nick popup menu to the nicklist using
+
+  /key bindctxt mouse @item(buffer_nicklist):button1 hsignal:menu
+
+or if you want to use cursor mode, you can bind it to a key like this:
+
+  /key bindctxt cursor @item(buffer_nicklist):m hsignal:menu;/cursor stop
+
 =head1 DESCRIPTION
 
 menu will give you a main menu and a popup menu to be able to use some
@@ -56,7 +65,8 @@ choose a menu entry. To run a menu entry, confirm with Return again.
 to close any menu, type Ctrl+X on your keyboard.
 
 for mouse support, this script will listen to mouse input
-signals. Another script is needed to supply these signals, such as
+signals. If your WeeChat does not have builtin cursor and mouse
+support, another script is needed to supply these signals, such as
 F<mouse.pl> which can be found on
 L<http://anti.teamidiot.de/static/nei/*/Code/WeeChat/>.
 
@@ -210,8 +220,8 @@ for full pod documentation, filter this script with
 =cut
 
 use constant SCRIPT_NAME => 'menu';
-weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.1', 'GPL3', 'menu system', 'stop_menu', '');
-
+weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.2', 'GPL3', 'menu system', 'stop_menu', '');
+{
 package Nlib;
 # this is a weechat perl library
 
@@ -251,10 +261,16 @@ sub i2h {
 				}
 				elsif ($$_ =~ /(.*?)((?:_\d+)+)$/) {
 					my ($key, $idx) = ($1, $2);
-					$idx =~ s/_(\d+)/[$1]/g;
-					eval qq{
+					my @idx = split '_', $idx; shift @idx;
+					my $target = \$list{$key};
+					for my $x (@idx) { $target = \$$target->[$x-1] }
+					$$target = $r;
+
+					#$idx =~ s/_(\d+)/[$1]/g;
+					#print $Nlib::s $Nlib::gc, "Nlib/i2h/do/evalqq", Nlib::SNL ()  if defined $Nlib::s;
+					my $code = qq{
 						local \$[=1;
-						\$list{"\Q$key\E"}$idx = "\Q$r\E"
+						\$list{"\Q$key\E"}$idx = \$r
 					};
 					$key => $list{$key}
 				}
@@ -268,12 +284,97 @@ sub i2h {
 	@infolist
 }
 
+## find_bar_window -- find the bar window where the coordinates belong to
+## $row - row
+## $col - column
+## returns bar window infolist and bar infolist in a array ref if found
+sub find_bar_window {
+	my ($row, $col) = @_;
+
+	my $barwinptr;
+	my $bar_info;
+	for (i2h('bar_window')) {
+		return [ $_, $bar_info ] if
+			$row > $_->{'y'} && $row <= $_->{'y'}+$_->{'height'} &&
+				$col > $_->{'x'} && $col <= $_->{'x'}+$_->{'width'} &&
+					(($bar_info)=i2h('bar', $_->{'bar'})) && !$bar_info->{'hidden'};
+	}
+	
+}
+
+## in_window -- check if given coordinates are in a window
+## $row - row
+## $col - column
+## $wininfo - infolist of window to check
+## returns true if in window
+sub in_window {
+	my ($row, $col, $wininfo) = @_;
+
+	# in window?
+	$row > $wininfo->{'y'} &&
+		$row <= $wininfo->{'y'}+$wininfo->{'height'} &&
+			$col > $wininfo->{'x'} &&
+				$col <= $wininfo->{'x'}+$wininfo->{'width'}
+}
+
+## in_chat_window -- check if given coordinates are in the chat part of a window
+## $row - row
+## $col - column
+## $wininfo - infolist of window to check
+## returns true if in chat part of window
+sub in_chat_window {
+	my ($row, $col, $wininfo) = @_;
+
+	# in chat window?
+	$row > $wininfo->{'chat_y'} &&
+		$row <= $wininfo->{'chat_y'}+$wininfo->{'chat_height'} &&
+			$col > $wininfo->{'chat_x'} &&
+				$col <= $wininfo->{'chat_x'}+$wininfo->{'chat_width'}
+}
+
 ## has_true_value -- some constants for "true"
 ## $v - value string
 ## returns true if string looks like a true thing
 sub has_true_value {
 	my $v = shift || '';
 	$v =~ /^(?:on|yes|y|true|t|1)$/i
+}
+
+## hook_dynamic -- weechat::hook something and store hook reference
+## $hook_call - hook type (e.g. modifier)
+## $what - event type to hook (depends on $hook_call)
+## $sub - subroutine name to install
+## @params - parameters
+sub hook_dynamic {
+	my ($hook_call, $what, $sub, @params) = @_;
+	my $caller_package = (caller)[0];
+	eval qq{
+		package $caller_package;
+		no strict 'vars';
+		\$DYNAMIC_HOOKS{\$what}{\$sub} =
+			weechat::hook_$hook_call(\$what, \$sub, \@params)
+				unless exists \$DYNAMIC_HOOKS{\$what} &&
+					exists \$DYNAMIC_HOOKS{\$what}{\$sub};
+	};
+	die $@ if $@;
+}
+
+## unhook_dynamic -- weechat::unhook something where hook reference has been stored with hook_dynamic
+## $what - event type that was hooked
+## $sub - subroutine name that was installed
+sub unhook_dynamic {
+	my ($what, $sub) = @_;
+	my $caller_package = (caller)[0];
+	eval qq{
+		package $caller_package;
+		no strict 'vars';
+		weechat::unhook(\$DYNAMIC_HOOKS{\$what}{\$sub})
+			if exists \$DYNAMIC_HOOKS{\$what} &&
+				exists \$DYNAMIC_HOOKS{\$what}{\$sub};
+		delete \$DYNAMIC_HOOKS{\$what}{\$sub};
+		delete \$DYNAMIC_HOOKS{\$what} unless \%{\$DYNAMIC_HOOKS{\$what}};
+	};	
+	die $@ if $@;
 }
 
 ## bar_filling -- get current filling according to position
@@ -283,6 +384,16 @@ sub bar_filling {
 	my ($bar_infos) = @_;
 	($bar_infos->[-1]{'position'} <= 1 ? $bar_infos->[-1]{'filling_top_bottom'}
 	 : $bar_infos->[-1]{'filling_left_right'})
+}
+
+sub fu8on(@) {
+	Encode::_utf8_on($_) for @_; wantarray ? @_ : shift
+}
+
+use Text::CharWidth;
+
+sub screen_length($) {
+	Text::CharWidth::mbswidth($_[0])
 }
 
 ## bar_column_max_length -- get max item length for column based filling
@@ -296,9 +407,7 @@ sub bar_column_max_length {
 	}
 	my $max_length = 0;
 	for (@items) {
-		my $item = weechat::string_remove_color($_, '');
-		Encode::_utf8_on($item);
-		my $item_length = length $item;
+		my $item_length = screen_length fu8on weechat::string_remove_color($_, '');
 		$max_length = $item_length if $max_length < $item_length;
 		#weechat::print('',"length: $item_length item: $_") if DEBUG_BAR_ITEM_CODE;
 	}
@@ -350,7 +459,7 @@ sub bar_lines_column_vert {
 	my $dummy_col = 1;
 	my $lines = 1;
 	for (@items) {
-		if ($dummy_col+$max_length > $bar_infos->[0]{'width'}) {
+		if ($dummy_col+$max_length > 1+$bar_infos->[0]{'width'}) {
 			++$lines;
 			$dummy_col = 1;
 		}
@@ -391,7 +500,7 @@ sub bar_items_skip_to {
 	# forward cursor
 	if (!bar_filling($bar_infos)) {
 		my $prefix = join ' ', @prefix;
-		$prefix_col += length weechat::string_remove_color($prefix, '');
+		$prefix_col += screen_length fu8on weechat::string_remove_color($prefix, '');
 		++$prefix_col if @prefix && !$item_pos_b;
 		bar_line_wrap_horiz(\($prefix_col, $prefix_y), $bar_infos);
 	}
@@ -399,14 +508,14 @@ sub bar_items_skip_to {
 		$prefix_y += @prefix;
 		if ($item_pos_b) {
 			--$prefix_y;
-			$prefix_col += length(weechat::string_remove_color($prefix[-1], ''));
+			$prefix_col += screen_length fu8on weechat::string_remove_color($prefix[-1], '');
 		}
 	}
 	elsif (bar_filling($bar_infos) == 2) {
 		$item_max_length = bar_column_max_length($bar_infos);
 		for (@prefix) {
 			$prefix_col += 1+$item_max_length;
-			if ($prefix_col+$item_max_length > $bar_infos->[0]{'width'}) {
+			if ($prefix_col+$item_max_length > 1+$bar_infos->[0]{'width'}) {
 				++$prefix_y;
 				$prefix_col = 1;
 			}
@@ -414,7 +523,7 @@ sub bar_items_skip_to {
 	}
 	elsif (bar_filling($bar_infos) == 3) {
 		$item_max_length = bar_column_max_length($bar_infos);
-		$col_vert_lines = bar_lines_column_vert($bar_infos);
+		$col_vert_lines = $bar_infos->[-1]{'position'} <= 1 ? bar_lines_column_vert($bar_infos) : $bar_infos->[0]{'height'};
 		my $pfx_idx = 0;
 		for (@prefix) {
 			$prefix_y = 1+($pfx_idx % $col_vert_lines);
@@ -463,16 +572,15 @@ sub bar_item_get_subitem_at {
 	my @subitems = split "\n", $bar_infos->[0]{'items_content'}[$item_pos_a][$item_pos_b];
 	my $idx = 0;
 	for (@subitems) {
-		my $item_no_color = weechat::string_remove_color($_, '');
-		Encode::_utf8_on($item_no_color);
-		$prefix_col += length $item_no_color;
+		my ($beg_col, $beg_y) = ($prefix_col, $prefix_y);
+		$prefix_col += screen_length fu8on weechat::string_remove_color($_, '');
 		if (!bar_filling($bar_infos)) {
 			bar_line_wrap_horiz(\($prefix_col, $prefix_y), $bar_infos);
 		}
 
 		#weechat::print('', "test $idx @ prefix_col: $prefix_col [col: $col] prefix_y: $prefix_y [row: $row] ".sprintf("prefix_col > col %d; row < prefix_y %d", ($prefix_col > $col), ($row < $prefix_y))) if DEBUG_BAR_ITEM_CODE;
 
-		return (undef, $idx, $_)
+		return (undef, $idx, $_, [$beg_col, $col, $prefix_col, $beg_y, $row, $prefix_y])
 			if (($prefix_col > $col && $row == $prefix_y) || ($row < $prefix_y && bar_filling($bar_infos) < 3));
 
 		++$idx;
@@ -497,7 +605,7 @@ sub bar_item_get_subitem_at {
 			return ('outside', $idx-1, $_)
 				if ($prefix_y == $row && $prefix_col > $col);
 
-			if ($prefix_col+$item_max_length > $bar_infos->[0]{'width'}) {
+			if ($prefix_col+$item_max_length > 1+$bar_infos->[0]{'width'}) {
 				return ('outside item', $idx-1, $_)
 					if ($prefix_y == $row && $col >= $prefix_col);
 				
@@ -518,39 +626,6 @@ sub bar_item_get_subitem_at {
 	'not found';
 }
 
-## find_bar_window -- find the bar window where the coordinates belong to
-## $row - row
-## $col - column
-## returns bar window infolist and bar infolist in a array ref if found
-sub find_bar_window {
-	my ($row, $col) = @_;
-
-	my $barwinptr;
-	my $bar_info;
-	for (i2h('bar_window')) {
-		return [ $_, $bar_info ] if
-			$row > $_->{'y'} && $row <= $_->{'y'}+$_->{'height'} &&
-				$col > $_->{'x'} && $col <= $_->{'x'}+$_->{'width'} &&
-					(($bar_info)=i2h('bar', $_->{'bar'})) && !$bar_info->{'hidden'};
-	}
-	
-}
-
-## in_window -- check if given coordinates are in a window
-## $row - row
-## $col - column
-## $wininfo - infolist of window to check
-## returns true if in window
-sub in_window {
-	my ($row, $col, $wininfo) = @_;
-
-	# in window?
-	$row > $wininfo->{'y'} &&
-		$row <= $wininfo->{'y'}+$wininfo->{'height'} &&
-			$col > $wininfo->{'x'} &&
-				$col <= $wininfo->{'x'}+$wininfo->{'width'}
-}
-
 ## bar_item_get_item_and_subitem_at -- gets item and subitem at position
 ## $bar_infos - info about bar
 ## $col - pointer column
@@ -564,9 +639,9 @@ sub bar_item_get_item_and_subitem_at {
 		$item_pos_b = 0;
 		for (@$_) {
 			my $g_item = "^\Q$_\E\$";
-			my ($error, $idx, $item) =
+			my ($error, @rest) =
 				bar_item_get_subitem_at($bar_infos, $g_item, $col, $row);
-			return ($_, $error, $idx, $item)
+			return ($_, $error, @rest)
 				if (!defined $error || $error =~ /^outside/);
 			return () if $error eq 'no viable position';
 			++$item_pos_b;
@@ -576,45 +651,8 @@ sub bar_item_get_item_and_subitem_at {
 	()
 }
 
-## unhook_dynamic -- weechat::unhook something where hook reference has been stored with hook_dynamic
-## $what - event type that was hooked
-## $sub - subroutine name that was installed
-sub unhook_dynamic {
-	my ($what, $sub) = @_;
-	my $caller_package = (caller)[0];
-	eval qq{
-		package $caller_package;
-		no strict 'vars';
-		weechat::unhook(\$DYNAMIC_HOOKS{\$what}{\$sub})
-			if exists \$DYNAMIC_HOOKS{\$what} &&
-				exists \$DYNAMIC_HOOKS{\$what}{\$sub};
-		delete \$DYNAMIC_HOOKS{\$what}{\$sub};
-		delete \$DYNAMIC_HOOKS{\$what} unless \%{\$DYNAMIC_HOOKS{\$what}};
-	};	
-	die $@ if $@;
+1
 }
-
-## hook_dynamic -- weechat::hook something and store hook reference
-## $hook_call - hook type (e.g. modifier)
-## $what - event type to hook (depends on $hook_call)
-## $sub - subroutine name to install
-## @params - parameters
-sub hook_dynamic {
-	my ($hook_call, $what, $sub, @params) = @_;
-	my $caller_package = (caller)[0];
-	eval qq{
-		package $caller_package;
-		no strict 'vars';
-		\$DYNAMIC_HOOKS{\$what}{\$sub} =
-			weechat::hook_$hook_call(\$what, \$sub, \@params)
-				unless exists \$DYNAMIC_HOOKS{\$what} &&
-					exists \$DYNAMIC_HOOKS{\$what}{\$sub};
-	};
-	die $@ if $@;
-}
-
-1;
-package main;
 
 weechat::bar_item_new('main_menu', 'bar_item_main_menu', '');
 weechat::bar_item_new('sub_menu', 'bar_item_sub_menu', '');
@@ -626,6 +664,15 @@ weechat::hook_signal('input_flow_free', 'menu_input_mouse_fix', '');
 weechat::hook_config('plugins.var.perl.'.SCRIPT_NAME.'.*', 'script_config', '');
 weechat::hook_config(SCRIPT_NAME.'.var.*', 'menu_config', '');
 weechat::hook_command_run('/key *', 'update_main_menu', '');
+# is there builtin mouse support?
+if ((weechat::info_get('version_number', '') || 0) >= 0x00030600) {
+	weechat::hook_hsignal('menu', 'hsignal_evt', '');
+	weechat::key_bind('mouse', +{
+		map { $_ => 'hsignal:menu' }
+		'@bar(*_menu):button1',
+		'@item(buffer_nicklist):button1'
+	});
+}
 
 our %ACT_MENU;
 our $POPUP_MENU;
@@ -642,7 +689,6 @@ our $LAST_NICK_COLOR;
 our ($NICKLIST_RESCROLL_X, $NICKLIST_RESCROLL_Y);
 our ($LAST_NICKLIST_RESCROLL_X, $LAST_NICKLIST_RESCROLL_Y);
 
-use constant I_CHAR => '▐'; # needs to be something unique (not in normal text)
 use constant DEBUG_MENU => 0;
 
 init_menu();
@@ -662,7 +708,7 @@ sub make_menu {
 	}
 	my ($ul, $UL) = map { weechat::color($_) } ('underline', '-underline');
 	s/&(.)/$ul$1$UL/g for @$items;
-	my $I = I_CHAR;
+	my $I = '▐';
 	my $act_menu = $MENU_OPEN && defined $$active ? $$active : -1;
 	my $act = weechat::color('reverse');
 	my $ACT = weechat::color('-reverse');
@@ -924,6 +970,11 @@ sub mouse_nicklist {
 	return weechat::WEECHAT_RC_OK unless defined $nick;
 	return weechat::WEECHAT_RC_OK unless $in_any_win;
 	my $bufptr = $in_any_win->{'buffer'};
+	mouse_nicklist_barcode($bar_infos, undef, $_[2], $bufptr, $nick, $item);
+}
+
+sub mouse_nicklist_barcode {
+	my ($bar_infos, undef, undef, $bufptr, $nick, $item) = @_;
 	my $nickptr = weechat::nicklist_search_nick($bufptr, '', $nick);
 	if ($nickptr) {
 		my @funargs = ($bufptr, $nickptr, 'color');
@@ -932,7 +983,7 @@ sub mouse_nicklist {
 		weechat::nicklist_nick_set(@funargs, 'reverse');
 	}
 	($NICKLIST_RESCROLL_X, $NICKLIST_RESCROLL_Y) =
-		($bar_infos->[0]{'scroll_x'},$bar_infos->[0]{'scroll_y'});
+		($bar_infos->[0]{'scroll_x'},$bar_infos->[0]{'scroll_y'}) if defined $bar_infos;
 
 	weechat::command(weechat::current_buffer(), "/menu nick $nick") if $_[2] =~ /^#/;
 	weechat::WEECHAT_RC_OK
@@ -973,47 +1024,66 @@ sub mouse_evt {
 		return weechat::WEECHAT_RC_OK
 			unless $bar_infos->[-1]{'name'} =~ '_menu$';
 
-		my ($error, $idx, $item) =
-			Nlib::bar_item_get_subitem_at($bar_infos, qr/_menu\b/, $col, $row);
+		return mouse_evt_barcode($bar_infos, undef, $_[2],
+			Nlib::bar_item_get_subitem_at($bar_infos, qr/_menu\b/, $col, $row));
 
-		if ($error) {
-			open_menu() # closes the menu here
-				if ($MENU_OPEN && !defined $idx && $bar_infos->[-1]{'name'} =~ /\bmain_menu\b/ && $_[2] =~ /^#/);
-
-			if (DEBUG_MENU) {
-				$idx = '(undef)' unless defined $idx;
-				$item = '(undef)' unless defined $item;
-				weechat::print('', "thing: $error @ $idx [ $item ]");
-			}
-			return weechat::WEECHAT_RC_OK;
-		}
-		if ($bar_infos->[-1]{'name'} =~ /\bmain_menu\b/) {
-			open_menu() unless $MENU_OPEN;
-			if ($ACT_MENU{'main'} == $idx && $MENU_OPEN == 2 && $_[2] =~ /^#/
-			   ) {
-				#open_menu();
-				#return weechat::WEECHAT_RC_OK
-			}
-			menu_input_run('', '', '/input switch_active_buffer')
-				while ($MENU_OPEN > 1);
-			$ACT_MENU{'main'} = $idx;
-			update_main_menu();
-			menu_input_run('', '', '/input return') if $_[2] =~ /^#/;
-		}
-		elsif ($bar_infos->[-1]{'name'} =~ /\bsub_menu\b/) {
-			open_menu() unless $idx;
-			$ACT_MENU{'sub'} = $idx-1 if $idx;
-			update_sub_menu();
-			menu_input_run('', '', '/input return') if $_[2] =~ /^#/;
-		}
-		elsif ($bar_infos->[-1]{'name'} =~ /\bwindow_popup_menu\b/) {
-			open_menu() unless $idx;
-			$ACT_MENU{'window_popup'} = $idx-1 if $idx;
-			update_window_popup_menu();
-			menu_input_run('', '', '/input return') if $_[2] =~ /^#/;
-		}
 	}
     weechat::WEECHAT_RC_OK
+}
+
+sub mouse_evt_barcode {
+	my ($bar_infos, undef, undef, $error, $idx, $item) = @_;
+	if ($error) {
+		open_menu() # closes the menu here
+			if ($MENU_OPEN && !defined $idx && $bar_infos->[-1]{'name'} =~ /\bmain_menu\b/ && $_[2] =~ /^#/);
+
+		if (DEBUG_MENU) {
+			$idx = '(undef)' unless defined $idx;
+			$item = '(undef)' unless defined $item;
+			weechat::print('', "thing: $error @ $idx [ $item ]");
+		}
+		return weechat::WEECHAT_RC_OK;
+	}
+	if ($bar_infos->[-1]{'name'} =~ /\bmain_menu\b/) {
+		open_menu() unless $MENU_OPEN;
+		if ($ACT_MENU{'main'} == $idx && $MENU_OPEN == 2 && $_[2] =~ /^#/
+		   ) {
+			#open_menu();
+			#return weechat::WEECHAT_RC_OK
+		}
+		menu_input_run('', '', '/input switch_active_buffer')
+			while ($MENU_OPEN > 1);
+		$ACT_MENU{'main'} = $idx;
+		update_main_menu();
+		menu_input_run('', '', '/input return') if $_[2] =~ /^#/;
+	}
+	elsif ($bar_infos->[-1]{'name'} =~ /\bsub_menu\b/) {
+		open_menu() unless $idx;
+		$ACT_MENU{'sub'} = $idx-1 if $idx;
+		update_sub_menu();
+		menu_input_run('', '', '/input return') if $_[2] =~ /^#/;
+	}
+	elsif ($bar_infos->[-1]{'name'} =~ /\bwindow_popup_menu\b/) {
+		open_menu() unless $idx;
+		$ACT_MENU{'window_popup'} = $idx-1 if $idx;
+		update_window_popup_menu();
+		menu_input_run('', '', '/input return') if $_[2] =~ /^#/;
+	}
+	weechat::WEECHAT_RC_OK
+}
+
+sub hsignal_evt {
+	my %data = %{$_[2]};
+	return mouse_nicklist_barcode(undef,
+		undef,
+		'#',
+		$data{_buffer}, $data{nick})
+			if $data{_bar_name} eq 'nicklist';
+	mouse_evt_barcode([+{ name => $data{_bar_name} }],
+		undef,
+		'#',
+		$data{_bar_item_name} ne $data{_bar_name},
+		$data{_bar_item_name} ? $data{_bar_item_line} : undef);
 }
 
 ## SUB_MENU -- return sub menu items
@@ -1353,6 +1423,7 @@ sub initial_menus {
 		'nick.6.name' => '&Ban',
 	);
 	weechat::config_new_option($CFG_FILE, $CFG_FILE_SECTION, $_, 'string', '', '', 0, 0, '', $initial_menu{$_}, 0, '', '', '', '', '', '') for sort keys %initial_menu;
+	#weechat::command('', '/key bind meta2-P /menu');
 }
 
 sub init_menu {
