@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2012-02-27, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 1.7: add support of scheme scripts
 # 2012-02-05, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 1.6: use URL transfer from API (for WeeChat >= 0.3.7)
 # 2012-01-03, Sebastien Helleu <flashcode@flashtux.org>:
@@ -64,7 +66,7 @@
 
 SCRIPT_NAME    = "weeget"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "1.6"
+SCRIPT_VERSION = "1.7"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "WeeChat scripts manager"
 
@@ -93,6 +95,7 @@ SCRIPT_EXTENSION = {
     "ruby"  : "rb",
     "lua"   : "lua",
     "tcl"   : "tcl",
+    "guile" : "scm",
 }
 
 # timeout for download of plugins.xml.gz
