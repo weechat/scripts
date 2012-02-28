@@ -1,6 +1,6 @@
 #
 # chanmon.pl - Channel Monitoring for weechat 0.3.0
-# Version 2.2
+# Version 2.3
 #
 # Add 'Channel Monitor' buffer/bar that you can position to show IRC channel
 # messages in a single location without constantly switching buffers
@@ -31,6 +31,9 @@
 #
 # /set plugins.var.perl.chanmon.short_names
 #  Setting this to 'on' will trim the network name from chanmon, ala buffers.pl
+#
+# /set plugins.var.perl.chanmon.merge_private
+#  Setting this to 'on' will merge private messages to chanmon's display
 #
 # /set plugins.var.perl.chanmon.color_buf
 #  This turns colored buffer names on or off, you can also set a single fixed color by using a weechat color name.
@@ -66,6 +69,8 @@
 # /set weechat.bar.input.conditions "active"
 
 # History:
+# 2012-02-28, KenjiE20 <longbow@longbowslair.co.uk>:
+#	v2.3:	-feature: Added merge_private option to display private messages (default: off)
 # 2010-12-22, KenjiE20 <longbow@longbowslair.co.uk>:
 #	v2.2:	-change: Use API instead of config to find channel colours, ready for 0.3.4 and 256 colours
 # 2010-12-05, KenjiE20 <longbow@longbowslair.co.uk>:
@@ -186,6 +191,9 @@ Command wrapper for chanmon commands
 
 ".weechat::color("bold")."/set plugins.var.perl.chanmon.short_names".weechat::color("-bold")."
  Setting this to 'on' will trim the network name from chanmon, ala buffers.pl
+
+".weechat::color("bold")."/set plugins.var.perl.chanmon.merge_private".weechat::color("-bold")."
+ Setting this to 'on' will merge private messages to chanmon's display
 
 ".weechat::color("bold")."/set plugins.var.perl.chanmon.color_buf".weechat::color("-bold")."
  This turns colored buffer names on or off, you can also set a single fixed color by using a weechat color name.
@@ -514,6 +522,12 @@ sub chanmon_config_init
 	{
 		weechat::config_set_plugin("output", "buffer");
 	}
+	
+	# Private message merging
+	if (!(weechat::config_is_set_plugin ("merge_private")))
+	{
+		weechat::config_set_plugin("merge_private", "off");
+	}
 
 	# Check for exisiting prefix/suffix chars, and setup accordingly
 	$prefix = weechat::config_get("irc.look.nick_prefix");
@@ -658,9 +672,9 @@ sub chanmon_new_message
 	# Only work on messages and topic notices
 	if ($cb_tags =~ /irc_privmsg/ || $cb_tags =~ /irc_topic/)
 	{
-		# Check buffer name is an IRC channel
+		# Check buffer name is an IRC channel or private message when enabled
 		$bufname = weechat::buffer_get_string($cb_bufferp, 'name');
-		if ($bufname =~ /(.*)\.([#&\+!])(.*)/)
+		if ($bufname =~ /(.*)\.([#&\+!])(.*)/ || (weechat::config_get_plugin("merge_private") eq "on" && $cb_tags =~ /notify_private/))
 		{
 			# Are we running on this channel
 			if (weechat::config_get_plugin($bufname) ne "off" && $cb_disp eq "1")
@@ -725,9 +739,9 @@ sub chanmon_new_message
 	# Special outgoing ACTION & away_info catcher
 	elsif ($cb_tags eq "" || $cb_tags =~ /away_info/ && weechat::config_get_plugin("show_aways") eq "on" )
 	{
-		# Check buffer name is an IRC channel
+		# Check buffer name is an IRC channel or private message when enabled
 		$bufname = weechat::buffer_get_string($cb_bufferp, 'name');
-		if ($bufname =~ /(.*)\.([#&\+!])(.*)/)
+		if ($bufname =~ /(.*)\.([#&\+!])(.*)/ || (weechat::config_get_plugin("merge_private") eq "on" && $cb_tags =~ /notify_private/))
 		{
 			# Are we running dynamically
 			if (weechat::config_get_plugin("dynamic") eq "on")
@@ -1011,8 +1025,13 @@ sub format_buffer_name
 			$color = weechat::color($color);
 		}
 		
+		# Private message just show network
+		if (weechat::config_get_plugin("merge_private") eq "on" && weechat::buffer_get_string($cb_bufferp, "localvar_type") eq "private")
+		{
+			$bufname = weechat::buffer_get_string($cb_bufferp, "localvar_server");
+		}
 		# Format name to short or 'nicename'
-		if (weechat::config_get_plugin("short_names") eq "on")
+		elsif (weechat::config_get_plugin("short_names") eq "on")
 		{
 			$bufname = weechat::buffer_get_string($cb_bufferp, 'short_name');
 		}
@@ -1027,8 +1046,13 @@ sub format_buffer_name
 	# User set colour name
 	elsif (weechat::config_get_plugin("color_buf") ne "off")
 	{
+		# Private message just show network
+		if (weechat::config_get_plugin("merge_private") eq "on" && weechat::buffer_get_string($cb_bufferp, "localvar_type") eq "private")
+		{
+			$bufname = weechat::buffer_get_string($cb_bufferp, "localvar_server");
+		}
 		# Format name to short or 'nicename'
-		if (weechat::config_get_plugin("short_names") eq "on")
+		elsif (weechat::config_get_plugin("short_names") eq "on")
 		{
 			$bufname = weechat::buffer_get_string($cb_bufferp, 'short_name');
 		}
@@ -1043,8 +1067,13 @@ sub format_buffer_name
 	# Stick with default colour
 	else
 	{
+		# Private message just show network
+		if (weechat::config_get_plugin("merge_private") eq "on" && weechat::buffer_get_string($cb_bufferp, "localvar_type") eq "private")
+		{
+			$bufname = weechat::buffer_get_string($cb_bufferp, "localvar_server");
+		}
 		# Format name to short or 'nicename'
-		if (weechat::config_get_plugin("short_names") eq "on")
+		elsif (weechat::config_get_plugin("short_names") eq "on")
 		{
 			$bufname = weechat::buffer_get_string($cb_bufferp, 'short_name');
 		}
@@ -1058,7 +1087,7 @@ sub format_buffer_name
 }
 
 # Check result of register, and attempt to behave in a sane manner
-if (!weechat::register("chanmon", "KenjiE20", "2.2", "GPL3", "Channel Monitor", "", ""))
+if (!weechat::register("chanmon", "KenjiE20", "2.3", "GPL3", "Channel Monitor", "", ""))
 {
 	# Double load
 	weechat::print ("", "\tChanmon is already loaded");
