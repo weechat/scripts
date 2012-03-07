@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 #
-# yaurls, version 1.3, for weechat version 0.3.7 or later
+# yaurls, for weechat version 0.3.7 or later
 # will shorten URL's in channels
 #
 # Requires perl module: Regexp::Common
@@ -35,7 +35,7 @@ use Regexp::Common qw /URI/;
 
 my $SCRIPT_NAME = "yaurls";
 my $SCRIPT_AUTHOR = "R1cochet";
-my $VERSION = "1.4";
+my $VERSION = "1.5";
 my $SCRIPT_LICENSE = "GPL3";
 my $SCRIPT_DESC = "yes, another URL shortener";
 
@@ -112,7 +112,7 @@ sub init_config {
 }
 # intit callbacks
 sub config_reload_cb {      # reload config file
-    return weechat::config_read($config_file);
+    return weechat::config_reload($config_file);
 }
 
 sub config_read {           # read my config file
