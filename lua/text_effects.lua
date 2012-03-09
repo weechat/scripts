@@ -16,7 +16,7 @@
 
 SCRIPT_NAME		= "text_effects"
 SCRIPT_AUTHOR	= "Vaughan Newton <balkrah@gmail.com>"
-SCRIPT_VERSION	= "1.0"
+SCRIPT_VERSION	= "1.1"
 SCRIPT_LICENSE	= "GPL3"
 SCRIPT_DESC		= "Adds effects to words surrounded by certain characters"
 
@@ -61,7 +61,7 @@ setmetatable(config, {
 -- Load config
 do
 	config.file = w.config_new("text_effects", callback(function(data, file)
-		return w.config_read(file)
+		return w.config_reload(file)
 	end), "")
 	if not config.file then return end
 	config.look = w.config_new_section(
