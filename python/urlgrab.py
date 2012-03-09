@@ -52,7 +52,7 @@
 #
 #   remotecmd
 #     The command to execute on the remote host for 'remote' mode.  The
-#     default is 'bash -c "DISPLAY=:0.0 firefox %s"'  Which runs bash, sets
+#     default is 'bash -c "DISPLAY=:0.0 firefox '%s'"'  Which runs bash, sets
 #     up the environment to display on the remote host's main X display,
 #     and runs firefox.  As with 'localcmd', the string '%s' will be
 #     replaced with the URL.
@@ -106,6 +106,7 @@
 #           - Changed the default command when /url is run with no arguments to 'show'
 #           - Removed '/url help' command, because /help <command> is the standard way
 #  - V2.0 Xilov: replace "/url help" by "/help url"
+#  - V2.1 nand: Changed default: firefox %s to firefox '%s' (localcmd)
 #
 # Copyright (C) 2005 David Rubin <drubin AT smartcube dot co dot za>
 #
@@ -150,7 +151,7 @@ urlRe = re.compile(r'(\w+://(?:%s|%s)(?::\d+)?(?:/[^\])>\s]*)?)' % (domain, ipAd
 
 SCRIPT_NAME    = "urlgrab"
 SCRIPT_AUTHOR  = "David Rubin <drubin [At] smartcube [dot] co [dot] za>"
-SCRIPT_VERSION = "2.0"
+SCRIPT_VERSION = "2.1"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Url functionality Loggin, opening of browser, selectable links"
 CONFIG_FILE_NAME= "urlgrab" 
@@ -244,7 +245,7 @@ class UrlGrabSettings(UserDict):
         self.data['localcmd']=weechat.config_new_option(
             self.config_file, section_default,
             "localcmd", "string", """Local command to execute""", "", 0, 0,
-            "firefox %s", "firefox %s", 0, "", "", "", "", "", "") 
+            "firefox '%s'", "firefox '%s'", 0, "", "", "", "", "", "") 
         
         remotecmd="ssh -x localhost -i ~/.ssh/id_rsa -C \"export DISPLAY=\":0.0\" &&  firefox %s\""
         self.data['remotecmd']=weechat.config_new_option(
