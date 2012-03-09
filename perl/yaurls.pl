@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 #
-# yaURLs, version 1.7, for weechat version 0.3.7 or later
+# yaURLs, version 1.8, for weechat version 0.3.7 or later
 # will shorten URL's in channels
 #
 # Choose between is.gd, ln-s, or tinyURL as the service to shorten the URL
@@ -28,6 +28,8 @@
 #
 #
 # Changelog:
+# 2012-03-09, Sebastien Helleu <flashcode@flashtux.org>
+#     version 1.8: Fix reload of config file
 # 2012-03-08, R1cochet
 #     version 1.7: Removed need for Regexp::Common and URI::Escape modules. Cleaned up some code
 # 2012-03-04, R1cochet
@@ -40,7 +42,7 @@ use warnings;
 
 my $SCRIPT_NAME = "yaurls";
 my $SCRIPT_AUTHOR = "R1cochet";
-my $VERSION = "1.7";
+my $VERSION = "1.8";
 my $SCRIPT_LICENSE = "GPL3";
 my $SCRIPT_DESC = "yes, another URL shortener";
 
@@ -125,7 +127,7 @@ sub init_config {
 }
 # intit callbacks
 sub config_reload_cb {      # reload config file
-    return weechat::config_read($config_file);
+    return weechat::config_reload($config_file);
 }
 
 sub config_read {           # read my config file
@@ -148,7 +150,7 @@ sub build_header {
     return $header;
 }
 
-sub black_list1 {       # match url, string 
+sub black_list1 {       # match url, string
     my ($string, $black_list) = @_;
     my @black_list = split ",", $black_list;
     foreach(@black_list) {
