@@ -27,6 +27,8 @@
 #
 # History:
 #
+# 2012-03-09, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 1.1: fix reload of config file
 # 2012-01-03, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 1.0: changes for future compatibility with Python 3.x
 # 2011-12-15, Sebastien Helleu <flashcode@flashtux.org>:
@@ -74,7 +76,7 @@
 
 SCRIPT_NAME    = "jabber"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "1.0"
+SCRIPT_VERSION = "1.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Jabber/XMPP protocol for WeeChat"
 SCRIPT_COMMAND = SCRIPT_NAME
@@ -287,7 +289,7 @@ def jabber_config_init():
 
 def jabber_config_reload_cb(data, config_file):
     """ Reload config file. """
-    return weechat.WEECHAT_CONFIG_READ_OK
+    return weechat.config_reload(config_file)
 
 def jabber_config_server_read_cb(data, config_file, section, option_name, value):
     """ Read server option in config file. """
