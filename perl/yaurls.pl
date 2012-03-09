@@ -15,10 +15,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 #
-# yaurls, for weechat version 0.3.7 or later
+# yaURLs, version 1.7, for weechat version 0.3.7 or later
 # will shorten URL's in channels
-#
-# Requires perl module: Regexp::Common
 #
 # Choose between is.gd, ln-s, or tinyURL as the service to shorten the URL
 #
@@ -28,14 +26,21 @@
 # url: *190
 # domain: 196
 #
+#
+# Changelog:
+# 2012-03-08, R1cochet
+#     version 1.7: Removed need for Regexp::Common and URI::Escape modules. Cleaned up some code
+# 2012-03-04, R1cochet
+#     version 1.6: Fixed error with twitter links not being recognized. Added module URI::Escape to properly format URL's before shortening
+# 2012-02-28, R1cochet
+#     version 1.5: Initial release
 
 use strict;
 use warnings;
-use Regexp::Common qw /URI/;
 
 my $SCRIPT_NAME = "yaurls";
 my $SCRIPT_AUTHOR = "R1cochet";
-my $VERSION = "1.5";
+my $VERSION = "1.7";
 my $SCRIPT_LICENSE = "GPL3";
 my $SCRIPT_DESC = "yes, another URL shortener";
 
@@ -44,6 +49,12 @@ my $config_file;        # config pointer
 my %config_section;     # config section pointer
 my %config_options;     # init config options
 my $incoming_nick = "";
+
+my %Unsafe = (RFC3986 => qr/[^A-Za-z0-9\-\._~]/,);
+my %escapes;
+for (0..255) {
+    $escapes{chr($_)} = sprintf("%%%02X", $_);
+}
 
 weechat::register($SCRIPT_NAME, $SCRIPT_AUTHOR, $VERSION, $SCRIPT_LICENSE, $SCRIPT_DESC, "", "");
 
@@ -94,7 +105,9 @@ sub init_config {
     $config_options{'convert_own'} = weechat::config_new_option($config_file, $config_section{'engine'}, "convert_own", "boolean",
                                                                        "Convert own links sent to buffer", "", 0, 0, "off", "off", 0, "", "", "", "", "", "",);
     $config_options{'maximum_length'} = weechat::config_new_option($config_file, $config_section{'engine'}, "maximum_length", "integer",
-                                                                       "Set the maximum length of URL's to be converted (anything equal to or larger will be converted)", "", 1, 500, "35", "35", 0, "", "", "", "", "", "");
+                                                                       "Set the maximum length of URL's to be converted (anything equal to or larger will be converted)", "", 20, 500, "35", "35", 0, "", "", "", "", "", "");
+    $config_options{'timeout'} = weechat::config_new_option($config_file, $config_section{'engine'}, "timeout", "integer",
+                                                                       "Set the maximum time limit for fetching the short URL (time in seconds)", "", 10, 120, "20", "20", 0, "", "", "", "", "", "");
 
     $config_section{'look'} = weechat::config_new_section($config_file, "look", 0, 0, "", "", "", "", "", "", "", "", "", "");
     if (!$config_section{'look'}) {
@@ -102,7 +115,7 @@ sub init_config {
         return;
     }
     $config_options{'header'} = weechat::config_new_option($config_file, $config_section{'look'}, "header", "string",
-                                                                       "Set the header string", "", 0, 0, "yaurls", "yaurls", 1, "", "", "", "", "", "",);
+                                                                       "Set the header string", "", 0, 0, "yaURLs", "yaURLs", 1, "", "", "", "", "", "",);
     $config_options{'header_prefix'} = weechat::config_new_option($config_file, $config_section{'look'}, "header_prefix", "string",
                                                                        "Set the header prefix", "", 0, 0, "{", "{", 1, "", "", "", "", "", "",);
     $config_options{'header_suffix'} = weechat::config_new_option($config_file, $config_section{'look'}, "header_suffix", "string",
@@ -112,7 +125,7 @@ sub init_config {
 }
 # intit callbacks
 sub config_reload_cb {      # reload config file
-    return weechat::config_reload($config_file);
+    return weechat::config_read($config_file);
 }
 
 sub config_read {           # read my config file
@@ -135,7 +148,7 @@ sub build_header {
     return $header;
 }
 
-sub black_list1 {       # match url, string
+sub black_list1 {       # match url, string 
     my ($string, $black_list) = @_;
     my @black_list = split ",", $black_list;
     foreach(@black_list) {
@@ -153,8 +166,16 @@ sub black_list2 {       # match nick, server, channel; front to end
     return 0;
 }
 
+sub uri_escape {
+    my $url = shift;
+    utf8::encode($url);
+    $url =~ s/($Unsafe{RFC3986})/$escapes{$1}/ge;
+    return $url;
+}
+
 sub service_url {
     my $url = shift;
+    $url = uri_escape($url);
 
     if (weechat::config_string($config_options{'service'}) eq "is.gd") {
         $url = "http://is.gd/create.php?format=simple&url=$url";
@@ -172,11 +193,12 @@ sub service_url {
 sub process_cb {
     my ($buffer_domain, $command, $return_code, $out, $err) = @_;
 
-    if ($return_code == weechat::WEECHAT_HOOK_PROCESS_ERROR) {
+    if ($return_code != 0) { # weechat::WEECHAT_HOOK_PROCESS_ERROR
         weechat::print("", "Error with command: $command");
-        return weechat::WEECHAT_RC_OK;
+        weechat::print("", "An error occured: $err") if ($err ne "");
+        weechat::print("", "ret code: $return_code");
     }
-    if ($out ne "") {
+    elsif ($out) {
         my ($buffer, $domain) = split "_:_", $buffer_domain, 2;
         my $header = build_header();
         $domain = weechat::color(weechat::config_color($config_options{'domain_color'})) . "($domain)" . weechat::color("reset");
@@ -191,9 +213,6 @@ sub process_cb {
         $tiny_url =~ s/%U/$short_url/;
         $tiny_url =~ s/%D/$domain/;
         weechat::print($buffer, "$tiny_url");
-    }
-    if ($err ne "") {
-        weechat::print("", "An error occured: $err");
     }
     return weechat::WEECHAT_RC_OK;
 }
@@ -233,18 +252,17 @@ sub print_hook_cb {
 
     my @msg = split " ", $msg;
     foreach(@msg) {
-        if ($_ =~ $RE{URI}{HTTP}{-scheme=>'https?'}{-keep}) {
+        if ($_ =~ /^(ht|f)tp/ && $_ =~ m|(?:([^:/?#]+):)?(?://([^/?#]*))?([^?#]*)(?:\?([^#]*))?(?:#(.*))?|) {
             next if (length($_) <= weechat::config_integer($config_options{'maximum_length'}));        # skip if url shorter than max
 
             if (weechat::config_string($config_options{'url_blacklist'}) ne "") {
-                next if (black_list1($1, weechat::config_string($config_options{'url_blacklist'})));     # skip if url is blacklisted
+                next if (black_list1($_, weechat::config_string($config_options{'url_blacklist'})));     # skip if url is blacklisted
             }
-            my $buffer_domain = $buffer."_:_$3";
-            my $url = service_url($1);
+            my $buffer_domain = $buffer."_:_$2";
+            my $url = service_url($_);
 
-            weechat::hook_process("url:$url", 30000, "process_cb", $buffer_domain);
+            weechat::hook_process("url:$url", weechat::config_integer($config_options{'timeout'}) * 1000, "process_cb", $buffer_domain);
         }
     }
-
     return weechat::WEECHAT_RC_OK;
 }
