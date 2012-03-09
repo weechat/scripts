@@ -18,6 +18,9 @@
 # Set WeeChat and plugins options interactively.
 #
 # History:
+#
+# 2012-03-09, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 2.4: fix reload of config file
 # 2012-02-02, nils_2 <weechatter@arcor.de>:
 #     version 2.3: fixed: refresh problem with new search results and cursor was outside window.
 #                : add: new option "current_line" in title bar
@@ -84,7 +87,7 @@
 use strict;
 
 my $PRGNAME = "iset";
-my $VERSION = "2.3";
+my $VERSION = "2.4";
 my $DESCR   = "Interactive Set for configuration options";
 my $AUTHOR  = "Sebastien Helleu <flashcode\@flashtux.org>";
 my $LICENSE = "GPL3";
@@ -1089,7 +1092,7 @@ sub iset_config_init
 sub iset_config_reload_cb
 {
     my ($data,$config_file) = ($_[0], $_[1]);
-    return weechat::config_read($config_file)
+    return weechat::config_reload($config_file)
 }
 
 sub iset_config_read
