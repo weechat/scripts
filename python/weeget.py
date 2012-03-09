@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2012-03-09, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 1.8: fix reload of config file
 # 2012-02-27, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 1.7: add support of scheme scripts
 # 2012-02-05, Sebastien Helleu <flashcode@flashtux.org>:
@@ -66,7 +68,7 @@
 
 SCRIPT_NAME    = "weeget"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "1.7"
+SCRIPT_VERSION = "1.8"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "WeeChat scripts manager"
 
@@ -193,7 +195,7 @@ def wg_config_init():
 
 def wg_config_reload_cb(data, config_file):
     """ Reload configuration file. """
-    return weechat.config_read(config_file)
+    return weechat.config_reload(config_file)
 
 def wg_config_read():
     """ Read configuration file. """
