@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2012-03-09, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 0.5: fix reload of config file
 # 2012-01-03, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.4: make script compatible with Python 3.x
 # 2010-12-02, Sebastien Helleu <flashcode@flashtux.org>:
@@ -35,7 +37,7 @@
 
 SCRIPT_NAME    = "buffer_autoset"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.4"
+SCRIPT_VERSION = "0.5"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Auto-set buffer properties when a buffer is opened"
 
@@ -67,7 +69,7 @@ def bas_config_init():
                                          "bas_config_reload_cb", "")
     if bas_config_file == "":
         return
-    
+
     # section "buffer"
     section_buffer = weechat.config_new_section(
         bas_config_file, "buffer", 1, 1, "", "", "", "", "", "",
@@ -90,7 +92,7 @@ def bas_config_buffer_create_option_cb(data, config_file, section, option_name, 
 
 def bas_config_reload_cb(data, config_file):
     """ Reload configuration file. """
-    return weechat.config_read(config_file)
+    return weechat.config_reload(config_file)
 
 def bas_config_read():
     """ Read configuration file. """
