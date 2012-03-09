@@ -19,6 +19,9 @@
 # Display sidebar with list of buffers.
 #
 # History:
+#
+# 2012-03-09, Sebastien Helleu <flashcode@flashtux.org>:
+#     3.1: fix reload of config file
 # 2012-02-07, Nils G <weechatter@arcor.de>:
 #     3.0: fix: buffers did not update directly during window_switch (reported by FiXato)
 # 2012-01-29, Nils G <weechatter@arcor.de>:
@@ -111,7 +114,7 @@
 
 use strict;
 # -------------------------------[ internal ]-------------------------------------
-my $version = "3.0";
+my $version = "3.1";
 
 my $BUFFERS_CONFIG_FILE_NAME = "buffers";
 my $buffers_config_file;
@@ -158,7 +161,7 @@ sub buffers_config_write
 sub buffers_config_reload_cb
 {
     my ($data,$config_file) = ($_[0], $_[1]);
-    return weechat::config_read($config_file)
+    return weechat::config_reload($config_file)
 }
 sub buffers_config_init
 {
