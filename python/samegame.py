@@ -23,12 +23,14 @@
 # History:
 #
 # 2012-03-16, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 0.2: add undo key and bonus +1000 when all blocks are removed
+# 2012-03-16, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.1: initial release
 #
 
 SCRIPT_NAME    = 'samegame'
 SCRIPT_AUTHOR  = 'Sebastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '0.1'
+SCRIPT_VERSION = '0.2'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC    = 'Samegame'
 
@@ -50,16 +52,18 @@ except ImportError as message:
     import_ok = False
 
 samegame = {
-    'buffer'   : '',
-    'board'    : [],
-    'sizes'    : ((15, 10), (25, 17)),
-    'size'     : (15, 10),
-    'zoom'     : 1,
-    'colors'   : [],
-    'numcolors': 3,
-    'score'    : 0,
-    'end'      : '',
-    'timer'    : '',
+    'buffer'    : '',
+    'board'     : [],
+    'sizes'     : ((15, 10), (25, 17)),
+    'size'      : (15, 10),
+    'zoom'      : 1,
+    'colors'    : [],
+    'numcolors' : 3,
+    'score'     : 0,
+    'end'       : '',
+    'timer'     : '',
+    'board_undo': None,
+    'score_undo': 0,
 }
 
 # script options
@@ -219,11 +223,12 @@ def samegame_init():
         if samegame['buffer']:
             weechat.buffer_set(samegame['buffer'], 'type', 'free')
             weechat.buffer_set(samegame['buffer'], 'title',
-                               'Samegame | mouse: play, alt-n: new game, alt-+/-: adjust board zoom | '
+                               'Samegame | mouse: play, alt-n: new game, alt-+/-: adjust board zoom, alt-u: undo | '
                                'Command line: (n)ew, +/-: change size, (q)uit, 3-6: number of colors')
             weechat.buffer_set(samegame['buffer'], 'key_bind_meta-n',  '/samegame new')
             weechat.buffer_set(samegame['buffer'], 'key_bind_meta-+',  '/samegame zoom')
             weechat.buffer_set(samegame['buffer'], 'key_bind_meta--',  '/samegame dezoom')
+            weechat.buffer_set(samegame['buffer'], 'key_bind_meta-u',  '/samegame undo')
     try:
         samegame['numcolors'] = int(samegame_settings['numcolors'])
     except:
@@ -306,6 +311,7 @@ def samegame_check_end():
     blocks_remaining = (samegame['size'][0] * samegame['size'][1]) - samegame_count_color(samegame['board'], -1)
     if blocks_remaining == 0:
         samegame['end'] += '  ** CONGRATS! **'
+        samegame['score'] += 1000
     else:
         samegame['end'] += '  (%d blocks remaining)' % blocks_remaining
     return True
@@ -331,6 +337,8 @@ def samegame_play(x, y):
     count = samegame_play_xy(board, x, y)
     if count < 2:
         return
+    samegame['board_undo'] = copy.deepcopy(samegame['board'])
+    samegame['score_undo'] = samegame['score']
     count = samegame_play_xy(samegame['board'], x, y)
     samegame['score'] += (count - 1) ** 2
     delay = 50
@@ -366,6 +374,14 @@ def samegame_cmd_cb(data, buffer, args):
         if samegame['zoom'] > 0:
             samegame['zoom'] -= 1
             samegame_display(True)
+    if not samegame['end']:
+        if args == 'undo':
+            if samegame['board_undo']:
+                samegame['board'] = copy.deepcopy(samegame['board_undo'])
+                samegame['board_undo'] = None
+                samegame['score'] = samegame['score_undo']
+                samegame['score_undo'] = 0
+                samegame_display()
     return weechat.WEECHAT_RC_OK
 
 def samegame_mouse_cb(data, hsignal, hashtable):
