@@ -19,6 +19,8 @@
 #
 # History:
 #
+# 2012-03-17, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 2.5: fix check of sections when creating config file
 # 2012-03-09, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 2.4: fix reload of config file
 # 2012-02-02, nils_2 <weechatter@arcor.de>:
@@ -87,7 +89,7 @@
 use strict;
 
 my $PRGNAME = "iset";
-my $VERSION = "2.4";
+my $VERSION = "2.5";
 my $DESCR   = "Interactive Set for configuration options";
 my $AUTHOR  = "Sebastien Helleu <flashcode\@flashtux.org>";
 my $LICENSE = "GPL3";
@@ -1050,7 +1052,7 @@ sub iset_config_init
 
     # section "help"
     my $section_help = weechat::config_new_section($iset_config_file,"help", 0, 0, "", "", "", "", "", "", "", "", "", "");
-    if ($section_color eq "")
+    if ($section_help eq "")
     {
         weechat::config_free($iset_config_file);
         return;
@@ -1070,7 +1072,7 @@ sub iset_config_init
 
     # section "look"
     my $section_look = weechat::config_new_section($iset_config_file, "look", 0, 0, "", "", "", "", "", "", "", "", "", "");
-    if ($section_color eq "")
+    if ($section_look eq "")
     {
         weechat::config_free($iset_config_file);
         return;
