@@ -1,7 +1,7 @@
-# HighlightXMPP 0.3 for IRC. Requires WeeChat >= 0.3.0 and Python >= 2.6.
+# HighlightXMPP 0.4 for IRC. Requires WeeChat >= 0.3.0 and Python >= 2.6.
 # Repo: https://github.com/jpeddicord/weechat-highlightxmpp
 # 
-# Copyright (c) 2009-2011 Jacob Peddicord <jpeddicord@ubuntu.com>
+# Copyright (c) 2009-2012 Jacob Peddicord <jpeddicord@ubuntu.com>
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -43,7 +43,7 @@ with warnings.catch_warnings():
 info = (
     'highlightxmpp',
     'Jacob Peddicord <jpeddicord@ubuntu.com>',
-    '0.3',
+    '0.4',
     'GPL3',
     "Relay highlighted & private IRC messages over XMPP (Jabber)",
     '',
@@ -78,7 +78,7 @@ def connect_xmpp():
         return False
     return True
 
-def send_xmpp(data, signal, msg, trial=1):
+def send_xmpp(data, signal, msgtxt, trial=1):
     global client
 
     # ignore XMPP's deprecation warnings
@@ -95,7 +95,7 @@ def send_xmpp(data, signal, msg, trial=1):
             jid_to = w.config_get_plugin('jid')
 
         # send the message
-        msg = xmpp.protocol.Message(jid_to, msg, typ='chat')
+        msg = xmpp.protocol.Message(jid_to, msgtxt, typ='chat')
         try:
             client.send(msg)
         except IOError:
@@ -106,7 +106,7 @@ def send_xmpp(data, signal, msg, trial=1):
                 w.prnt('', "XMPP: Could not send to server.")
             else:
                 sleep(0.5)
-                send_xmpp(data, signal, msg, trial + 1)
+                send_xmpp(data, signal, msgtxt, trial + 1)
         return w.WEECHAT_RC_OK
 
 # register with weechat
