@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# weestats.py, version 0.1 for WeeChat version 0.3
+# weestats.py, version 0.2 for WeeChat version 0.3
 # Latest development version: https://github.com/FiXato/weechat_scripts
 #
 # Inserts some statistics into your input field about the buffers/windows
@@ -14,6 +14,10 @@
 # * version 0.1: initial release.
 #     * Display a count of all the different buffers you have open.
 #     * Display a count of all the open windows.
+# * version 0.2: Getting the splits.
+#     * Displays the how many vertical and horizontal windows.
+#       (not quite sure if my approximation is correct though..)
+#     * Fixed possible memleak (forgot to free an infolist)
 #
 ## Acknowledgements:
 # * Sebastien "Flashcode" Helleu, for developing the kick-ass chat/IRC
@@ -24,7 +28,6 @@
 #     - average and total history lines.
 #     - average and total topic/title lengths
 #     - how many are displayed in a window
-#     - how many vertical and horizontal splits are used.
 #
 ## Copyright (c) 2012 Filip H.F. "FiXato" Slagter,
 #   <FiXato+WeeChat [at] Gmail [dot] com>
@@ -51,7 +54,7 @@
 #
 SCRIPT_NAME     = "weestats"
 SCRIPT_AUTHOR   = "Filip H.F. 'FiXato' Slagter <fixato [at] gmail [dot] com>"
-SCRIPT_VERSION  = "0.1"
+SCRIPT_VERSION  = "0.2"
 SCRIPT_LICENSE  = "MIT"
 SCRIPT_DESC     = "Useless statistics about your open buffers and windows"
 SCRIPT_COMMAND  = "weestats"
@@ -98,18 +101,29 @@ def command_main(data, buffer, args):
   w.infolist_free(infolist)
 
   infolist = w.infolist_get("window", "", "")
-  rc = w.infolist_prev(infolist)
-  if rc:
-    window_count = w.infolist_integer(infolist, "number")
-  else:
-    window_count = 1
+  windows_v = set()
+  windows_h = set()
+  windows = set()
+  while w.infolist_next(infolist):
+    window = w.infolist_pointer(infolist, "pointer")
+    window_w = w.infolist_integer(infolist, "width_pct")
+    window_h = w.infolist_integer(infolist, "height_pct")
+    windows.add(window)
+    if window_h == 100 and window_w != 100:
+      windows_v.add(window)
+    elif window_w == 100 and window_h != 100:
+      windows_h.add(window)
+    #else: #both 100%, thus no splits
+  w.infolist_free(infolist)
+    
+  window_count = len(windows)
 
   for bplugin, buffers in buffer_groups.iteritems():
     buffer_count += len(buffers)
     results.append('%i %s' % (len(buffers), bplugin))
 
   buffer_stats = ', '.join(sorted(results))
-  stats_string = '%i windows used. %i (of which %i merged) buffers open: %s' % (window_count, buffer_count, merge_count, buffer_stats)
+  stats_string = '%i windows used (%i vertically / %i horizontally split). %i (of which %i merged) buffers open: %s' % (window_count, len(windows_v), len(windows_h), buffer_count, merge_count, buffer_stats)
   w.command("", "/input insert %s" % stats_string)
   return w.WEECHAT_RC_OK
 
