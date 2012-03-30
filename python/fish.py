@@ -50,7 +50,7 @@
 
 SCRIPT_NAME = "fish"
 SCRIPT_AUTHOR = "David Flatz <david@upcs.at>"
-SCRIPT_VERSION = "0.4"
+SCRIPT_VERSION = "0.5"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "FiSH for weechat"
 CONFIG_FILE_NAME = SCRIPT_NAME
@@ -256,6 +256,9 @@ def blowcrypt_unpack(msg, cipher):
     _, rest = msg.split(' ', 1)
     if len(rest) < 12:
         raise MalformedError
+
+    if not (len(rest) %12) == 0:
+        rest = rest[:-(len(rest) % 12)]
 
     try:
         raw = blowcrypt_b64decode(padto(rest, 12))
@@ -691,9 +694,7 @@ def fish_modifier_in_332_cb(data, modifier, server_name, string):
     else:
         b = fish_cyphers[target]
 
-    msg = match.group(3)[:-(len(match.group(3)) % 12)]
-
-    clean = blowcrypt_unpack(msg, b)
+    clean = blowcrypt_unpack(match.group(3), b)
 
     fish_announce_encrypted(buffer, target)
 
