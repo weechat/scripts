@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Clone Scanner, version 0.9 for WeeChat version 0.3
+# Clone Scanner, version 1.0 for WeeChat version 0.3
 # Latest development version: https://github.com/FiXato/weechat_scripts
 #
 #   A Clone Scanner that can manually scan channels and 
@@ -88,6 +88,13 @@
 #       Set it to 'on' if you don't want people with different idents to be marked as clones.
 #       Useful on channels with bouncers.
 #
+### 2012-04-02: FiXato:
+#
+# * version 1.0: Bugfix
+#     * Fixed the on-join scanner bug introduced by the 0.9 release.
+#       I was not properly comparing the new ident@host.name key in all places yet.
+#       Should really have tested this better ><
+#
 ## Acknowledgements:
 # * Sebastien "Flashcode" Helleu, for developing the kick-ass chat/IRC
 #    client WeeChat
@@ -102,7 +109,7 @@
 #   - Add cross-server clone scan
 #   - Make clone_scanner buffer optional
 #
-## Copyright (c) 2011 Filip H.F. "FiXato" Slagter,
+## Copyright (c) 2011-2012 Filip H.F. "FiXato" Slagter,
 #   <FiXato [at] Gmail [dot] com>
 #   http://google.com/profiles/FiXato
 #
@@ -127,7 +134,7 @@
 #
 SCRIPT_NAME     = "clone_scanner"
 SCRIPT_AUTHOR   = "Filip H.F. 'FiXato' Slagter <fixato [at] gmail [dot] com>"
-SCRIPT_VERSION  = "0.9"
+SCRIPT_VERSION  = "1.0"
 SCRIPT_LICENSE  = "MIT"
 SCRIPT_DESC     = "A Clone Scanner that can manually scan channels and automatically scans joins for users on the channel with multiple nicknames from the same host."
 SCRIPT_COMMAND  = "clone_scanner"
@@ -216,9 +223,9 @@ def on_join_scan_cb(data, signal, signal_data):
   parsed_ident_host = join_match_data.group(1)
   parsed_host = join_match_data.group(2).lower()
   if weechat.config_get_plugin("compare_idents") == "on":
-    key = parsed_ident_host
+    hostkey = parsed_ident_host
   else:
-    key = parsed_host
+    hostkey = parsed_host
 
   chan_name = join_match_data.group(3)
   network_chan_name = "%s.%s" % (network, chan_name)
@@ -239,11 +246,11 @@ def on_join_scan_cb(data, signal, signal_data):
     message = format_from_config(message, "colors.join_messages.message")
     weechat.prnt(cs_get_buffer(), message)
 
-  clones = get_clones_for_buffer("%s,%s" % (network, chan_name), key)
+  clones = get_clones_for_buffer("%s,%s" % (network, chan_name), hostkey)
   if clones:
     key = get_validated_key_from_config("clone_onjoin_alert_key")
 
-    filtered_clones = filter(lambda clone: clone['nick'] != joined_nick, clones[key])
+    filtered_clones = filter(lambda clone: clone['nick'] != joined_nick, clones[hostkey])
     match_strings = map(lambda m: format_from_config(m[key], "colors.onjoin_alert.matches"), filtered_clones)
 
     join_string = format_from_config(' and ',"colors.onjoin_alert.message")
@@ -315,17 +322,17 @@ def get_clones_for_buffer(infolist_buffer_name, hostname_to_match=None):
 
     hostname = host_matchdata.group(2).lower()
     ident = host_matchdata.group(1).lower()
+    if weechat.config_get_plugin("compare_idents") == "on":
+      hostkey = ident_hostname.lower()
+    else:
+      hostkey = hostname
 
-    if hostname_to_match and hostname_to_match.lower() != hostname:
+    if hostname_to_match and hostname_to_match.lower() != hostkey:
       continue
 
     nick = weechat.infolist_string(infolist, "name")
-    if weechat.config_get_plugin("compare_idents") == "on":
-      key = ident_hostname.lower()
-    else:
-      key = hostname
 
-    matches.setdefault(key,[]).append({
+    matches.setdefault(hostkey,[]).append({
       'nick': nick,
       'mask': "%s!%s" % (
         format_from_config(nick, "colors.mask.nick"), 
