@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Clone Scanner, version 1.0 for WeeChat version 0.3
+# Clone Scanner, version 1.1 for WeeChat version 0.3
 # Latest development version: https://github.com/FiXato/weechat_scripts
 #
 #   A Clone Scanner that can manually scan channels and 
@@ -95,6 +95,12 @@
 #       I was not properly comparing the new ident@host.name key in all places yet.
 #       Should really have tested this better ><
 #
+### 2012-04-03: FiXato:
+#
+# * version 1.1: Stop being so sensitive!
+#     * Continuing to fix the on-join scanner bugs introduced by the 0.9 release.
+#       The ident@host.name dict key wasn't being lowercased for comparison in the on-join scan.
+#
 ## Acknowledgements:
 # * Sebastien "Flashcode" Helleu, for developing the kick-ass chat/IRC
 #    client WeeChat
@@ -107,7 +113,6 @@
 #   - Add option to enable/disable scanning on certain channels/networks
 #   - Add cross-channel clone scan
 #   - Add cross-server clone scan
-#   - Make clone_scanner buffer optional
 #
 ## Copyright (c) 2011-2012 Filip H.F. "FiXato" Slagter,
 #   <FiXato [at] Gmail [dot] com>
@@ -134,7 +139,7 @@
 #
 SCRIPT_NAME     = "clone_scanner"
 SCRIPT_AUTHOR   = "Filip H.F. 'FiXato' Slagter <fixato [at] gmail [dot] com>"
-SCRIPT_VERSION  = "1.0"
+SCRIPT_VERSION  = "1.1"
 SCRIPT_LICENSE  = "MIT"
 SCRIPT_DESC     = "A Clone Scanner that can manually scan channels and automatically scans joins for users on the channel with multiple nicknames from the same host."
 SCRIPT_COMMAND  = "clone_scanner"
@@ -220,7 +225,7 @@ def on_join_scan_cb(data, signal, signal_data):
   network = signal.split(',')[0]
   joined_nick = weechat.info_get("irc_nick_from_host", signal_data)
   join_match_data = re.match(':[^!]+!([^@]+@(\S+)) JOIN :?(#\S+)', signal_data)
-  parsed_ident_host = join_match_data.group(1)
+  parsed_ident_host = join_match_data.group(1).lower()
   parsed_host = join_match_data.group(2).lower()
   if weechat.config_get_plugin("compare_idents") == "on":
     hostkey = parsed_ident_host
