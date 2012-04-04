@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2010-2011 by Nils Görs <weechatter@arcor.de>
+# Copyright (c) 2010-2012 by Nils Görs <weechatter@arcor.de>
 #
 # colors the channel text with nick color and also highlight the whole line
 # colorize_nicks.py script will be supported
@@ -20,6 +20,8 @@
 # for settings see help page
 #
 # history:
+# 1.2: add: hook_modifier("colorize_lines") to use colorize_lines with another script.
+#    : fixed: regex was too greedy and also hit tag "prefix_nick_ccc"
 # 1.1: fixed: problems with temporary server (reported by nand`)
 #    : improved: using weechat_string_has_highlight()
 # 1.0: fixed: irc.look.nick_prefix wasn't supported
@@ -57,7 +59,7 @@
 
 use strict;
 my $prgname	= "colorize_lines";
-my $version	= "1.1";
+my $version	= "1.2";
 my $description	= "colors text in chat area with according nick color. Highlight messages will be fully highlighted in chat area";
 
 # default values
@@ -131,8 +133,9 @@ my $nick = $1;                                                                  
 my $line = $2;                                                                                  # get written text
 
 $line = weechat::string_remove_color($line,"");                                                 # remove color-codes from line, first
-$modifier_data =~ m/nick_(.*),/;                                                                # get the nick name from modifier_data (without nick_mode and color codes!)
-my $nick_wo_suffix = $1;                                                                        # nickname without nick_suffix
+# get the nick name from modifier_data (without nick_mode and color codes! Take care of tag "prefix_nick_ccc")
+$modifier_data =~ m/(^|,)nick_(.*),/;
+my $nick_wo_suffix = $2;                                                                        # nickname without nick_suffix
 
 if ( lc($nick_wo_suffix) eq lc($my_nick) ){                                                     # this one checks for own messages
   if ( $default_options{var_avail_buffer} ne "all" ){                                           # check for option avail_buffer
@@ -522,7 +525,7 @@ init_config();
 
 $get_prefix_action = weechat::config_string(weechat::config_get("weechat.look.prefix_action"));
 weechat::hook_modifier("weechat_print","colorize_cb", "");
-#weechat::hook_modifier("colorize_text","colorize_cb", "");
+weechat::hook_modifier("colorize_lines","colorize_cb", "");
 
   if (( $weechat_version ne "" ) && ( $weechat_version >= 0x00030400 )){        # v0.3.4?
     $weechat_version = 1;                                                       # yes!
