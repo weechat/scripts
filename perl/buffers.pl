@@ -19,36 +19,39 @@
 # Display sidebar with list of buffers.
 #
 # History:
+#
+# 2012-04-07, Sebastien Helleu <flashcode@flashtux.org>:
+#     v3.3: fix truncation of wide chars in buffer name (option name_size_max) (bug #36034)
 # 2012-03-15, nils_2 <weechatter@arcor.de>:
-#     3.2: add new option "detach"(weechat >= 0.3.8)
-#        : add new option "immune_detach_buffers" (requested by Mkaysi)
-#        : add new function buffers_whitelist add|del|reset (suggested by FiXato)
-#        : add new function buffers_detach add|del|reset
+#     v3.2: add new option "detach"(weechat >= 0.3.8)
+#           add new option "immune_detach_buffers" (requested by Mkaysi)
+#           add new function buffers_whitelist add|del|reset (suggested by FiXato)
+#           add new function buffers_detach add|del|reset
 # 2012-03-09, Sebastien Helleu <flashcode@flashtux.org>:
-#     3.1: fix reload of config file
+#     v3.1: fix reload of config file
 # 2012-01-29, nils_2 <weechatter@arcor.de>:
-#     3.0: fix: buffers did not update directly during window_switch (reported by FiXato)
+#     v3.0: fix: buffers did not update directly during window_switch (reported by FiXato)
 # 2012-01-29, nils_2 <weechatter@arcor.de>:
-#     2.9: add options "name_size_max" and "name_crop_suffix"
+#     v2.9: add options "name_size_max" and "name_crop_suffix"
 # 2012-01-08, nils_2 <weechatter@arcor.de>:
-#     2.8: fix indenting for option "show_number off"
-#          fix unset of buffer activity in hotlist when buffer was moved with mouse
-#          add buffer with free content and core buffer sorted first (suggested  by nyuszika7h)
-#          add options queries_default_fg/bg and queries_message_fg/bg (suggested by FiXato)
-#          add clicking with left button on current buffer will do a jump_previously_visited_buffer (suggested by FiXato)
-#          add clicking with right button on current buffer will do a jump_next_visited_buffer
-#          add additional informations in help texts
-#          add default_fg and default_bg for whitelist channels
-#          internal changes  (script is now 3Kb smaller)
+#     v2.8: fix indenting for option "show_number off"
+#           fix unset of buffer activity in hotlist when buffer was moved with mouse
+#           add buffer with free content and core buffer sorted first (suggested  by nyuszika7h)
+#           add options queries_default_fg/bg and queries_message_fg/bg (suggested by FiXato)
+#           add clicking with left button on current buffer will do a jump_previously_visited_buffer (suggested by FiXato)
+#           add clicking with right button on current buffer will do a jump_next_visited_buffer
+#           add additional informations in help texts
+#           add default_fg and default_bg for whitelist channels
+#           internal changes  (script is now 3Kb smaller)
 # 2012-01-04, Sebastien Helleu <flashcode@flashtux.org>:
-#     2.7: fix regex lookup in whitelist buffers list
+#     v2.7: fix regex lookup in whitelist buffers list
 # 2011-12-04, nils_2 <weechatter@arcor.de>:
-#     2.6: add own config file (buffers.conf)
-#          add new behavior for indenting (under_name)
-#          add new option to set different color for server buffers and buffers with free content
+#     v2.6: add own config file (buffers.conf)
+#           add new behavior for indenting (under_name)
+#           add new option to set different color for server buffers and buffers with free content
 # 2011-10-30, nils_2 <weechatter@arcor.de>:
-#     2.5: add new options "show_number_char" and "color_number_char",
-#          add help-description for options
+#     v2.5: add new options "show_number_char" and "color_number_char",
+#           add help-description for options
 # 2011-08-24, Sebastien Helleu <flashcode@flashtux.org>:
 #     v2.4: add mouse support
 # 2011-06-06, nils_2 <weechatter@arcor.de>:
@@ -117,8 +120,9 @@
 #
 
 use strict;
+use Encode qw( decode encode );
 # -------------------------------[ internal ]-------------------------------------
-my $version = "3.2";
+my $version = "3.3";
 
 my $BUFFERS_CONFIG_FILE_NAME = "buffers";
 my $buffers_config_file;
@@ -532,7 +536,7 @@ sub build_buffers
                 my $name = $buffer->{"name"};
                 $name = $buffer->{"short_name"} if (weechat::config_boolean( $options{"short_names"} ) eq 1);
                 if (weechat::config_integer($options{"name_size_max"}) >= 1){
-                    $name = substr($name,0,weechat::config_integer($options{"name_size_max"}));
+                    $name = encode("UTF-8", substr(decode("UTF-8", $name), 0, weechat::config_integer($options{"name_size_max"})));
                 }
                 if ( weechat::config_boolean($options{"core_to_front"}) eq 1)
                 {
@@ -744,7 +748,7 @@ sub build_buffers
         {
             if (weechat::config_integer($options{"name_size_max"}) >= 1)                # check max_size of buffer name
             {
-                $str .= substr($buffer->{"short_name"},0,weechat::config_integer($options{"name_size_max"}));
+                $str .= encode("UTF-8", substr(decode("UTF-8", $buffer->{"short_name"}), 0, weechat::config_integer($options{"name_size_max"})));
                 $str .= weechat::color(weechat::config_color( $options{"color_number_char"})).weechat::config_string($options{"name_crop_suffix"}) if (length($buffer->{"short_name"}) > weechat::config_integer($options{"name_size_max"}));
             }
             else
@@ -756,7 +760,7 @@ sub build_buffers
         {
             if (weechat::config_integer($options{"name_size_max"}) >= 1)                # check max_size of buffer name
             {
-                $str .= substr($buffer->{"name"},0,weechat::config_integer($options{"name_size_max"}));
+                $str .= encode("UTF-8", substr(decode("UTF-8", $buffer->{"name"},), 0, weechat::config_integer($options{"name_size_max"})));
                 $str .= weechat::color(weechat::config_color( $options{"color_number_char"})).weechat::config_string($options{"name_crop_suffix"}) if (length($buffer->{"name"}) > weechat::config_integer($options{"name_size_max"}));
             }
             else
