@@ -1,4 +1,4 @@
-# Copyright (c) 2010 by Stephan Huebner <s.huebnerfun01@gmx.org>
+# Copyright (c) 2010-2012 by Stephan Huebner <s.huebner@gmx.org>
 #
 # Intended use:
 #
@@ -20,73 +20,72 @@
 #
 # History:
 #    v 0.1 - first public release
+#    v 0.2 - changed server from which the IP is gathered
+#          - switched from Pythons' urlopen to weechats' url transfer
+#            (therefore 0.3.7 is required)
+#          - some small tweaks in description and (hopefully) and
+#            IP-checking, to make sure that I really got a correct one.
+#          - changed contact Email to one that actually exists :)
 
 SCR_NAME    = "xfer_setip"
 SCR_AUTHOR  = "Stephan Huebner <shuebnerfun01@gmx.org>"
-SCR_VERSION = "0.1"
+SCR_VERSION = "0.2"
 SCR_LICENSE = "GPL3"
 SCR_DESC    = "Set apropriate xfer-option for external ip"
 SCR_COMMAND = "xfer_setip"
 
 import_ok = True
 
-process_output = ""
-
 try:
-	import weechat as w
+    import weechat as w
+    from HTMLParser import HTMLParser
+    import re
+
 except:
-	print "Script must be run under weechat. http://www.weechat.org"
-	import_ok = False
+    print "Script must be run under weechat. http://www.weechat.org"
+    import_ok = False
 
 def alert(myString):
-	w.prnt("", myString)
-	return
+    w.prnt("", myString)
+    return
+
+# create a subclass and override the handler methods
+class MyHTMLParser(HTMLParser):
+    def handle_data(self, data):
+        data=data.strip()
+        if re.match('([\d]{1,3}\.){3}[\d]{1,3}', data) is not None:
+            w.command("", "/set xfer.network.own_ip %s" %data)
 
 def fn_setip(data, command, return_code, out, err):
-	global process_output
-	process_output += out.strip()
-	if int(return_code) >= 0:
-		alert("Trying to set ip: '" + process_output + "'")
-		w.command("", "/set xfer.network.own_ip %s" %process_output)
-	return w.WEECHAT_RC_OK
+    if return_code != w.WEECHAT_HOOK_PROCESS_ERROR:
+        parser.feed(out)
+    return w.WEECHAT_RC_OK
 
 def fn_connected(data, signal, signal_data):
-	global process_output
-	process_output = ""
-	python2_bin = w.info_get("python2_bin", "") or "python"
-	myProcesss = w.hook_process(python2_bin + " -c \"from urllib2 import urlopen\n" +
-										 "try:\n\t" +
-										 "print urlopen('http://whatismyip.org').read()" +
-										 "\nexcept:\n" +
-										 "\tprint ''\"",
-										 60000, "fn_setip", "")
-	return w.WEECHAT_RC_OK
+    w.hook_process('url:http://ip.auk.ca/', 60000, "fn_setip", "")
+    return w.WEECHAT_RC_OK
 
 def fn_command(data, buffer, args):
-	fn_connected(data, buffer, args)
-	return w.WEECHAT_RC_OK
-	
+    fn_connected("", "", "")
+    return w.WEECHAT_RC_OK
+
 if __name__ == "__main__" and import_ok:
-	if w.register(SCR_NAME, SCR_AUTHOR, SCR_VERSION, SCR_LICENSE,
-						SCR_DESC, "", ""):
-		# hook to "connected to (any) server"-signal
-		w.hook_signal("irc_server_connected", "fn_connected", "")
-		w.hook_command( # help-text
-			SCR_COMMAND, "",
+    if w.register(SCR_NAME, SCR_AUTHOR, SCR_VERSION, SCR_LICENSE,
+                  SCR_DESC, "", ""):
+        parser = MyHTMLParser()
+        fn_connected("", "", "")
+        # hook to "connected to a server"-signal
+        w.hook_signal("irc_server_connected", "fn_connected", "")
+        w.hook_command( # help-text
+           SCR_COMMAND, "",
 """
 
-The script tries to retrieve your external IP from "whatismyip.org". Once
-started, it will do so on two occasions:
-  1) whenever you have succesfully connected to *any* server (imho, the easiest
-     way to make sure that your IP is set correctly after a (possible)
-     disconnection from the internet).
-  2) when the script is called itself as a command "/setip".
-  
-Attention: You should check weechats' core-buffer to make sure that the IP
-was actually set (it seems that "whatismyip.org" doesn't deliver an IP if it
-is called a few times within a short time-amount (which shouldn't be a problem
-in "regular" use of the script.
+The script tries to retrieve your external IP, in three cases:
+  1) When it is loaded
+  2) whenever you have succesfully connected to a server
+  3) when the script is called as a command ("/xfer_setip").
+
 """,
-			"",
-			"", "fn_command", ""
-			)
+           "",
+           "", "fn_command", ""
+           )
