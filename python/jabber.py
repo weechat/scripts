@@ -27,6 +27,8 @@
 #
 # History:
 #
+# 2012-04-11, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 1.2: fix deletion of server options
 # 2012-03-09, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 1.1: fix reload of config file
 # 2012-01-03, Sebastien Helleu <flashcode@flashtux.org>:
@@ -76,7 +78,7 @@
 
 SCRIPT_NAME    = "jabber"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "1.1"
+SCRIPT_VERSION = "1.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Jabber/XMPP protocol for WeeChat"
 SCRIPT_COMMAND = SCRIPT_NAME
@@ -920,7 +922,7 @@ class Server:
             weechat.buffer_close(self.buffer)
             self.buffer = ""
 
-    def delete(self):
+    def delete(self, deleteOptions=False):
         """ Delete server. """
         for chat in self.chats:
             chat.delete()
@@ -928,8 +930,9 @@ class Server:
         self.delete_ping_timeout_timer()
         self.disconnect()
         self.close_buffer()
-        for option in self.options.keys():
-            weechat.config_option_free(option)
+        if deleteOptions:
+            for name, option in self.options.items():
+                weechat.config_option_free(option)
 
 def jabber_search_server_by_name(name):
     """ Search a server by name. """
@@ -1305,7 +1308,7 @@ def jabber_cmd_jabber(data, buffer, args):
             if len(argv) >= 2:
                 server = jabber_search_server_by_name(argv[1])
                 if server:
-                    server.delete()
+                    server.delete(deleteOptions=True)
                     jabber_servers.remove(server)
                     weechat.prnt("", "jabber: server '%s' deleted" % argv[1])
                 else:
