@@ -43,6 +43,8 @@
 #
 # History:
 #
+# 2012-04-11, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 0.7: fix truncated HTML page (thanks to xt), fix base64 decoding with Python 3.x
 # 2012-01-19, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.6: add option "http_hostname_display"
 # 2012-01-03, Sebastien Helleu <flashcode@flashtux.org>:
@@ -61,7 +63,7 @@
 
 SCRIPT_NAME    = 'urlserver'
 SCRIPT_AUTHOR  = 'Sebastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '0.6'
+SCRIPT_VERSION = '0.7'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC    = 'Shorten URLs with own HTTP server'
 
@@ -144,6 +146,14 @@ def base62_decode(str_value):
     base62chars = string.digits + string.ascii_letters
     return sum([base62chars.index(char) * (62 ** (len(str_value) - index - 1)) for index, char in enumerate(str_value)])
 
+def base64_decode(s):
+    if sys.version_info >= (3,):
+        # python 3.x
+        return base64.b64decode(s.encode('utf-8'))
+    else:
+        # python 2.x
+        return base64.b64decode(s)
+
 def urlserver_short_url(number):
     """Return short URL with number."""
     global urlserver_settings
@@ -156,6 +166,7 @@ def urlserver_short_url(number):
 
 def urlserver_server_reply(conn, code, extra_header, message, mimetype='text/html'):
     """Send a HTTP reply to client."""
+    global urlserver_settings
     if extra_header:
         extra_header += '\r\n'
     s = 'HTTP/1.1 %s\r\n' \
@@ -164,15 +175,19 @@ def urlserver_server_reply(conn, code, extra_header, message, mimetype='text/htm
         'Content-Length: %d\r\n' \
         '\r\n' \
         % (code, extra_header, mimetype, len(message))
+    msg = None
     if sys.version_info >= (3,):
         # python 3.x
         if type(message) is bytes:
-            conn.send(s.encode('utf-8') + message)
+            msg = s.encode('utf-8') + message
         else:
-            conn.send(s.encode('utf-8') + message.encode('utf-8'))
+            msg = s.encode('utf-8') + message.encode('utf-8')
     else:
         # python 2.x
-        conn.send(s + message)
+        msg = s + message
+    if urlserver_settings['debug'] == 'on':
+        weechat.prnt('', 'urlserver: sending %d bytes' % len(msg))
+    conn.sendall(msg)
 
 def urlserver_server_favicon():
     """Return favicon for HTML page."""
@@ -188,12 +203,7 @@ def urlserver_server_favicon():
         'ZfZIvdVBqWSKkoNzSgYAQ5gZ4bXNQNw0cZF/P8r6fq4zJ9ORkDTXXCdrkNZo+49eon8d41apbYGjZTVlJSmfSdKE3a7cVwBYqopWDEecupYTg+TQny53uK6qkPL8Jcw+' \
         '3sh0LjbL1jZbkbwwEtgmCW2C47X5GhOhXw9oWABhADL12w/qxSIpEz/9mI9JucIsw6hzxaK6tBMyVE9dTWbKrMqb01OoUyXdrQfhAvP2G3S5y1W4CyC5/xF1u63Zy0Z1' \
         'mZ7ejSv5v50OQMnujH8BbzDFpcdRAIIAAAAASUVORK5CYII='
-    if sys.version_info >= (3,):
-        # python 3.x
-        return base64.b64decode(s.encode('utf-8'))
-    else:
-        # python 2.x
-        return base64.b64decode(s)
+    return base64_decode(s)
 
 def urlserver_server_reply_list(conn, sort='-time'):
     """Send list of URLs as HTML page to client."""
@@ -255,7 +265,7 @@ def urlserver_server_reply_list(conn, sort='-time'):
         '  .urls table { border-collapse: collapse }\n' \
         '  .urls table td,th { border: solid 1px #cccccc; padding: 4px; font-size: 12px }\n' \
         '  .nowrap { white-space: nowrap }\n' \
-        '  .obj { text-align: center; margin-top: 1em }\n' \
+        '  .obj { margin-top: 1em }\n' \
         '-->' \
         '</style>\n' \
         '</head>\n' \
@@ -319,7 +329,7 @@ def urlserver_server_fd_cb(data, fd):
                         pass
                     if number >= 0 and number in urlserver['urls']:
                         # no redirection with "Location:" because it sends HTTP referer
-                        #conn.send('HTTP/1.1 302 Found\nLocation: %s\n' % urlserver['urls'][number][2])
+                        #conn.sendall('HTTP/1.1 302 Found\nLocation: %s\n' % urlserver['urls'][number][2])
                         urlserver_server_reply(conn, '200 OK', '',
                                                '<meta http-equiv="refresh" content="0; url=%s">' % urlserver['urls'][number][3])
                         replysent = True
@@ -328,7 +338,7 @@ def urlserver_server_fd_cb(data, fd):
                     authok = True
                     if urlserver_settings['http_auth']:
                         auth = re.search('^Authorization: Basic (\S+)$', data, re.MULTILINE)
-                        if not auth or base64.b64decode(auth.group(1)) != urlserver_settings['http_auth']:
+                        if not auth or base64_decode(auth.group(1)).decode('utf-8') != urlserver_settings['http_auth']:
                             authok = False
                     if authok:
                         urlserver_server_reply_list(conn, sort)
