@@ -34,7 +34,8 @@ format.........This is a string that will be used to show
                available:
                 $title_or_file,
                 $length_min, $length_sec, $pct,
-                $pos_min, $pos_sec
+                $pos_min, $pos_sec,
+                $bitrate
 
 host...........The host where your mpd runs ["localhost"]
 password.......The password used to connect to mpd [""]
@@ -79,7 +80,7 @@ from operator import itemgetter
 DEFAULT_FMT = \
     "/me is listening to: $artist - $title_or_file ($length_min:$length_sec)"
 
-wc.register("mpc", "Perry Hargrave", "0.1", "GPL", "mpc for weechat", "", "")
+wc.register("mpc", "Perry Hargrave", "0.2", "GPL", "mpc for weechat", "", "")
 
 DEFAULT_CONFIG = {
     "host"      : "localhost",
@@ -179,6 +180,7 @@ class __MPC(object):
             "length_sec"    : "%02d" % (itime % 60),
             "length_min"    : str(itime / 60),
             "pct"           : "%2.0f" % pct,
+            "bitrate"       : self._get_status('bitrate') + "kbps",
             })
 
         return ds
