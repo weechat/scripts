@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2010-2011 by Nils Görs <weechatter@arcor.de>
+# Copyright (c) 2010-2012 by Nils Görs <weechatter@arcor.de>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,7 +14,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-# v1.0: added: internal weechat command(s) can be used.
+# 1.1: fix:  invalid pointer for function infolist_get()
+# 1.0: added: allow internal WeeChat command(s)
 # v0.9: fixed: mem leak, infolist not removed with infolist_free()
 # v0.8: get_color() is now using API function weechat::info_get("irc_nick_color")
 # v0.7: quakenet uses different JOIN format (JOIN #channelname instead of JOIN :#channelname)
@@ -46,7 +47,9 @@
 # /set plugins.var.perl.jnotify.cmd = "echo -en "\a"" 
 # /set plugins.var.perl.jnotify.status = "on"
 #
-#
+# Development is currently hosted at
+# https://github.com/weechatter/weechat-scripts
+
 use strict;
 #### Use your own external command here (do not forget the ";" at the end of line):
 my $extern_command = qq(echo -en "\a");
@@ -64,7 +67,7 @@ my $extern_command = qq(echo -en "\a");
 
 
 # default values in setup file (~/.weechat/plugins.conf)
-my $version		= "1.0";
+my $version		= "1.1";
 my $prgname 		= "jnotify";
 my $description 	= "starts an internal command or external program if a user or one of your buddies JOIN a channel you are in";
 my $status		= "status";
@@ -411,7 +414,7 @@ sub info2newsbar{
 			. $channelname );
 }
 sub newsbar{
-        my $info_list = weechat::infolist_get( "perl_script", "name", "newsbar" );
+        my $info_list = weechat::infolist_get( "perl_script", "", "newsbar" );
         weechat::infolist_next($info_list);
         my $newsbar = weechat::infolist_string( $info_list, "name" ) eq 'newsbar';
         weechat::infolist_free($info_list);
