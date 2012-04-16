@@ -1,6 +1,6 @@
 #
 # highmon.pl - Highlight Monitoring for weechat 0.3.0
-# Version 2.3
+# Version 2.3.1
 #
 # Add 'Highlight Monitor' buffer/bar to log all highlights in one spot
 #
@@ -64,6 +64,8 @@
 #
 
 # History:
+# 2012-04-15, KenjiE20 <longbow@longbowslair.co.uk>:
+#	v2.3.1:	-fix: Colour tags in bar timestamp string
 # 2012-02-28, KenjiE20 <longbow@longbowslair.co.uk>:
 #	v2.3:	-feature: Added merge_private option to display private messages (default: off)
 #			-fix: Channel name colours now show correctly when set to on
@@ -815,9 +817,20 @@ sub highmon_print
 		use POSIX qw(strftime);
 		$time = strftime(weechat::config_string(weechat::config_get("weechat.look.buffer_time_format")), localtime);
 		# Colourise
-		$colour = weechat::color(weechat::config_string(weechat::config_get("weechat.color.chat_time_delimiters")));
-		$reset = weechat::color("reset");
-		$time =~ s/(\d*)(.)(\d*)/$1$colour$2$reset$3/g;
+		if ($time =~ /\$\{\w+\}/) # Coloured string
+		{
+			while ($time =~ /\$\{(\w+)\}/)
+			{
+				$color = weechat::color($1);
+				$time =~ s/\$\{\w+\}/$color/;
+			}
+		}
+		else # Default string
+		{
+			$colour = weechat::color(weechat::config_string(weechat::config_get("weechat.color.chat_time_delimiters")));
+			$reset = weechat::color("reset");
+			$time =~ s/(\d*)(.)(\d*)/$1$colour$2$reset$3/g;
+		}
 		# Push updates to bar lists
 		push (@bar_lines_time, $time);
 		
@@ -1020,7 +1033,7 @@ sub format_buffer_name
 }
 
 # Check result of register, and attempt to behave in a sane manner
-if (!weechat::register("highmon", "KenjiE20", "2.3", "GPL3", "Highlight Monitor", "", ""))
+if (!weechat::register("highmon", "KenjiE20", "2.3.1", "GPL3", "Highlight Monitor", "", ""))
 {
 	# Double load
 	weechat::print ("", "\tHighmon is already loaded");
