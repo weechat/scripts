@@ -1,6 +1,6 @@
 #
 # chanmon.pl - Channel Monitoring for weechat 0.3.0
-# Version 2.3
+# Version 2.3.1
 #
 # Add 'Channel Monitor' buffer/bar that you can position to show IRC channel
 # messages in a single location without constantly switching buffers
@@ -69,6 +69,8 @@
 # /set weechat.bar.input.conditions "active"
 
 # History:
+# 2012-04-15, KenjiE20 <longbow@longbowslair.co.uk>:
+#	v2.3.1:	-fix: Colour tags in bar timestamp string, bar error fixes from highmon
 # 2012-02-28, KenjiE20 <longbow@longbowslair.co.uk>:
 #	v2.3:	-feature: Added merge_private option to display private messages (default: off)
 # 2010-12-22, KenjiE20 <longbow@longbowslair.co.uk>:
@@ -240,11 +242,12 @@ sub chanmon_bar_build
 {
 	# Get max lines
 	$max_lines = weechat::config_get_plugin("bar_lines");
+	$max_lines = $max_lines ? $max_lines : 10;
 	$str = '';
 	$align_num = 0;
 	$count = 0;
 	# Keep lines within max
-	while (@bar_lines > $max_lines)
+	while ($#bar_lines > $max_lines)
 	{
 		shift(@bar_lines);
 		shift(@bar_lines_time);
@@ -887,9 +890,20 @@ sub chanmon_print
 		use POSIX qw(strftime);
 		$time = strftime(weechat::config_string(weechat::config_get("weechat.look.buffer_time_format")), localtime);
 		# Colourise
-		$colour = weechat::color(weechat::config_string(weechat::config_get("weechat.color.chat_time_delimiters")));
-		$reset = weechat::color("reset");
-		$time =~ s/(\d*)(.)(\d*)/$1$colour$2$reset$3/g;
+		if ($time =~ /\$\{\w+\}/) # Coloured string
+		{
+			while ($time =~ /\$\{(\w+)\}/)
+			{
+				$color = weechat::color($1);
+				$time =~ s/\$\{\w+\}/$color/;
+			}
+		}
+		else # Default string
+		{
+			$colour = weechat::color(weechat::config_string(weechat::config_get("weechat.color.chat_time_delimiters")));
+			$reset = weechat::color("reset");
+			$time =~ s/(\d*)(.)(\d*)/$1$colour$2$reset$3/g;
+		}
 		# Push updates to bar lists
 		push (@bar_lines_time, $time);
 		
@@ -1087,7 +1101,7 @@ sub format_buffer_name
 }
 
 # Check result of register, and attempt to behave in a sane manner
-if (!weechat::register("chanmon", "KenjiE20", "2.3", "GPL3", "Channel Monitor", "", ""))
+if (!weechat::register("chanmon", "KenjiE20", "2.3.1", "GPL3", "Channel Monitor", "", ""))
 {
 	# Double load
 	weechat::print ("", "\tChanmon is already loaded");
