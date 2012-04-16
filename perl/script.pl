@@ -16,7 +16,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# Development is currently hosted at
+# https://github.com/weechatter/weechat-scripts
+#
 # History:
+#  2012-03-24: nils_2 <weechatter@arcor.de>:
+# version 1.2: fix:  invalid pointer for function infolist_get()
 #  2012-02-11: nils_2 <weechatter@arcor.de>:
 # version 1.1: fix: rephrase of text output
 #  2012-02-06: nils_2 <weechatter@arcor.de>:
@@ -52,7 +57,7 @@ use strict;
 use File::Basename;
 
 my $PRGNAME     = "script";
-my $VERSION     = "1.1";
+my $VERSION     = "1.2";
 my $AUTHOR      = "Nils Görs <weechatter\@arcor.de>";
 my $LICENCE     = "GPL3";
 my $DESCR       = "to load/reload/unload script (language independent) and also to create/remove symlink";
@@ -316,7 +321,7 @@ sub check_if_script_is_installed
     # check if script is already installed.
     foreach my $plugin (keys %script_suffix)
     {
-        my $infolist = weechat::infolist_get( $plugin, "name", $script );
+        my $infolist = weechat::infolist_get( $plugin, "", $script );
         weechat::infolist_next($infolist);
         my $script_found = weechat::infolist_string( $infolist, "name" ) eq $script;
         weechat::infolist_free($infolist);
