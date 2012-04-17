@@ -20,21 +20,22 @@
 # for settings see help page
 #
 # history:
+# 1.3: fix: now using weechat::buffer_get_string() instead of regex to prevent problems with dots inside server-/channelnames (reported by surfhai)
 # 1.2: add: hook_modifier("colorize_lines") to use colorize_lines with another script.
-#    : fixed: regex was too greedy and also hit tag "prefix_nick_ccc"
-# 1.1: fixed: problems with temporary server (reported by nand`)
+#    : fix: regex was too greedy and also hit tag "prefix_nick_ccc"
+# 1.1: fix:  problems with temporary server (reported by nand`)
 #    : improved: using weechat_string_has_highlight()
-# 1.0: fixed: irc.look.nick_prefix wasn't supported
+# 1.0: fix: irc.look.nick_prefix wasn't supported
 # 0.9: added: option "own_nick" (idea by travkin)
 #    : new value (always) for option highlight
 #    : clean up code
-# 0.8.1: fixed: regex()
+# 0.8.1: fix: regex()
 # 0.8: added: option "avail_buffer" and "nicks" (please read help-page) (suggested by ldvx)
-#    : fixed: blacklist_channels wasn't load at start
-#    : fixed: nick_modes wasn't displayed since v0.7
+#    : fix: blacklist_channels wasn't load at start
+#    : fix: nick_modes wasn't displayed since v0.7
 #    : rewrote init() routine
 #    : thanks to stfn for hint with unescaped variables in regex.
-# 0.7: fixed: bug when irc.look.nick_suffix was set (reported and beta-testing by: hw2) (>= weechat 0.3.4)
+# 0.7: fix: bug when irc.look.nick_suffix was set (reported and beta-testing by: hw2) (>= weechat 0.3.4)
 #      blacklist_channels option supports servername
 #      clean up code
 # 0.6: code optimazations.
@@ -59,7 +60,7 @@
 
 use strict;
 my $prgname	= "colorize_lines";
-my $version	= "1.2";
+my $version	= "1.3";
 my $description	= "colors text in chat area with according nick color. Highlight messages will be fully highlighted in chat area";
 
 # default values
@@ -106,7 +107,7 @@ my %colours = ( 0 => "darkgray", 1 => "red", 2 => "lightred", 3 => "green",
 sub colorize_cb {
 my ( $data, $modifier, $modifier_data, $string ) = @_;
 
-if (index($modifier_data,"irc_privmsg") == -1){							# its neither a channel nor a query buffer
+if (index($modifier_data,"irc_privmsg") == -1){                                                 # its neither a channel nor a query buffer
   return $string;
 }
 
@@ -114,13 +115,15 @@ if ($default_options{var_highlight} eq "off" and $default_options{var_chat} eq "
   return $string;
 }
 
-$modifier_data =~ (m/irc;(.*)\.(.*);/);
-#$modifier_data =~ (m/irc;(.+?)\.(.+?)\;/);                                                      # irc;servername.channelname;
-
-#my ($t0, $t1 , $t2) = split(/;/,$modifier_data);
-#$t1 =~ m/^(.+)\.(.+)$/;
-my $servername = $1;
-my $channel_name = $2;
+# get servername and channelname. Do not use regex to extract server- and channelname out of $modifier_data. You will FAIL!
+# some possible names: freenode.#weechat, freenode.#weechat.de, freenode.query, chat.freenode.net.#weechat, chat.freenode.net.#weechat.de
+$modifier_data =~ (m/(.*);(.*);/);
+my $plugin = $1;
+my $name = $2;
+my $buf_pointer = weechat::buffer_search($plugin,$name);
+return $string if ($buf_pointer eq "");
+my $servername = weechat::buffer_get_string($buf_pointer, "localvar_server");
+my $channel_name = weechat::buffer_get_string($buf_pointer, "localvar_channel");
 
 my $my_nick = weechat::info_get( 'irc_nick', $servername );                                     # get nick with servername (;freenode.)
 
@@ -174,7 +177,6 @@ if (index($modifier_data,"irc_action") >= 0){
 $nick_mode = "";
 if ( weechat::config_boolean(weechat::config_get("weechat.look.nickmode")) ==  1 and ($nick ne $get_prefix_action) and (index($modifier_data,"notify_private")) == -1){
 #   if ($nick  =~ m/^\@|^\%|^\+|^\~|^\*|^\&|^\!|^\-/) {                                                  # check for nick modes (@%+~*&!-) without colour
-      my $buf_pointer = weechat::buffer_search("irc",$servername . "." . $channel_name);
       my $nick_pointer = weechat::nicklist_search_nick($buf_pointer,"",$nick_wo_suffix);
       $nick_mode = weechat::nicklist_nick_get_string($buf_pointer,$nick_pointer,"prefix");
       my $color_mode = weechat::color( weechat::nicklist_nick_get_string($buf_pointer, $nick_pointer, "prefix_color") );
@@ -186,9 +188,10 @@ if ( weechat::config_boolean(weechat::config_get("weechat.look.nickmode")) ==  1
 }
 
 # i wrote the message
+#weechat::print("","nick_wo: $nick_wo_suffix");
+#weechat::print("","my_nick: $my_nick");
     if ($nick_wo_suffix eq $my_nick ){                                                                  # i wrote the message
       return $string if check_whitelist_nicks($servername, $my_nick, $nick_wo_suffix);                  # check for whitelist
-
       if ($default_options{var_chat} eq "on"){
 	  my $nick_color = weechat::config_color(weechat::config_get("weechat.color.chat_nick_self"));  # get my nick color
 	  $nick_color = weechat::color($nick_color);
