@@ -43,6 +43,11 @@
 #
 # History:
 #
+# 2012-04-17, Filip H.F. "FiXato" Slagter <fixato+weechat+urlserver@gmail.com>:
+#     version 0.8: add more CSS support by adding options "http_fg_color", "http_css_url",
+#                  and "http_title", add descriptive classes to most html elements.
+#                  See https://raw.github.com/FiXato/weechat_scripts/master/urlserver/sample.css
+#                  for a sample css file that can be used for http_css_url
 # 2012-04-11, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.7: fix truncated HTML page (thanks to xt), fix base64 decoding with Python 3.x
 # 2012-01-19, Sebastien Helleu <flashcode@flashtux.org>:
@@ -63,7 +68,7 @@
 
 SCRIPT_NAME    = 'urlserver'
 SCRIPT_AUTHOR  = 'Sebastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '0.7'
+SCRIPT_VERSION = '0.8'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC    = 'Shorten URLs with own HTTP server'
 
@@ -110,10 +115,13 @@ urlserver_settings_default = {
     'http_auth'          : ('', 'login and password (format: "login:password") required to access to page with list of URLs'),
     'http_url_prefix'    : ('', 'prefix to add in URLs to prevent external people to scan your URLs (for example: prefix "xx" will give URL: http://host.com:1234/xx/8)'),
     'http_bg_color'      : ('#f4f4f4', 'background color for HTML page'),
+    'http_fg_color'      : ('#000', 'foreground color for HTML page'),
+    'http_css_url'       : ('', 'URL of external Cascading Style Sheet to add (BE CAREFUL: the HTTP referer will be sent to site hosting CSS file!) (empty value = use default embedded CSS)'),
     'http_embed_image'   : ('off', 'embed images in HTML page (BE CAREFUL: the HTTP referer will be sent to site hosting image!)'),
     'http_embed_youtube' : ('off', 'embed youtube videos in HTML page (BE CAREFUL: the HTTP referer will be sent to youtube!)'),
     'http_embed_youtube_size': ('480*350', 'size for embedded youtube video, format is "xxx*yyy"'),
     'http_prefix_suffix' : (' ', 'suffix displayed between prefix and message in HTML page'),
+    'http_title'         : ('WeeChat URLs', 'title of the HTML page'),
     # message filter settings
     'msg_ignore_buffers' : ('core.weechat,python.grep', 'comma-separated list (without spaces) of buffers to ignore (full name like "irc.freenode.#weechat")'),
     'msg_ignore_tags'    : ('irc_quit,irc_part,notify_none', 'comma-separated list (without spaces) of tags (or beginning of tags) to ignore (for example, use "notify_none" to ignore self messages or "nick_weebot" to ignore messages from nick "weebot")'),
@@ -208,7 +216,7 @@ def urlserver_server_favicon():
 def urlserver_server_reply_list(conn, sort='-time'):
     """Send list of URLs as HTML page to client."""
     global urlserver, urlserver_settings
-    content = '<div class="urls">\n<table>\n'
+    content = '<div class="urls">\n<table id="urls_table">\n'
     if not sort.startswith('-'):
         sort = '+%s' % sort
     if sort[1:] == 'time':
@@ -225,18 +233,20 @@ def urlserver_server_reply_list(conn, sort='-time'):
     content += '  <tr>'
     for column, defaultsort in (('time', '-'), ('nick', ''), ('buffer', '')):
         if sort[1:] == column:
-            content += '<th><a href="/%ssort=%s%s">%s</a> %s</th>' % (prefix, sortkey[sort[0]][0], column, column.capitalize(), sortkey[sort[0]][1])
+            content += '<th class="sortable sorted_by %s_header"><a href="/%ssort=%s%s">%s</a> %s</th>' % (column, prefix, sortkey[sort[0]][0], column, column.capitalize(), sortkey[sort[0]][1])
         else:
-            content += '<th><a href="/%ssort=%s%s">%s</a></th>' % (prefix, defaultsort, column, column.capitalize())
-    content += '<th>URLs</th>'
+            content += '<th class="sortable %s_header"><a class="sort_link" href="/%ssort=%s%s">%s</a></th>' % (column, prefix, defaultsort, column, column.capitalize())
+    content += '<th class="unsortable message_header">URLs</th>'
     content += '</tr>\n'
     for key, item in urls:
         content += '  <tr>'
         url = item[3]
         obj = ''
         message = cgi.escape(item[4].replace(url, '\x01\x02\x03\x04')).split('\t', 1)
-        strjoin = ' %s ' % urlserver_settings['http_prefix_suffix'].replace(' ', '&nbsp;')
-        message = strjoin.join(message).replace('\x01\x02\x03\x04', '<a href="%s" title="%s">%s</a>' % (urlserver_short_url(key), url, url))
+        message[0] = '<span class="prefix">%s</span>' % message[0]
+        message[1] = '<span class="message">%s</span>' % message[1]
+        strjoin = '<span class="prefix_suffix"> %s </span>' % urlserver_settings['http_prefix_suffix'].replace(' ', '&nbsp;')
+        message = strjoin.join(message).replace('\x01\x02\x03\x04', '</span><a class="url" href="%s" title="%s">%s</a><span class="message">' % (urlserver_short_url(key), url, url))
         if urlserver_settings['http_embed_image'] == 'on' and url.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.svg')):
             obj = '<div class="obj"><img src="%s" title="%s" alt="%s"></div>' % (url, url, url)
         elif urlserver_settings['http_embed_youtube'] == 'on' and 'youtube.com/' in url:
@@ -250,27 +260,33 @@ def urlserver_server_reply_list(conn, sort='-time'):
                 except:
                     width = 480
                     height = 350
-                obj = '<div class="obj"><iframe id="%s" type="text/html" width="%d" height="%d" ' \
+                obj = '<div class="obj youtube"><iframe id="%s" type="text/html" width="%d" height="%d" ' \
                     'src="http://www.youtube.com/embed/%s?enablejsapi=1"></iframe></div>' % (yid, width, height, yid)
-        content += '<td class="nowrap">%s</td><td class="nowrap">%s</td><td class="nowrap">%s</td><td>' % (item[0], item[1], item[2])
+        content += '<td class="timestamp">%s</td><td class="nick">%s</td><td class="buffer">%s</td><td class="message">' % (item[0], item[1], item[2])
         content += '%s%s</td></tr>\n' % (message, obj)
     content += '</table>'
+    if len(urlserver_settings['http_css_url']) > 0:
+        css = '<link rel="stylesheet" type="text/css" href="%s" />' % urlserver_settings['http_css_url']
+    else:
+        css = '<style type="text/css" media="screen">' \
+            '<!--\n' \
+            '  html { font-family: Verdana, Arial, Helvetica; font-size: 12px; background: %s; color: %s }\n' \
+            '  .urls table { border-collapse: collapse }\n' \
+            '  .urls table td,th { border: solid 1px #cccccc; padding: 4px; font-size: 12px }\n' \
+            '  .timestamp,.nick,.buffer { white-space: nowrap }\n' \
+            '  .sorted_by { font-style: italic; }\n' \
+            '  .obj { margin-top: 1em }\n' \
+            '-->' \
+            '</style>\n' % (urlserver_settings['http_bg_color'], urlserver_settings['http_fg_color'])
+
     html = '<html>\n' \
         '<head>\n' \
-        '<title>Weechat URLs</title>\n' \
+        '<title>%s</title>\n' \
         '<meta http-equiv="content-type" content="text/html; charset=utf-8" />\n' \
-        '<style type="text/css" media="screen">' \
-        '<!--\n' \
-        '  html { font-family: Verdana, Arial, Helvetica; font-size: 12px; background: %s }\n' \
-        '  .urls table { border-collapse: collapse }\n' \
-        '  .urls table td,th { border: solid 1px #cccccc; padding: 4px; font-size: 12px }\n' \
-        '  .nowrap { white-space: nowrap }\n' \
-        '  .obj { margin-top: 1em }\n' \
-        '-->' \
-        '</style>\n' \
+        '%s\n' \
         '</head>\n' \
         '<body>\n%s\n</body>\n' \
-        '</html>' % (urlserver_settings['http_bg_color'], content)
+        '</html>' % (urlserver_settings['http_title'], css, content)
     urlserver_server_reply(conn, '200 OK', '', html)
 
 def urlserver_server_fd_cb(data, fd):
