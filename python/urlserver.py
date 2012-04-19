@@ -2,6 +2,7 @@
 #
 # Copyright (C) 2011-2012 Sebastien Helleu <flashcode@flashtux.org>
 # Copyright (C) 2011 xt <xt@bash.no>
+# Copyright (C) 2012 Filip H.F. "FiXato" Slagter <fixato+weechat+urlserver@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -43,6 +44,10 @@
 #
 # History:
 #
+# 2012-04-18, Filip H.F. "FiXato" Slagter <fixato+weechat+urlserver@gmail.com>:
+#     version 0.9: add options "http_autostart", "http_port_display"
+#                  "url_min_length" can now be set to -1 to auto-detect minimal url length
+#                  Also, if port is 80 now, :80 will no longer be added to the shortened url.
 # 2012-04-17, Filip H.F. "FiXato" Slagter <fixato+weechat+urlserver@gmail.com>:
 #     version 0.8: add more CSS support by adding options "http_fg_color", "http_css_url",
 #                  and "http_title", add descriptive classes to most html elements.
@@ -68,7 +73,7 @@
 
 SCRIPT_NAME    = 'urlserver'
 SCRIPT_AUTHOR  = 'Sebastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '0.8'
+SCRIPT_VERSION = '0.9'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC    = 'Shorten URLs with own HTTP server'
 
@@ -108,9 +113,11 @@ urlserver = {
 # script options
 urlserver_settings_default = {
     # HTTP server settings
+    'http_autostart'     : ('on', 'start the built-in HTTP server automatically)'),
     'http_hostname'      : ('', 'force hostname/IP in bind of socket (empty value = auto-detect current hostname)'),
     'http_hostname_display': ('', 'display this hostname in shortened URLs'),
     'http_port'          : ('', 'force port for listening (empty value = find a random free port)'),
+    'http_port_display'  : ('', 'display this port in shortened URLs. Useful if you forward a different external port to the internal port'),
     'http_allowed_ips'   : ('', 'regex for IPs allowed to use server (example: "^(123.45.67.89|192.160.*)$")'),
     'http_auth'          : ('', 'login and password (format: "login:password") required to access to page with list of URLs'),
     'http_url_prefix'    : ('', 'prefix to add in URLs to prevent external people to scan your URLs (for example: prefix "xx" will give URL: http://host.com:1234/xx/8)'),
@@ -131,7 +138,7 @@ urlserver_settings_default = {
     # display settings
     'color'              : ('darkgray', 'color for urls displayed'),
     'display_urls'       : ('on', 'display URLs below messages'),
-    'url_min_length'     : ('0', 'minimum length for an URL to be shortened (0 = shorten all URLs)'),
+    'url_min_length'     : ('0', 'minimum length for an URL to be shortened (0 = shorten all URLs, -1 = detect length based on shorten URL)'),
     'urls_amount'        : ('100', 'number of URLs to keep in memory (and in file when script is not loaded)'),
     'buffer_short_name'  : ('off', 'use buffer short name on dedicated buffer'),
     'debug'              : ('off', 'print some debug messages'),
@@ -165,12 +172,26 @@ def base64_decode(s):
 def urlserver_short_url(number):
     """Return short URL with number."""
     global urlserver_settings
+
+    hostname = urlserver_settings['http_hostname_display'] or urlserver_settings['http_hostname'] or socket.getfqdn()
+
+    # If the built-in HTTP server isn't running, default to port from settings
+    port = urlserver_settings['http_port']
+    if len(urlserver_settings['http_port_display']) > 0:
+        port = urlserver_settings['http_port_display']
+    elif urlserver['socket']:
+        port = urlserver['socket'].getsockname()[1]
+
+    # Don't add :port if the port matches the default port for the http protocol, port 80
+    prefixed_port = ':%s' % port
+    if prefixed_port == ':80':
+        prefixed_port = ''
+
     prefix = ''
     if urlserver_settings['http_url_prefix']:
         prefix = '%s/' % urlserver_settings['http_url_prefix']
-    return 'http://%s:%s/%s%s' % (urlserver_settings['http_hostname_display'] or urlserver_settings['http_hostname'] or socket.getfqdn(),
-                                  urlserver['socket'].getsockname()[1],
-                                  prefix, base62_encode(number))
+
+    return 'http://%s%s/%s%s' % (hostname, prefixed_port, prefix, base62_encode(number))
 
 def urlserver_server_reply(conn, code, extra_header, message, mimetype='text/html'):
     """Send a HTTP reply to client."""
@@ -538,6 +559,9 @@ def urlserver_print_cb(data, buffer, time, tags, displayed, highlight, prefix, m
     min_length = 0
     try:
         min_length = int(urlserver_settings['url_min_length'])
+        # Detect the minimum length based on shorten url length
+        if min_length == -1:
+            min_length = len(urlserver_short_url(urlserver['number'])) + 1
     except:
         min_length = 0
 
@@ -581,7 +605,9 @@ def urlserver_config_cb(data, option, value):
             else:
                 urlserver_settings[name] = value
                 if name in ('http_hostname', 'http_port'):
-                    urlserver_server_restart()
+                    # Don't restart if autostart is disabled and server isn't already running
+                    if urlserver_settings['http_autostart'] == 'on' or urlserver['socket']:
+                        urlserver_server_restart()
     return weechat.WEECHAT_RC_OK
 
 def urlserver_filename():
@@ -649,12 +675,21 @@ if __name__ == '__main__' and import_ok:
                              '      /set plugins.var.python.urlserver.http_hostname "111.22.33.44"\n'
                              '  - it is strongly recommended to restrict IPs allowed and/or use auth, for example:\n'
                              '      /set plugins.var.python.urlserver.http_allowed_ips "^(123.45.67.89|192.160.*)$"\n'
-                             '      /set plugins.var.python.urlserver.http_auth "user:password"\n\n'
+                             '      /set plugins.var.python.urlserver.http_auth "user:password"\n'
+                             '  - if you do not like the default HTML formatting, you can override the CSS:\n'
+                             '      /set plugins.var.python.urlserver.http_css_url "http://example.com/sample.css"\n'
+                             '      See https://raw.github.com/FiXato/weechat_scripts/master/urlserver/sample.css\n'
+                             '  - don\'t like the built-in HTTP server to start automatically? Disable it:\n'
+                             '      /set plugins.var.python.urlserver.http_autostart "off"\n'
+                             '  - have external port 80 forwarded to your internal server port? Remove :port with:\n'
+                             '      /set plugins.var.python.urlserver.http_port_display "80"\n'
+                             '\n'
                              'Tip: use URL without key at the end to display list of all URLs in your browser.',
                              'start|restart|stop|status|clear', 'urlserver_cmd_cb', '')
 
-        # start mini HTTP server
-        urlserver_server_start()
+        if urlserver_settings['http_autostart'] == 'on':
+            # start mini HTTP server
+            urlserver_server_start()
 
         # load urls from file
         urlserver_read_urls()
