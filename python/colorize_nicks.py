@@ -21,6 +21,8 @@
 #
 #
 # History:
+# 2012-04-28, ldvx
+#   version 12: added ignore_tags to avoid colorizing nicks if tags are present
 # 2012-01-14, nesthib
 #   version 11: input_text_display hook and modifier to colorize nicks in input bar
 # 2010-12-22, xt
@@ -50,7 +52,7 @@ w = weechat
 
 SCRIPT_NAME    = "colorize_nicks"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "11"
+SCRIPT_VERSION = "12"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Use the weechat nick colors in the chat area"
 
@@ -59,6 +61,8 @@ settings = {
     "blacklist_nicks"           : 'so,root',  # comma separated list of nicks
     "min_nick_length"           : '2',    # length
     "colorize_input"            : 'off',  # boolean
+    "ignore_tags"               : '', # comma separated list of tags to ignore.
+                                      # I.e. irc_join,irc_part,irc_quit
 }
 
 
@@ -102,6 +106,14 @@ def colorize_cb(data, modifier, modifier_data, line):
         w.config_set_plugin('min_nick_length', settings['min_nick_length'])
 
     reset = w.color('reset')
+    
+    # Don't colorize if the ignored tag is present in message
+    tags_line = modifier_data.rsplit(';')
+    if len(tags_line) >= 3:
+        tags_line = tags_line[2].split(',')
+        for i in w.config_get_plugin('ignore_tags').split(','):
+            if i in tags_line:
+                return line
 
     for words in valid_nick_re.findall(line):
         prefix, nick = words[0], words[1]
