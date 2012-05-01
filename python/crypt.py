@@ -3,9 +3,9 @@
 # ===============================================================
 SCRIPT_NAME    = "crypt"
 SCRIPT_AUTHOR  = "Nicolai Lissner <nlissne@linux01.org>"
-SCRIPT_VERSION = "1.4"
+SCRIPT_VERSION = "1.4.1"
 SCRIPT_LICENSE = "GPL3"
-SCRIPT_DESC    = "encrypt/decrypt PRIVMSGs"
+SCRIPT_DESC    = "encrypt/decrypt PRIVMSGs using a pre-shared key and openssl"
 
 #
 # This plugin uses openssl to encrypt/decrypt messages you send
@@ -100,7 +100,6 @@ def encrypt(data, msgtype, servername, args):
 
 def update_encryption_status(data, signal, signal_data):
     buffer = signal_data
-    weechat.buffer_set(my_buffer, buffer, "buffer [enc]")
     weechat.bar_item_update('encryption')
     return weechat.WEECHAT_RC_OK
 
@@ -129,6 +128,4 @@ if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, 
       # register the modifiers
       weechat.hook_modifier("irc_in_privmsg", "decrypt", "")
       weechat.hook_modifier("irc_out_privmsg", "encrypt", "")
-      weechat.hook_signal("buffer_openened","update_encryption_status","")
-
-
+      weechat.hook_signal("buffer_opened","update_encryption_status","")
