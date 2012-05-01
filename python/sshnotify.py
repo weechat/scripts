@@ -41,6 +41,9 @@
 #
 #
 #changelog:
+#v0.2.2 - <ldvx@freenode> fixed bug in (1)  which didn't allow user to get 
+#         notifications on private messages if irc.look.nick_prefix or 
+#         irc.look.nick_suffix were used. (2012-04-27)
 #v0.2.1 - added help messages and hint for empty addresses option (2011-10-15)
 #v0.2.0 - added several options, including: proper weechat options
 #         for multiple addresses, ignore strings, urgencies, images,
@@ -60,7 +63,7 @@
 #         
 import weechat, string, subprocess, re
 
-weechat.register("sshnotify", "delwin", "0.2.1", "GPL3", "the overkill desktop notification solution", "", "")
+weechat.register("sshnotify", "delwin", "0.2.2", "GPL3", "the overkill desktop notification solution", "", "")
 
 #options which can be defined with /set plugins.var.python.sshnotify.foo
 settings = {
@@ -151,7 +154,10 @@ def get_notified(data, bufferp, uber_empty, tagsn, isdisplayed,
         
         uistring = urgencystring + imagestring
         
-        if buffer == prefix:
+        # (1) if buffer == prefix was used here, pressumibly to avoid notifications when on own
+        # messages, checking for the tag notify_private has the same effect, and the user can 
+        # set irc.look.nick_suffix or irc.look.nick_prefix this way.
+        if "notify_private" in tagsn.split(","):
             #the ' character currently needs changed to something else or the message formatting fails
             #substituting " for '
             #notification title
