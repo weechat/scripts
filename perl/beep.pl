@@ -20,6 +20,9 @@
 # Beep (terminal bell) and/or run command on highlight/private message or new DCC.
 #
 # History:
+# 2012-05-02, ldvx <ldvx@freenode>:
+#     version 0.9: fix regex for nick in tags, add options "whitelist_channels"
+#                  and "bell_always"
 # 2012-04-19, ldvx <ldvx@freenode>:
 #     version 0.8: add whitelist, trigger, use hook_process for commands,
 #                  rename option "beep_command" to "beep_command_pv", add help for options
@@ -37,11 +40,10 @@
 #     version 0.2: upgraded licence to GPL 3
 # 2006-09-02, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.1: initial release
-#
 
 use strict;
 my $SCRIPT_NAME = "beep";
-my $VERSION = "0.8";
+my $VERSION = "0.9";
 
 # default values in setup file (~/.weechat/plugins.conf)
 my %options_default = ('beep_pv'                  => ['on',    'beep on private message'],
@@ -56,6 +58,8 @@ my %options_default = ('beep_pv'                  => ['on',    'beep on private 
                        'beep_command_dcc'         => ['$bell', 'command for beep on dcc, special value "$bell" is allowed, as well as "$bell;command"'],
                        'beep_command_timeout'     => ['30000', 'timeout for command run (in milliseconds, 0 = never kill (not recommended))'],
                        'whitelist_nicks'          => ['',      'comma-separated list of "server.nick": if not empty, only these nicks will trigger execution of commands (example: "freenode.nick1,freenode.nick2")'],
+                       'whitelist_channels'       => ['',      'comma-separated list of "server.#channel": if not empty, only these channels will trigger execution of commands (example: "freenode.#weechat,freenode.#channel2")'],
+                       'bell_always'              => ['',      'use $bell on private messages and/or highlights regardless of trigger and whitelist settings (example: "pv,highlight")'],
 );
 my %options = ();
 
@@ -76,21 +80,52 @@ sub pv_and_highlight
 
     # return if nick in message is own nick
     my $nick = "";
-    $nick = $2 if ($tags =~ m/(^|,)nick_(.*)(,|$)/);
+    $nick = $2 if ($tags =~ m/(^|,)nick_([^,]*)(,|$)/);
     return weechat::WEECHAT_RC_OK if (weechat::buffer_get_string($buffer, "localvar_nick") eq $nick);
 
     # highlight
     if ($highlight eq "1")
     {
+        # Always print visual bel, regardless of whitelist and trigger settings
+        # beep_command_highlight does not need to contain $bell
+        if ($options{bell_always} =~ m/(^|,)highlight(,|$)/)
+        {
+            print STDERR "\a";
+        }
+        # Channels whitelist for highlights
         if ($options{beep_highlight} eq "on")
         {
-            beep_trigger_whitelist($buffer, $message, $nick, $options{beep_trigger_highlight},
-                                   $options{beep_highlight_whitelist}, $options{beep_command_highlight});
+            if ($options{whitelist_channels} ne "")
+            {
+                my $serverandchannel = weechat::buffer_get_string($buffer, "localvar_server"). "." .
+                    weechat::buffer_get_string($buffer, "localvar_channel");
+                if ($options{beep_trigger_highlight} eq "" or $message =~ m/\b$options{beep_trigger_highlight}\b/)
+                {
+                    if ($options{whitelist_channels} =~ /(^|,)$serverandchannel(,|$)/)
+                    {
+                        beep_exec_command($options{beep_command_highlight});
+                    }
+                    # What if we are highlighted and we're in a PM? For now, do nothing.
+                }
+            }
+            else
+            {
+                # Execute $bell and/or command with trigger and whitelist settings
+                beep_trigger_whitelist($buffer, $message, $nick, $options{beep_trigger_highlight},
+                                       $options{beep_highlight_whitelist}, $options{beep_command_highlight});
+            }
         }
     }
     # private message
     elsif (weechat::buffer_get_string($buffer, "localvar_type") eq "private" and $tags =~ m/(^|,)notify_private(,|$)/)
     {
+        # Always print visual bel, regardless of whitelist and trigger settings
+        # beep_command_pv does not need to contain $bell
+        if ($options{bell_always} =~ m/(^|,)pv(,|$)/)
+        {
+            print STDERR "\a";
+        }
+        # Execute $bell and/or command with trigger and whitelist settings
         if ($options{beep_pv} eq "on")
         {
             beep_trigger_whitelist($buffer, $message, $nick, $options{beep_trigger_pv},
