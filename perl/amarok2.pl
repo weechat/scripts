@@ -1,4 +1,4 @@
-# Copyright (c) 2010 by Nils Görs <weechatter@arcor.de>
+# Copyright (c) 2010-2012 by Nils Görs <weechatter@arcor.de>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# v0.7  : display bug removed (done by linopolus)
 # v0.6  : added text_output option (%Z = current play time, %M (max play time, %S = sample rate)
 # v0.5	: external color code will be used to avoid character missmatch
 #	: added text_output option (%T = title, %C = album, %A = artist) 
@@ -33,24 +34,26 @@
 # /set plugins.var.perl.amarok2.color_artist
 # /set plugins.var.perl.amarok2.color_title
 # /set plugins.var.perl.amarok2.color_album
+#
+# TODO add an item-bar
 
 use strict;
 # since KDE4 dcop doesn't work anymore. We have to use qdbus or dbus-send instead
 my $cmd = "qdbus";
 #my $cmd = "dbus-send --type=method_call --dest=";
 my $amarokcheck = qq(ps -e | grep "amarok");
-my $version = "0.6";
+my $version = "0.7";
 my $description = "Amarok 2 control and now playing script with ssh support";
 my $program_name = "amarok2";
 my @array = "";
 my $anzahl_array = "";
 my $buffer = "";
 my $title_name = "";
-my %ssh = (status => "enabled", host => "localhost", port => "22", user => "user");
+my %ssh = (status => "disabled", host => "localhost", port => "22", user => "user");
 my %ext_colors = (white => "00", black => "01", darkblue => "02", darkgreen => "03", lightred => "04",
 		  darkred => "05", magenta => "06", orange => "07", yellow => "08", lightgreen => "09",
 		  cyan => "10", lightcyan => "11", lightblue => "12", lightmagenta => "13", gray => "14",
-		  lightgray => 15);
+		  lightgray => "15");
 my $ext_color = "";
 my $text_output = "listening to: ♬  \%T from \%C by \%A [\%Z of \%M @ \%S kbps] ♬";
 
@@ -181,7 +184,7 @@ sub amarok_get_info{
 	  my $cmd2 = sprintf("ssh -p %d %s@%s %s %s %s:",$ssh{port},$ssh{user},$ssh{host},$cmd, $amarok_remote, $arg);	# make it ssh
 	  $amarok_result = `$cmd2`;
 	}else{
-         $amarok_result = `$cmd  $amarok_remote $arg":"`;
+         $amarok_result = `$cmd  $amarok_remote "\"^"$arg":\""`;
 	}
       return weechat::WEECHAT_RC_OK if ($amarok_result eq "");
       if ($amarok_result eq ($arg . ": \n")){			# check result, if its empty
