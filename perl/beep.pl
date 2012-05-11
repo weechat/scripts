@@ -20,6 +20,9 @@
 # Beep (terminal bell) and/or run command on highlight/private message or new DCC.
 #
 # History:
+# 2012-05-09, ldvx <ldvx@freenode>:
+#     version 1.0: Added beep_pv_blacklist, beep_highlight_blacklist, blacklist_nicks,
+#                  and wildcard support for blacklist_nicks.
 # 2012-05-02, ldvx <ldvx@freenode>:
 #     version 0.9: fix regex for nick in tags, add options "whitelist_channels"
 #                  and "bell_always"
@@ -43,13 +46,15 @@
 
 use strict;
 my $SCRIPT_NAME = "beep";
-my $VERSION = "0.9";
+my $VERSION = "1.0";
 
 # default values in setup file (~/.weechat/plugins.conf)
 my %options_default = ('beep_pv'                  => ['on',    'beep on private message'],
                        'beep_pv_whitelist'        => ['off',   'turn whitelist for private messages on or off'],
+                       'beep_pv_blacklist'        => ['off',   'turn blacklist for private messages on or off'],
                        'beep_highlight'           => ['on',    'beep on highlight'],
                        'beep_highlight_whitelist' => ['off',   'turn whitelist for highlights on or off'],
+                       'beep_highlight_blacklist' => ['off',   'turn blacklist for highlights on or off'],
                        'beep_dcc'                 => ['on',    'beep on dcc'],
                        'beep_trigger_pv'          => ['',      'word that will trigger execution of beep_command_pv (it empty, anything will trigger)'],
                        'beep_trigger_highlight'   => ['',      'word that will trigger execution of beep_command_highlight (if empty, anything will trigger)'],
@@ -58,6 +63,7 @@ my %options_default = ('beep_pv'                  => ['on',    'beep on private 
                        'beep_command_dcc'         => ['$bell', 'command for beep on dcc, special value "$bell" is allowed, as well as "$bell;command"'],
                        'beep_command_timeout'     => ['30000', 'timeout for command run (in milliseconds, 0 = never kill (not recommended))'],
                        'whitelist_nicks'          => ['',      'comma-separated list of "server.nick": if not empty, only these nicks will trigger execution of commands (example: "freenode.nick1,freenode.nick2")'],
+                       'blacklist_nicks'          => ['',      'comma-separated list of "server.nick": if not empty, these nicks will not be able to trigger execution of commands. Cannot be used in conjuction with whitelist (example: "freenode.nick1,freenode.nick2")'],
                        'whitelist_channels'       => ['',      'comma-separated list of "server.#channel": if not empty, only these channels will trigger execution of commands (example: "freenode.#weechat,freenode.#channel2")'],
                        'bell_always'              => ['',      'use $bell on private messages and/or highlights regardless of trigger and whitelist settings (example: "pv,highlight")'],
 );
@@ -111,8 +117,9 @@ sub pv_and_highlight
             else
             {
                 # Execute $bell and/or command with trigger and whitelist settings
-                beep_trigger_whitelist($buffer, $message, $nick, $options{beep_trigger_highlight},
-                                       $options{beep_highlight_whitelist}, $options{beep_command_highlight});
+                beep_trigger_whitelist_blacklist($buffer, $message, $nick, $options{beep_trigger_highlight},
+                                                 $options{beep_highlight_whitelist}, $options{beep_highlight_blacklist},
+                                                 $options{beep_command_highlight});
             }
         }
     }
@@ -128,8 +135,9 @@ sub pv_and_highlight
         # Execute $bell and/or command with trigger and whitelist settings
         if ($options{beep_pv} eq "on")
         {
-            beep_trigger_whitelist($buffer, $message, $nick, $options{beep_trigger_pv},
-                                   $options{beep_pv_whitelist}, $options{beep_command_pv});
+            beep_trigger_whitelist_blacklist($buffer, $message, $nick, $options{beep_trigger_pv},
+                                             $options{beep_pv_whitelist}, $options{beep_pv_blacklist},
+                                             $options{beep_command_pv});
         }
     }
     return weechat::WEECHAT_RC_OK;
@@ -141,14 +149,47 @@ sub dcc
     return weechat::WEECHAT_RC_OK;
 }
 
-sub beep_trigger_whitelist
+sub beep_trigger_whitelist_blacklist
 {
-    my ($buffer, $message, $nick, $trigger, $whitelist, $command) = @_;
+    my ($buffer, $message, $nick, $trigger, $whitelist, $blacklist, $command) = @_;
 
     if ($trigger eq "" or $message =~ m/\b$trigger\b/)
     {
         my $serverandnick = weechat::buffer_get_string($buffer, "localvar_server").".".$nick;
-        if ($whitelist ne "on" or $options{whitelist_nicks} eq "" or $options{whitelist_nicks} =~ /(^|,)$serverandnick(,|$)/)
+        if ($whitelist eq "on" and $options{whitelist_nicks} ne "")
+        {
+            if ($options{whitelist_nicks} =~ /(^|,)$serverandnick(,|$)/)
+            {
+                beep_exec_command($command);
+            }
+        }
+        elsif ($blacklist eq "on" and $options{blacklist_nicks} ne "")
+        {
+            # What to do if there's a wildcard in the blacklist
+            if ($options{blacklist_nicks} =~ m/\*/)
+            {
+                my @blacklist_iter = split(",", $options{blacklist_nicks});
+                my $nick_iter;
+                foreach $nick_iter (@blacklist_iter)
+                {
+                    $nick_iter =~ s/\*/[^,]*/g;
+                    # Exit script if the user who we're talking with is
+                    # in our blacklist
+                    if ($serverandnick =~ /$nick_iter/)
+                    {
+                        return weechat::WEECHAT_RC_OK;
+                    }
+                }
+                beep_exec_command($command);
+            }
+            # What to do if there's no wildcard in the blacklist
+            elsif ($options{blacklist_nicks} !~ /(^|,)$serverandnick(,|$)/)
+            {
+                beep_exec_command($command);
+            }
+        }
+        # What to do if we are not using whitelist of blacklist feature
+        elsif ($whitelist eq "off" and $blacklist eq "off")
         {
             beep_exec_command($command);
         }
