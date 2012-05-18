@@ -32,12 +32,15 @@
 #   2012-05-11, Arvydas Sidorenko <asido4@gmail.com>
 #       Version 0.2: rewritten script using bar_item to store the chatters
 #       instead of nicklist_group
+#   2012-05-16, Arvydas Sidorenko <asido4@gmail.com>
+#		Version 0.2.1: Bug fix: same channels under different servers share a
+#		common chatter list.
 #
 
 use strict;
 use warnings;
 
-my $version         = "0.2";
+my $version         = "0.2.1";
 my $script_name     = "chatters";
 
 # A hash with groups where the chatters are going to be added
@@ -85,7 +88,7 @@ sub chatters_bar_cb
     # $_[2] - window
     my $str     =  "";
     my $buffer  = weechat::window_get_pointer($_[2], "buffer");
-    my $channel = get_buf_channel($buffer);
+    my $channel = buf_to_channel_key($buffer);
     my $frame_color = weechat::color(weechat::config_get_plugin("frame_color"));
     my $nick_color = weechat::color(weechat::config_get_plugin("nick_color"));
 
@@ -111,7 +114,7 @@ sub buffer_close_cb
     # $_[0] - callback data (3rd hook arg)
     # $_[1] - signal (buffer_closing)
     # $_[2] - buffer pointer
-    my $channel = get_buf_channel($_[2]);
+    my $channel = buf_to_channel_key($_[2]);
 
     if ($chatter_groups{$channel})
     {
@@ -127,7 +130,10 @@ sub msg_cb
     # $_[1] - event name
     # $_[2] - the message:
     #    :Asido!~asido@2b600000.rev.myisp.com PRIVMSG #linux :yoo
-    my $msg = weechat::info_get_hashtable("irc_message_parse" => + { "message" => $_[2] });
+    my $msg			= weechat::info_get_hashtable("irc_message_parse" => + { "message" => $_[2] });
+	my $channel		= "";
+	my ($server)	= split ",", $_[1];
+	my $key			= "";
 
     # Ignore private messages
     unless ($msg->{channel} =~ /^#/)
@@ -135,7 +141,9 @@ sub msg_cb
         return weechat::WEECHAT_RC_OK;
     }
 
-    $chatter_groups{$msg->{channel}}{$msg->{nick}} = time();
+	$key = format_key($server, $msg->{channel});
+
+    $chatter_groups{$key}{$msg->{nick}} = time();
     weechat::bar_item_update($chatters_bar_item_name);
 
     return weechat::WEECHAT_RC_OK;
@@ -149,7 +157,7 @@ sub on_leave_cb
     # $_[1] - event name (nicklist_nick_removed)
     # $_[2] - 0x1ffda70,spoty (<buffer_pointer>,<nick>)
     my ($buf, $nick)    = split ",", $_[2];
-    my $channel         = get_buf_channel($buf);
+    my $channel         = buf_to_channel_key($buf);
 
     if ($chatter_groups{$channel} and $chatter_groups{$channel}{$nick})
     {
@@ -205,12 +213,29 @@ sub cleanup_chatters
 }
 
 ###############################################################################
-# Returns the channel name of buffer
-sub get_buf_channel
+# Returns a key for use in chatter_groups
+sub buf_to_channel_key
 {
-    my $buf = shift;
+    my $buf		= shift;
+	my $server	= weechat::buffer_get_string($buf, "localvar_server");
+    my $channel	= weechat::buffer_get_string($buf, "localvar_channel");
 
-    return weechat::buffer_get_string($buf, "localvar_channel");
+	return format_key($server, $channel);
+}
+
+###############################################################################
+# Formats a key out of server and channel to use in chatter_groups
+sub format_key
+{
+	my $server	= shift;
+	my $channel	= shift;
+
+	# For unknown reason to me some channels have prepended #, some prepended ##
+	# so the best to get rid of them to keep consistency
+	$channel =~ /#*(.*)/;
+	$channel = $1;
+
+	return $server . "|" . $channel;
 }
 
 ###############################################################################
