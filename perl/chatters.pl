@@ -31,17 +31,22 @@
 #       Version 0.1: initial release
 #   2012-05-11, Arvydas Sidorenko <asido4@gmail.com>
 #       Version 0.2: rewritten script using bar_item to store the chatters
-#       instead of nicklist_group
+#                    instead of nicklist_group
 #   2012-05-16, Arvydas Sidorenko <asido4@gmail.com>
 #		Version 0.2.1: Bug fix: same channels under different servers share a
-#		common chatter list.
+#		               common chatter list.
+#   2012-05-18, Nils G <weechatter@arcor.de>
+#       Version 0.3: missing return value for callbacks fixed
+#                    version check added
+#                    improved option handling
 #
 
 use strict;
 use warnings;
 
-my $version         = "0.2.1";
+my $version         = "0.3";
 my $script_name     = "chatters";
+my $weechat_version = "";
 
 # A hash with groups where the chatters are going to be added
 #
@@ -55,6 +60,12 @@ my %chatter_groups          = ();
 my $chatters_bar_item_name  = "chatters";
 
 weechat::register($script_name, "Arvydas Sidorenko <asido4\@gmail.com>", $version, "GPL3", "Groups people into chatters and idlers", "", "");
+$weechat_version = weechat::info_get("version_number", "");
+if (($weechat_version eq "") or ($weechat_version < 0x00030600))     # minimum v0.3.6
+{
+    weechat::print("",weechat::prefix("error")."$script_name: needs at least WeeChat v0.3.6");
+    weechat::command("","/wait 1ms /perl unload $script_name");
+}
 
 # Check configs
 my %default_settings = (frame_color    => "red",
@@ -120,6 +131,7 @@ sub buffer_close_cb
     {
         delete $chatter_groups{$channel};
     }
+return weechat::WEECHAT_RC_OK;
 }
 
 ###############################################################################
@@ -175,16 +187,22 @@ sub config_change_cb
     # $_[0] - data
     # $_[1] - option name
     # $_[2] - new value
-    my $opt = $_[1];
+#    my $opt = $_[1];
+    my ( $pointer, $name, $value ) = @_;
+    $name = substr($name,length("plugins.var.perl.".$script_name."."),length($name));           # don't forget the "."
+#    $default_settings{$name} = $value;                                                         # store new value, if needed!
 
-    if ($opt =~ /frame_color$/ or $opt =~ /nick_color$/)
+#    if ($opt =~ /frame_color$/ or $opt =~ /nick_color$/)
+    if ($name eq "frame_color" or $name eq "nick_color")
     {
         weechat::bar_item_update($chatters_bar_item_name);
     }
-    elsif ($opt =~ /nick_timeout$/)
+#    elsif ($opt =~ /nick_timeout$/)
+    elsif ($name eq "nick_timeout")
     {
         cleanup_chatters();
     }
+return weechat::WEECHAT_RC_OK;
 }
 
 ###############################################################################
@@ -216,11 +234,11 @@ sub cleanup_chatters
 # Returns a key for use in chatter_groups
 sub buf_to_channel_key
 {
-    my $buf		= shift;
-	my $server	= weechat::buffer_get_string($buf, "localvar_server");
-    my $channel	= weechat::buffer_get_string($buf, "localvar_channel");
+    my $buf     = shift;
+    my $server  = weechat::buffer_get_string($buf, "localvar_server");
+    my $channel = weechat::buffer_get_string($buf, "localvar_channel");
 
-	return format_key($server, $channel);
+    return format_key($server, $channel);
 }
 
 ###############################################################################
