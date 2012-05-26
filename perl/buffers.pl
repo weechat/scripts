@@ -20,6 +20,8 @@
 #
 # History:
 #
+# 2012-05-25, nils_2 <weechatter@arcor.de>:
+#     v3.4: add new option "show_lag".
 # 2012-04-07, Sebastien Helleu <flashcode@flashtux.org>:
 #     v3.3: fix truncation of wide chars in buffer name (option name_size_max) (bug #36034)
 # 2012-03-15, nils_2 <weechatter@arcor.de>:
@@ -122,7 +124,7 @@
 use strict;
 use Encode qw( decode encode );
 # -------------------------------[ internal ]-------------------------------------
-my $version = "3.3";
+my $version = "3.4";
 
 my $BUFFERS_CONFIG_FILE_NAME = "buffers";
 my $buffers_config_file;
@@ -192,8 +194,11 @@ weechat::hook_command(  $cmd_buffers_detach,
 
 if ($weechat_version >= 0x00030800)
 {
-    weechat::hook_config("buffers.look.detach", "hook_config", "");
+    weechat::hook_config("buffers.look.detach", "hook_timer_detach", "");
 }
+
+    weechat::hook_config("buffers.look.show_lag", "hook_timer_lag", "");
+
 # -------------------------------- [ command ] --------------------------------
 sub buffers_cmd_whitelist
 {
@@ -284,18 +289,35 @@ sub create_whitelist
 }
 
 # -------------------------------- [ config ] --------------------------------
-sub hook_config
+sub hook_timer_detach
 {
     my $detach = $_[2];
     if ( $detach eq 0 )
     {
-        weechat::unhook($Hooks{timer}) if $Hooks{timer};
-        $Hooks{timer} = "";
+        weechat::unhook($Hooks{timer_detach}) if $Hooks{timer_detach};
+        $Hooks{timer_detach} = "";
     }
     else
     {
-        weechat::unhook($Hooks{timer}) if $Hooks{timer};
-        $Hooks{timer} = weechat::hook_timer( weechat::config_integer( $options{"detach"}) * 1000, 60, 0, "buffers_signal_buffer", "");
+        weechat::unhook($Hooks{timer_detach}) if $Hooks{timer_detach};
+        $Hooks{timer_detach} = weechat::hook_timer( weechat::config_integer( $options{"detach"}) * 1000, 60, 0, "buffers_signal_buffer", "");
+    }
+    weechat::bar_item_update("buffers");
+    return weechat::WEECHAT_RC_OK;
+}
+
+sub hook_timer_lag
+{
+    my $lag = $_[2];
+    if ( $lag eq 0 )
+    {
+        weechat::unhook($Hooks{timer_lag}) if $Hooks{timer_lag};
+        $Hooks{timer_lag} = "";
+    }
+    else
+    {
+        weechat::unhook($Hooks{timer_lag}) if $Hooks{timer_lag};
+        $Hooks{timer_lag} = weechat::hook_timer( weechat::config_integer(weechat::config_get("irc.network.lag_refresh_interval")) * 1000, 0, 0, "buffers_signal_hotlist", "");
     }
     weechat::bar_item_update("buffers");
     return weechat::WEECHAT_RC_OK;
@@ -357,6 +379,7 @@ my %default_options_color =
 
 my %default_options_look =
 (
+ "show_lag"             =>      ["show_lag","boolean","show lag behind servername. This option is using \"irc.color.item_lag_finished\", \"irc.network.lag_min_show\" and \"irc.network.lag_refresh_interval\"","",0,0,"off","off",0,"","","buffers_signal_config","","",""],
  "look_whitelist_buffers" =>    ["whitelist_buffers", "string", "comma separated list of buffers for using a differnt color scheme (for example: freenode.#weechat,freenode.#weechat-fr)", "", 0, 0,"", "", 0, "", "", "buffers_signal_config_whitelist", "", "", ""],
  "hide_merged_buffers"  =>      ["hide_merged_buffers", "boolean", "hide merged buffers", "", 0, 0,"off", "off", 0, "", "", "buffers_signal_config", "", "", ""],
  "indenting"            =>      ["indenting", "integer", "use indenting for channel and query buffers. This option only takes effect if bar is left/right positioned", "off|on|under_name", 0, 0,"off", "off", 0, "", "", "buffers_signal_config", "", "", ""],
@@ -744,6 +767,7 @@ sub build_buffers
             }
         }
         $str .= weechat::color($color) . weechat::color(",".$bg);
+
         if (weechat::config_boolean( $options{"short_names"} ) eq 1)
         {
             if (weechat::config_integer($options{"name_size_max"}) >= 1)                # check max_size of buffer name
@@ -766,6 +790,20 @@ sub build_buffers
             else
             {
                 $str .= $buffer->{"name"};
+            }
+        }
+        if ( weechat::buffer_get_string($buffer->{"pointer"}, "localvar_type") eq "server" and weechat::config_boolean($options{"show_lag"}) eq 1)
+        {
+            my $color_lag = weechat::config_color(weechat::config_get("irc.color.item_lag_finished"));
+            my $min_lag = weechat::config_integer(weechat::config_get("irc.network.lag_min_show"));
+            my $infolist_server = weechat::infolist_get("irc_server","",$buffer->{"short_name"});
+            weechat::infolist_next($infolist_server);
+            my $lag = (weechat::infolist_integer($infolist_server, "lag"));
+            weechat::infolist_free($infolist_server);
+            if ( int($lag) > int($min_lag) )
+            {
+                $lag = $lag / 1000;
+                $str .= weechat::color("default") . " (" . weechat::color($color_lag) . $lag . weechat::color("default") . ")";
             }
         }
         $str .= "\n";
