@@ -20,6 +20,8 @@
 #
 # History:
 #
+# 2012-06-02, nils_2 <weechatter@arcor.de>:
+#     v3.5: add values "server|channel|private|all|keepserver|none" to option "hide_merged_buffers" (suggested by dominikh).
 # 2012-05-25, nils_2 <weechatter@arcor.de>:
 #     v3.4: add new option "show_lag".
 # 2012-04-07, Sebastien Helleu <flashcode@flashtux.org>:
@@ -124,7 +126,7 @@
 use strict;
 use Encode qw( decode encode );
 # -------------------------------[ internal ]-------------------------------------
-my $version = "3.4";
+my $version = "3.5";
 
 my $BUFFERS_CONFIG_FILE_NAME = "buffers";
 my $buffers_config_file;
@@ -381,7 +383,7 @@ my %default_options_look =
 (
  "show_lag"             =>      ["show_lag","boolean","show lag behind servername. This option is using \"irc.color.item_lag_finished\", \"irc.network.lag_min_show\" and \"irc.network.lag_refresh_interval\"","",0,0,"off","off",0,"","","buffers_signal_config","","",""],
  "look_whitelist_buffers" =>    ["whitelist_buffers", "string", "comma separated list of buffers for using a differnt color scheme (for example: freenode.#weechat,freenode.#weechat-fr)", "", 0, 0,"", "", 0, "", "", "buffers_signal_config_whitelist", "", "", ""],
- "hide_merged_buffers"  =>      ["hide_merged_buffers", "boolean", "hide merged buffers", "", 0, 0,"off", "off", 0, "", "", "buffers_signal_config", "", "", ""],
+ "hide_merged_buffers"  =>      ["hide_merged_buffers", "integer", "hide merged buffers. The value determines which merged buffers should be hidden, keepserver meaning 'all except server buffers'. Other values correspondent to the buffer type.", "server|channel|private|keepserver|all|none", 0, 0,"none", "none", 0, "", "", "buffers_signal_config", "", "", ""],
  "indenting"            =>      ["indenting", "integer", "use indenting for channel and query buffers. This option only takes effect if bar is left/right positioned", "off|on|under_name", 0, 0,"off", "off", 0, "", "", "buffers_signal_config", "", "", ""],
  "indenting_number"     =>      ["indenting_number", "boolean", "use indenting for numbers. This option only takes effect if bar is left/right positioned", "", 0, 0,"on", "on", 0, "", "", "buffers_signal_config", "", "", ""],
  "short_names"          =>      ["short_names", "boolean", "display short names (remove text before first \".\" in buffer name)", "", 0, 0,"on", "on", 0, "", "", "buffers_signal_config", "", "", ""],
@@ -493,6 +495,8 @@ sub build_buffers
         $buffer->{"name"} = weechat::infolist_string($infolist, "name");
         $buffer->{"short_name"} = weechat::infolist_string($infolist, "short_name");
         $buffer->{"full_name"} = $buffer->{"plugin_name"}.".".$buffer->{"name"};
+        $buffer->{"type"} = weechat::buffer_get_string($buffer->{"pointer"},"localvar_type");
+#        weechat::print("",$buffer->{"type"});
 
         unless( grep {$_ eq $buffer->{"name"}} @immune_detach_buffers )
         {
@@ -501,14 +505,14 @@ sub build_buffers
             # set timer for buffers with no hotlist action
             $buffers_timer{$buffer->{"pointer"}} = $current_time
              if ( not exists $hotlist{$buffer->{"pointer"}}
-             and weechat::buffer_get_string($buffer->{"pointer"}, "localvar_type") eq "channel"
+             and $buffer->{"type"} eq "channel"
              and not exists $buffers_timer{$buffer->{"pointer"}}
              and $detach_time > 0);
 
             # check for detach
             unless ( $buffer->{"current_buffer"} eq 0
             and not exists $hotlist{$buffer->{"pointer"}}
-            and weechat::buffer_get_string($buffer->{"pointer"}, "localvar_type") eq "channel"
+            and $buffer->{"type"} eq "channel"
             and exists $buffers_timer{$buffer->{"pointer"}}
             and $detach_time > 0
             and $weechat_version >= 0x00030800
@@ -591,10 +595,46 @@ sub build_buffers
     foreach my $key (sort keys %sorted_buffers)
     {
         my $buffer = $sorted_buffers{$key};
-        if ( (weechat::config_boolean( $options{"hide_merged_buffers"} ) eq 1) && (! $buffer->{"active"}) )
+
+        if ( weechat::config_string($options{"hide_merged_buffers"}) eq "server" )
         {
-            next;
+            # buffer type "server" or merged with core?
+            if ( ($buffer->{"type"} eq "server" or $buffer->{"plugin_name"} eq "core") && (! $buffer->{"active"}) )
+            {
+                next;
+            }
         }
+        if ( weechat::config_string($options{"hide_merged_buffers"}) eq "channel" )
+        {
+            # buffer type "channel" or merged with core?
+            if ( ($buffer->{"type"} eq "channel" or $buffer->{"plugin_name"} eq "core") && (! $buffer->{"active"}) )
+            {
+                next;
+            }
+        }
+        if ( weechat::config_string($options{"hide_merged_buffers"}) eq "private" )
+        {
+            # buffer type "private" or merged with core?
+            if ( ($buffer->{"type"} eq "private" or $buffer->{"plugin_name"} eq "core") && (! $buffer->{"active"}) )
+            {
+                next;
+            }
+        }
+        if ( weechat::config_string($options{"hide_merged_buffers"}) eq "keepserver" )
+        {
+            if ( ($buffer->{"type"} ne "server" or $buffer->{"plugin_name"} eq "core") && (! $buffer->{"active"}) )
+            {
+                next;
+            }
+        }
+        if ( weechat::config_string($options{"hide_merged_buffers"}) eq "all" )
+        {
+            if ( ! $buffer->{"active"} )
+            {
+                next;
+            }
+        }
+
         push(@buffers_focus, $buffer);                                          # buffer > buffers_focus, for mouse support
         my $color = "";
         my $bg = "";
