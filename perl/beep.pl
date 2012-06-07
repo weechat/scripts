@@ -20,6 +20,8 @@
 # Beep (terminal bell) and/or run command on highlight/private message or new DCC.
 #
 # History:
+# 2012-06-05, ldvx<ldvx@freenode>:
+#     version 1.1: Added wildcard support for whitelist_nicks.
 # 2012-05-09, ldvx <ldvx@freenode>:
 #     version 1.0: Added beep_pv_blacklist, beep_highlight_blacklist, blacklist_nicks,
 #                  and wildcard support for blacklist_nicks.
@@ -46,7 +48,7 @@
 
 use strict;
 my $SCRIPT_NAME = "beep";
-my $VERSION = "1.0";
+my $VERSION = "1.1";
 
 # default values in setup file (~/.weechat/plugins.conf)
 my %options_default = ('beep_pv'                  => ['on',    'beep on private message'],
@@ -90,7 +92,7 @@ sub pv_and_highlight
     return weechat::WEECHAT_RC_OK if (weechat::buffer_get_string($buffer, "localvar_nick") eq $nick);
 
     # highlight
-    if ($highlight eq "1")
+    if ($highlight)
     {
         # Always print visual bel, regardless of whitelist and trigger settings
         # beep_command_highlight does not need to contain $bell
@@ -116,7 +118,7 @@ sub pv_and_highlight
             }
             else
             {
-                # Execute $bell and/or command with trigger and whitelist settings
+                # Execute $bell and/or command with trigger and whitelist/blacklist settings
                 beep_trigger_whitelist_blacklist($buffer, $message, $nick, $options{beep_trigger_highlight},
                                                  $options{beep_highlight_whitelist}, $options{beep_highlight_blacklist},
                                                  $options{beep_command_highlight});
@@ -132,7 +134,7 @@ sub pv_and_highlight
         {
             print STDERR "\a";
         }
-        # Execute $bell and/or command with trigger and whitelist settings
+        # Execute $bell and/or command with trigger and whitelist/blacklist settings
         if ($options{beep_pv} eq "on")
         {
             beep_trigger_whitelist_blacklist($buffer, $message, $nick, $options{beep_trigger_pv},
@@ -158,7 +160,14 @@ sub beep_trigger_whitelist_blacklist
         my $serverandnick = weechat::buffer_get_string($buffer, "localvar_server").".".$nick;
         if ($whitelist eq "on" and $options{whitelist_nicks} ne "")
         {
-            if ($options{whitelist_nicks} =~ /(^|,)$serverandnick(,|$)/)
+            # What to do if there's a wildcard in the whitelit
+            if ($options{whitelist_nicks} =~ m/\*/ and 
+                match_in_wild_card($serverandnick, $options{whitelist_nicks}))
+            {
+                beep_exec_command($command);
+            }
+            # What to do if there's no wildcard in the whitelist
+            elsif ($options{whitelist_nicks} =~ /(^|,)$serverandnick(,|$)/)
             {
                 beep_exec_command($command);
             }
@@ -166,20 +175,9 @@ sub beep_trigger_whitelist_blacklist
         elsif ($blacklist eq "on" and $options{blacklist_nicks} ne "")
         {
             # What to do if there's a wildcard in the blacklist
-            if ($options{blacklist_nicks} =~ m/\*/)
+            if ($options{blacklist_nicks} =~ m/\*/ and 
+                !match_in_wild_card($serverandnick, $options{blacklist_nicks}))
             {
-                my @blacklist_iter = split(",", $options{blacklist_nicks});
-                my $nick_iter;
-                foreach $nick_iter (@blacklist_iter)
-                {
-                    $nick_iter =~ s/\*/[^,]*/g;
-                    # Exit script if the user who we're talking with is
-                    # in our blacklist
-                    if ($serverandnick =~ /$nick_iter/)
-                    {
-                        return weechat::WEECHAT_RC_OK;
-                    }
-                }
                 beep_exec_command($command);
             }
             # What to do if there's no wildcard in the blacklist
@@ -205,6 +203,23 @@ sub beep_exec_command
         ($command) = $command =~ /^\$bell;(.+)$/;
     }
     weechat::hook_process($command, $options{beep_command_timeout}, "my_process", "") if ($command);
+}
+
+sub match_in_wild_card
+{
+    my ($serverandnick, $white_or_black) = @_;
+    my $nick_iter;
+    my @array_of_nicks = split(",", $white_or_black);
+
+    foreach $nick_iter (@array_of_nicks)
+    {
+        $nick_iter =~ s/\*/[^,]*/g;
+        if ($serverandnick =~ /$nick_iter/)
+        {
+            return 1;
+        }
+    }
+    return 0;
 }
 
 sub my_process
