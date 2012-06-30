@@ -1,5 +1,5 @@
 #
-# UrlGrab, version 2.0 for weechat version 0.3
+# UrlGrab, for weechat version >= 0.3.0
 #
 #   Listens to all channels for URLs, collects them in a list, and launches
 #   them in your favourite web server on the local host or a remote server.
@@ -108,6 +108,7 @@
 #  - V2.0 Xilov: replace "/url help" by "/help url"
 #  - V2.1 nand: Changed default: firefox %s to firefox '%s' (localcmd)
 #  - V2.2 Sebastien Helleu <flashcode@flashtux.org>: fix reload of config file
+#  - V2.3 nand: Allowed trailing )s for unmatched (s in URLs
 #
 # Copyright (C) 2005 David Rubin <drubin AT smartcube dot co dot za>
 #
@@ -147,17 +148,28 @@ ipAddr = r'%s(?:\.%s){3}' % (octet, octet)
 # Base domain regex off RFC 1034 and 1738
 label = r'[0-9a-z][-0-9a-z]*[0-9a-z]?'
 domain = r'%s(?:\.%s)*\.[a-z][-0-9a-z]*[a-z]?' % (label, label)
-urlRe = re.compile(r'(\w+://(?:%s|%s)(?::\d+)?(?:/[^\])>\s]*)?)' % (domain, ipAddr), re.I)
+urlRe = re.compile(r'(\w+://(?:%s|%s)(?::\d+)?(?:/[^\]>\s]*)?)' % (domain, ipAddr), re.I)
 
 
 SCRIPT_NAME    = "urlgrab"
 SCRIPT_AUTHOR  = "David Rubin <drubin [At] smartcube [dot] co [dot] za>"
-SCRIPT_VERSION = "2.2"
+SCRIPT_VERSION = "2.3"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Url functionality Loggin, opening of browser, selectable links"
 CONFIG_FILE_NAME= "urlgrab"
 SCRIPT_COMMAND = "url"
 
+
+def stripParens(url):
+    return dropChar(')', url.count(')') - url.count('('), url[::-1])[::-1]
+
+def dropChar(c, n, xs):
+    if n == 0 or xs == []:
+        return xs
+    elif xs[0] == c:
+        return dropChar(c, n-1, xs[1:])
+    else:
+        return xs
 
 def urlGrabPrint(message):
     bufferd=weechat.current_buffer()
@@ -385,7 +397,7 @@ def urlGrabCheckMsgline(bufferp, message):
 		return
 	# Check for URLs
 	for url in urlRe.findall(message):
-	    urlGrab.addUrl(bufferp,url)
+	    urlGrab.addUrl(bufferp,stripParens(url))
         if max_buffer_length < len(bufferp):
             max_buffer_length = len(bufferp)
         if urlgrab_buffer:
@@ -494,7 +506,7 @@ def urlGrabMain(data, bufferp, args):
         except ValueError:
             #not a valid number so try opening it as a url..
             for url in urlRe.findall(largs[0]):
-                urlGrabOpenUrl(url)
+                urlGrabOpenUrl(stripParens(url))
             urlGrabPrint( "Unknown command '%s'.  Try '/help url' for usage" % largs[0])
     return weechat.WEECHAT_RC_OK
 
