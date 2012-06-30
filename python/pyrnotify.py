@@ -39,6 +39,11 @@
 # this is not recommended. Using a ssh port-forward is much safer
 # and doesn't require any ports but ssh to be open.
 
+# ChangeLog:
+#  
+# 2012-06-19: Added simple escaping to the title and body strings for
+#             the script to handle trailing backslashes.
+
 try:
     import weechat as w
     in_weechat = True
@@ -52,16 +57,19 @@ import shlex
 
 SCRIPT_NAME    = "pyrnotify"
 SCRIPT_AUTHOR  = "Krister Svanlund <krister.svanlund@gmail.com>"
-SCRIPT_VERSION = "0.6"
+SCRIPT_VERSION = "0.8"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Send remote notifications over SSH"
+
+def escape(s):
+    return re.sub(r'([\\"\'])', r'\\\1', s)
 
 def run_notify(icon, nick,chan,message):
     host = w.config_get_plugin('host')
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((host, int(w.config_get_plugin('port'))))
-        s.send("normal %s \"%s to %s\" \"%s\"" % (icon, nick, chan, message))
+        s.send("normal %s \"%s to %s\" \"%s\"" % (icon, nick, escape(chan), escape(message)))
         s.close()
     except Exception as e:
         w.prnt("", "Could not send notification: %s" % str(e))
@@ -115,7 +123,7 @@ def accept_connections(s):
     if data:
         try:
             urgency, icon, title, body = shlex.split(data)
-            subprocess.call(["notify-send", "-u", urgency, "-c", "IRC", "-i", icon, title, body])
+            subprocess.call(["notify-send", "-u", urgency, "-c", "IRC", "-i", icon, escape(title), escape(body)])
         except ValueError as e:
             print e
         except OSError as e:
@@ -124,7 +132,8 @@ def accept_connections(s):
 
 def weechat_client(argv):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind(("localhost", int(argv[1] if len(sys.argv) > 1 else 1234)))
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    s.bind(("localhost", int(argv[1] if len(sys.argv) > 1 else 4321)))
     s.listen(5)
     try:
         accept_connections(s)
