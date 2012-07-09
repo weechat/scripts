@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Copyright (c) 2012 by nils_2 <weechatter@arcor.de>
+#                   and nesthib <nesthib@gmail.com>
 #
 # scroll indicator; displaying number of lines below last line, overall lines in buffer, number of current line and percent displayed
 #
@@ -17,9 +18,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-# This script deletes weechatlog-files by age or size
-# YOU ARE USING THIS SCRIPT AT YOUR OWN RISK!
-#
+# 2012-07-08: obiwahn
+#     0.1.1 : add hook for switch_buffer
 # 2012-01-11: nils_2, nesthib (freenode.#weechat)
 #       0.1 : initial release
 #
@@ -34,7 +34,7 @@ except Exception:
 
 SCRIPT_NAME     = "bufsize"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.1"
+SCRIPT_VERSION  = "0.1.1"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "scroll indicator; displaying number of lines below last line, overall lines in buffer, number of current line and percent displayed"
 
@@ -107,14 +107,6 @@ def update_cb(data, signal, signal_data):
     weechat.bar_item_update(SCRIPT_NAME)
     return weechat.WEECHAT_RC_OK
 
-def clear_cb(data, buffer, command):
-    weechat.bar_item_update(SCRIPT_NAME)
-    return weechat.WEECHAT_RC_OK
-
-def window_page_cb(data, buffer, command):
-    weechat.bar_item_update(SCRIPT_NAME)
-    return weechat.WEECHAT_RC_OK
-
 # ================================[ weechat options and description ]===============================
 def init_options():
     for option,value in OPTIONS.items():
@@ -139,9 +131,10 @@ if __name__ == "__main__":
             bar_item = weechat.bar_item_new(SCRIPT_NAME, 'show_item','')
             weechat.bar_item_update(SCRIPT_NAME)
             weechat.hook_signal("buffer_line_added","update_cb","")
-            weechat.hook_signal("window_scrolled","window_page_cb","")
-            weechat.hook_command_run("/buffer clear*","clear_cb","")
-            weechat.hook_command_run("/window page*","window_page_cb","")
+            weechat.hook_signal("window_scrolled","update_cb","")
+            weechat.hook_signal("buffer_switch","update_cb","")
+            weechat.hook_command_run("/buffer clear*","update_cb","")
+            weechat.hook_command_run("/window page*","update_cb","")
             weechat.hook_config( 'plugins.var.python.' + SCRIPT_NAME + '.*', 'toggle_refresh', '' )
             init_options()
         else:
