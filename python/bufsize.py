@@ -18,11 +18,16 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2012-07-09: nils_2 (freenode.#weechat)
+#       0.2 : fix: display bug with more than one window
+#           : hide item when buffer empty
 # 2012-07-08: obiwahn
 #     0.1.1 : add hook for switch_buffer
 # 2012-01-11: nils_2, nesthib (freenode.#weechat)
 #       0.1 : initial release
 #
+# Development is currently hosted at
+# https://github.com/weechatter/weechat-scripts
 
 try:
     import weechat,re
@@ -34,7 +39,7 @@ except Exception:
 
 SCRIPT_NAME     = "bufsize"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.1.1"
+SCRIPT_VERSION  = "0.2"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "scroll indicator; displaying number of lines below last line, overall lines in buffer, number of current line and percent displayed"
 
@@ -48,12 +53,19 @@ regex_color=re.compile('\$\{[^\{\}]+\}')
 regex_optional_tags=re.compile('%\{[^\{\}]+\}')
 
 def show_item (data, item, window):
-    bufpointer = weechat.current_buffer()
+    bufpointer = weechat.window_get_pointer(window,"buffer")
+    if bufpointer == "":
+        return ""
+
     if weechat.buffer_get_string(bufpointer,'name') != 'weechat':                         # not weechat core buffer
-        if weechat.buffer_get_string(bufpointer,'localvar_type') == '':                     # buffer with free content?
+        if weechat.buffer_get_string(bufpointer,'localvar_type') == '':                   # buffer with free content?
           return ""
 
-    lines_after, lines_count, percent, current_line = count_lines("")
+    lines_after, lines_count, percent, current_line = count_lines(window,bufpointer)
+
+    if lines_count == 0:                                                                  # buffer empty?
+        return ""
+
     tags = {'%C': str(current_line),
             '%A': str(lines_after),
             '%L': str(lines_count),
@@ -80,20 +92,19 @@ def show_item (data, item, window):
     return bufsize_item
 
 
-def count_lines(bufpointer):
-    if bufpointer == "":
-        bufpointer = weechat.current_buffer()
+def count_lines(winpointer,bufpointer):
+
     hdata_buf = weechat.hdata_get('buffer')
     hdata_lines = weechat.hdata_get('lines')
     lines = weechat.hdata_pointer(hdata_buf, bufpointer, 'lines') # own_lines, mixed_lines
     lines_count = weechat.hdata_integer(hdata_lines, lines, 'lines_count')
 
-    winpointer = weechat.current_window()
     hdata_window = weechat.hdata_get('window')
     hdata_winscroll = weechat.hdata_get('window_scroll')
     window_scroll = weechat.hdata_pointer(hdata_window, winpointer, 'scroll')
     lines_after = weechat.hdata_integer(hdata_winscroll, window_scroll, 'lines_after')
     window_height = weechat.window_get_integer(weechat.current_window(), 'win_chat_height')
+
     if lines_count > window_height:
         differential = lines_count - window_height
         percent = max(int(round(100. * (differential - lines_after) / differential)), 0)
