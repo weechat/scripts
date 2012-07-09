@@ -2,7 +2,7 @@
 #
 # Copyright (c) 2012 by nils_2 <weechatter@arcor.de>
 #
-# quicky add/del/change entry in nick_color_force
+# quickly add/del/change entry in nick_color_force
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,8 +17,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2012-07-08: obiwahn, (freenode)
+#     0.3.1 : fix: list nick
+#           : - show nick: color if it is in list
+#           :   else tell color for nick is not set
 # 2012-05-23: unferth, (freenode.#weechat)
-#	0.3 : add: show current colors
+#       0.3 : add: show current colors
 # 2012-02-14: nils_2, (freenode.#weechat)
 #       0.2 : fix: problem with foreground/background color
 #           : add: show only a given nick
@@ -41,7 +45,7 @@ except Exception:
 
 SCRIPT_NAME     = "quick_force_color"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.3"
+SCRIPT_VERSION  = "0.3.1"
 SCRIPT_LICENSE  = "GPL3"
 SCRIPT_DESC     = "quickly add/del/change entry in nick_color_force"
 
@@ -71,10 +75,14 @@ def nick_colors_cmd_cb(data, buffer, args):
         if len(colored_nicks) == 0:
             weechat.prnt(buffer,'%sno nicks in \"irc.look.nick_color_force\"...' % weechat.prefix("error"))
             return weechat.WEECHAT_RC_OK
-        if len(argv) == 2 and argv[1] in colored_nicks:
-            color = colored_nicks[argv[1]]                                                      # get color from given nick
-            weechat.prnt(buffer,"%s%s" % (weechat.color(color),argv[1]))
+        if len(argv) == 2:
+            if argv[1] in colored_nicks:
+                color = colored_nicks[argv[1]]                                                  # get color from given nick
+                weechat.prnt(buffer,"%s%s: %s" % (weechat.color(color),argv[1],color))
+            else:
+                weechat.prnt(buffer,"no color set for: %s" % (argv[1]))
             return weechat.WEECHAT_RC_OK
+
         weechat.prnt(buffer,"List of nicks in : nick_color_force")
         for nick,color in colored_nicks.items():
             weechat.prnt(buffer,"%s%s: %s" % (weechat.color(color),nick,color))
@@ -86,7 +94,7 @@ def nick_colors_cmd_cb(data, buffer, args):
         else:
             colored_nicks[argv[1]] = argv[2]                                                    # add [nick] = [color]
         save_new_force_nicks()
-        
+
     if (argv[0].lower() == 'del') and (len(argv) == 2):
         if argv[1] in colored_nicks:                                                            # search if nick exists
             del colored_nicks[argv[1]]
@@ -110,7 +118,7 @@ def force_nick_colors_completion_cb(data, completion_item, buffer, completion):
     for nick,color in colored_nicks.items():
         weechat.hook_completion_list_add(completion, nick, 0, weechat.WEECHAT_LIST_POS_SORT)
     return weechat.WEECHAT_RC_OK
-    
+
 def create_list():
     global nick_color_force,colored_nicks
 #        colored_nicks = dict([elem.split(':') for elem in nick_color_force.split(';')])
