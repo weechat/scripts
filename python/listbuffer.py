@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# ListBuffer, version 0.7 for WeeChat version 0.3
+# ListBuffer, version 0.7.1 for WeeChat version 0.3
 # Latest development version: https://github.com/FiXato/listbuffer
 #
 #   Show /list results in a common buffer and interact with them.
@@ -49,6 +49,11 @@
 #     * Added setting plugins.var.python.listbuffer.autofocus
 #       This will autofocus the listbuffer in the current window if another window isn't
 #       already showing it, and of course only when the user issues /list
+#
+### 2012-07-10: FiXato:
+#
+# * version 0.7.1: Forgetful bugfix
+#     * Made sure lb_curline global variable is defined
 #
 ## Acknowledgements:
 # * Dmitry "troydm" Geurkov, for providing the inverse-sorting patch to the project.
@@ -107,7 +112,7 @@
 #
 SCRIPT_NAME    = "listbuffer"
 SCRIPT_AUTHOR  = "Filip H.F. 'FiXato' Slagter <fixato [at] gmail [dot] com>"
-SCRIPT_VERSION = "0.7"
+SCRIPT_VERSION = "0.7.1"
 SCRIPT_LICENSE = "MIT"
 SCRIPT_DESC    = "A common buffer for /list output."
 SCRIPT_COMMAND = "listbuffer"
@@ -126,6 +131,7 @@ lb_settings = (
   ("autofocus", "on", "Focus the listbuffer in the current window if it isn't already displayed by a window."),
 )
 lb_buffer = None
+lb_curline = 0
 lb_channels = []
 lb_network = None
 lb_list_started = False
