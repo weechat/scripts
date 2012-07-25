@@ -19,6 +19,8 @@
 #
 # History:
 #
+# 2012-07-25, nils_2 <weechatter@arcor.de>:
+#     version 2.6: switch to iset buffer (if existing) when command /iset is called with arguments
 # 2012-03-17, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 2.5: fix check of sections when creating config file
 # 2012-03-09, Sebastien Helleu <flashcode@flashtux.org>:
@@ -89,7 +91,7 @@
 use strict;
 
 my $PRGNAME = "iset";
-my $VERSION = "2.5";
+my $VERSION = "2.6";
 my $DESCR   = "Interactive Set for configuration options";
 my $AUTHOR  = "Sebastien Helleu <flashcode\@flashtux.org>";
 my $LICENSE = "GPL3";
@@ -603,6 +605,10 @@ sub iset_cmd_cb
                 iset_full_refresh();
                 weechat::buffer_set(weechat::buffer_search($LANG, $PRGNAME), "display", "1");
                 return weechat::WEECHAT_RC_OK;
+            }
+            else
+            {
+                weechat::buffer_set($ptrbuf, "display", "1");
             }
         }
     }
