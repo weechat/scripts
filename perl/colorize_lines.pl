@@ -20,6 +20,7 @@
 # for settings see help page
 #
 # history:
+# 1.4: fix: whole ctcp message was display in prefix (reported by : Mkaysi)
 # 1.3: fix: now using weechat::buffer_get_string() instead of regex to prevent problems with dots inside server-/channelnames (reported by surfhai)
 # 1.2: add: hook_modifier("colorize_lines") to use colorize_lines with another script.
 #    : fix: regex was too greedy and also hit tag "prefix_nick_ccc"
@@ -60,7 +61,7 @@
 
 use strict;
 my $prgname	= "colorize_lines";
-my $version	= "1.3";
+my $version	= "1.4";
 my $description	= "colors text in chat area with according nick color. Highlight messages will be fully highlighted in chat area";
 
 # default values
@@ -81,7 +82,7 @@ my %help_desc = ( "avail_buffer"         => "messages will be colored in buffer 
                   "blacklist_channels"   => "comma separated list with channelname. Channels in this list will be ignored. (e.g.: freenode.#weechat,freenode.#weechat-fr)",
                   "shuffle"              => "toggle shuffle color mode for chats area (default: off)",
                   "chat"                 => "colors text in chat area with according nick color (default: on)",
-                  "highlight"            => "highlight messages will be fully highlighted in chat area (on = whole line will be highlighted, off = only nick will be highlighted, always = a highlight will always color the whole message) (default: on)",
+                  "highlight"            => "highlight messages will be fully highlighted in chat area (on = whole line will be highlighted (using whitelist, only messages from your buddies will be fully highlighted), off = only nick will be highlighted, always = a highlight will always color the whole message (highlight messages from nicks not in your whitelist will be fully highlighted)) (default: on)",
                   "hotlist_max_level_nicks_add"         => "toggle highlight for hotlist (default: off)",
                   "buffer_autoset"       => "toggle highlight color in chat area for buffer_autoset (default: off)",
                   "look_highlight"       => "toggle highlight color in chat area for option weechat.look.highlight (default: off)",
@@ -108,6 +109,10 @@ sub colorize_cb {
 my ( $data, $modifier, $modifier_data, $string ) = @_;
 
 if (index($modifier_data,"irc_privmsg") == -1){                                                 # its neither a channel nor a query buffer
+  return $string;
+}
+
+if (index($modifier_data,"irc_ctcp") >= 0){                                                    # don't do anything with CTCP messages
   return $string;
 }
 
