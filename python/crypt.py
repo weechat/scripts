@@ -3,7 +3,7 @@
 # ===============================================================
 SCRIPT_NAME    = "crypt"
 SCRIPT_AUTHOR  = "Nicolai Lissner <nlissne@linux01.org>"
-SCRIPT_VERSION = "1.4.1"
+SCRIPT_VERSION = "1.4.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "encrypt/decrypt PRIVMSGs using a pre-shared key and openssl"
 
@@ -63,6 +63,7 @@ def decrypt(data, msgtype, servername, args):
     p.stdout.close()
     if decrypted == "":
       return args
+    decrypted = ''.join(c for c in decrypted if ord(c) > 31 or ord(c) == 9 or ord(c) == 2 or ord(c) == 3 or ord(c) == 15)
     return hostmask + "PRIVMSG " + channelname + " :" + chr(3) + "04" + weechat.config_get_plugin("message_indicator") + chr(15) + decrypted
   else:
     return args
