@@ -20,6 +20,8 @@
 # https://github.com/weechatter/weechat-scripts
 #
 # History:
+#  2012-08-14: nils_2 <weechatter@arcor.de>:
+# version 1.3: add: recognition of new script-plugin
 #  2012-03-24: nils_2 <weechatter@arcor.de>:
 # version 1.2: fix:  invalid pointer for function infolist_get()
 #  2012-02-11: nils_2 <weechatter@arcor.de>:
@@ -57,7 +59,7 @@ use strict;
 use File::Basename;
 
 my $PRGNAME     = "script";
-my $VERSION     = "1.2";
+my $VERSION     = "1.3";
 my $AUTHOR      = "Nils Görs <weechatter\@arcor.de>";
 my $LICENCE     = "GPL3";
 my $DESCR       = "to load/reload/unload script (language independent) and also to create/remove symlink";
@@ -512,7 +514,20 @@ weechat::register($PRGNAME, $AUTHOR, $VERSION,
 $weechat_version = weechat::info_get("version_number", "");
 $home_dir = weechat::info_get ("weechat_dir", "");
 
-weechat::hook_command($PRGNAME, $DESCR,
+# check for script plugin...
+my $scrip_plugin = 0;
+my $infolist = weechat::infolist_get("plugin","","script");
+weechat::infolist_next($infolist);
+$scrip_plugin = 1 if ( "script" eq weechat::infolist_string($infolist,"name"));
+weechat::infolist_free($infolist);
+if ($scrip_plugin == 1)
+{
+    weechat::print("",weechat::prefix("error") . "script plugin is installed. No need to install script: $PRGNAME.pl. Script automatically removed...");
+    weechat::command("","/wait 1ms /script unload $PRGNAME".".pl");
+}
+else
+{
+    weechat::hook_command($PRGNAME, $DESCR,
                 "load <script> || reload <script> -force || unload <script> || autoload <script> || autounload <script> || list || -all || -mute\n",
                 "         list          : list all installed scripts (by plugin)\n".
                 "         load <script> : load <script> (no suffix needed)\n".
@@ -546,7 +561,7 @@ weechat::hook_command($PRGNAME, $DESCR,
                 "||autoload %(all_scripts)|-mute|%*".
                 "||autounload %(all_scripts)|-mute|%*",
                 "my_command_cb", "");
-weechat::hook_completion("all_scripts", "all scripts in script directory", "script_completion_cb", "");
-weechat::hook_config("plugins.var.perl.$PRGNAME.*", "toggle_config_by_set", "");
-
-init_config();
+    weechat::hook_completion("all_scripts", "all scripts in script directory", "script_completion_cb", "");
+    weechat::hook_config("plugins.var.perl.$PRGNAME.*", "toggle_config_by_set", "");
+    init_config();
+}
