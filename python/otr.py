@@ -60,17 +60,20 @@ To end your private conversation: /otr finish
 
 SCRIPT_AUTHOR = 'Matthew M. Boedicker'
 SCRIPT_LICENCE = 'GPL3'
-SCRIPT_VERSION = '1.0.0'
+SCRIPT_VERSION = '1.1.0'
 
 OTR_DIR_NAME = 'otr'
 
 OTR_QUERY_RE = re.compile('\?OTR(\?|\??v[a-z\d]*\?)$')
 
 POLICIES = {
-    'allow_v1' : 'allow OTR protocol version 1',
     'allow_v2' : 'allow OTR protocol version 2',
     'require_encryption' : 'refuse to send unencrypted messages',
     'send_tag' : 'advertise your OTR capability using the whitespace tag',
+    }
+
+READ_ONLY_POLICIES = {
+    'allow_v1' : False,
     }
 
 IRC_PRIVMSG_RE = re.compile(r"""
@@ -303,13 +306,18 @@ class IrcContext(potr.context.Context):
 
     def getPolicy(self, key):
         """Get the value of a policy option for this context."""
-        option = weechat.config_get(self.policy_config_option(key))
+        key_lower = key.lower()
 
-        if option == '':
-            option = weechat.config_get(
-                config_prefix('policy.default.%s' % key.lower()))
+        if key_lower in READ_ONLY_POLICIES:
+            result = READ_ONLY_POLICIES[key_lower]
+        else:
+            option = weechat.config_get(self.policy_config_option(key))
 
-        result = bool(weechat.config_boolean(option))
+            if option == '':
+                option = weechat.config_get(
+                    config_prefix('policy.default.%s' % key_lower))
+
+            result = bool(weechat.config_boolean(option))
 
         debug(('getPolicy', key, result))
 
@@ -471,7 +479,7 @@ Respond with: /otr smp respond %s %s <answer>""" % (
         buf = cStringIO.StringIO()
 
         buf.write('Current OTR policies for %s:\n' % self.peer)
-        
+
         for policy, desc in sorted(POLICIES.iteritems()):
             buf.write('  %s (%s) : %s\n' % (
                     policy, desc,
@@ -713,7 +721,7 @@ def command_cb(data, buf, args):
 
     arg_parts = args.split(None, 5)
 
-    if arg_parts[0] == 'start':
+    if len(arg_parts) in (1, 3) and arg_parts[0] == 'start':
         nick, server = default_peer_args(arg_parts[1:3])
 
         if nick is not None and server is not None:
@@ -728,7 +736,7 @@ def command_cb(data, buf, args):
             privmsg(server, nick, '?OTR?')
 
             result = weechat.WEECHAT_RC_OK
-    elif arg_parts[0] == 'finish':
+    elif len(arg_parts) in (1, 3) and arg_parts[0] == 'finish':
         nick, server = default_peer_args(arg_parts[1:3])
 
         if nick is not None and server is not None:
@@ -760,10 +768,15 @@ def command_cb(data, buf, args):
             context = ACCOUNTS[current_user(server)].getContext(
                 irc_user(nick, server))
 
-            context.smpInit(secret, question)
-
-            result = weechat.WEECHAT_RC_OK
-    elif arg_parts[0] == 'trust':
+            try:
+                context.smpInit(secret, question)
+            except potr.context.NotEncryptedError:
+                context.print_buffer(
+                    'There is currently no encrypted session with %s.' % \
+                        context.peer)
+            else:
+                result = weechat.WEECHAT_RC_OK
+    elif len(arg_parts) in (1, 3) and arg_parts[0] == 'trust':
         nick, server = default_peer_args(arg_parts[1:3])
 
         if nick is not None and server is not None:
@@ -781,7 +794,7 @@ def command_cb(data, buf, args):
                         % context.peer)
 
             result = weechat.WEECHAT_RC_OK
-    elif arg_parts[0] == 'policy':
+    elif len(arg_parts) in (1, 3) and arg_parts[0] == 'policy':
         if len(arg_parts) == 1:
             nick, server = default_peer_args([])
 
@@ -804,14 +817,19 @@ def command_cb(data, buf, args):
                 command('', '/set %s %s' % (policy_var, arg_parts[2]))
 
                 context.print_buffer(context.format_policies())
-                
+
                 result = weechat.WEECHAT_RC_OK
 
     return result
 
 def otr_statusbar_cb(data, item, window):
     """Update the statusbar."""
-    buf = weechat.window_get_pointer(window, 'buffer')
+    if window:
+        buf = weechat.window_get_pointer(window, 'buffer')
+    else:
+        # If the bar item is in a root bar that is not in a window, window
+        # will be empty.
+        buf = weechat.current_buffer()
 
     result = ''
 
@@ -910,6 +928,15 @@ def logger_level_update_cb(data, option, value):
 
     return weechat.WEECHAT_RC_OK
 
+def buffer_switch_cb(data, signal, signal_data):
+    """Callback for buffer switched.
+
+    Used for updating the status bar item when it is in a root bar.
+    """
+    weechat.bar_item_update(SCRIPT_NAME)
+
+    return weechat.WEECHAT_RC_OK
+
 def init_config():
     """Set up configuration options and load config file."""
     global CONFIG_FILE
@@ -989,7 +1016,6 @@ def init_config():
         'policy_create_option_cb', '', '', '')
 
     for option, desc, default in [
-        ('default.allow_v1', 'default allow OTR v1 policy', 'off'),
         ('default.allow_v2', 'default allow OTR v2 policy', 'on'),
         ('default.require_encryption', 'default require encryption policy',
          'off'),
@@ -1056,6 +1082,8 @@ if weechat.register(
         'otr_policy', 'OTR policies', 'policy_completion_cb', '')
 
     weechat.hook_config('logger.level.irc.*', 'logger_level_update_cb', '')
+
+    weechat.hook_signal('buffer_switch', 'buffer_switch_cb', '')
 
     OTR_STATUSBAR = weechat.bar_item_new(SCRIPT_NAME, 'otr_statusbar_cb', '')
     weechat.bar_item_update(SCRIPT_NAME)
