@@ -19,6 +19,11 @@
 #
 # History:
 #
+# 2012-07-31,  nils_2 <weechatter@arcor.de>:
+#     version 2.7: add combined option and value search (see /help iset)
+#                : add exact value search (see /help iset)
+#                : fix problem with metacharacter in value search
+#                : fix use of uninitialized value for unset option and reset value of option
 # 2012-07-25, nils_2 <weechatter@arcor.de>:
 #     version 2.6: switch to iset buffer (if existing) when command /iset is called with arguments
 # 2012-03-17, Sebastien Helleu <flashcode@flashtux.org>:
@@ -91,7 +96,7 @@
 use strict;
 
 my $PRGNAME = "iset";
-my $VERSION = "2.6";
+my $VERSION = "2.7";
 my $DESCR   = "Interactive Set for configuration options";
 my $AUTHOR  = "Sebastien Helleu <flashcode\@flashtux.org>";
 my $LICENSE = "GPL3";
@@ -112,6 +117,9 @@ my $filter = "*";
 my $description = "";
 my $options_name_copy = "";
 my $iset_filter_title = "";
+# search modes: 0 = index() on value, 1 = grep() on value, 2 = grep() on option, 3 = grep on option & value
+my $search_mode = 2;
+my $search_value = "";
 
 my %options_iset;
 
@@ -125,10 +133,38 @@ sub iset_title
 {
     if ($iset_buffer ne "")
     {
-        my $current_line_text = "";
-        $current_line_text = ($current_line + 1) . "/" if (weechat::config_boolean($options_iset{"show_current_line"}) == 1);
-        $iset_filter_title = "Filter: " if ($iset_filter_title eq "");
-        $filter = "*" if ($filter eq "");
+        my $current_line_counter = "";
+        $current_line_counter = ($current_line + 1) . "/" if (weechat::config_boolean($options_iset{"show_current_line"}) == 1);
+        my $show_filter = "";
+        if ($search_mode eq 0)
+        {
+            $iset_filter_title = "Filter (by value): ";
+            $show_filter = $search_value;
+            if ( substr($show_filter,0,1) eq weechat::config_string($options_iset{"value_search_char"}) )
+            {
+                $show_filter = substr($show_filter,1,length($show_filter));
+            }
+        }
+        elsif ($search_mode eq 1)
+        {
+            $iset_filter_title = "Filter (by value): ";
+            $show_filter = "*".$search_value."*";
+        }
+        elsif ($search_mode eq 2)
+        {
+            $iset_filter_title = "Filter: ";
+            $filter = "*" if ($filter eq "");
+            $show_filter = $filter;
+        }
+        elsif ($search_mode eq 3)
+        {
+            $iset_filter_title = "Filter (by option): ";
+            $show_filter = $filter
+                            .weechat::color("default")
+                            ." / (value): "
+                            .weechat::color("yellow")
+                            ."*".$search_value."*";
+        }
         my $postfix = "s";
         my $option_txt  = " option";
         my $opt_txt = $option_txt;
@@ -137,16 +173,28 @@ sub iset_title
         $show_plugin_descr_txt = " (plugins description hidden)" if (weechat::config_boolean($options_iset{"show_plugin_description"}) == 0);
         weechat::buffer_set($iset_buffer, "title",
                             "Interactive set (iset.pl v$VERSION)  |  "
-                            .$iset_filter_title.weechat::color("yellow").$filter.weechat::color("default")."  |  "
-                            .$current_line_text.@options_names.$opt_txt . $show_plugin_descr_txt);
+                            .$iset_filter_title
+                            .weechat::color("yellow")
+                            .$show_filter
+                            .weechat::color("default")."  |  "
+                            .$current_line_counter
+                            .@options_names.$opt_txt
+                            .$show_plugin_descr_txt);
     }
 }
 
-sub iset_filter
+sub iset_create_filter
 {
     $filter = $_[0];
-    $filter = "$1.*" if ($filter =~ /f (.*)/);
-    $filter = "*.$1.*" if ($filter =~ /s (.*)/);
+    if ( $search_mode == 3 )
+    {
+        my @cmd_array = split(/ /,$filter);
+        my $array_count = @cmd_array;
+        $filter = $cmd_array[0];
+        $filter = $cmd_array[0] . " " . $cmd_array[1] if ( $array_count >2 );
+    }
+    $filter = "$1.*" if ($filter =~ /f (.*)/); # search file
+    $filter = "*.$1.*" if ($filter =~ /s (.*)/); # search section
     if ((substr($filter, 0, 1) ne "*") && (substr($filter, -1, 1) ne "*"))
     {
         $filter = "*".$filter."*";
@@ -160,26 +208,47 @@ sub iset_filter
 sub iset_buffer_input
 {
     my ($data, $buffer, $string) = ($_[0], $_[1], $_[2]);
-
+    $search_value = "";
+    my @cmd_array = split(/ /,$string);
+    my $array_count = @cmd_array;
     my $string2 = substr($string, 0, 1);
-    if ($string2 eq weechat::config_string($options_iset{"value_search_char"}))
+    if ($string2 eq weechat::config_string($options_iset{"value_search_char"})
+    or (defined $cmd_array[0] and $cmd_array[0] eq weechat::config_string($options_iset{"value_search_char"}).weechat::config_string($options_iset{"value_search_char"})) )
     {
-        $filter = substr($string, 1);
-        iset_get_values($filter);
-        $iset_filter_title = "Filter (by value): ";
+        $search_mode = 1;
+        $search_value = substr($string, 1);
+        iset_get_values($search_value);
         if ($iset_buffer ne "")
         {
-            weechat::buffer_set($iset_buffer, "localvar_set_iset_filter", $filter);
+            weechat::buffer_set($iset_buffer, "localvar_set_iset_search_value", $search_value);
         }
     }
     else
     {
-        $iset_filter_title = "";
-        iset_filter($string);
-        iset_get_options();
+        $search_mode = 2;
+        if ( $array_count >= 2 and $cmd_array[0] ne "f" or $cmd_array[0] ne "s")
+        {
+            if ( defined $cmd_array[1] and substr($cmd_array[1], 0, 1) eq weechat::config_string($options_iset{"value_search_char"}) 
+            or defined $cmd_array[2] and substr($cmd_array[2], 0, 1) eq weechat::config_string($options_iset{"value_search_char"}) )
+            {
+                $search_mode = 3;
+                $search_value = substr($cmd_array[1], 1);  # cut value_search_char
+                $search_value = substr($cmd_array[2], 1) if ( $array_count > 2);  # cut value_search_char
+            }
+        }
+        if ( $search_mode == 3)
+        {
+            iset_create_filter($string);
+            iset_get_options($search_value);
+        }else
+        {
+            iset_create_filter($string);
+            iset_get_options("");
+        }
     }
+    weechat::buffer_set($iset_buffer, "localvar_set_iset_search_mode", $search_mode);
     weechat::buffer_clear($buffer);
-    iset_title($iset_filter_title);
+    iset_title();
     $current_line = 0;
     iset_refresh();
     return weechat::WEECHAT_RC_OK;
@@ -203,6 +272,8 @@ sub iset_init
     else
     {
         my $new_filter = weechat::buffer_get_string($iset_buffer, "localvar_iset_filter");
+        $search_mode = weechat::buffer_get_string($iset_buffer, "localvar_iset_search_mode");
+        $search_value = weechat::buffer_get_string($iset_buffer, "localvar_iset_search_value");
         $filter = $new_filter if ($new_filter ne "");
     }
     if ($iset_buffer ne "")
@@ -226,13 +297,18 @@ sub iset_init
         weechat::buffer_set($iset_buffer, "key_bind_meta-v",        "/iset **toggle_help");
         weechat::buffer_set($iset_buffer, "key_bind_meta-p",        "/iset **toggle_show_plugin_desc");
         weechat::buffer_set($iset_buffer, "localvar_set_iset_filter", $filter);
+        weechat::buffer_set($iset_buffer, "localvar_set_iset_search_mode", $search_mode);
+        weechat::buffer_set($iset_buffer, "localvar_set_iset_search_value", $search_value);
     }
 }
 
 sub iset_get_options
 {
+    my $var_value = $_[0];
+    $var_value = "" if (not defined $var_value);
+    $var_value = lc($var_value);
+    $search_value = $var_value;
     @iset_focus = ();
-
     @options_names = ();
     @options_types = ();
     @options_values = ();
@@ -244,6 +320,8 @@ sub iset_get_options
     my $iset_struct;
     my %iset_struct;
 
+    weechat::buffer_set($iset_buffer, "localvar_set_iset_search_value", $var_value) if ($search_mode == 3);
+
     my $infolist = weechat::infolist_get("option", "", $filter);
     while (weechat::infolist_next($infolist))
     {
@@ -253,14 +331,28 @@ sub iset_get_options
         my $type = weechat::infolist_string($infolist, "type");
         my $value = weechat::infolist_string($infolist, "value");
         my $is_null = weechat::infolist_integer($infolist, "value_is_null");
-
-        $options_internal{$name}{"type"} = $type;
-        $options_internal{$name}{"value"} = $value;
-        $options_internal{$name}{"is_null"} = $is_null;
-        $option_max_length = length($name) if (length($name) > $option_max_length);
-
+        if ($search_mode == 3)
+        {
+            my $value = weechat::infolist_string($infolist, "value");
+            if ( grep /\Q$var_value/,lc($value) )
+            {
+                $options_internal{$name}{"type"} = $type;
+                $options_internal{$name}{"value"} = $value;
+                $options_internal{$name}{"is_null"} = $is_null;
+                $option_max_length = length($name) if (length($name) > $option_max_length);
         $iset_struct{$key} = $options_internal{$name};
         push(@iset_focus, $iset_struct{$key});
+            }
+        }
+        else
+        {
+            $options_internal{$name}{"type"} = $type;
+            $options_internal{$name}{"value"} = $value;
+            $options_internal{$name}{"is_null"} = $is_null;
+            $option_max_length = length($name) if (length($name) > $option_max_length);
+        $iset_struct{$key} = $options_internal{$name};
+        push(@iset_focus, $iset_struct{$key});
+        }
         $i++;
     }
     weechat::infolist_free($infolist);
@@ -277,6 +369,20 @@ sub iset_get_options
 sub iset_get_values
 {
     my $var_value = $_[0];
+    $var_value = lc($var_value);
+    if (substr($var_value,0,1) eq weechat::config_string($options_iset{"value_search_char"}) and $var_value ne weechat::config_string($options_iset{"value_search_char"}))
+    {
+        $var_value = substr($var_value,1,length($var_value));
+        $search_mode = 0;
+    }
+    iset_search_values($var_value,$search_mode);
+    weechat::buffer_set($iset_buffer, "localvar_set_iset_search_mode", $search_mode);
+    weechat::buffer_set($iset_buffer, "localvar_set_iset_search_value", $var_value);
+    $search_value = $var_value;
+}
+sub iset_search_values
+{
+    my ($var_value,$search_mode) = ($_[0],$_[1]);
     @options_names = ();
     @options_types = ();
     @options_values = ();
@@ -285,21 +391,33 @@ sub iset_get_values
     my %options_internal = ();
     my $i = 0;
     my $infolist = weechat::infolist_get("option", "", "*");
-    $var_value =~ tr/[a-z][0-9].=-_!//cd;  # kill meta chars
-    $var_value = lc($var_value);
     while (weechat::infolist_next($infolist))
     {
         my $name = weechat::infolist_string($infolist, "full_name");
         next if (weechat::config_boolean($options_iset{"show_plugin_description"}) == 0 and index ($name, "plugins.desc.") != -1);
         my $type = weechat::infolist_string($infolist, "type");
-        my $value = weechat::infolist_string($infolist, "value");
         my $is_null = weechat::infolist_integer($infolist, "value_is_null");
-        if (lc($value) =~ m/$var_value/)
+        my $value = weechat::infolist_string($infolist, "value");
+        if ($search_mode)
         {
-            $options_internal{$name}{"type"} = $type;
-            $options_internal{$name}{"value"} = $value;
-            $options_internal{$name}{"is_null"} = $is_null;
-            $option_max_length = length($name) if (length($name) > $option_max_length);
+            if ( grep /\Q$var_value/,lc($value) )
+            {
+                $options_internal{$name}{"type"} = $type;
+                $options_internal{$name}{"value"} = $value;
+                $options_internal{$name}{"is_null"} = $is_null;
+                $option_max_length = length($name) if (length($name) > $option_max_length);
+            }
+        }
+        else
+        {
+#            if ($value =~ /\Q$var_value/si)
+            if (lc($value) eq $var_value)
+            {
+                $options_internal{$name}{"type"} = $type;
+                $options_internal{$name}{"value"} = $value;
+                $options_internal{$name}{"is_null"} = $is_null;
+                $option_max_length = length($name) if (length($name) > $option_max_length);
+            }
         }
         $i++;
     }
@@ -311,7 +429,6 @@ sub iset_get_values
         push(@options_values, $options_internal{$name}{"value"});
         push(@options_is_null, $options_internal{$name}{"is_null"});
     }
-    weechat::buffer_set($iset_buffer, "localvar_set_iset_filter", $var_value);
 }
 
 sub iset_refresh_line
@@ -382,14 +499,26 @@ sub iset_full_refresh
     {
         weechat::buffer_clear($iset_buffer);
         # search for "*" in $filter.
-        if ($filter =~ m/\*/)
+        if ($filter =~ m/\*/ and $search_mode == 2)
         {
-            iset_get_options();
+            iset_get_options("");
         }
         else
         {
-            iset_get_values($filter);
-            $iset_filter_title = "Filter (by value): ";
+            if ($search_mode == 0)
+            {
+                $search_value = "=" . $search_value;
+                iset_get_values($search_value);
+            }
+            elsif ($search_mode == 1)
+            {
+                iset_get_values($search_value);
+            }
+            elsif ($search_mode == 3)
+            {
+                iset_create_filter($filter);
+                iset_get_options($search_value);
+            }
         }
         if (weechat::config_boolean($options_iset{"show_plugin_description"}) == 1)
         {
@@ -531,7 +660,7 @@ sub iset_config_cb
                     $options_values[$index] = weechat::infolist_string($infolist, "value");
                     $options_is_null[$index] = weechat::infolist_integer($infolist, "value_is_null");
                     iset_refresh_line($index);
-                    iset_title($iset_filter_title) if ($option_name eq "iset.look.show_current_line");
+                    iset_title() if ($option_name eq "iset.look.show_current_line");
                 }
                 else
                 {
@@ -551,21 +680,33 @@ sub iset_config_cb
 
 sub iset_set_option
 {
-    my $option = weechat::config_get($_[0]);
-    weechat::config_option_set($option, $_[1], 1) if ($option ne "");
+    my ($option, $value) = ($_[0],$_[1]);
+    if (defined $option and defined $value)
+    {
+        $option = weechat::config_get($option);
+        weechat::config_option_set($option, $value, 1) if ($option ne "");
+    }
 }
 
 sub iset_reset_option
 {
-    my $option = weechat::config_get($_[0]);
-    weechat::config_option_reset($option, 1) if ($option ne "");
+    my $option = $_[0];
+    if (defined $option)
+    {
+        $option = weechat::config_get($option);
+        weechat::config_option_reset($option, 1) if ($option ne "");
+    }
 }
 
 sub iset_unset_option
 {
-    my $option = weechat::config_get($_[0]);
-    weechat::config_option_unset($option) if ($option ne "");
-    weechat::buffer_clear($iset_buffer);
+    my $option = $_[0];
+    if (defined $option)
+    {
+        $option = weechat::config_get($option);
+        weechat::config_option_unset($option) if ($option ne "");
+        weechat::buffer_clear($iset_buffer);
+    }
     iset_refresh();
 }
 
@@ -574,53 +715,78 @@ sub iset_cmd_cb
 {
     my ($data, $buffer, $args) = ($_[0], $_[1], $_[2]);
     my $filter_set = 0;
+#    $search_value = "";
     if (($args ne "") && (substr($args, 0, 2) ne "**"))
     {
-        if (substr($args, 0, 1) eq weechat::config_string($options_iset{"value_search_char"}))
+        my @cmd_array = split(/ /,$args);
+        my $array_count = @cmd_array;
+        if (substr($args, 0, 1) eq weechat::config_string($options_iset{"value_search_char"})
+        or (defined $cmd_array[0] and $cmd_array[0] eq weechat::config_string($options_iset{"value_search_char"}).weechat::config_string($options_iset{"value_search_char"})) )
         {
-            my $var_value = substr($args, 1);  # cut value_search_char
+            $search_mode = 1;
+            my $search_value = substr($args, 1);  # cut value_search_char
             if ($iset_buffer ne "")
             {
                 weechat::buffer_clear($iset_buffer);
                 weechat::command($iset_buffer, "/window refresh");
             }
+            weechat::buffer_set($iset_buffer, "localvar_set_iset_search_mode", $search_mode);
+            weechat::buffer_set($iset_buffer, "localvar_set_iset_search_value", $search_value);
             iset_init();
-            iset_get_values($var_value);
+            iset_get_values($search_value);
             iset_refresh();
             weechat::buffer_set($iset_buffer, "display", "1");
-            $iset_filter_title = "Filter (by value): ";
-            $filter = $var_value;
-            iset_title($iset_filter_title);
+#            $filter = $var_value;
+            iset_title();
             return weechat::WEECHAT_RC_OK;
         }
         else
         {
-            iset_filter($args);
+            # f/s option =value
+            # option =value
+            $search_mode = 2;
+            if ( $array_count >= 2 and $cmd_array[0] ne "f" or $cmd_array[0] ne "s")
+            {
+                if ( defined $cmd_array[1] and substr($cmd_array[1], 0, 1) eq weechat::config_string($options_iset{"value_search_char"}) 
+                or defined $cmd_array[2] and substr($cmd_array[2], 0, 1) eq weechat::config_string($options_iset{"value_search_char"}) )
+                {
+                    $search_mode = 3;
+                    $search_value = substr($cmd_array[1], 1);  # cut value_search_char
+                    $search_value = substr($cmd_array[2], 1) if ( $array_count > 2);  # cut value_search_char
+                }
+            }
+            iset_create_filter($args);
             $filter_set = 1;
             my $ptrbuf = weechat::buffer_search($LANG, $PRGNAME);
             if ($ptrbuf eq "")
             {
                 iset_init();
-                iset_get_options();
+                iset_get_options($search_value);
                 iset_full_refresh();
                 weechat::buffer_set(weechat::buffer_search($LANG, $PRGNAME), "display", "1");
+                weechat::buffer_set($iset_buffer, "localvar_set_iset_search_value", $search_value);
+                weechat::buffer_set($iset_buffer, "localvar_set_iset_search_mode", $search_mode);
                 return weechat::WEECHAT_RC_OK;
             }
             else
             {
+                iset_get_options($search_value);
+                iset_full_refresh();
                 weechat::buffer_set($ptrbuf, "display", "1");
             }
         }
+    weechat::buffer_set($iset_buffer, "localvar_set_iset_search_mode", $search_mode);
+    weechat::buffer_set($iset_buffer, "localvar_set_iset_search_value", $search_value);
     }
-
     if ($iset_buffer eq "")
     {
         iset_init();
-        iset_get_options();
+        iset_get_options("");
         iset_refresh();
     }
     else
     {
+#        iset_get_options($search_value);
         iset_full_refresh() if ($filter_set);
     }
 
@@ -633,6 +799,7 @@ sub iset_cmd_cb
         if ($args eq "**refresh")
         {
             iset_full_refresh();
+            iset_title();
         }
         if ($args eq "**up")
         {
@@ -641,6 +808,7 @@ sub iset_cmd_cb
                 $current_line--;
                 iset_refresh_line($current_line + 1);
                 iset_refresh_line($current_line);
+                iset_title();
                 iset_check_line_outside_window();
             }
         }
@@ -651,6 +819,7 @@ sub iset_cmd_cb
                 $current_line++;
                 iset_refresh_line($current_line - 1);
                 iset_refresh_line($current_line);
+                iset_title();
                 iset_check_line_outside_window();
             }
         }
@@ -668,6 +837,7 @@ sub iset_cmd_cb
             $current_line = 0;
             iset_refresh_line ($old_current_line);
             iset_refresh_line ($current_line);
+            iset_title();
             weechat::command($iset_buffer, "/window scroll_top ".iset_get_window_number());
         }
         if ($args eq "**scroll_bottom")
@@ -676,6 +846,7 @@ sub iset_cmd_cb
             $current_line = $#options_names;
             iset_refresh_line ($old_current_line);
             iset_refresh_line ($current_line);
+            iset_title();
             weechat::command($iset_buffer, "/window scroll_bottom ".iset_get_window_number());
         }
         if ($args eq "**toggle")
@@ -708,6 +879,7 @@ sub iset_cmd_cb
         if ($args eq "**unset")
         {
             iset_unset_option($options_names[$current_line]);
+            iset_title();
         }
         if ($args eq "**toggle_help")
         {
@@ -729,12 +901,14 @@ sub iset_cmd_cb
                 weechat::config_option_set($options_iset{"show_plugin_description"},0,1);
                 iset_full_refresh();
                 iset_check_line_outside_window();
+                iset_title();
             }
             else
             {
                 weechat::config_option_set($options_iset{"show_plugin_description"},1,1);
                 iset_full_refresh();
                 iset_check_line_outside_window();
+                iset_title();
             }
         }
         if ($args eq "**set")
@@ -1143,11 +1317,12 @@ $wee_version_number = weechat::info_get("version_number", "") || 0;
 iset_config_init();
 iset_config_read();
 
-weechat::hook_command($PRGNAME, "Interactive set", "f <file> || s <section> || [=]<text>",
+weechat::hook_command($PRGNAME, "Interactive set", "f <file> || s <section> || [=][=]<text>",
                       "f file     : show options for a file\n".
                       "s section  : show options for a section\n".
                       "text       : show options with 'text' in name\n".
-                      weechat::config_string($options_iset{"value_search_char"})."text      : show options with 'text' in value\n\n".
+                      weechat::config_string($options_iset{"value_search_char"})."text      : show options with 'text' in value\n".
+                      weechat::config_string($options_iset{"value_search_char"}).weechat::config_string($options_iset{"value_search_char"})."text     : show options with exact 'text' in value\n\n".
                       "Keys for iset buffer:\n".
                       "f11,f12        : move iset content left/right\n".
                       "up,down        : move one option up/down\n".
@@ -1179,8 +1354,13 @@ weechat::hook_command($PRGNAME, "Interactive set", "f <file> || s <section> || [
                       "    /iset s look\n".
                       "  show all options with text 'nicklist' in name\n".
                       "    /iset nicklist\n".
-                      "  show all values which contain 'red'. '" . weechat::config_string($options_iset{"value_search_char"}) . "' is a trigger char.\n".
-                      "    /iset ". weechat::config_string($options_iset{"value_search_char"}) ."red\n",
+                      "  show all values which contain 'red'. ('" . weechat::config_string($options_iset{"value_search_char"}) . "' is a trigger char).\n".
+                      "    /iset ". weechat::config_string($options_iset{"value_search_char"}) ."red\n".
+                      "  show all values which hit 'off'. ('" . weechat::config_string($options_iset{"value_search_char"}) . weechat::config_string($options_iset{"value_search_char"}) . "' is a trigger char).\n".
+                      "    /iset ". weechat::config_string($options_iset{"value_search_char"}) . weechat::config_string($options_iset{"value_search_char"}) ."off\n".
+                      "  show options for file 'weechat' which contains value 'off'\n".
+                      "    /iset f weechat ".weechat::config_string($options_iset{"value_search_char"})."off\n".
+                      "",
                       "", "iset_cmd_cb", "");
 weechat::hook_signal("upgrade_ended", "iset_upgrade_ended", "");
 weechat::hook_signal("window_scrolled", "iset_signal_window_scrolled_cb", "");
