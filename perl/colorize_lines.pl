@@ -20,6 +20,7 @@
 # for settings see help page
 #
 # history:
+# 1.5: sync: option weechat.look.nickmode changed in 0.3.9 to "irc.look.nick_mode"
 # 1.4: fix: whole ctcp message was display in prefix (reported by : Mkaysi)
 # 1.3: fix: now using weechat::buffer_get_string() instead of regex to prevent problems with dots inside server-/channelnames (reported by surfhai)
 # 1.2: add: hook_modifier("colorize_lines") to use colorize_lines with another script.
@@ -61,7 +62,7 @@
 
 use strict;
 my $prgname	= "colorize_lines";
-my $version	= "1.4";
+my $version	= "1.5";
 my $description	= "colors text in chat area with according nick color. Highlight messages will be fully highlighted in chat area";
 
 # default values
@@ -91,8 +92,8 @@ my %help_desc = ( "avail_buffer"         => "messages will be colored in buffer 
                   "own_lines"            => "colors own written messages (default: off)",
 );
 
+my $weechat_version;
 my $zahl = 0;
-my $weechat_version = 0;
 my $nick_mode = "";
 my $get_prefix_action = "";
 my @var_blacklist_channels = "";
@@ -180,7 +181,16 @@ if (index($modifier_data,"irc_action") >= 0){
 
 # check if look.nickmode is ON and no prefix and no query buffer
 $nick_mode = "";
-if ( weechat::config_boolean(weechat::config_get("weechat.look.nickmode")) ==  1 and ($nick ne $get_prefix_action) and (index($modifier_data,"notify_private")) == -1){
+my $nickmode_value = 0;
+
+if (($weechat_version ne "") && ($weechat_version >= 0x00030900)){
+    my $temp_nickmode_value = weechat::config_integer(weechat::config_get("irc.look.nick_mode"));
+    $nickmode_value = 1 if ($temp_nickmode_value == 1 or $temp_nickmode_value == 3);
+}else{
+    $nickmode_value = weechat::config_boolean(weechat::config_get("weechat.look.nickmode"));
+}
+
+if ( $nickmode_value ==  1 and ($nick ne $get_prefix_action) and (index($modifier_data,"notify_private")) == -1){
 #   if ($nick  =~ m/^\@|^\%|^\+|^\~|^\*|^\&|^\!|^\-/) {                                                  # check for nick modes (@%+~*&!-) without colour
       my $nick_pointer = weechat::nicklist_search_nick($buf_pointer,"",$nick_wo_suffix);
       $nick_mode = weechat::nicklist_nick_get_string($buf_pointer,$nick_pointer,"prefix");
@@ -319,7 +329,7 @@ if ( $default_options{var_avail_buffer} ne "all" ){                             
 	}
 
 # check for weechat version and use weechat.look.highlight_regex option
-       if ( $weechat_version eq 1 ){                                                            # weechat is >= 0.3.4?
+       if (( $weechat_version ne "" ) && ( $weechat_version >= 0x00030400 )){        # >= v0.3.4?
 	  if ( $default_options{var_look_highlight_regex} eq "on" ){
 	    if ( weechat::string_has_highlight_regex($line,weechat::config_string(weechat::config_get("weechat.look.highlight_regex"))) eq 1 ){
 		my $color_highlight = weechat::config_color(weechat::config_get("weechat.color.chat_highlight"));
@@ -535,9 +545,7 @@ $get_prefix_action = weechat::config_string(weechat::config_get("weechat.look.pr
 weechat::hook_modifier("weechat_print","colorize_cb", "");
 weechat::hook_modifier("colorize_lines","colorize_cb", "");
 
-  if (( $weechat_version ne "" ) && ( $weechat_version >= 0x00030400 )){        # v0.3.4?
-    $weechat_version = 1;                                                       # yes!
-
+  if (( $weechat_version ne "" ) && ( $weechat_version >= 0x00030400 )){        # >= v0.3.4?
     # read nick colours if exists (>= weechat 0.3.4) in %colours
     my $colours_buf = weechat::config_string(weechat::config_get("weechat.color.chat_nick_colors"));
     if ( $colours_buf ne "" ) {
