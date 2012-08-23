@@ -110,6 +110,7 @@
 #  - V2.2 Sebastien Helleu <flashcode@flashtux.org>: fix reload of config file
 #  - V2.3 nand: Allowed trailing )s for unmatched (s in URLs
 #  - V2.4 nand: Escaped URLs via URL-encoding instead of shell escaping, fixes '
+#  - V2.5 nand: Fixed some URLs that got incorrectly mangled by escaping
 #
 # Copyright (C) 2005 David Rubin <drubin AT smartcube dot co dot za>
 #
@@ -155,7 +156,7 @@ urlRe = re.compile(r'(\w+://(?:%s|%s)(?::\d+)?(?:/[^\]>\s]*)?)' % (domain, ipAdd
 
 SCRIPT_NAME    = "urlgrab"
 SCRIPT_AUTHOR  = "David Rubin <drubin [At] smartcube [dot] co [dot] za>"
-SCRIPT_VERSION = "2.4"
+SCRIPT_VERSION = "2.5"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Url functionality Loggin, opening of browser, selectable links"
 CONFIG_FILE_NAME= "urlgrab"
@@ -434,7 +435,7 @@ def urlGrabCopy(bufferd, index):
 
 def urlGrabOpenUrl(url):
     global urlGrab, urlGrabSettings
-    argl = urlGrabSettings.createCmd( urllib.quote(url, '/:') )
+    argl = urlGrabSettings.createCmd( urllib.quote(url, '/:#%?&+') )
     weechat.hook_process(argl,60000, "ug_open_cb", "")
 
 def ug_open_cb(data, command, code, out, err):
