@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 #
 # Copyright (c) 2009 by xt <tor@bash.no>
-#  Based on bufsave.pl for 0.2.x by FlashCode
+# Copyright (c) 2012 by Sebastien Helleu <flashcode@flashtux.org>
+# Based on bufsave.pl for 0.2.x by FlashCode
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,10 +20,12 @@
 #
 
 #
-# Set screen title
+# Save content of current buffer in a file.
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2012-08-23, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 0.2: use hdata for WeeChat >= 0.3.6 (improve performance)
 # 2009-06-10, xt <tor@bash.no>
 #     version 0.1: initial release
 #
@@ -31,7 +34,7 @@ from os.path import exists
 
 SCRIPT_NAME    = "bufsave"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Save buffer to a file"
 SCRIPT_COMMAND  = SCRIPT_NAME
@@ -61,24 +64,43 @@ def bufsave_cmd(data, buffer, args):
         return w.WEECHAT_RC_OK
 
     if exists(filename):
-        w.prnt('', "Error: target file already exists!")
+        w.prnt('', 'Error: target file already exists!')
         return w.WEECHAT_RC_OK
-        
-    infolist = w.infolist_get('buffer_lines', buffer, '')
-    channel =  w.buffer_get_string(buffer, 'name')
+
     try:
-        fp = file(filename, 'w')
+        fp = open(filename, 'w')
     except:
-        w.prnt('', "Error writing to target file!")
+        w.prnt('', 'Error writing to target file!')
         return w.WEECHAT_RC_OK
 
-    while w.infolist_next(infolist):
-        fp.write('%s %s %s\n' %(\
-                w.infolist_time(infolist, 'date'),
-                cstrip(w.infolist_string(infolist, 'prefix')),
-                cstrip(w.infolist_string(infolist, 'message')),
-                ))
+    version = w.info_get('version_number', '') or 0
+    if int(version) >= 0x00030600:
+        # use hdata with WeeChat >= 0.3.6 (direct access to data, very fast)
+        own_lines = w.hdata_pointer(w.hdata_get('buffer'), buffer, 'own_lines')
+        if own_lines:
+            line = w.hdata_pointer(w.hdata_get('lines'), own_lines, 'first_line')
+            hdata_line = w.hdata_get('line')
+            hdata_line_data = w.hdata_get('line_data')
+            while line:
+                data = w.hdata_pointer(hdata_line, line, 'data')
+                if data:
+                    fp.write('%s %s %s\n' %(\
+                            w.hdata_time(hdata_line_data, data, 'date'),
+                            cstrip(w.hdata_string(hdata_line_data, data, 'prefix')),
+                            cstrip(w.hdata_string(hdata_line_data, data, 'message')),
+                            ))
+                line = w.hdata_move(hdata_line, line, 1)
+    else:
+        # use infolist with WeeChat <= 0.3.5 (full duplication of lines, slow and uses memory)
+        infolist = w.infolist_get('buffer_lines', buffer, '')
+        while w.infolist_next(infolist):
+            fp.write('%s %s %s\n' %(\
+                    w.infolist_time(infolist, 'date'),
+                    cstrip(w.infolist_string(infolist, 'prefix')),
+                    cstrip(w.infolist_string(infolist, 'message')),
+                    ))
+        w.infolist_free(infolist)
 
-    w.infolist_free(infolist)
+    fp.close()
 
     return w.WEECHAT_RC_OK
