@@ -24,6 +24,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2012-08-28, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 0.3: compatibility with WeeChat >= 0.3.9 (hdata_time is now long instead of string)
 # 2012-08-23, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.2: use hdata for WeeChat >= 0.3.6 (improve performance)
 # 2009-06-10, xt <tor@bash.no>
@@ -31,10 +33,11 @@
 #
 import weechat as w
 from os.path import exists
+import time
 
 SCRIPT_NAME    = "bufsave"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Save buffer to a file"
 SCRIPT_COMMAND  = SCRIPT_NAME
@@ -84,8 +87,12 @@ def bufsave_cmd(data, buffer, args):
             while line:
                 data = w.hdata_pointer(hdata_line, line, 'data')
                 if data:
+                    date = w.hdata_time(hdata_line_data, data, 'date')
+                    # since WeeChat 0.3.9, hdata_time returns long instead of string
+                    if not isinstance(date, str):
+                        date = time.strftime('%F %T', time.localtime(int(date)))
                     fp.write('%s %s %s\n' %(\
-                            w.hdata_time(hdata_line_data, data, 'date'),
+                            date,
                             cstrip(w.hdata_string(hdata_line_data, data, 'prefix')),
                             cstrip(w.hdata_string(hdata_line_data, data, 'message')),
                             ))
