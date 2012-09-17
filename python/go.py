@@ -23,6 +23,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2012-09-17, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 1.8: fix jump to non-active merged buffers (jump with buffer name instead of number)
 # 2012-01-03 nils_2 <weechatter@arcor.de>
 #     version 1.7: add option use_core_instead_weechat (requested by k-man and _rane)
 # 2012-01-03, Sebastien Helleu <flashcode@flashtux.org>:
@@ -66,7 +68,7 @@ import weechat, re
 
 SCRIPT_NAME    = "go"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "1.7"
+SCRIPT_VERSION = "1.8"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Quick jump to buffers"
 
@@ -178,11 +180,11 @@ def go_now(buffer, args):
     # Prefer buffer that matches at beginning
     for index in range(len(buffers)):
         if re.search(r"^#?" + re.escape(args), buffers[index]["name"]):
-            weechat.command(buffer, "/buffer " + str(buffers[index]["number"]))
+            weechat.command(buffer, "/buffer " + str(buffers[index]["full_name"]))
             return None
     # Otherwise, just take first buffer in list
     if len(buffers) > 0:
-        weechat.command(buffer, "/buffer " + str(buffers[0]["number"]))
+        weechat.command(buffer, "/buffer " + str(buffers[0]["full_name"]))
 
 def go_cmd(data, buffer, args):
     """ Command "/go": just hook what we need """
@@ -211,6 +213,10 @@ def get_matching_buffers(input):
         if weechat.config_get_plugin("use_core_instead_weechat") == "on" and name == "weechat":
             name = "core"
         number = weechat.infolist_integer(infolist, "number")
+        full_name = weechat.infolist_string(infolist, "full_name")
+        if not full_name:
+            full_name = "%s.%s" % (weechat.infolist_string(infolist, "plugin_name"),
+                                   weechat.infolist_string(infolist, "name"))
         pointer = weechat.infolist_pointer(infolist, "pointer")
         matching = name.lower().find(input) >= 0
         if not matching and input[-1] == ' ':
@@ -218,7 +224,7 @@ def get_matching_buffers(input):
         if not matching and input.isdigit():
             matching = str(number).startswith(input)
         if len(input) == 0 or matching:
-            list.append({"number": number, "name": name, "pointer": pointer})
+            list.append({"number": number, "name": name, "full_name": full_name, "pointer": pointer})
             if len(input) == 0 and pointer == weechat.current_buffer():
                 buffers_pos = len(list) - 1
     weechat.infolist_free(infolist)
@@ -314,7 +320,7 @@ def command_run_input(data, buffer, command):
         # switch to selected buffer (if any)
         go_end(buffer)
         if len(buffers) > 0:
-            weechat.command(buffer, "/buffer " + str(buffers[buffers_pos]["number"]))
+            weechat.command(buffer, "/buffer " + str(buffers[buffers_pos]["full_name"]))
         return weechat.WEECHAT_RC_OK_EAT
     return weechat.WEECHAT_RC_OK
 
