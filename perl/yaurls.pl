@@ -15,10 +15,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 #
-# yaURLs, version 1.8, for weechat version 0.3.7 or later
+# yaURLs, version 1.9, for weechat version 0.3.7 or later
 # will shorten URL's in channels
 #
-# Choose between is.gd, ln-s, or tinyURL as the service to shorten the URL
+# Shorten URL's using any of the following services:
+# durl.me, is.gd, ln-s.net, lytn.it, metamark.net, sapo.pt, safe.mn, tinyURL.com
 #
 # Default color theme in 256color terminal
 # header: 46
@@ -28,6 +29,8 @@
 #
 #
 # Changelog:
+# 2012-09-21, R1cochet
+#     version 1.9: Added more shortening services
 # 2012-03-09, Sebastien Helleu <flashcode@flashtux.org>
 #     version 1.8: Fix reload of config file
 # 2012-03-08, R1cochet
@@ -42,7 +45,7 @@ use warnings;
 
 my $SCRIPT_NAME = "yaurls";
 my $SCRIPT_AUTHOR = "R1cochet";
-my $VERSION = "1.8";
+my $VERSION = "1.9";
 my $SCRIPT_LICENSE = "GPL3";
 my $SCRIPT_DESC = "yes, another URL shortener";
 
@@ -103,7 +106,9 @@ sub init_config {
         return;
     }
     $config_options{'service'} = weechat::config_new_option($config_file, $config_section{'engine'}, "service", "integer",
-                                                                       "Set which shortener service to use (is.gd = is.gd, ln-s = ln-s.net, tinyURL = tinyURL.com)", "is.gd|ln-s|tinyURL", 0, 0, "tinyURL", "tinyURL", 0, "", "", "", "", "", "");
+                                                                       "Set which shortener service to use (durl = durl.me, is.gd = is.gd, ln-s = ln-s.net, lytn = lytn.it, ".
+                                                                       "metamark = metamark.net, punyURL = sapo.pt, safe = safe.mn, tinyURL = tinyURL.com)",
+                                                                       "durl|is.gd|ln-s|lytn|metamark|punyURL|safe|tinyURL", 0, 0, "tinyURL", "tinyURL", 0, "", "", "", "", "", "");
     $config_options{'convert_own'} = weechat::config_new_option($config_file, $config_section{'engine'}, "convert_own", "boolean",
                                                                        "Convert own links sent to buffer", "", 0, 0, "off", "off", 0, "", "", "", "", "", "",);
     $config_options{'maximum_length'} = weechat::config_new_option($config_file, $config_section{'engine'}, "maximum_length", "integer",
@@ -179,11 +184,26 @@ sub service_url {
     my $url = shift;
     $url = uri_escape($url);
 
-    if (weechat::config_string($config_options{'service'}) eq "is.gd") {
+    if (weechat::config_string($config_options{'service'}) eq "durl") {
+        $url = "http://durl.me/api/Create.do?longurl=$url";
+    }
+    elsif (weechat::config_string($config_options{'service'}) eq "is.gd") {
         $url = "http://is.gd/create.php?format=simple&url=$url";
     }
     elsif (weechat::config_string($config_options{'service'}) eq "ln-s") {
         $url = "http://ln-s.net/home/api.jsp?url=$url";
+    }
+    elsif (weechat::config_string($config_options{'service'}) eq "lytn") {
+        $url = "http://lytn.it/api.php?rel=2&link=$url";
+    }
+    elsif (weechat::config_string($config_options{'service'}) eq "metamark") {
+        $url = "http://metamark.net/api/rest/simple?long_url=$url";
+    }
+    elsif (weechat::config_string($config_options{'service'}) eq "punyURL") {
+        $url = "http://services.sapo.pt/PunyURL/GetCompressedURLByURL?url=$url";
+    }
+    elsif (weechat::config_string($config_options{'service'}) eq "safe") {
+        $url = "http://safe.mn/api/?format=text&url=$url";
     }
     else {
         $url = "http://tinyurl.com/api-create.php?url=$url";
@@ -205,9 +225,20 @@ sub process_cb {
         my $header = build_header();
         $domain = weechat::color(weechat::config_color($config_options{'domain_color'})) . "($domain)" . weechat::color("reset");
 
-        if (weechat::config_string($config_options{'service'}) eq "ln-s") {
+        if (weechat::config_string($config_options{'service'}) eq "durl") {
+            ($out) = $out =~ m/(http:\/\/durl\.me\/\w+)/;
+        }
+        elsif (weechat::config_string($config_options{'service'}) eq "ln-s") {
             $out =~ s/^(\d{3}\s)|\n*$//g;
         }
+        elsif (weechat::config_string($config_options{'service'}) eq "punyURL") {
+            weechat::print("", "punyURL called");
+            ($out) = $out =~ m/.+\<ascii\>(.+)\<\/ascii\>/;
+        }
+        elsif (weechat::config_string($config_options{'service'}) eq "safe") {
+            $out =~ s/\n*//g;
+        }
+
         my $short_url = weechat::color(weechat::config_color($config_options{'url_color'})) . $out . weechat::color("reset");
         my $tiny_url = weechat::config_string($config_options{'format'});
 
