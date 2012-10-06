@@ -20,6 +20,8 @@
 # for settings see help page
 #
 # history:
+# 1.6: improved: wildcard "*" can be used for server and/or nick. (requested by ldvx)
+#    : add: new value, "only", for option "own_lines" (read help!)
 # 1.5: sync: option weechat.look.nickmode changed in 0.3.9 to "irc.look.nick_mode"
 # 1.4: fix: whole ctcp message was display in prefix (reported by : Mkaysi)
 # 1.3: fix: now using weechat::buffer_get_string() instead of regex to prevent problems with dots inside server-/channelnames (reported by surfhai)
@@ -62,7 +64,7 @@
 
 use strict;
 my $prgname	= "colorize_lines";
-my $version	= "1.5";
+my $version	= "1.6";
 my $description	= "colors text in chat area with according nick color. Highlight messages will be fully highlighted in chat area";
 
 # default values
@@ -80,16 +82,16 @@ my %default_options = ( "var_highlight"                         => "on",        
 );
 
 my %help_desc = ( "avail_buffer"         => "messages will be colored in buffer (all = all buffers, channel = channel buffers, query = query buffers (default: all ",
-                  "blacklist_channels"   => "comma separated list with channelname. Channels in this list will be ignored. (e.g.: freenode.#weechat,freenode.#weechat-fr)",
-                  "shuffle"              => "toggle shuffle color mode for chats area (default: off)",
+                  "blacklist_channels"   => "comma separated list with channelname. Channels in this list will be completely ignored. (e.g.: freenode.#weechat,freenode.#weechat-fr). This option has highest priority!",
+                  "shuffle"              => "toggle shuffle color mode for chat area (you don't want this, believe me!) (default: off)",
                   "chat"                 => "colors text in chat area with according nick color (default: on)",
-                  "highlight"            => "highlight messages will be fully highlighted in chat area (on = whole line will be highlighted (using whitelist, only messages from your buddies will be fully highlighted), off = only nick will be highlighted, always = a highlight will always color the whole message (highlight messages from nicks not in your whitelist will be fully highlighted)) (default: on)",
+                  "highlight"            => "highlight message will be fully highlighted in chat area (\"on\" = only messages from your buddies will be mind (using \"plugins.var.perl.".$prgname.".nicks\); \"off\" = message will not be highlighted; \"always\" = a highlight will always color the whole message (default: on)",
                   "hotlist_max_level_nicks_add"         => "toggle highlight for hotlist (default: off)",
-                  "buffer_autoset"       => "toggle highlight color in chat area for buffer_autoset (default: off)",
-                  "look_highlight"       => "toggle highlight color in chat area for option weechat.look.highlight (default: off)",
-                  "look_highlight_regex" => "toggle highlight color in chat area for option weechat.look.highlight_regex (default: off)",
-                  "nicks"                => "comma separated list with nicknames. Only messages from nicks in this list will be colorized. (e.g.: freenode.nils_2,freenode.flashcode,freenode.weebot). You can also give a filename with nicks. The filename has to start with \"/\" (e.g.: /buddylist.txt). The format has to be: one nick each line with <servername>.<nickname>",
-                  "own_lines"            => "colors own written messages (default: off)",
+                  "buffer_autoset"       => "toggle highlight color in chat area for value in \"buffer_autoset.*.highlight_words_add\" (default: off)",
+                  "look_highlight"       => "toggle highlight color in chat area for value in option \"weechat.look.highlight\" (default: off)",
+                  "look_highlight_regex" => "toggle highlight color in chat area for value in option \"weechat.look.highlight_regex\" (default: off)",
+                  "nicks"                => "comma separated list with nicknames. Only messages from nicks in this list will be colorized. (e.g.: freenode.nils_2,freenode.flashcode,freenode.weebot). You can use \"*\" as a wildcard (e.g.: *.nils_* to match all \"nils_\" on all servers). Also a file with nicks is allowed. The filename in option has to start with \"/\" (e.g.: /buddylist.txt). The format has to be, one nick each line with <servername>.<nickname>",
+                  "own_lines"            => "messages written by your own will be colored. color from \"weechat.color.chat_nick_self\" will be used. If you only want to color your lines, use value \"only\" (default: off)",
 );
 
 my $weechat_version;
@@ -121,21 +123,22 @@ if ($default_options{var_highlight} eq "off" and $default_options{var_chat} eq "
   return $string;
 }
 
-# get servername and channelname. Do not use regex to extract server- and channelname out of $modifier_data. You will FAIL!
-# some possible names: freenode.#weechat, freenode.#weechat.de, freenode.query, chat.freenode.net.#weechat, chat.freenode.net.#weechat.de
 $modifier_data =~ (m/(.*);(.*);/);
 my $plugin = $1;
 my $name = $2;
 my $buf_pointer = weechat::buffer_search($plugin,$name);
-return $string if ($buf_pointer eq "");
+return $string if ($buf_pointer eq "");                                                         # something went wrong!
+
+# get servername and channelname. Do not use regex to extract server- and channelname out of $modifier_data. You will FAIL!
+# some possible names: freenode.#weechat, freenode.#weechat.de, freenode.query, chat.freenode.net.#weechat, chat.freenode.net.#weechat.de
 my $servername = weechat::buffer_get_string($buf_pointer, "localvar_server");
 my $channel_name = weechat::buffer_get_string($buf_pointer, "localvar_channel");
-
-my $my_nick = weechat::info_get( 'irc_nick', $servername );                                     # get nick with servername (;freenode.)
 
 if ( grep /^$servername.$channel_name$/, @var_blacklist_channels ) {                            # check for blacklist_channels
   return $string;
 }
+
+my $my_nick = weechat::info_get( 'irc_nick', $servername );                                     # get nick with servername (;freenode.)
 
 $string =~ m/^(.*)\t(.*)/;                                                                      # get the nick name: nick[tab]string
 my $nick = $1;                                                                                  # nick with nick_mode and color codes
@@ -203,8 +206,6 @@ if ( $nickmode_value ==  1 and ($nick ne $get_prefix_action) and (index($modifie
 }
 
 # i wrote the message
-#weechat::print("","nick_wo: $nick_wo_suffix");
-#weechat::print("","my_nick: $my_nick");
     if ($nick_wo_suffix eq $my_nick ){                                                                  # i wrote the message
       return $string if check_whitelist_nicks($servername, $my_nick, $nick_wo_suffix);                  # check for whitelist
       if ($default_options{var_chat} eq "on"){
@@ -236,7 +237,7 @@ my $nick_color = weechat::info_get('irc_nick_color', $nick_wo_suffix);          
     if ( $default_options{var_highlight} eq "on" or $default_options{var_highlight} eq "always" ){# highlight_mode on?
 # this one check for other nick!!
 
-      unless ( $default_options{var_highlight} eq "always" ){                                   # option is not "always"
+      if ( $default_options{var_highlight} eq "on" ){
         return $string if check_whitelist_nicks($servername, $my_nick, $nick_wo_suffix);        # check for whitelist
       }
 
@@ -261,7 +262,6 @@ my $nick_color = weechat::info_get('irc_nick_color', $nick_wo_suffix);          
 
 	    chomp($highlight_words);
 
-#            weechat::print("",$highlight_words);
 	      foreach ( split( /,+/, $highlight_words ) ) {                                     # check for highlight_words
 		  if ($_ eq ""){next;}                                                          # ignore empty string
 		    my $search_string = shell2regex($_);
@@ -341,41 +341,61 @@ if ( $default_options{var_avail_buffer} ne "all" ){                             
 		return $line;
 	    }
 	  }
-	}
-          if (index($modifier_data,"irc_action") >= 0){
+        }
+        if (index($modifier_data,"irc_action") >= 0)
+        {
 #	  if ($default_options{prefix_action} eq $nick){
                 my $nick_color = weechat::info_get('irc_nick_color', $nick_wo_suffix);          # get nick-color
-		$line = colorize_nicks($nick_color,$modifier_data,$line);
+                $line = colorize_nicks($nick_color,$modifier_data,$line);
                 $nick = $prefix_action_with_color;
-		$line = $nick . "\t" . $nick_color . $line . weechat::color('reset');
-		return $line;
-	  }
+                $line = $nick . "\t" . $nick_color . $line . weechat::color('reset');
+                return $line;
+        }
 
       $line = colorize_nicks($nick_color,$modifier_data,$line);
       $line = $nick_prefix_with_color . $nick_mode . $nick_color . $nick . $nick_suffix_with_color .  "\t" . $nick_color . $line . weechat::color('reset');  # create new line nick_color+nick+separator+text
       return $line;
     }else{
-      return $string;										# return original string
+      return $string;                                                                           # return original string
     }
 } # end of sub colorize_cb{}
 
-# whitelist nicks
+# whitelist nicks : 0 = color, 1 = no color
 sub check_whitelist_nicks{
 my ( $servername, $my_nick, $nick_wo_suffix ) = @_;
-  if ( $default_options{var_nicks} ne "" and $default_options{var_own_lines} eq "off" ){          # nicks in option and own_lines = off
-        return 1 unless (grep /^\Q$servername.$nick_wo_suffix\E$/i, @nick_list)                   # check other nicks
-  }elsif ( $default_options{var_nicks} ne "" and $default_options{var_own_lines} eq "on" ){       # nicks in option and own_lines = on
-      if ( $nick_wo_suffix ne $my_nick){                                                          # not my nick!
-        return 1 unless (grep /^\Q$servername.$nick_wo_suffix\E$/i, @nick_list)                   # check other nicks
-      }
-  }elsif( $default_options{var_nicks} eq "" and $default_options{var_own_lines} eq "off" ){       # no nicks and do not color my line?
-      if ( $nick_wo_suffix eq $my_nick){                                                          # my nick?
-        return 1;                                                                                 # yes
-      }
-  }
+    if ( $default_options{var_own_lines} eq "only" ){                                           # color only my lines
+        if ( $nick_wo_suffix eq $my_nick){                                                      # my nick?
+            return 0;                                                                           # yes
+        }else{
+            return 1;                                                                           # another nick!
+        }
+    }elsif ( $default_options{var_nicks} ne "" and $default_options{var_own_lines} eq "off" ){   # nicks in option and own_lines = off
+        my $result = loop_whitelist_nicks($servername,$nick_wo_suffix);                         # check nicks in list
+        return 1 if ($result == 1);
+    }elsif ( $default_options{var_nicks} ne "" and $default_options{var_own_lines} eq "on" ){   # nicks in option and own_lines = on
+        if ( $nick_wo_suffix ne $my_nick){                                                      # not my nick!
+            my $result = loop_whitelist_nicks($servername,$nick_wo_suffix);                     # check nicks in list
+            return 1 if ($result == 1);
+        }
+    }elsif( $default_options{var_nicks} eq "" and $default_options{var_own_lines} eq "off" ){   # no nicks and do not color my line?
+        if ( $nick_wo_suffix eq $my_nick){                                                      # my nick?
+            return 1;                                                                           # yes
+        }
+    }
 return 0;
 }
-
+sub loop_whitelist_nicks{
+    my ($servername, $nick) = @_;
+    foreach ( @nick_list ){
+        my ($server,$buddy) = split(/\./,$_);
+        $server = weechat::string_mask_to_regex($server);
+        $buddy = weechat::string_mask_to_regex($buddy);
+        if ($servername =~ /^$server$/i and $nick =~ /^$buddy$/i) {
+            return 0;
+        }
+    }
+    return 1;
+}
 # converts shell wildcard characters to regex
 sub shell2regex {
     my $globstr = shift;
