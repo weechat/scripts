@@ -18,6 +18,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2012-10-04: nils_2, (freenode.#weechat)
+#       0.6 : fix bug with case-sensitive nicks (reported by Faethor)
+#
 # 2012-02-08: nils_2, (freenode.#weechat)
 #       0.5 : sync with 0.3.x API (requested by CAHbI4)
 #
@@ -60,11 +63,11 @@ except Exception:
 # -------------------------------[ Constants ]-------------------------------------
 SCRIPT_NAME     = "keepnick"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.5"
+SCRIPT_VERSION  = "0.6"
 SCRIPT_LICENCE  = "GPL3"
 SCRIPT_DESC     = "script to keep your nick and recover it in case it's occupied"
 
-ISON = '/ison %s'
+ISON            = '/ison %s'
 
 OPTIONS         =       { 'delay'       : ('10','delay (in seconds) to look at occupied nick (0 means OFF). It is not recommended to flood the server with /ison requests)'),
                           'timeout'     : ('60','timeout (in seconds) to wait for an answer from server.'),
@@ -90,7 +93,8 @@ def redirect_isonhandler(data, signal, hashtable):
     nothing, message, nicks = hashtable['output'].split(':')
     nicks = [nick.lower() for nick in nicks.split()]
     for nick in servernicks(hashtable['server']):
-        if nick.lower() == weechat.info_get('irc_nick',hashtable['server']):
+        mynick = weechat.info_get('irc_nick',hashtable['server'])
+        if nick.lower() == mynick.lower():
             return weechat.WEECHAT_RC_OK
         elif nick.lower() not in nicks:
             grabnick(hashtable['server'], nick)
