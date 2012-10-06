@@ -19,6 +19,8 @@
 #
 # History:
 #
+# 2012-08-25,  nils_2 <weechatter@arcor.de>:
+#     version 2.8: most important key and mouse bindings for iset buffer added to title-bar (idea The-Compiler)
 # 2012-07-31,  nils_2 <weechatter@arcor.de>:
 #     version 2.7: add combined option and value search (see /help iset)
 #                : add exact value search (see /help iset)
@@ -96,7 +98,7 @@
 use strict;
 
 my $PRGNAME = "iset";
-my $VERSION = "2.7";
+my $VERSION = "2.8";
 my $DESCR   = "Interactive Set for configuration options";
 my $AUTHOR  = "Sebastien Helleu <flashcode\@flashtux.org>";
 my $LICENSE = "GPL3";
@@ -120,7 +122,8 @@ my $iset_filter_title = "";
 # search modes: 0 = index() on value, 1 = grep() on value, 2 = grep() on option, 3 = grep on option & value
 my $search_mode = 2;
 my $search_value = "";
-
+my $help_text_keys = "Keys: alt+space: toggle boolean on/off, alt+'+'/'-': increase/decrease value (for integer or color), alt+enter: set new value for option, alt+'i',alt+'r': reset value of option, alt+'i',alt+'u': unset option, alt+'v': toggle help bar on/off, alt+'p': toggle 'plugin_description' on/off";
+my $help_text_mouse = "Mouse: left button: select an option from list, right button: toggle boolean (on/off) or set a new value for option (edit with command line), right button + gesture left/right: increase/decrease value (for integer or color)";
 my %options_iset;
 
 my %mouse_keys = ("\@chat(perl.$PRGNAME):button1" => "hsignal:iset_mouse",
@@ -172,14 +175,18 @@ sub iset_title
         my $show_plugin_descr_txt = "";
         $show_plugin_descr_txt = " (plugins description hidden)" if (weechat::config_boolean($options_iset{"show_plugin_description"}) == 0);
         weechat::buffer_set($iset_buffer, "title",
-                            "Interactive set (iset.pl v$VERSION)  |  "
+                            "Interactive set (iset.pl v$VERSION) | "
                             .$iset_filter_title
                             .weechat::color("yellow")
                             .$show_filter
-                            .weechat::color("default")."  |  "
+                            .weechat::color("default")." | "
                             .$current_line_counter
                             .@options_names.$opt_txt
-                            .$show_plugin_descr_txt);
+                            .$show_plugin_descr_txt
+                            ." | "
+                            .$help_text_keys
+                            ." | "
+                            .$help_text_mouse);
     }
 }
 
