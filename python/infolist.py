@@ -18,7 +18,9 @@
 # Display infolist in a buffer.
 #
 # History:
-#
+# 2012-10-02, nils_2 <freenode.#weechat>:
+#     version 0.5: switch to infolist buffer (if exists) when command /infolist
+#                  is called with arguments, add some examples to help page
 # 2012-01-03, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.4: make script compatible with Python 3.x
 # 2010-01-23, m4v <lambdae2@gmail.com>:
@@ -33,7 +35,7 @@
 
 SCRIPT_NAME    = "infolist"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.4"
+SCRIPT_VERSION = "0.5"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Display infolist in a buffer"
 
@@ -62,14 +64,14 @@ def infolist_buffer_set_title(buffer):
     while weechat.infolist_next(infolist):
         list += " %s" % weechat.infolist_string(infolist, "infolist_name")
     weechat.infolist_free(infolist)
-    
+
     # set buffer title
     weechat.buffer_set(buffer, "title",
                        "%s %s | Infolists:%s" % (SCRIPT_NAME, SCRIPT_VERSION, list))
 
 def infolist_display(buffer, args):
     global infolist_var_type
-    
+
     items = args.split(" ", 1)
     infolist_args = ""
     infolist_pointer = ""
@@ -79,14 +81,14 @@ def infolist_display(buffer, args):
             infolist_pointer, sep, infolist_args = infolist_args.partition(" ")
         elif infolist_args[:3] == "\"\" ":
             infolist_args = infolist_args[3:]
-    
+
     infolist = weechat.infolist_get(items[0], infolist_pointer, infolist_args)
     if infolist == "":
         weechat.prnt_date_tags(buffer, 0, "no_filter",
                                "%sInfolist '%s' not found."
                                % (weechat.prefix("error"), items[0]))
         return weechat.WEECHAT_RC_OK
-    
+
     item_count = 0
     weechat.buffer_clear(buffer)
     weechat.prnt_date_tags(buffer, 0, "no_filter",
@@ -98,7 +100,7 @@ def infolist_display(buffer, args):
         item_count += 1
         if item_count > 1:
             weechat.prnt(buffer, "")
-        
+
         fields = weechat.infolist_fields(infolist).split(",")
         prefix = "%s[%s%d%s]\t" % (weechat.color("chat_delimiters"),
                                    weechat.color("chat_buffer"),
@@ -122,7 +124,7 @@ def infolist_display(buffer, args):
                                    "%s%s%s: %s%s%s %s%s%s%s%s%s" %
                                    (prefix, name, name_end,
                                     weechat.color("brown"), infolist_var_type[type],
-                                    weechat.color("chat"), 
+                                    weechat.color("chat"),
                                     weechat.color("chat"), quote,
                                     weechat.color("cyan"), value,
                                     weechat.color("chat"), quote))
@@ -142,13 +144,13 @@ def infolist_buffer_input_cb(data, buffer, input_data):
 
 def infolist_buffer_close_cb(data, buffer):
     global infolist_buffer
-    
+
     infolist_buffer = ""
     return weechat.WEECHAT_RC_OK
 
 def infolist_buffer_new():
     global infolist_buffer
-    
+
     infolist_buffer = weechat.buffer_search("python", "infolist")
     if infolist_buffer == "":
         infolist_buffer = weechat.buffer_new("infolist",
@@ -162,12 +164,13 @@ def infolist_buffer_new():
 
 def infolist_cmd(data, buffer, args):
     global infolist_buffer
-    
+
     if infolist_buffer == "":
         infolist_buffer_new()
     if infolist_buffer != "" and args != "":
         infolist_display(infolist_buffer, args)
-    
+        weechat.buffer_set(infolist_buffer, "display", "1");
+
     return weechat.WEECHAT_RC_OK
 
 if __name__ == "__main__" and import_ok:
@@ -182,5 +185,11 @@ if __name__ == "__main__" and import_ok:
                              "to display infolists.\n\n"
                              "On infolist buffer, you can enter name of an "
                              "infolist, with optional arguments.\n"
-                             "Enter 'q' to close infolist buffer.",
+                             "Enter 'q' to close infolist buffer.\n\n"
+                             "Examples:\n"
+                             "  Show information about nick \"FlashCode\" in channel \"#weechat\" on server \"freenode\":\n"
+                             "    /infolist irc_nick freenode,#weechat,FlashCode\n"
+                             "  Show nicklist from a specific buffer:\n"
+                             "    /infolist nicklist <buffer pointer>"
+                             "",
                              "%(infolists)", "infolist_cmd", "")
