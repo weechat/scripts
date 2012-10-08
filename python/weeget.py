@@ -22,6 +22,9 @@
 #
 # History:
 #
+# 2012-10-08, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 1.9: remove obsolete database field "desc_fr"
+#                  (it was causing error with /weeget list xxx)
 # 2012-03-09, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 1.8: fix reload of config file
 # 2012-02-27, Sebastien Helleu <flashcode@flashtux.org>:
@@ -68,7 +71,7 @@
 
 SCRIPT_NAME    = "weeget"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "1.8"
+SCRIPT_VERSION = "1.9"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "WeeChat scripts manager"
 
@@ -395,7 +398,6 @@ def wg_search_scripts(search):
         if script["name"].lower().find(search) >= 0 \
            or script["language"].lower().find(search) >= 0 \
            or script["desc_en"].lower().find(search) >= 0 \
-           or script["desc_fr"].lower().find(search) >= 0 \
            or script["tags"].lower().find(search) >= 0:
            scripts_matching[id] = script
     return scripts_matching
@@ -749,7 +751,6 @@ def wg_parse_xml():
                'md5sum'      : 'd500714fc19b0e10cc4e339e70739e4ad500714fc19b0e10cc4e339e70739e4a',
                'tags'        : 'scripts',
                'desc_en'     : 'Scripts manager.',
-               'desc_fr'     : 'Gestionnaire de scripts.',
                'requirements': 'python 2.5',
                'min_weechat' : '0.3.0',
                'max_weechat' : '',
