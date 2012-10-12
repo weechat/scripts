@@ -20,6 +20,8 @@
 #
 # History:
 #
+# 2012-10-06, nils_2 <weechatter@arcor.de>:
+#     v3.6: add new option "hotlist_counter" (idea by torque).
 # 2012-06-02, nils_2 <weechatter@arcor.de>:
 #     v3.5: add values "server|channel|private|all|keepserver|none" to option "hide_merged_buffers" (suggested by dominikh).
 # 2012-05-25, nils_2 <weechatter@arcor.de>:
@@ -126,7 +128,7 @@
 use strict;
 use Encode qw( decode encode );
 # -------------------------------[ internal ]-------------------------------------
-my $version = "3.5";
+my $version = "3.6";
 
 my $BUFFERS_CONFIG_FILE_NAME = "buffers";
 my $buffers_config_file;
@@ -381,6 +383,7 @@ my %default_options_color =
 
 my %default_options_look =
 (
+ "hotlist_counter"      =>      ["hotlist_counter","boolean","show number of message for the buffer (this option needs WeeChat >= 0.3.5). The relevant option for notification is \"weechat.look.buffer_notify_default\"","",0,0,"off","off",0,"","","buffers_signal_config","","",""],
  "show_lag"             =>      ["show_lag","boolean","show lag behind servername. This option is using \"irc.color.item_lag_finished\", \"irc.network.lag_min_show\" and \"irc.network.lag_refresh_interval\"","",0,0,"off","off",0,"","","buffers_signal_config","","",""],
  "look_whitelist_buffers" =>    ["whitelist_buffers", "string", "comma separated list of buffers for using a differnt color scheme (for example: freenode.#weechat,freenode.#weechat-fr)", "", 0, 0,"", "", 0, "", "", "buffers_signal_config_whitelist", "", "", ""],
  "hide_merged_buffers"  =>      ["hide_merged_buffers", "integer", "hide merged buffers. The value determines which merged buffers should be hidden, keepserver meaning 'all except server buffers'. Other values correspondent to the buffer type.", "server|channel|private|keepserver|all|none", 0, 0,"none", "none", 0, "", "", "buffers_signal_config", "", "", ""],
@@ -453,6 +456,17 @@ sub build_buffers
     {
         $hotlist{weechat::infolist_pointer($infolist, "buffer_pointer")} =
             weechat::infolist_integer($infolist, "priority");
+        if ( weechat::config_boolean( $options{"hotlist_counter"} ) eq 1 and $weechat_version >= 0x00030500)
+        {
+            $hotlist{weechat::infolist_pointer($infolist, "buffer_pointer")."_count_00"} =
+                weechat::infolist_integer($infolist, "count_00");   # low message
+            $hotlist{weechat::infolist_pointer($infolist, "buffer_pointer")."_count_01"} =
+                weechat::infolist_integer($infolist, "count_01");   # channel message
+            $hotlist{weechat::infolist_pointer($infolist, "buffer_pointer")."_count_02"} =
+                weechat::infolist_integer($infolist, "count_02");   # private message
+            $hotlist{weechat::infolist_pointer($infolist, "buffer_pointer")."_count_03"} =
+                weechat::infolist_integer($infolist, "count_03");   # highlight message
+        }
     }
     weechat::infolist_free($infolist);
 
@@ -814,10 +828,12 @@ sub build_buffers
             {
                 $str .= encode("UTF-8", substr(decode("UTF-8", $buffer->{"short_name"}), 0, weechat::config_integer($options{"name_size_max"})));
                 $str .= weechat::color(weechat::config_color( $options{"color_number_char"})).weechat::config_string($options{"name_crop_suffix"}) if (length($buffer->{"short_name"}) > weechat::config_integer($options{"name_size_max"}));
+                $str .= add_hotlist_count($buffer->{"pointer"},%hotlist);
             }
             else
             {
                 $str .= $buffer->{"short_name"};
+                $str .= add_hotlist_count($buffer->{"pointer"},%hotlist);
             }
         }
         else
@@ -826,10 +842,12 @@ sub build_buffers
             {
                 $str .= encode("UTF-8", substr(decode("UTF-8", $buffer->{"name"},), 0, weechat::config_integer($options{"name_size_max"})));
                 $str .= weechat::color(weechat::config_color( $options{"color_number_char"})).weechat::config_string($options{"name_crop_suffix"}) if (length($buffer->{"name"}) > weechat::config_integer($options{"name_size_max"}));
+                $str .= add_hotlist_count($buffer->{"pointer"},%hotlist);
             }
             else
             {
                 $str .= $buffer->{"name"};
+                $str .= add_hotlist_count($buffer->{"pointer"},%hotlist);
             }
         }
         if ( weechat::buffer_get_string($buffer->{"pointer"}, "localvar_type") eq "server" and weechat::config_boolean($options{"show_lag"}) eq 1)
@@ -851,6 +869,84 @@ sub build_buffers
     }
 
     return $str;
+}
+
+sub add_hotlist_count
+{
+my ($bufpointer,%hotlist) = @_;
+
+return "" if ( weechat::config_boolean( $options{"hotlist_counter"} ) eq 0 or ($weechat_version < 0x00030500));   # off
+my $col_number_char = weechat::color(weechat::config_color( $options{"color_number_char"}) );
+my $str = " ".$col_number_char."(";
+
+# 0 = low level
+if (defined $hotlist{$bufpointer."_count_00"})
+{
+    my $bg = weechat::config_color( $options{"color_hotlist_low_bg"} );
+    my $color = weechat::config_color( $options{"color_hotlist_low_fg"} );
+    $str .= weechat::color($bg).
+            weechat::color($color).
+            $hotlist{$bufpointer."_count_00"} if ($hotlist{$bufpointer."_count_00"} ne "0");
+}
+
+# 1 = message
+if (defined $hotlist{$bufpointer."_count_01"})
+{
+    my $bg = weechat::config_color( $options{"color_hotlist_message_bg"} );
+    my $color = weechat::config_color( $options{"color_hotlist_message_fg"} );
+    if ($str =~ /[0-9]$/)
+    {
+        $str .= ",".
+                weechat::color($bg).
+                weechat::color($color).
+                $hotlist{$bufpointer."_count_01"} if ($hotlist{$bufpointer."_count_01"} ne "0");
+    }else
+    {
+        $str .= weechat::color($bg).
+                weechat::color($color).
+                $hotlist{$bufpointer."_count_01"} if ($hotlist{$bufpointer."_count_01"} ne "0");
+    }
+}
+# 2 = private
+if (defined $hotlist{$bufpointer."_count_02"})
+{
+    my $bg = weechat::config_color( $options{"color_hotlist_private_bg"} );
+    my $color = weechat::config_color( $options{"color_hotlist_private_fg"} );
+    if ($str =~ /[0-9]$/)
+    {
+        $str .= ",".
+                weechat::color($bg).
+                weechat::color($color).
+                $hotlist{$bufpointer."_count_02"} if ($hotlist{$bufpointer."_count_02"} ne "0");
+    }else
+    {
+        $str .= weechat::color($bg).
+                weechat::color($color).
+                $hotlist{$bufpointer."_count_02"} if ($hotlist{$bufpointer."_count_02"} ne "0");
+    }
+}
+# 3 = highlight
+if (defined $hotlist{$bufpointer."_count_03"})
+{
+    my $bg = weechat::config_color( $options{"color_hotlist_highlight_bg"} );
+    my $color = weechat::config_color( $options{"color_hotlist_highlight_fg"} );
+    if ($str =~ /[0-9]$/)
+    {
+        $str .= ",".
+                weechat::color($bg).
+                weechat::color($color).
+                $hotlist{$bufpointer."_count_03"} if ($hotlist{$bufpointer."_count_03"} ne "0");
+    }else
+    {
+        $str .= weechat::color($bg).
+                weechat::color($color).
+                $hotlist{$bufpointer."_count_03"} if ($hotlist{$bufpointer."_count_03"} ne "0");
+    }
+}
+$str .= $col_number_char. ")";
+
+$str = "" if (weechat::string_remove_color($str, "") eq " ()");         # remove color and check for buffer with no messages
+return $str;
 }
 
 sub buffers_signal_buffer
