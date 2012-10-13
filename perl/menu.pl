@@ -220,7 +220,7 @@ for full pod documentation, filter this script with
 =cut
 
 use constant SCRIPT_NAME => 'menu';
-weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.2', 'GPL3', 'menu system', 'stop_menu', '');
+weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.3', 'GPL3', 'menu system', 'stop_menu', '');
 {
 package Nlib;
 # this is a weechat perl library
@@ -659,6 +659,7 @@ weechat::bar_item_new('sub_menu', 'bar_item_sub_menu', '');
 weechat::bar_item_new('menu_help', 'bar_item_menu_help', '');
 weechat::bar_item_new('window_popup_menu', 'bar_item_window_popup_menu', '');
 weechat::hook_command('menu', 'open menu', '', '', '', 'open_menu', '');
+weechat::hook_signal('buffer_closed', 'invalidate_popup_buffer', '');
 weechat::hook_signal('mouse', 'mouse_evt', '');
 weechat::hook_signal('input_flow_free', 'menu_input_mouse_fix', '');
 weechat::hook_config('plugins.var.perl.'.SCRIPT_NAME.'.*', 'script_config', '');
@@ -675,6 +676,7 @@ if ((weechat::info_get('version_number', '') || 0) >= 0x00030600) {
 }
 
 our %ACT_MENU;
+our $POPUP_MENU_BUFFER;
 our $POPUP_MENU;
 our $POPUP_MENU_ARGS;
 our $MENU_OPEN;
@@ -1141,7 +1143,7 @@ sub exec_popupmenu {
 	grep { $_->{'option_name'} =~ /^\Q$POPUP_MENU\E[.]$popup_entry_id[.]command$/ }
 	@menu_entries;
 	$command =~ s/\$(\d)/$POPUP_MENU_ARGS->[$1]/g if $command;
-	weechat::command(weechat::current_buffer(), $command) if $command
+	weechat::command($POPUP_MENU_BUFFER, $command) if $command
 }
 
 ## bar_item_sub_menu -- return sub menu as bar items
@@ -1200,6 +1202,7 @@ sub close_window_popup_menu {
 
 ## open_menu -- open main menu or close main and sub menu if already open
 ## () - command handler
+## $_[1] - buffer
 ## $_[2] - arguments
 sub open_menu {
 	if ($_[2] && $_[2] eq 'reset') {
@@ -1230,6 +1233,7 @@ sub open_menu {
 		}
 		return weechat::WEECHAT_RC_OK
 			unless @menu_entries;
+		$POPUP_MENU_BUFFER = $_[1];
 		$POPUP_MENU = $args[0];
 		$POPUP_MENU_ARGS = [ @args[1..$#args] ];
 		close_submenu() if $MENU_OPEN && $MENU_OPEN == 2;
@@ -1304,6 +1308,16 @@ sub setup_menu_bar {
 		weechat::bar_new('window_popup_menu', 'on', 0, 'window', 'active', 'bottom', 'columns_vertical', 'vertical', 0, 0, 'black', 'lightmagenta', 'gray', 'on', '*window_popup_menu');
 	}
 
+	weechat::WEECHAT_RC_OK
+}
+
+## invalidate_popup_buffer -- delete popup buffer ptr if buffer is closed
+## () - signal handler
+## $bufptr - signal comes with pointer of closed buffer
+sub invalidate_popup_buffer {
+	my (undef, undef, $bufptr) = @_;
+	$POPUP_MENU_BUFFER = weechat::current_buffer()
+		if $bufptr eq $POPUP_MENU_BUFFER;
 	weechat::WEECHAT_RC_OK
 }
 
@@ -1421,6 +1435,22 @@ sub initial_menus {
 		'nick.5.name' => '&Kick',
 		'nick.6.command' => '/ban $0',
 		'nick.6.name' => '&Ban',
+		'buffer1.1.command' => '/buffer close',
+		'buffer1.1.name' => '&Close',
+		'buffer1.2.command' => '/buffer clear',
+		'buffer1.2.name' => 'Clea&r',
+		'buffer1.3.command' => '/buffer unmerge',
+		'buffer1.3.name' => '&Unmerge',
+		'buffer1.4.command' => '/buffer notify none',
+		'buffer1.4.name' => '&Ignore',
+		'buffer1.5.command' => '/buffer notify reset',
+		'buffer1.5.name' => 'U&nignore',
+		'buffer2.1.command' => '/buffer close $1-$2',
+		'buffer2.1.name' => '&Close range',
+		'buffer2.2.command' => '/buffer swap $1 $2',
+		'buffer2.2.name' => '&Swap',
+		'buffer2.3.command' => '/buffer merge $2',
+		'buffer2.3.name' => '&Merge',
 	);
 	weechat::config_new_option($CFG_FILE, $CFG_FILE_SECTION, $_, 'string', '', '', 0, 0, '', $initial_menu{$_}, 0, '', '', '', '', '', '') for sort keys %initial_menu;
 	#weechat::command('', '/key bind meta2-P /menu');
