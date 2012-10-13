@@ -20,6 +20,8 @@
 #
 # History:
 #
+# 2012-10-06, Nei <anti.teamidiot.de>:
+#     v3.7: call menu on right mouse if menu script is loaded.
 # 2012-10-06, nils_2 <weechatter@arcor.de>:
 #     v3.6: add new option "hotlist_counter" (idea by torque).
 # 2012-06-02, nils_2 <weechatter@arcor.de>:
@@ -128,7 +130,7 @@
 use strict;
 use Encode qw( decode encode );
 # -------------------------------[ internal ]-------------------------------------
-my $version = "3.6";
+my $version = "3.7";
 
 my $BUFFERS_CONFIG_FILE_NAME = "buffers";
 my $buffers_config_file;
@@ -136,7 +138,7 @@ my $cmd_buffers_whitelist= "buffers_whitelist";
 my $cmd_buffers_detach   = "buffers_detach";
 
 my %mouse_keys          = ("\@item(buffers):button1*"    => "hsignal:buffers_mouse",     # catch all left mouse button gestures
-                           "\@item(buffers):button2"     => "hsignal:buffers_mouse");    # catch right mouse button
+                           "\@item(buffers):button2*"     => "hsignal:buffers_mouse");    # catch all right mouse button gestures
 my %options;
 my %hotlist_level       = (0 => "low", 1 => "message", 2 => "private", 3 => "highlight");
 my @whitelist_buffers   = ();
@@ -1075,9 +1077,28 @@ sub buffers_hsignal_mouse
     }
     else
     {
+        my $infolist = weechat::infolist_get("hook", "", "command,menu");
+        my $has_menu_command = weechat::infolist_next($infolist);
+        weechat::infolist_free($infolist);
+
+        if ( $has_menu_command && $hash{"_key"} =~ /button2/ )
+        {
+            if ($hash{"number"} eq $hash{"number2"})
+            {
+                weechat::command($hash{"pointer"}, "/menu buffer1 $hash{short_name} $hash{number}");
+            }
+            else
+            {
+                weechat::command($hash{"pointer"}, "/menu buffer2 $hash{short_name}/$hash{short_name2} $hash{number} $hash{number2}")
+            }
+        }
+        else
+        {
             move_buffer(%hash);
+        }
     }
 }
+
 sub move_buffer
 {
   my %hash = @_;
