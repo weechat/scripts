@@ -18,6 +18,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2012-10-05: nils_2, (freenode.#weechat)
+#       0.7 : add options "plugins.var.python.keepnick.nickserv", "plugins.var.python.keepnick.<server>.password"
+#           : changed default "delay" value from 60 to 600 seconds.
+#
 # 2012-10-04: nils_2, (freenode.#weechat)
 #       0.6 : fix bug with case-sensitive nicks (reported by Faethor)
 #
@@ -53,7 +57,9 @@
 #######################################################################
 
 try:
-    import weechat,sys
+    from string import Template
+    import weechat,sys#
+
 
 except Exception:
     print "This script is to be loaded as PythonScript in WeeChat"
@@ -63,16 +69,17 @@ except Exception:
 # -------------------------------[ Constants ]-------------------------------------
 SCRIPT_NAME     = "keepnick"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.6"
+SCRIPT_VERSION  = "0.7"
 SCRIPT_LICENCE  = "GPL3"
-SCRIPT_DESC     = "script to keep your nick and recover it in case it's occupied"
+SCRIPT_DESC     = "keep your nick and recover it in case it's occupied"
 
 ISON            = '/ison %s'
 
-OPTIONS         =       { 'delay'       : ('10','delay (in seconds) to look at occupied nick (0 means OFF). It is not recommended to flood the server with /ison requests)'),
+OPTIONS         =       { 'delay'       : ('600','delay (in seconds) to look at occupied nick (0 means OFF). It is not recommended to flood the server with /ison requests)'),
                           'timeout'     : ('60','timeout (in seconds) to wait for an answer from server.'),
-                          'serverlist'  : ('IRCnet','comma separated list of servers to look at. Only use this service if its not possible to register a nickname on server (see: /msg NickServ help)'),
-                          'text'        : ('Nickstealer left Network: %s!','text that will be displayed if your nick will not be occupied anymore. (\"%s\" will be filled with Servername)'),
+                          'serverlist'  : ('','comma separated list of servers to look at. Try to register a nickname on server (see: /msg NickServ help).'),
+                          'text'        : ('Nickstealer left Network: %s!','text that will be displayed if your nick will not be occupied anymore. (\"%s\" is a placeholder for the servername)'),
+                          'nickserv'    : ('/msg -server $server NICKSERV IDENTIFY $passwd','use this command to IDENTIFY you on server (following placeholder will be used: \"$server\" for server; \"$passwd\" for password. You have to create a option \"plugins.var.python.%s.<servername>.password\" to store your nick password. Use SASL authentification, if possible.' %  SCRIPT_NAME),
                           'command'     : ('/nick %s','This command will be used to rename your nick (\"%s\" will be filled with your nickname for specific server)'),
                         }
 HOOK            =       { 'timer': '', 'redirect': '' }
@@ -97,7 +104,14 @@ def redirect_isonhandler(data, signal, hashtable):
         if nick.lower() == mynick.lower():
             return weechat.WEECHAT_RC_OK
         elif nick.lower() not in nicks:
-            grabnick(hashtable['server'], nick)
+            password = weechat.config_get_plugin('%s.password' % hashtable['server'])   # get password for given server
+            grabnick(hashtable['server'], nick)                         # get back your nick
+            if (password) != '':
+                if OPTIONS['nickserv'] == '':
+                    return weechat.WEECHAT_RC_OK
+                t = Template(OPTIONS['nickserv'])
+                run_msg = t.safe_substitute(server=hashtable['server'], passwd=password)
+                weechat.command('',run_msg)
             return weechat.WEECHAT_RC_OK
 
     if 0 in [nick.lower() in [mynick.lower() for mynick in servernicks(hashtable['server'])] for nick in nicks]:
@@ -200,4 +214,4 @@ if __name__ == '__main__':
             weechat.hook_config( 'plugins.var.python.' + SCRIPT_NAME + '.*', 'toggle_refresh', '' )
     else:
         weechat.prnt('','%s%s %s' % (weechat.prefix('error'),SCRIPT_NAME,': needs version 0.3.4 or higher'))
-        weechat.command('',"/wait 1ms /python unload %s" % SCRIPT_NAME)
+        weechat.command('','/wait 1ms /python unload %s' % SCRIPT_NAME)
