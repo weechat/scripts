@@ -111,6 +111,9 @@
 #  - V2.3 nand: Allowed trailing )s for unmatched (s in URLs
 #  - V2.4 nand: Escaped URLs via URL-encoding instead of shell escaping, fixes '
 #  - V2.5 nand: Fixed some URLs that got incorrectly mangled by escaping
+#  - V2.6 nesthib: Fixed escaping of "="
+#                  Added missing quotes in default parameter (firefox '%s')
+#                  Removed the mix of tabs and spaces in the file indentation
 #
 # Copyright (C) 2005 David Rubin <drubin AT smartcube dot co dot za>
 #
@@ -156,7 +159,7 @@ urlRe = re.compile(r'(\w+://(?:%s|%s)(?::\d+)?(?:/[^\]>\s]*)?)' % (domain, ipAdd
 
 SCRIPT_NAME    = "urlgrab"
 SCRIPT_AUTHOR  = "David Rubin <drubin [At] smartcube [dot] co [dot] za>"
-SCRIPT_VERSION = "2.5"
+SCRIPT_VERSION = "2.6"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Url functionality Loggin, opening of browser, selectable links"
 CONFIG_FILE_NAME= "urlgrab"
@@ -261,9 +264,9 @@ class UrlGrabSettings(UserDict):
         self.data['localcmd']=weechat.config_new_option(
             self.config_file, section_default,
             "localcmd", "string", """Local command to execute""", "", 0, 0,
-            "firefox %s", "firefox %s", 0, "", "", "", "", "", "")
+            "firefox '%s'", "firefox '%s'", 0, "", "", "", "", "", "")
 
-        remotecmd="ssh -x localhost -i ~/.ssh/id_rsa -C \"export DISPLAY=\":0.0\" &&  firefox %s\""
+        remotecmd="ssh -x localhost -i ~/.ssh/id_rsa -C \"export DISPLAY=\":0.0\" &&  firefox '%s'\""
         self.data['remotecmd']=weechat.config_new_option(
             self.config_file, section_default,
             "remotecmd", "string", remotecmd, "", 0, 0,
@@ -391,16 +394,16 @@ class UrlGrabber:
             urlGrabPrint(buff + ": no entries")
 
 def urlGrabCheckMsgline(bufferp, message):
-	global urlGrab, max_buffer_length
-	if not message:
-		return
-	# Ignore output from 'tinyurl.py' and our selfs
-	if ( message.startswith( "[AKA] http://tinyurl.com" ) or
+    global urlGrab, max_buffer_length
+    if not message:
+        return
+    # Ignore output from 'tinyurl.py' and our selfs
+    if ( message.startswith( "[AKA] http://tinyurl.com" ) or
         message.startswith("[urlgrab]") ):
-		return
-	# Check for URLs
-	for url in urlRe.findall(message):
-	    urlGrab.addUrl(bufferp,stripParens(url))
+        return
+    # Check for URLs
+    for url in urlRe.findall(message):
+        urlGrab.addUrl(bufferp,stripParens(url))
         if max_buffer_length < len(bufferp):
             max_buffer_length = len(bufferp)
         if urlgrab_buffer:
@@ -408,8 +411,8 @@ def urlGrabCheckMsgline(bufferp, message):
 
 
 def urlGrabCheck(data, bufferp, uber_empty, tagsn, isdisplayed, ishilight, prefix, message):
-	urlGrabCheckMsgline(hashBufferName(bufferp), message)
-	return weechat.WEECHAT_RC_OK
+    urlGrabCheckMsgline(hashBufferName(bufferp), message)
+    return weechat.WEECHAT_RC_OK
 
 def urlGrabCopy(bufferd, index):
     global urlGrab
@@ -431,11 +434,11 @@ def urlGrabCopy(bufferd, index):
             pipe.close()
             urlGrabPrint("Url: %s gone to clipboard." % url)
         except:
-            urlGrabPrint("Url: %s faile to copy to clipboard." % url)
+            urlGrabPrint("Url: %s failed to copy to clipboard." % url)
 
 def urlGrabOpenUrl(url):
     global urlGrab, urlGrabSettings
-    argl = urlGrabSettings.createCmd( urllib.quote(url, '/:#%?&+') )
+    argl = urlGrabSettings.createCmd( urllib.quote(url, '/:#%?&+=') )
     weechat.hook_process(argl,60000, "ug_open_cb", "")
 
 def ug_open_cb(data, command, code, out, err):
@@ -497,8 +500,8 @@ def urlGrabMain(data, bufferp, args):
         if len(largs) > 1:
             no = int(largs[1])
             urlGrabCopy(bufferd, no)
-	else:
-		urlGrabCopy(bufferd,1)
+        else:
+            urlGrabCopy(bufferd,1)
     else:
         try:
             no = int(largs[0])
