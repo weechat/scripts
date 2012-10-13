@@ -18,9 +18,13 @@
 
 #
 # Translate string using Google translate API.
+# (this script requires WeeChat >= 0.3.7)
 #
 # History:
 #
+# 2012-10-13, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 0.5: fix call to translate API, use hook_process_hashtable
+#                  (the script now requires WeeChat >= 0.3.7)
 # 2012-01-03, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.4: make script compatible with Python 3.x
 # 2011-08-20, Sebastien Helleu <flashcode@flashtux.org>:
@@ -32,213 +36,228 @@
 #     version 0.1: initial release
 #
 
-SCRIPT_NAME    = "translate"
-SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.4"
-SCRIPT_LICENSE = "GPL3"
-SCRIPT_DESC    = "Translate string using Google translate API"
+SCRIPT_NAME    = 'translate'
+SCRIPT_AUTHOR  = 'Sebastien Helleu <flashcode@flashtux.org>'
+SCRIPT_VERSION = '0.5'
+SCRIPT_LICENSE = 'GPL3'
+SCRIPT_DESC    = 'Translate string using Google translate API'
 
 import_ok = True
 
 try:
     import weechat
 except:
-    print("This script must be run under WeeChat.")
-    print("Get WeeChat now at: http://www.weechat.org/")
+    print('This script must be run under WeeChat.')
+    print('Get WeeChat now at: http://www.weechat.org/')
     import_ok = False
 
 try:
-    import json, lxml.html
+    import sys
+    if sys.version_info >= (3,):
+        import urllib.parse as urllib
+    else:
+        import urllib
 except ImportError as message:
     print('Missing package(s) for %s: %s' % (SCRIPT_NAME, message))
     import_ok = False
 
 # script options
 translate_settings = {
-    "url"     : "http://ajax.googleapis.com/ajax/services/language/translate", # google API url
-    "from_to" : "fr_en", # default from_to languages
-    "marker"  : "&&",    # translate from this marker in string
+    'url'     : 'http://translate.google.com/translate_a/t', # google API url
+    'from_to' : 'fr_en', # default from_to languages
+    'marker'  : '&&',    # translate from this marker in string
 }
 
-translate_hook_process     = ""
-translate_stdout           = ""
-translate_input_before     = ""
-translate_input_after      = ""
-translate_options          = []
+translate = {
+    'hook_process': '',
+    'stdout': '',
+    'input_before': ['', 0],
+    'input_after': ['', 0],
+    'options': []
+}
 
 def translate_process_cb(data, command, rc, stdout, stderr):
-    """ Callback reading HTML data from website. """
-    global translate_hook_process, translate_stdout, translate_input_before, translate_input_after, translate_options
-    if stdout != "":
-        translate_stdout += stdout
+    """Callback reading HTML data from website."""
+    global translate
+    if stdout != '':
+        translate['stdout'] += stdout
     if int(rc) >= 0:
-        text = ""
-        try:
-            resp = simplejson.loads(translate_stdout)
-            text = resp["responseData"]["translatedText"]
-        except:
-            weechat.prnt("", "%sTranslate error (answer: %s)" % (weechat.prefix("error"), translate_stdout.strip()))
-        if text != "":
-            text2 = lxml.html.fromstring(text)
-            translated = text2.text_content().encode("utf-8")
-            if translate_options["word"]:
-                translate_input_before = weechat.buffer_get_string(weechat.current_buffer(), "input")
-                input = translate_input_before
-                if input == "":
-                    input = translated
+        translated = translate['stdout'].split('"')[1]
+        translate['input_before'][0] = weechat.buffer_get_string(weechat.current_buffer(), 'input')
+        translate['input_before'][1] = weechat.buffer_get_integer(weechat.current_buffer(), 'input_pos')
+        if translate['options']['word']:
+            # translate last word of input
+            str_input = translate['input_before'][0]
+            if str_input:
+                pos = str_input.rfind(' ')
+                if pos < 0:
+                    str_input = translated
                 else:
-                    pos = input.rfind(" ")
-                    if pos < 0:
-                        input = translated
-                    else:
-                        input = "%s %s" % (input[0:pos], translated)
-                weechat.buffer_set(weechat.current_buffer(), "input", input)
-                translate_input_after = input
+                    str_input = '%s %s' % (str_input[0:pos], translated)
             else:
-                translate_input_before = weechat.buffer_get_string(weechat.current_buffer(), "input")
-                if translate_options["before_marker"] != "":
-                    translated = "%s%s" % (translate_options["before_marker"], translated)
-                weechat.buffer_set(weechat.current_buffer(), "input", translated)
-                translate_input_after = translated
-        translate_hook_process = ""
+                str_input = translated
+            translate['input_after'][0] = str_input
+        else:
+            if translate['options']['before_marker']:
+                translated = '%s%s' % (translate['options']['before_marker'], translated)
+            translate['input_after'][0] = translated
+        # set input with translation
+        translate['input_after'][1] = len(translate['input_after'][0])
+        weechat.buffer_set(weechat.current_buffer(), 'input', translate['input_after'][0])
+        weechat.buffer_set(weechat.current_buffer(), 'input_pos', '%d' % translate['input_after'][1])
+        translate['hook_process'] = ''
+    elif int(rc) == WEECHAT_HOOK_PROCESS_ERROR:
+        translate['hook_process'] = ''
     return weechat.WEECHAT_RC_OK
 
 def translate_extract_options(options):
-    words = options["string"].split(" ")
+    """
+    Extract options from a string, for example (with default from_to == 'fr_en'):
+      'le ciel bleu'       => { 'lang': 'fr_en', 'text': 'le ciel bleu' }
+      '! the blue sky'     => { 'lang': 'en_fr', 'text': 'the blue sky' }
+      'en_it the blue sky' => { 'lang': 'en_it', 'text': 'the blue sky' }
+    """
+    words = options['string'].split(' ')
     if words:
-        if words[0] == "!":
-            options["lang"].reverse()
-            pos = options["string"].find(" ")
+        if words[0] == '!':
+            options['lang'].reverse()
+            pos = options['string'].find(' ')
             if pos >= 0:
-                options["string"] = options["string"][pos+1:].strip()
+                options['string'] = options['string'][pos+1:].strip()
             else:
-                options["string"] = ""
+                options['string'] = ''
         else:
-            pos = words[0].find("_")
-            if pos >= 0:
-                options["lang"] = [words[0][0:pos], words[0][pos+1:]]
-                pos = options["string"].find(" ")
+            pos = words[0].find('_')
+            if pos >= 0 and 5 <= len(words[0]) <= 11:
+                options['lang'] = [words[0][0:pos], words[0][pos+1:]]
+                pos = options['string'].find(' ')
                 if pos >= 0:
-                    options["string"] = options["string"][pos+1:].strip()
+                    options['string'] = options['string'][pos+1:].strip()
                 else:
-                    options["string"] = ""
-    words = options["string"].split(" ")
+                    options['string'] = ''
+    words = options['string'].split(' ')
     if words:
-        if words[0] == "+":
-            options["word"] = True
-            pos = options["string"].find(" ")
+        if words[0] == '+':
+            options['word'] = True
+            pos = options['string'].find(' ')
             if pos >= 0:
-                options["string"] = options["string"][pos+1:].strip()
+                options['string'] = options['string'][pos+1:].strip()
             else:
-                options["string"] = ""
+                options['string'] = ''
 
 def translate_cmd_cb(data, buffer, args):
-    """ Command /translate """
-    global translate_input_before, translate_hook_process, translate_stdout, translate_options
+    """Command /translate."""
+    global translate
+
+    # create keys (do NOT overwrite existing keys)
+    if args == '-keys':
+        rc = weechat.key_bind('default', { 'meta-tmeta-t': '/translate',
+                                           'meta-tmeta-r': '/translate !',
+                                           'meta-tmeta-w': '/translate +',
+                                           'meta-tmeta-u': '/translate <' })
+        weechat.prnt('', 'translate: %d keys added' % rc)
+        return weechat.WEECHAT_RC_OK
 
     # undo last translation
-    if args == "<":
-        current_input = weechat.buffer_get_string(buffer, "input")
-        if translate_input_before != "" and current_input != translate_input_before:
-            weechat.buffer_set(buffer, "input", translate_input_before)
-        elif translate_input_after != "" and current_input != translate_input_after:
-            weechat.buffer_set(buffer, "input", translate_input_after)
+    if args == '<':
+        current_input = weechat.buffer_get_string(buffer, 'input')
+        if translate['input_before'][0] and current_input != translate['input_before'][0]:
+            weechat.buffer_set(buffer, 'input', translate['input_before'][0])
+            weechat.buffer_set(buffer, 'input_pos', '%d' % translate['input_before'][1])
+        elif translate['input_after'][0] != '' and current_input != translate['input_after'][0]:
+            weechat.buffer_set(buffer, 'input', translate['input_after'][0])
+            weechat.buffer_set(buffer, 'input_pos', '%d' % translate['input_after'][1])
         return weechat.WEECHAT_RC_OK
 
     # default options
-    translate_options = { "lang": weechat.config_get_plugin("from_to").split("_"),
-                          "word": False,
-                          "before_marker": "",
-                          "string": args }
+    translate['options'] = { 'lang': weechat.config_get_plugin('from_to').split('_'),
+                             'word': False,
+                             'before_marker': '',
+                             'string': args }
 
     # read options in command arguments
-    translate_extract_options(translate_options)
+    translate_extract_options(translate['options'])
 
     # if there's no string given as argument of command, then use buffer input
     extract = False
-    if translate_options["string"] == "":
-        translate_options["string"] = weechat.buffer_get_string(buffer, "input")
+    if translate['options']['string'] == '':
+        translate['options']['string'] = weechat.buffer_get_string(buffer, 'input')
         extract = True
 
     # keep only text after marker for translation
-    marker = weechat.config_get_plugin("marker")
-    if marker != "":
-        pos = translate_options["string"].find(marker)
+    marker = weechat.config_get_plugin('marker')
+    if marker != '':
+        pos = translate['options']['string'].find(marker)
         if pos >= 0:
-            translate_options["before_marker"] = translate_options["string"][0:pos]
-            translate_options["string"] = translate_options["string"][pos+len(marker):]
+            translate['options']['before_marker'] = translate['options']['string'][0:pos]
+            translate['options']['string'] = translate['options']['string'][pos+len(marker):]
             extract = True
 
     # read options in text
     if extract:
-        translate_extract_options(translate_options)
+        translate_extract_options(translate['options'])
 
     # keep only last word if option "1 word" is enabled
-    if translate_options["word"]:
-        words = translate_options["string"].split(" ")
-        translate_options["string"] = words[-1]
+    if translate['options']['word']:
+        translate['options']['string'] = translate['options']['string'].split(' ')[-1]
 
     # no text to translate? exit!
-    if translate_options["string"] == "":
+    if not translate['options']['string']:
         return weechat.WEECHAT_RC_OK
 
     # cancel current process if there is one
-    if translate_hook_process != "":
-        weechat.unhook(translate_hook_process)
-        translate_hook_process = ""
+    if translate['hook_process']:
+        weechat.unhook(translate['hook_process'])
+        translate['hook_process'] = ''
 
     # translate!
-    translate_stdout = ""
-    args_urlopen = "'%s', data = urllib.urlencode({'langpair': '%s|%s', 'v': '1.0', 'q': '%s', })" \
-        % (weechat.config_get_plugin("url"), translate_options["lang"][0], \
-               translate_options["lang"][1], translate_options["string"].replace("'", "\\'"))
-    python2_bin = weechat.info_get("python2_bin", "") or "python"
-    translate_hook_process = weechat.hook_process(
-        python2_bin + " -c \"import urllib; print urllib.urlopen(" + args_urlopen + ").read()\"",
-        10 * 1000, "translate_process_cb", "")
+    url = '%s?%s' % (weechat.config_get_plugin('url'), urllib.urlencode({'client': 't',
+                                                                         'sl': translate['options']['lang'][0],
+                                                                         'tl': translate['options']['lang'][1],
+                                                                         'text': translate['options']['string'] }))
+    translate['stdout'] = ''
+    translate['hook_process'] = weechat.hook_process_hashtable('url:%s' % url,
+                                                               { 'useragent': 'Mozilla/5.0' },
+                                                               10 * 1000,
+                                                               'translate_process_cb', '')
 
     return weechat.WEECHAT_RC_OK
 
-if __name__ == "__main__" and import_ok:
+if __name__ == '__main__' and import_ok:
     if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION,
                         SCRIPT_LICENSE, SCRIPT_DESC,
-                        "", ""):
+                        '', ''):
         # set default settings
         for option, default_value in translate_settings.items():
             if not weechat.config_is_set_plugin(option):
                 weechat.config_set_plugin(option, default_value)
         # new command
-        marker = weechat.config_get_plugin("marker")
-        weechat.hook_command("translate",
-                             "Translate string using Google translate API.",
-                             "[from_to | !] [< | + | text]",
-                             "from: base language\n"
-                             "  to: target language\n"
-                             "   !: invert languages (translate from \"to\" to \"from\"\n"
-                             "   <: restore input as it was before last translation\n"
-                             "      (if you do it again, it restore input after translation)\n"
-                             "   +: translate only last word\n"
-                             "text: translate this text\n"
-                             "      (if no text is given, input is used, useful when this command is bound to a key)\n\n"
-                             "Recommended alias for /translate:\n"
-                             "  /alias tr /translate\n\n"
-                             "You can bind keys on this command, for example:\n"
-                             "  - translate input with alt-t + alt-t (using default from_to):\n"
-                             "      /key bind meta-tmeta-t /translate\n"
-                             "  - translate input with alt-t + alt-r (reverse of from_to):\n"
-                             "      /key bind meta-tmeta-r /translate !\n"
-                             "  - translate input from english to italian with alt-t + alt-i:\n"
-                             "      /key bind meta-tmeta-i /translate en_it\n"
-                             "  - translate last word in input with alt-t + alt-w (using default from_to):\n"
-                             "      /key bind meta-tmeta-w /translate +\n"
-                             "  - restore input with alt-t + alt-u:\n"
-                             "      /key bind meta-tmeta-u /translate <\n\n"
-                             "Note: when translating command line, you can start with \"from_to\" or \"!\".\n"
-                             "Input can contain a marker (\"%s\"), translation will start after this marker "
-                             "(beginning of input will not be translated).\n\n"
-                             "To define default languages, for example english to german, do that:\n"
-                             "  /set plugins.var.python.translate.default \"en_de\"\n\n"
-                             "Examples:\n"
-                             "  /translate ! this is a test\n"
-                             "  /translate en_it I want this string in italian" % marker,
-                             "", "translate_cmd_cb", "")
+        marker = weechat.config_get_plugin('marker')
+        weechat.hook_command('translate',
+                             'Translate string using Google translate API.',
+                             '[from_to | !] [< | + | text] || -keys',
+                             ' from: base language\n'
+                             '   to: target language\n'
+                             '    !: invert languages (translate from "to" to "from")\n'
+                             '    <: restore input as it was before last translation\n'
+                             '       (if you do it again, it will restore input after translation)\n'
+                             '    +: translate only last word\n'
+                             ' text: translate this text\n'
+                             '       (if no text is given, input is used, useful when this command is bound to a key)\n'
+                             '-keys: create some default keys (if some keys already exist, they are NOT overwritten):\n'
+                             '         meta-tmeta-t => /translate    (translate using default from_to)\n'
+                             '         meta-tmeta-r => /translate !  (reverse of from_to)\n'
+                             '         meta-tmeta-w => /translate +  (translate last word)\n'
+                             '         meta-tmeta-u => /translate <  (restore input)\n\n'
+                             'You can define alias for /translate:\n'
+                             '  /alias tr /translate\n\n'
+                             'Note 1: when translating command line, you can start with "from_to" or "!".\n\n'
+                             'Note 2: input can contain a marker ("%s"), translation will start after this marker '
+                             '(beginning of input will not be translated).\n'
+                             'Example: "this text &&est traduit" => "this text is translated"\n\n'
+                             'To define default languages, for example english to german:\n'
+                             '  /set plugins.var.python.translate.default "en_de"\n\n'
+                             'Examples:\n'
+                             '  /translate ! this is a test\n'
+                             '  /translate en_it I want this string in italian' % marker,
+                             '-keys|!|<|+', 'translate_cmd_cb', '')
