@@ -28,6 +28,29 @@
 #    https://github.com/pSub/weechat-correction-completion/blob/master/README.md
 # too.
 
+# Changelog:
+#
+# 2012-10-18 -- Version 0.3.0
+#    - incorrect words have a higher priority (typo completion)
+#    - the following characters are removed from the typo: , . ; : ? ! ) ( \ / " ^
+#
+# 2011-06-01 -- Version 0.2.2
+#    - fixed a memory leak, thanks to FlashCode
+#    - documentation updates
+#
+# 2011-03-19 -- Version 0.2.1
+#    - fixed bug that resulted in a crash of weechat
+#
+# 2011-03-18 -- Version 0.2.0
+#    - fixed out of bounds bug
+#    - apply config changes without reloading
+#    - improved performance
+#
+# 2011-02-19 -- Version 0.1.0
+#    - frist working version
+
+import re
+
 try:
     import ctypes
     import ctypes.util
@@ -42,7 +65,7 @@ except ImportError:
 
 SCRIPT_NAME    = "correction_completion"
 SCRIPT_AUTHOR  = "Pascal Wittmann <mail@pascal-wittmann.de>"
-SCRIPT_VERSION = "0.2.3"
+SCRIPT_VERSION = "0.3.0"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Provides a completion for 's/typo/correct'"
 SCRIPT_COMMAND = "correction_completion"
@@ -71,7 +94,7 @@ def completion(data, completion_item, buffer, completion):
 
     # Current input string
     input = w.buffer_get_string(buffer, 'input')
-    
+
     fst = input.find("s/")
     snd = input.find("/", fst + 2)
 
@@ -93,7 +116,7 @@ def complete_typo(pos, input, buffer):
     list = []
     infolist = w.infolist_get('buffer_lines', buffer, '')
     while w.infolist_next(infolist):
-        list.append(stripcolor(w.infolist_string(infolist, 'message')))
+        list.append(strip_symbols(w.infolist_string(infolist, 'message')))
     w.infolist_free(infolist)
 
     # Generate a list of words
@@ -102,22 +125,30 @@ def complete_typo(pos, input, buffer):
     # Remove duplicate elements
     text = unify(text)
 
+    # Split words in correct and incorrect ones
+    good = [word for word in text if spellcheck(word) == True]
+    bad  = [word for word in text if spellcheck(word) == False]
+
     # Sort by alphabet and length
-    text.sort(key=lambda item: (item, -len(item)))
-    
+    good.sort(key=lambda item: (item, len(item)))
+    bad.sort(key=lambda item: (item, len(item)))
+
+    # Place incorrcet ones in front of correct ones
+    text = bad + good
+
     i = iter(text)
-    
+
     # Get index of last occurence of "s/" befor cursor position
     n = input.rfind("s/", 0, pos)
 
     # Get substring and search the replacement
     substr = input[n+2:pos]
     replace = search((lambda word : word.startswith(substr)), i)
-    
+
     # If no replacement found, display substring
     if replace == "":
       replace = substr
-    
+
     # If substring perfectly matched take next replacement
     if replace == substr:
       try:
@@ -131,10 +162,10 @@ def complete_replacement(pos, input, buffer):
     # Start Positions
     n = input.rfind("s/", 0, pos)
     m = input.rfind("/", n + 2, pos)
-    
+
     repl = input[m + 1 : pos]
     typo = input[n + 2 : m]
-    
+
     # Only query new suggestions, when typo changed
     if state.curRepl == -1 or typo != state.curTypo:
       state.suggestions = suggest(typo)
@@ -146,10 +177,10 @@ def complete_replacement(pos, input, buffer):
     # Start at begining when reached end of suggestions
     if state.curRepl == len(state.suggestions) - 1:
       state.curRepl = -1
-    
+
     # Take next suggestion
     state.curRepl += 1
-    
+
     # Put suggestion into the input
     changeInput(repl, state.suggestions[state.curRepl], input, pos, buffer)
 
@@ -160,8 +191,8 @@ def changeInput(search, replace, input, pos, buffer):
     w.buffer_set(buffer, 'input', input)
     w.buffer_set(buffer, 'input_pos', str(pos - n + len(replace)))
 
-def stripcolor(string):
-    return w.string_remove_color(string, '')
+def strip_symbols(string):
+    return re_remove_chars.sub('', w.string_remove_color(string, ''))
 
 def search(p, i):
     # Search for item matching the predicate p
@@ -202,6 +233,15 @@ def suggest(word):
     else:
       raise TypeError("String expected")
 
+def spellcheck(word):
+    if type(word) is str:
+        return aspell.aspell_speller_check(
+            speller,
+            word,
+            len(word))
+    else:
+        raise TypeError("String expected")
+
 def load_config(data = "", option = "", value = ""):
     global speller
     config = aspell.new_aspell_config()
@@ -232,12 +272,15 @@ if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT
     # Use ctypes to access the apsell library
     aspell = ctypes.CDLL(ctypes.util.find_library('aspell'))
     speller = 0
-    
+
+    # Regex to remove unwanted characters
+    re_remove_chars = re.compile('[,.;:?!\)\(\\\/\"\^]')
+
     # Load configuration
     load_config()
 
     template = 'correction_completion'
-    
+
     # Register completion hook
     w.hook_completion(template, "Completes after 's/' with words from buffer",
             'completion', '')
@@ -257,7 +300,7 @@ matched the next word in alphabetical order is shown.
 The second part (the correction) can also be completed. Just press
 *Tab* after the slash and the best correction for the typo is fetched from aspell.
 If you press *Tab* again, it shows the next suggestion.
-The lanuage used for suggestions can be set with the option
+The language used for suggestions can be set with the option
 
   plugins.var.python.correction_completion.lang
 
