@@ -20,6 +20,10 @@
 #
 # History:
 #
+# 2012-10-18, nils_2@freenode.#weechat:
+#     v3.8: add option "mark_inactive", to mark buffers you are not in (idea by xrdodrx)
+#         : add wildcard "*" for immune_detach_buffers (idea by StarWeaver)
+#         : add new options "detach_query" and "detach_free_content" (idea by StarWeaver)
 # 2012-10-06, Nei <anti.teamidiot.de>:
 #     v3.7: call menu on right mouse if menu script is loaded.
 # 2012-10-06, nils_2 <weechatter@arcor.de>:
@@ -130,7 +134,7 @@
 use strict;
 use Encode qw( decode encode );
 # -------------------------------[ internal ]-------------------------------------
-my $version = "3.7";
+my $version = "3.8";
 
 my $BUFFERS_CONFIG_FILE_NAME = "buffers";
 my $buffers_config_file;
@@ -162,6 +166,8 @@ weechat::bar_new("buffers", "0", "0", "root", "", "left", "horizontal",
 weechat::hook_signal("buffer_*", "buffers_signal_buffer", "");
 weechat::hook_signal("window_switch", "buffers_signal_buffer", "");
 weechat::hook_signal("hotlist_*", "buffers_signal_hotlist", "");
+weechat::hook_signal("window_switch", "buffers_signal_buffer", "");
+#weechat::hook_command_run("/input switch_active_*", "buffers_signal_buffer", "");
 weechat::bar_item_update("buffers");
 if ($weechat_version >= 0x00030600)
 {
@@ -183,7 +189,6 @@ weechat::hook_command(  $cmd_buffers_whitelist,
                         "del %-||".
                         "reset %-",
                         "buffers_cmd_whitelist", "");
-
 weechat::hook_command(  $cmd_buffers_detach,
                         "add/del current buffer to/from buffers detach",
                         "[add] || [del] || [reset]",
@@ -402,7 +407,10 @@ my %default_options_look =
  "name_size_max"        =>      ["name_size_max","integer","maximum size of buffer name. 0 means no limitation","",0,256,0,0,0, "", "", "buffers_signal_config", "", "", ""],
  "name_crop_suffix"     =>      ["name_crop_suffix","string","contains an optional char(s) that is appended when buffer name is shortened","",0,0,"+","+",0,"","","buffers_signal_config", "", "", ""],
  "detach"               =>      ["detach", "integer","detach channel from buffers list after a specific period of time (in seconds) without action (weechat ≥ 0.3.8 required)", "", 0, 31536000,0, "number", 0, "", "", "buffers_signal_config", "", "", ""],
- "immune_detach_buffers" =>     ["immune_detach_buffers", "string", "comma separated list of buffers which will not get detached automatically. Good with e.g. BitlBee", "", 0, 0,"", "", 0, "", "", "buffers_signal_config_immune_detach_buffers", "", "", ""],
+ "immune_detach_buffers"=>      ["immune_detach_buffers", "string", "Comma seperated list of buffers to NOT automatically detatch. Allows \"*\" wildcard. Ex: \"BitlBee,freenode.*\"", "", 0, 0,"", "", 0, "", "", "buffers_signal_config_immune_detach_buffers", "", "", ""],
+ "detach_query"         =>      ["detach_query", "boolean", "query buffer will be detachted", "", 0, 0,"off", "off", 0, "", "", "buffers_signal_config", "", "", ""],
+ "detach_free_content"  =>      ["detach_free_content", "boolean", "buffers with free content will be detached (Ex: iset, chanmon)", "", 0, 0,"off", "off", 0, "", "", "buffers_signal_config", "", "", ""],
+ "mark_inactive"        =>      ["mark_inactive", "boolean", "if option is \"on\", inactive buffers (those you are not in) will have parentesis around them. An inactive buffer will not be detached.", "", 0, 0,"off", "off", 0, "", "", "buffers_signal_config", "", "", ""],
 );
     # section "color"
     my $section_color = weechat::config_new_section($buffers_config_file,"color", 0, 0, "", "", "", "", "", "", "", "", "", "");
@@ -514,7 +522,25 @@ sub build_buffers
         $buffer->{"type"} = weechat::buffer_get_string($buffer->{"pointer"},"localvar_type");
 #        weechat::print("",$buffer->{"type"});
 
-        unless( grep {$_ eq $buffer->{"name"}} @immune_detach_buffers )
+        # check if buffer is active (or maybe a /part, /kick channel)
+        if ($buffer->{"type"} eq "channel" and weechat::config_boolean( $options{"mark_inactive"} ) eq 1)
+        {
+            my $server = weechat::buffer_get_string($buffer->{"pointer"},"localvar_server");
+            my $channel = weechat::buffer_get_string($buffer->{"pointer"},"localvar_channel");
+            my $infolist_channel = weechat::infolist_get("irc_channel","",$server.",".$channel);
+            if ($infolist_channel)
+            {
+                weechat::infolist_next($infolist_channel);
+                $buffer->{"nicks_count"} = weechat::infolist_integer($infolist_channel,"nicks_count");
+            }else
+            {
+                $buffer->{"nicks_count"} = 0;
+            }
+            weechat::infolist_free($infolist_channel);
+        }
+
+        my $result = check_immune_detached_buffers($buffer->{"name"});          # checking for wildcard 
+        unless ($result)
         {
             my $detach_time = weechat::config_integer( $options{"detach"});
             my $current_time = time();
@@ -525,14 +551,38 @@ sub build_buffers
              and not exists $buffers_timer{$buffer->{"pointer"}}
              and $detach_time > 0);
 
+            $buffers_timer{$buffer->{"pointer"}} = $current_time
+            if (weechat::config_boolean($options{"detach_query"}) eq 1
+            and not exists $hotlist{$buffer->{"pointer"}}
+            and $buffer->{"type"} eq "private"
+            and not exists $buffers_timer{$buffer->{"pointer"}}
+            and $detach_time > 0);
+
+            $detach_time = 0
+            if (weechat::config_boolean($options{"detach_query"}) eq 0
+            and $buffer->{"type"} eq "private");
+
+            # free content buffer
+            $buffers_timer{$buffer->{"pointer"}} = $current_time
+            if (weechat::config_boolean($options{"detach_free_content"}) eq 1
+            and not exists $hotlist{$buffer->{"pointer"}}
+            and $buffer->{"type"} eq ""
+            and not exists $buffers_timer{$buffer->{"pointer"}}
+            and $detach_time > 0);
+            $detach_time = 0
+            if (weechat::config_boolean($options{"detach_free_content"}) eq 0
+            and $buffer->{"type"} eq "");
+
+            $detach_time = 0 if (weechat::config_boolean($options{"mark_inactive"}) eq 1 and defined $buffer->{"nicks_count"} and $buffer->{"nicks_count"} == 0);
+
             # check for detach
             unless ( $buffer->{"current_buffer"} eq 0
             and not exists $hotlist{$buffer->{"pointer"}}
-            and $buffer->{"type"} eq "channel"
+#            and $buffer->{"type"} eq "channel"
             and exists $buffers_timer{$buffer->{"pointer"}}
             and $detach_time > 0
             and $weechat_version >= 0x00030800
-            and $current_time - $buffers_timer{$buffer->{"pointer"}} >= $detach_time )
+            and $current_time - $buffers_timer{$buffer->{"pointer"}} >= $detach_time)
             {
                 if ($active_seen)
                 {
@@ -544,7 +594,7 @@ sub build_buffers
                 }
             }
         }
-        else
+        else    # buffer in "immune_detach_buffers"
         {
                 if ($active_seen)
                 {
@@ -555,7 +605,6 @@ sub build_buffers
                     push(@current1, $buffer);
                 }
         }
-
     }   # while end
 
 
@@ -822,6 +871,11 @@ sub build_buffers
                 }
             }
         }
+        if ($buffer->{"type"} eq "channel" and weechat::config_boolean( $options{"mark_inactive"} ) eq 1 and $buffer->{"nicks_count"} == 0)
+        {
+            $str .= "(";
+        }
+
         $str .= weechat::color($color) . weechat::color(",".$bg);
 
         if (weechat::config_boolean( $options{"short_names"} ) eq 1)
@@ -830,11 +884,13 @@ sub build_buffers
             {
                 $str .= encode("UTF-8", substr(decode("UTF-8", $buffer->{"short_name"}), 0, weechat::config_integer($options{"name_size_max"})));
                 $str .= weechat::color(weechat::config_color( $options{"color_number_char"})).weechat::config_string($options{"name_crop_suffix"}) if (length($buffer->{"short_name"}) > weechat::config_integer($options{"name_size_max"}));
+                $str .= add_inactive_parentless($buffer->{"type"},$buffer->{"nicks_count"});
                 $str .= add_hotlist_count($buffer->{"pointer"},%hotlist);
             }
             else
             {
                 $str .= $buffer->{"short_name"};
+                $str .= add_inactive_parentless($buffer->{"type"},$buffer->{"nicks_count"});
                 $str .= add_hotlist_count($buffer->{"pointer"},%hotlist);
             }
         }
@@ -844,11 +900,13 @@ sub build_buffers
             {
                 $str .= encode("UTF-8", substr(decode("UTF-8", $buffer->{"name"},), 0, weechat::config_integer($options{"name_size_max"})));
                 $str .= weechat::color(weechat::config_color( $options{"color_number_char"})).weechat::config_string($options{"name_crop_suffix"}) if (length($buffer->{"name"}) > weechat::config_integer($options{"name_size_max"}));
+                $str .= add_inactive_parentless($buffer->{"type"},$buffer->{"nicks_count"});
                 $str .= add_hotlist_count($buffer->{"pointer"},%hotlist);
             }
             else
             {
                 $str .= $buffer->{"name"};
+                $str .= add_inactive_parentless($buffer->{"type"},$buffer->{"nicks_count"});
                 $str .= add_hotlist_count($buffer->{"pointer"},%hotlist);
             }
         }
@@ -871,6 +929,18 @@ sub build_buffers
     }
 
     return $str;
+}
+
+sub add_inactive_parentless
+{
+my ($buf_type, $buf_nicks_count) = @_;
+my $str = "";
+    if ($buf_type eq "channel" and weechat::config_boolean( $options{"mark_inactive"} ) eq 1 and $buf_nicks_count == 0)
+    {
+        $str .= weechat::color(weechat::config_color( $options{"color_number_char"}));
+        $str .= ")";
+    }
+return $str;
 }
 
 sub add_hotlist_count
@@ -954,7 +1024,7 @@ return $str;
 sub buffers_signal_buffer
 {
 my ($data, $signal, $signal_data) = @_;
-    # check for buffer_switch and set the detach time or remove detach time
+    # check for buffer_switch and set or remove detach time
     if ($weechat_version >= 0x00030800)
     {
         if ($signal eq "buffer_switch")
@@ -1112,4 +1182,17 @@ sub move_buffer
   }
   my $ptrbuf = weechat::current_buffer();
   weechat::command($hash{"pointer"}, "/buffer move ".$number2);
+}
+
+sub check_immune_detached_buffers
+{
+    my ($buffername) = @_;
+    foreach ( @immune_detach_buffers ){
+        my $immune_buffer = weechat::string_mask_to_regex($_);
+        if ($buffername =~ /^$immune_buffer$/i)
+        {
+            return 1;
+        }
+    }
+    return 0;
 }
