@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 1.6   : added: support for new option "irc.network.whois_double_nick"
 # 1.5   : fixed: wrong pointer in bar_item_remove()
 #       : fixed: perl error: Use of uninitialized value $nickname
 # 1.4   : added: option hide.servername.in.buddylist (suggested by Cubox)
@@ -75,7 +76,7 @@
 use strict;
 
 my $prgname		= "buddylist";
-my $version		= "1.5";
+my $version		= "1.6";
 my $description		= "display status from your buddies a bar-item.";
 
 # -------------------------------[ config ]-------------------------------------
@@ -306,19 +307,16 @@ my ($status, $server) = @_;
 sub buffer_closing{
 my ($signal, $callback, $callback_data) = @_;
 
-
 weechat::bar_item_update($prgname);
 return weechat::WEECHAT_RC_OK;
-
-
-
-	my $infolist_buf_closing = weechat::infolist_get("buffer",$callback_data,"");		# get pointer from closing buffer
-	weechat::infolist_next($infolist_buf_closing);
-	my $num_closing_buf = weechat::infolist_integer($infolist_buf_closing,"number");	# get number of closing buffer
-	my $server_name = weechat::infolist_string($infolist_buf_closing,"name");
-	my $buffer_name_short = weechat::infolist_string($infolist_buf_closing,"short_name");
-	weechat::infolist_free($infolist_buf_closing);
-	$server_name =~ s/\.$buffer_name_short//;
+}
+#    my $infolist_buf_closing = weechat::infolist_get("buffer",$callback_data,"");		# get pointer from closing buffer
+#       weechat::infolist_next($infolist_buf_closing);
+#       my $num_closing_buf = weechat::infolist_integer($infolist_buf_closing,"number");	# get number of closing buffer
+#       my $server_name = weechat::infolist_string($infolist_buf_closing,"name");
+#       my $buffer_name_short = weechat::infolist_string($infolist_buf_closing,"short_name");
+#       weechat::infolist_free($infolist_buf_closing);
+#       $server_name =~ s/\.$buffer_name_short//;
 
 #	my $buffer_number = "";
 #	my $str = "";
@@ -332,28 +330,28 @@ return weechat::WEECHAT_RC_OK;
 #	weechat::infolist_free($infolist_buffer);
 #	$str =~ s/^\s+//g;									# delete last space
 
-	foreach my $nickname ( sort keys %{$nick_structure{$server_name}} ) {			# sortiert die Nicks alphabetisch
-	    my $status = $nick_structure{$server_name}{$nickname}{status};
-	    next if ( not defined $status or $status eq "2" );
-	    my $buf_name = $nick_structure{$server_name}{$nickname}{buf_name};
-	    next if ( not defined $buf_name );
+#    foreach my $nickname ( sort keys %{$nick_structure{$server_name}} ) {			# sortiert die Nicks alphabetisch
+#        my $status = $nick_structure{$server_name}{$nickname}{status};
+#        next if ( not defined $status or $status eq "2" );
+#        my $buf_name = $nick_structure{$server_name}{$nickname}{buf_name};
+#        next if ( not defined $buf_name );
 
-	    if ( index($buf_name,$buffer_name_short) ne "-1" or $buf_name ne "" or $buf_name ne "()" ){
-	      $buf_name =~ s/$buffer_name_short//;
-	      $buf_name =~ s/\s+$//g;								# delete last space
-	      if ($buf_name eq ""){								# no more buffer
-		$nick_structure{$server_name}{$nickname}{buf_name} = "";
-		$nick_structure{$server_name}{$nickname}{buffer} = "";
-	      }else{
-		$nick_structure{$server_name}{$nickname}{buf_name} = "";
-		$nick_structure{$server_name}{$nickname}{buffer} = "";
-		check_for_channels($server_name, $nickname, $buf_name);
-	      }
-	    }
-	}
-weechat::bar_item_update($prgname);
-return weechat::WEECHAT_RC_OK;
-}
+#        if ( index($buf_name,$buffer_name_short) ne "-1" or $buf_name ne "" or $buf_name ne "()" ){
+#            $buf_name =~ s/$buffer_name_short//;
+#            $buf_name =~ s/\s+$//g;								# delete last space
+#            if ($buf_name eq ""){								# no more buffer
+#                $nick_structure{$server_name}{$nickname}{buf_name} = "";
+#                $nick_structure{$server_name}{$nickname}{buffer} = "";
+#            }else{
+#                $nick_structure{$server_name}{$nickname}{buf_name} = "";
+#                $nick_structure{$server_name}{$nickname}{buffer} = "";
+#                check_for_channels($server_name, $nickname, $buf_name);
+#            }
+#        }
+#    }
+#weechat::bar_item_update($prgname);
+#return weechat::WEECHAT_RC_OK;
+
 
 sub buffer_moved{
 my ($signal, $callback, $callback_data) = @_;
@@ -1185,76 +1183,83 @@ sub redirect_whois{
     my ($data, $signal, %hashtable) = ($_[0], $_[1], %{$_[2]});
 
 # for testing purpose, to see whats inside of hashtable
-    if ( $debug_redir_out eq "on" ) {
-      while (my($key, $value) = each %hashtable){
-	weechat::print("",$key . " is key with value " .$hashtable{$key});
-      }
+    if ( $debug_redir_out eq "on" ){
+        while (my($key, $value) = each %hashtable){
+            weechat::print("",$key . " is key with value " .$hashtable{$key});
+        }
     }
 
-	my (undef, $main_nickname) = split /\s+/, $hashtable{"command"}, 2;	# get nick from hashtable.
+    # get nick from hashtable command: /whois nick
+    my (undef, $main_nickname) = split /\s+/, $hashtable{"command"}, 2;
+    # weechat >=0.4.0 and "irc.network.whois_double_nick = on", command is: /whois nick nick
+    if ($weechat_version >= 0x00040000  and  weechat::config_boolean(weechat::config_get("irc.network.whois_double_nick")) == 1){
+        (undef,$main_nickname) = split /\s+/,$main_nickname;
+    }
 
-	# timeout error...
-	if ($hashtable{"error"} eq "timeout"){
-	weechat::print("",weechat::prefix("error").
-	"buddylist: timeout error for server ".
-	weechat::color(weechat::config_color(weechat::config_get("weechat.color.chat_server"))).
-	$hashtable{"server"}.
-	weechat::color("reset").
-	". Increase value \"callback.timeout\" (current value: ".
-	$default_options{callback_timeout} . ")");
-	return weechat::WEECHAT_RC_OK;
-	}
+    # timeout error...
+    if ($hashtable{"error"} eq "timeout"){
+        weechat::print("",weechat::prefix("error").
+                    "buddylist: timeout error for server ".
+                    weechat::color(weechat::config_color(weechat::config_get("weechat.color.chat_server"))).
+                    $hashtable{"server"}.
+                    weechat::color("reset").
+                    ". Increase value \"callback.timeout\" (current value: ".
+                    $default_options{callback_timeout} . ")");
+        return weechat::WEECHAT_RC_OK;
+    }
 
-	# check if buddy is online and look for visiting channels
-	my $rfc_319 = "319";							# rfc number containing channels
-	my ( $nickname,$channel_name ) = parse_redirect($hashtable{"server"},$rfc_319,$hashtable{"output"});	# check redirection output for channels
-	return weechat::WEECHAT_RC_OK if ( $channel_name eq -1 );		# -1 = buddy not online
-	  if ($channel_name eq -2 and exists $nick_structure{$hashtable{"server"}}{$main_nickname}){
-	    my $sorted_numbers = check_query_buffer($hashtable{"server"},$main_nickname,"");
-	    $nick_structure{$hashtable{"server"}}{$main_nickname}{buffer} = "()" if ($sorted_numbers eq "");	# buddy online but not in a channel
-	    $nick_structure{$hashtable{"server"}}{$main_nickname}{buffer} = $sorted_numbers if ($sorted_numbers ne ""); # /query buffer open
-	   }else{
-	    check_for_channels($hashtable{"server"}, $main_nickname, $channel_name);
-	   }
-  weechat::bar_item_update($prgname);
+    # check if buddy is online and look for visiting channels
+    my $rfc_319 = "319";							# rfc number containing channels
+    my ( $nickname,$channel_name ) = parse_redirect($hashtable{"server"},$rfc_319,$hashtable{"output"});	# check redirection output for channels
+    return weechat::WEECHAT_RC_OK if ( $channel_name eq -1 );		# -1 = buddy not online
+
+    if ($channel_name eq -2 and exists $nick_structure{$hashtable{"server"}}{$main_nickname}){
+        my $sorted_numbers = check_query_buffer($hashtable{"server"},$main_nickname,"");
+        $nick_structure{$hashtable{"server"}}{$main_nickname}{buffer} = "()" if ($sorted_numbers eq "");	# buddy online but not in a channel
+        $nick_structure{$hashtable{"server"}}{$main_nickname}{buffer} = $sorted_numbers if ($sorted_numbers ne ""); # /query buffer open
+    }else{
+        check_for_channels($hashtable{"server"}, $main_nickname, $channel_name);
+    }
+
+    weechat::bar_item_update($prgname);
 return weechat::WEECHAT_RC_OK;
 }
 
 # compare if your buddy is in same channels you are already in. channel-number(s) will be saved in nick_structure(buffer)
 sub check_for_channels{
-  my ($server, $nickname, $channel_name) = @_;
-  return if (not exists $nick_structure{$server}{$nickname});			# does nick exists in nick_structure? NO?
+    my ($server, $nickname, $channel_name) = @_;
+    return if (not exists $nick_structure{$server}{$nickname}); # does nick exists in nick_structure? NO?
 
-		  $nick_structure{$server}{$nickname}{buf_name} = "";		# delete
-		  $channel_name =~ s/:|@|!|\+//g;				# kill special chars not needed for channelname
+    $nick_structure{$server}{$nickname}{buf_name} = "";         # delete
+    $channel_name =~ s/:|@|!|\+//g;                             # kill channel-modes (not needed for channelname)
 
-		  $nick_structure{$server}{$nickname}{buf_name} = $channel_name;# save name of visit channels
-		  my @array=split(/ /,$channel_name);				# split channelnames into array
+    $nick_structure{$server}{$nickname}{buf_name} = $channel_name;# save name of visit channels
+    my @array=split(/ /,$channel_name);                         # split channelnames into array
 
-		  # check out if buddy is in same channels as you are
-		  my @buf_count;
-		  $nick_structure{$server}{$nickname}{buffer} = "()";		# delete buffer number in nick_structure{buffer]
+    # check out if buddy is in same channels as you are
+    my @buf_count;
+    $nick_structure{$server}{$nickname}{buffer} = "()";		# delete buffer number in nick_structure{buffer]
 
-		  foreach (@array){
-		    my $buffer_pointer = weechat::buffer_search("irc", $server . "." . $_);
-		    if ($buffer_pointer ne ""){					# buffer exists?
-		      my $buffer_number = search_buffer_number($buffer_pointer);# check if buddy is in same channels as you
-			if ($buffer_number ne 0){
-			  push @buf_count,($buffer_number) ;
-			  # check if option "color.number" has valid entry and write buffer number to nick_structure
-			    if ($default_options{color_number} ne ""){		# color for color_number set?
-			      @buf_count = del_double(@buf_count);
-			      my $sorted_numbers = join(",",sort{$a<=>$b}(@buf_count));		# channel numbers (1,2....)
-			      $sorted_numbers = check_query_buffer($server,$nickname,$sorted_numbers);
-			      $nick_structure{$server}{$nickname}{buffer} = $sorted_numbers;# save buffer number in nick_structure{buffer]
-			    }
-			}
-		    }elsif ($nick_structure{$server}{$nickname}{buffer} eq "()"){# buddy online but not in a channel you are in
-		      my $sorted_numbers = check_query_buffer($server,$nickname,"");
-		      $nick_structure{$server}{$nickname}{buffer} = "()" if ($sorted_numbers eq "");
-		      $nick_structure{$server}{$nickname}{buffer} = $sorted_numbers if ($sorted_numbers ne "");
-		    }
-		  }
+    foreach (@array){
+        my $buffer_pointer = weechat::buffer_search("irc", $server . "." . $_);
+        if ($buffer_pointer ne ""){					# buffer exists?
+            my $buffer_number = search_buffer_number($buffer_pointer);# check if buddy is in same channels as you
+            if ($buffer_number ne 0){
+                push @buf_count,($buffer_number) ;
+                # check if option "color.number" has valid entry and write buffer number to nick_structure
+                if ($default_options{color_number} ne ""){		# color for color_number set?
+                    @buf_count = del_double(@buf_count);
+                    my $sorted_numbers = join(",",sort{$a<=>$b}(@buf_count));		# channel numbers (1,2....)
+                    $sorted_numbers = check_query_buffer($server,$nickname,$sorted_numbers);
+                    $nick_structure{$server}{$nickname}{buffer} = $sorted_numbers;# save buffer number in nick_structure{buffer]
+                }
+            }
+        }elsif ($nick_structure{$server}{$nickname}{buffer} eq "()"){# buddy online but not in a channel you are in
+            my $sorted_numbers = check_query_buffer($server,$nickname,"");
+            $nick_structure{$server}{$nickname}{buffer} = "()" if ($sorted_numbers eq "");
+            $nick_structure{$server}{$nickname}{buffer} = $sorted_numbers if ($sorted_numbers ne "");
+        }
+    }
 }
 
 # delete double entries
@@ -1271,14 +1276,14 @@ my ($server,$nickname,$sorted_numbers) = @_;
 return $sorted_numbers if ($default_options{show_query} ne "on");
 
 my $buffer_pointer = weechat::buffer_search("irc", $server . "." . $nickname);
-  if ($buffer_pointer ne ""){
+if ($buffer_pointer ne ""){
     my $buffer_number = search_buffer_number($buffer_pointer);
-      if ($sorted_numbers ne ""){
-	$sorted_numbers = "Q:" . $buffer_number . "," . $sorted_numbers;
-      }else{
-	$sorted_numbers = "Q:" . $buffer_number;
-      }
-  };
+    if ($sorted_numbers ne ""){
+        $sorted_numbers = "Q:" . $buffer_number . "," . $sorted_numbers;
+    }else{
+        $sorted_numbers = "Q:" . $buffer_number;
+    }
+}
 
 return $sorted_numbers;
 }
