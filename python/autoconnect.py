@@ -17,7 +17,7 @@
 
 SCRIPT_NAME    = "autoconnect"
 SCRIPT_AUTHOR  = "arno <arno@renevier.net>"
-SCRIPT_VERSION = "0.2.1"
+SCRIPT_VERSION = "0.2.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "reopens servers and channels opened last time weechat closed"
 SCRIPT_COMMAND = "autoconnect"
@@ -29,7 +29,6 @@ except:
     print "Get WeeChat now at: http://www.weechat.org/"
     quit()
 
-import re
 
 weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, "", "")
 
@@ -42,11 +41,18 @@ def join_cb(data, signal, signal_data):
 
 
     channel = signal_data.split()[-1][1:]
+    # Fix up prefixless channels, : prefixed channels
+    channel = channel if channel[0] != ':' else channel[1:]
+    channel = '#' + channel if channel[0] != '#' else channel
     autojoin = weechat.config_string(weechat.config_get("irc.server.%s.autojoin" % (server,)))
+    print autojoin
+    autojoin = ','.join(['#' + w if w[0] != '#' else w for w in autojoin.split(',')])
 
     if autojoin:
         if not channel in autojoin.split(','):
             weechat.command("", "/mute /set irc.server.%s.autojoin %s,%s" % (server, autojoin, channel))
+        else:
+            weechat.command("", "/mute /set irc.server.%s.autojoin %s" % (server, autojoin))
     else:
         weechat.command("", "/mute /set irc.server.%s.autojoin %s" % (server, channel))
 
@@ -59,8 +65,6 @@ def part_cb(data, signal, signal_data):
         # nick which has parted is not our current nick
         return weechat.WEECHAT_RC_OK
     channel = signal_data.split(' PART ')[1].split()[0]
-    if channel[0] == '#':
-        channel = channel[1:]
     autojoin = weechat.config_string(weechat.config_get("irc.server.%s.autojoin" % (server,)))
 
     if autojoin:
