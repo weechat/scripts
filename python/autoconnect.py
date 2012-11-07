@@ -17,7 +17,7 @@
 
 SCRIPT_NAME    = "autoconnect"
 SCRIPT_AUTHOR  = "arno <arno@renevier.net>"
-SCRIPT_VERSION = "0.2.2"
+SCRIPT_VERSION = "0.2.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "reopens servers and channels opened last time weechat closed"
 SCRIPT_COMMAND = "autoconnect"
@@ -45,10 +45,8 @@ def join_cb(data, signal, signal_data):
     channel = channel if channel[0] != ':' else channel[1:]
     channel = '#' + channel if channel[0] != '#' else channel
     autojoin = weechat.config_string(weechat.config_get("irc.server.%s.autojoin" % (server,)))
-    print autojoin
-    autojoin = ','.join(['#' + w if w[0] != '#' else w for w in autojoin.split(',')])
-
     if autojoin:
+        autojoin = ','.join(['#' + w if w[0] != '#' else w for w in autojoin.split(',')])
         if not channel in autojoin.split(','):
             weechat.command("", "/mute /set irc.server.%s.autojoin %s,%s" % (server, autojoin, channel))
         else:
