@@ -18,10 +18,12 @@
 
 #
 # Display content of viedemerde.fr/fmylife.com website.
-# (this script requires WeeChat 0.3.0 or newer)
+# (this script requires WeeChat 0.3.7 or newer)
 #
 # History:
 #
+# 2012-11-12, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 1.2: use URL transfer in API (for WeeChat >= 0.3.7)
 # 2012-01-03, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 1.1: make script compatible with Python 3.x
 # 2011-03-11, Sebastien Helleu <flashcode@flashtux.org>:
@@ -52,7 +54,7 @@ import weechat, sys, xml.dom.minidom
 
 SCRIPT_NAME    = "vdm"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "1.1"
+SCRIPT_VERSION = "1.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Display content of viedemerde.fr/fmylife.com website"
 
@@ -265,10 +267,7 @@ def vdm_get(key):
         vdm_hook_process = ""
     vdm_stdout = ""
     url = weechat.config_get_plugin("url") % (vdm_key, weechat.config_get_plugin("lang"))
-    python2_bin = weechat.info_get("python2_bin", "") or "python"
-    vdm_hook_process = weechat.hook_process(
-        python2_bin + " -c \"import urllib; print urllib.urlopen('" + url + "').read()\"",
-        10 * 1000, "vdm_process_cb", "")
+    vdm_hook_process = weechat.hook_process("url:%s" % url, 10 * 1000, "vdm_process_cb", "")
 
 def vdm_buffer_input(data, buffer, input_data):
     """ Read data from user in VDM buffer. """
