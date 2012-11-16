@@ -62,14 +62,17 @@
 #
 #
 #   History:
-#   2012-01-25
-#   version 0.1.1: initial release
+#     2012-11-16, Sebastien Helleu <flashcode@flashtux.org>:
+#       version 0.1.2: remove invalid calls to config functions,
+#                      escape message in command for hook_process (fix security issue)
+#     2012-01-25
+#       version 0.1.1: initial release
 #
 ###
 
 SCRIPT_NAME    = "twmn_notify"
 SCRIPT_AUTHOR  = "epegzz <epegzz@gmail.com>"
-SCRIPT_VERSION = "0.1.1"
+SCRIPT_VERSION = "0.1.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Use twmn to display notifications"
 
@@ -90,18 +93,13 @@ settings = {
 'hilite_timeout'    : '-1',
 }
 
-import weechat
+import weechat, sys, pipes, shlex
 
 weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, '', '')
 
-
-if weechat.config_search_section("weechat.conf", "twmn_notify") is None:
-    weechat.config_new_section("weechat.conf", "twmn_notify", 1, 1)
-
-
 weechat.hook_print("", "irc_privmsg", "", 1, "receive", "")
 
-for opt, val in settings.iteritems():
+for opt, val in settings.items():
     if not weechat.config_is_set_plugin(opt):
         weechat.config_set_plugin(opt, val)
 
@@ -177,6 +175,11 @@ def receive(data, buf, date, tags, disp, hilite, prefix, message):
 
         message = "<b> %s</b> %s " % (title, message)
 
+        if sys.version_info >= (3,3):
+            message = shlex.quote(message)
+        else:
+            message = pipes.quote(message)
+
         args = dict\
             ( message = message
             , font = font
@@ -194,11 +197,10 @@ def receive(data, buf, date, tags, disp, hilite, prefix, message):
             + '-d %(timeout)s '\
             + '--fg "%(color)s" '\
             + '--bg "%(background)s" '\
-            + '--content="%(message)s" '\
+            + '--content=%(message)s '\
             + '--fn "%(font)s" '\
             + '-s %(height)s '\
             + '--fs %(fontsize)s '
-
 
         weechat.hook_process(cmd % args, 10000, "ok", "")
 
