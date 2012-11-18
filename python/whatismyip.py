@@ -13,32 +13,36 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import weechat, urllib2
+# 2012-11-17, v0.2 (nils_2@freenode.#weechat)
+#     use URL transfer in API (for WeeChat >= 0.3.7), update service URL
+
+import weechat
 
 SCRIPT_NAME    = "whatismyip"
 SCRIPT_AUTHOR  = "John Anderson <sontek@gmail.com>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL3"
-SCRIPT_DESC    = "Get your current external ip"
+SCRIPT_DESC    = "Get your current external ip, using whatismyip.com"
 
 process_output = ""
 
 def whatismyip(data, buffer, args):
     global process_output
 
-    url = 'http://www.whatismyip.com/automation/n09230945.asp'
+    url = 'http://automation.whatismyip.com/n09230945.asp'
 
     process_output = ''
-    python2_bin = weechat.info_get("python2_bin", "") or "python"
-    url_hook_process = weechat.hook_process(
-        python2_bin + " -c \"import urllib2; print urllib2.urlopen('" + url + "').readlines()[0]\"",
-        30 * 1000, "process_complete", '')
+    url_hook_process = weechat.hook_process("url:%s" % url, 30 * 1000, "process_complete", "")
     return weechat.WEECHAT_RC_OK
 
 def process_complete(data, command, rc, stdout, stderr):
     global process_output
     process_output += stdout.strip()
-    if int(rc) >= 0:
+
+    if len(process_output) > 40:
+        weechat.prnt(weechat.current_buffer(), weechat.prefix("error") + 'whatismyip: [%s]' % "Service Unavailable")
+        return weechat.WEECHAT_RC_OK
+    if int(rc) == 0:
         weechat.prnt(weechat.current_buffer(), '[%s]' % process_output)
 
     return weechat.WEECHAT_RC_OK
