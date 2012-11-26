@@ -14,8 +14,8 @@ menu - menu and popup menu system for weechat (weechat edition)
 
 =head1 SYNOPSIS
 
-first, copy the file to your F<.weechat/perl> directory. Then you can
-type
+first, copy the file to your
+F<.weechat/perl> directory. Then you can type
 
   /perl load menu.pl
 
@@ -67,8 +67,7 @@ to close any menu, type Ctrl+X on your keyboard.
 for mouse support, this script will listen to mouse input
 signals. If your WeeChat does not have builtin cursor and mouse
 support, another script is needed to supply these signals, such as
-F<mouse.pl> which can be found on
-L<http://anti.teamidiot.de/static/nei/*/Code/WeeChat/>.
+F<mouse.pl> which can be found in the same place as this script.
 
 =head2 Nick menu
 
@@ -95,8 +94,7 @@ when interacting with the main menu.
 =item *
 
 to scroll the nicklist using the mouse, as well as switching windows
-on mouse click, another script such as C<coords.pl> which can be found
-on L<http://anti.teamidiot.de/static/nei/*/Code/WeeChat/> might be
+on mouse click, another script such as C<coords.pl> might be
 necessary.
 
 =back
@@ -220,10 +218,18 @@ for full pod documentation, filter this script with
 =cut
 
 use constant SCRIPT_NAME => 'menu';
-weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.3', 'GPL3', 'menu system', 'stop_menu', '');
+weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.4', 'GPL3', 'menu system', 'stop_menu', '') || return;
+sub SCRIPT_FILE() {
+	my $infolistptr = weechat::infolist_get('perl_script', '', SCRIPT_NAME);
+	my $filename = weechat::infolist_string($infolistptr, 'filename') if weechat::infolist_next($infolistptr);
+	weechat::infolist_free($infolistptr);
+	return $filename unless @_;
+}
+
 {
 package Nlib;
 # this is a weechat perl library
+use strict; use warnings;
 
 ## i2h -- copy weechat infolist content into perl hash
 ## $infolist - name of the infolist in weechat
@@ -263,11 +269,20 @@ sub i2h {
 					my ($key, $idx) = ($1, $2);
 					my @idx = split '_', $idx; shift @idx;
 					my $target = \$list{$key};
-					for my $x (@idx) { $target = \$$target->[$x-1] }
+					for my $x (@idx) {
+						my $o = 1;
+						if ($key eq 'key' or $key eq 'key_command') {
+							$o = 0;
+						}
+						if ($x-$o < 0) {
+							local $" = '|';
+							weechat::print('',"list error: $target/$$_/$key/$x/$idx/@idx(@_)");
+							$o = 0;
+						}
+						$target = \$$target->[$x-$o]
+					}
 					$$target = $r;
 
-					#$idx =~ s/_(\d+)/[$1]/g;
-					#print $Nlib::s $Nlib::gc, "Nlib/i2h/do/evalqq", Nlib::SNL ()  if defined $Nlib::s;
 					my $code = qq{
 						local \$[=1;
 						\$list{"\Q$key\E"}$idx = \$r
@@ -281,7 +296,31 @@ sub i2h {
 		} };
 	}
 	weechat::infolist_free($infptr);
-	@infolist
+	!wantarray && @infolist ? \@infolist : @infolist
+}
+
+## hdh -- hdata helper
+sub hdh {
+	if (@_ > 1 && $_[0] !~ /^0x/ && $_[0] !~ /^\d+$/) {
+		my $arg = shift;
+		unshift @_, weechat::hdata_get_list(weechat::hdata_get($_[0]), $arg);
+	}
+	while (@_ > 2) {
+		my ($arg, $name, $var) = splice @_, 0, 3;
+		my $hdata = weechat::hdata_get($name);
+
+		(my $plain_var = $var) =~ s/^\d+\|//;
+		my $type = weechat::hdata_get_var_type_string($hdata, $plain_var);
+		if ($type eq 'pointer') {
+			my $name = weechat::hdata_get_var_hdata($hdata, $var);
+			unshift @_, $name if $name;
+		}
+
+		my $fn = "weechat::hdata_$type";
+		unshift @_, do { no strict 'refs';
+						 &$fn($hdata, $arg, $var) };
+	}
+	wantarray ? @_ : $_[0]
 }
 
 ## find_bar_window -- find the bar window where the coordinates belong to
@@ -315,21 +354,6 @@ sub in_window {
 		$row <= $wininfo->{'y'}+$wininfo->{'height'} &&
 			$col > $wininfo->{'x'} &&
 				$col <= $wininfo->{'x'}+$wininfo->{'width'}
-}
-
-## in_chat_window -- check if given coordinates are in the chat part of a window
-## $row - row
-## $col - column
-## $wininfo - infolist of window to check
-## returns true if in chat part of window
-sub in_chat_window {
-	my ($row, $col, $wininfo) = @_;
-
-	# in chat window?
-	$row > $wininfo->{'chat_y'} &&
-		$row <= $wininfo->{'chat_y'}+$wininfo->{'chat_height'} &&
-			$col > $wininfo->{'chat_x'} &&
-				$col <= $wininfo->{'chat_x'}+$wininfo->{'chat_width'}
 }
 
 ## has_true_value -- some constants for "true"
@@ -409,7 +433,6 @@ sub bar_column_max_length {
 	for (@items) {
 		my $item_length = screen_length fu8on weechat::string_remove_color($_, '');
 		$max_length = $item_length if $max_length < $item_length;
-		#weechat::print('',"length: $item_length item: $_") if DEBUG_BAR_ITEM_CODE;
 	}
 	$max_length;
 }
@@ -536,7 +559,6 @@ sub bar_items_skip_to {
 		$prefix_col = 1+(1+$item_max_length)*int(@prefix / $col_vert_lines);
 	}
 
-	#weechat::print('', "looking for subitem @ $prefix_col $item_pos_a $item_pos_b ".join ':',@prefix) if DEBUG_BAR_ITEM_CODE;
 	(undef,
 	 $item_pos_a, $item_pos_b,
 	 $prefix_col, $prefix_y,
@@ -564,7 +586,6 @@ sub bar_item_get_subitem_at {
 	$row += $bar_infos->[0]{'scroll_y'};
 
 	return $error if $error;
-	#weechat::print('', "item@$item_pos_a/$item_pos_b prefix\@$prefix_col,$prefix_y (#:$prefix_cnt)");
 	
 	return 'no viable position'
 		unless (($row == $prefix_y  && $col >= $prefix_col) || $row > $prefix_y || bar_filling($bar_infos) >= 3);
@@ -578,8 +599,6 @@ sub bar_item_get_subitem_at {
 			bar_line_wrap_horiz(\($prefix_col, $prefix_y), $bar_infos);
 		}
 
-		#weechat::print('', "test $idx @ prefix_col: $prefix_col [col: $col] prefix_y: $prefix_y [row: $row] ".sprintf("prefix_col > col %d; row < prefix_y %d", ($prefix_col > $col), ($row < $prefix_y))) if DEBUG_BAR_ITEM_CODE;
-
 		return (undef, $idx, $_, [$beg_col, $col, $prefix_col, $beg_y, $row, $prefix_y])
 			if (($prefix_col > $col && $row == $prefix_y) || ($row < $prefix_y && bar_filling($bar_infos) < 3));
 
@@ -589,7 +608,6 @@ sub bar_item_get_subitem_at {
 			++$prefix_col;
 			return ('outside', $idx-1, $_)
 				if ($prefix_y == $row && $prefix_col > $col);
-			#|| $prefix_col > $bar_infos->[0]{'width'};
 		}
 		elsif (bar_filling($bar_infos) == 1) {
 			return ('outside', $idx-1, $_)
@@ -599,8 +617,6 @@ sub bar_item_get_subitem_at {
 		}
 		elsif (bar_filling($bar_infos) == 2) {
 			$prefix_col += 1+$item_max_length-(($prefix_col-1)%($item_max_length+1));
-
-			#weechat::print('', "prefix_col --> $prefix_col [item size: $item_max_length] prefix_y $prefix_y" ) if DEBUG_BAR_ITEM_CODE;
 
 			return ('outside', $idx-1, $_)
 				if ($prefix_y == $row && $prefix_col > $col);
@@ -620,7 +636,6 @@ sub bar_item_get_subitem_at {
 			$prefix_y = 1+(($idx+$prefix_cnt) % $col_vert_lines);
 			$prefix_col = 1+(1+$item_max_length)*int(($idx+$prefix_cnt) / $col_vert_lines);
 
-			#weechat::print('', "idx: $idx y: $prefix_y col: $prefix_col [lines: $col_vert_lines]") if DEBUG_BAR_ITEM_CODE;
 		}
 	}
 	'not found';
@@ -651,6 +666,87 @@ sub bar_item_get_item_and_subitem_at {
 	()
 }
 
+## mangle_man_for_wee -- turn man output into weechat codes
+sub mangle_man_for_wee {
+	for (@_) {
+		s/_\x08(.)/weechat::color('underline').$1.weechat::color('-underline')/ge;
+		s/(.)\x08\1/weechat::color('bold').$1.weechat::color('-bold')/ge;
+	}
+	wantarray ? @_ : $_[0]
+}
+
+## read_manpage -- read a man page in weechat window
+## $file - file with pod
+## $name - buffer name
+sub read_manpage {
+	my $caller_package = (caller)[0];
+	my $file = shift;
+	my $name = shift;
+
+	if (my $obuf = weechat::buffer_search('perl', "man $name")) {
+		weechat::buffer_close($obuf);
+	}
+
+	my @wee_keys = Nlib::i2h('key');
+	my @keys;
+
+	my $winptr = weechat::current_window();
+	my ($wininfo) = Nlib::i2h('window', $winptr);
+	my $buf = weechat::buffer_new("man $name", '', '', '', '');
+	return weechat::WEECHAT_RC_OK unless $buf;
+
+	my $width = $wininfo->{'chat_width'};
+	--$width if $wininfo->{'chat_width'} < $wininfo->{'width'} || ($wininfo->{'width_pct'} < 100 && (grep { $_->{'y'} == $wininfo->{'y'} } Nlib::i2h('window'))[-1]{'x'} > $wininfo->{'x'});
+
+	weechat::buffer_set($buf, 'time_for_each_line', 0);
+	eval qq{
+		package $caller_package;
+		weechat::buffer_set(\$buf, 'display', 'auto');
+	};
+	die $@ if $@;
+
+	@keys = map { $_->{'key'} }
+		grep { $_->{'command'} eq '/input history_previous' ||
+			   $_->{'command'} eq '/input history_global_previous' } @wee_keys;
+	@keys = 'meta2-A' unless @keys;
+	weechat::buffer_set($buf, "key_bind_$_", '/window scroll -1') for @keys;
+
+	@keys = map { $_->{'key'} }
+		grep { $_->{'command'} eq '/input history_next' ||
+			   $_->{'command'} eq '/input history_global_next' } @wee_keys;
+	@keys = 'meta2-B' unless @keys;
+	weechat::buffer_set($buf, "key_bind_$_", '/window scroll +1') for @keys;
+
+	weechat::buffer_set($buf, 'key_bind_ ', '/window page_down');
+
+	@keys = map { $_->{'key'} }
+		grep { $_->{'command'} eq '/input delete_previous_char' } @wee_keys;
+	@keys = ('ctrl-?', 'ctrl-H') unless @keys;
+	weechat::buffer_set($buf, "key_bind_$_", '/window page_up') for @keys;
+
+	weechat::buffer_set($buf, 'key_bind_g', '/window scroll_top');
+	weechat::buffer_set($buf, 'key_bind_G', '/window scroll_bottom');
+
+	weechat::buffer_set($buf, 'key_bind_q', '/buffer close');
+
+	weechat::print($buf, " \t".mangle_man_for_wee($_))
+			for `pod2man \Q$file\E | GROFF_NO_SGR=1 nroff -mandoc -rLL=${width}n -rLT=${width}n -Tutf8 2>/dev/null`;
+	weechat::command($buf, '/window scroll_top');
+
+	unless (hdh($buf, 'buffer', 'lines', 'lines_count') > 0) {
+		weechat::print($buf, weechat::prefix('error').$_)
+				for "Unfortunately, your @{[weechat::color('underline')]}nroff".
+					"@{[weechat::color('-underline')]} command did not produce".
+					" any output.",
+					"Working pod2man and nroff commands are required for the ".
+					"help viewer to work.",
+					"In the meantime, please use the command ", '',
+					"\tperldoc $file", '',
+					"on your shell instead in order to read the manual.",
+					"Thank you and sorry for the inconvenience."
+	}
+}
+
 1
 }
 
@@ -658,7 +754,15 @@ weechat::bar_item_new('main_menu', 'bar_item_main_menu', '');
 weechat::bar_item_new('sub_menu', 'bar_item_sub_menu', '');
 weechat::bar_item_new('menu_help', 'bar_item_menu_help', '');
 weechat::bar_item_new('window_popup_menu', 'bar_item_window_popup_menu', '');
-weechat::hook_command('menu', 'open menu', '', '', '', 'open_menu', '');
+weechat::hook_command('menu', 'open the menu', '[name] [args] || reset',
+					  'without arguments, open the main menu.'."\n".
+						  'if name is given, open the popup menu with that name - this is usually done by scripts.'
+							  ."\n".'args are passed on to the menu commands, see the manual for more info.'."\n".
+								  'Example: /menu nick yournick'."\n".
+									  'reset: resets the menu system to its initial config (also required if '."\n".
+									  '       you want to load new default menus, e.g after upgrade of script)'."\n".
+							  'use '.weechat::color('bold').'/menu help'.weechat::color('-bold').
+								  ' to read the manual', '', 'open_menu', '');
 weechat::hook_signal('buffer_closed', 'invalidate_popup_buffer', '');
 weechat::hook_signal('mouse', 'mouse_evt', '');
 weechat::hook_signal('input_flow_free', 'menu_input_mouse_fix', '');
@@ -1035,9 +1139,10 @@ sub mouse_evt {
 
 sub mouse_evt_barcode {
 	my ($bar_infos, undef, undef, $error, $idx, $item) = @_;
+	my $close_menu_in_empty = qr/_menu\b/; # qr/\bmain_menu\b/;
 	if ($error) {
 		open_menu() # closes the menu here
-			if ($MENU_OPEN && !defined $idx && $bar_infos->[-1]{'name'} =~ /\bmain_menu\b/ && $_[2] =~ /^#/);
+			if ($MENU_OPEN && !defined $idx && $bar_infos->[-1]{'name'} =~ $close_menu_in_empty && $_[2] =~ /^#/);
 
 		if (DEBUG_MENU) {
 			$idx = '(undef)' unless defined $idx;
@@ -1208,6 +1313,10 @@ sub open_menu {
 	if ($_[2] && $_[2] eq 'reset') {
 		initial_menus(1);
 		return weechat::WEECHAT_RC_OK;
+	}
+	elsif ($_[2] && $_[2] =~ /^\s*help\s*$/i) {
+		Nlib::read_manpage(SCRIPT_FILE, SCRIPT_NAME);
+		return weechat::WEECHAT_RC_OK
 	}
 	my @args;
 	@args = split ' ', $_[2]
@@ -1422,6 +1531,8 @@ sub initial_menus {
 		'4.4.name' => '&Settings editor',
 		'4.name' => '&Tools',
 		'9.1.name' => 'Menu system by Nei',
+		'9.2.name' => '&Help',
+		'9.2.command' => '/menu help',
 		'9.name' => '&About',
 		'nick.1.command' => '/query $0',
 		'nick.1.name' => '&Query',
@@ -1458,6 +1569,7 @@ sub initial_menus {
 
 sub init_menu {
 	$ACT_MENU{'main'} = 0;
+	$POPUP_MENU_BUFFER = weechat::current_buffer();
 	load_config();
 	initial_menus();
 	setup_menu_bar();
