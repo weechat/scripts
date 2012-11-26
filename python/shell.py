@@ -10,6 +10,8 @@
 #
 # ### changelog ###
 #
+#  * version 0.7, 2012-11-26, Sebastien Helleu <flashcode@flashtux.org>:
+#      - use hashtable for command arguments (for WeeChat >= 0.4.0)
 #  * version 0.6, 2012-11-21, Sebastien Helleu <flashcode@flashtux.org>:
 #      - call shell in hook_process (WeeChat >= 0.3.9.2 does not call shell any more)
 #  * version 0.5, 2011-10-01, Sebastien Helleu <flashcode@flashtux.org>:
@@ -31,7 +33,7 @@ import weechat, os, datetime
 
 SCRIPT_NAME    = 'shell'
 SCRIPT_AUTHOR  = 'Kolter'
-SCRIPT_VERSION = '0.6'
+SCRIPT_VERSION = '0.7'
 SCRIPT_LICENSE = 'GPL2'
 SCRIPT_DESC    = 'Run shell commands in WeeChat'
 
@@ -85,8 +87,6 @@ def shell_set_title():
 def shell_process_cb(data, command, rc, stdout, stderr):
     """Callback for hook_process()."""
     global cmd_hook_process, cmd_buffer, cmd_stdout, cmd_stderr, cmd_send_to_buffer
-    if command.startswith("sh -c '"):
-        command = command[7:-1]
     cmd_stdout += stdout
     cmd_stderr += stderr
     if int(rc) >= 0:
@@ -98,8 +98,8 @@ def shell_process_cb(data, command, rc, stdout, stderr):
                         weechat.command(cmd_buffer, '%s' % line)
             else:
                 if cmd_send_to_buffer != 'new':
-                    weechat.prnt(cmd_buffer, '%sCommand "%s" (rc %s), stdout:'
-                                 % (SHELL_PREFIX, command, rc))
+                    weechat.prnt(cmd_buffer, '%sCommand "%s" (rc %d), stdout:'
+                                 % (SHELL_PREFIX, data, int(rc)))
                 for line in lines:
                     if line:
                         weechat.prnt(cmd_buffer, ' \t%s' % line)
@@ -111,8 +111,8 @@ def shell_process_cb(data, command, rc, stdout, stderr):
                         weechat.command(cmd_buffer, '%s' % line)
             else:
                 if cmd_send_to_buffer != 'new':
-                    weechat.prnt(cmd_buffer, '%s\t%sCommand "%s" (rc %s), stderr:'
-                                 % (weechat.prefix('error'), SHELL_PREFIX, command, rc))
+                    weechat.prnt(cmd_buffer, '%s%sCommand "%s" (rc %d), stderr:'
+                                 % (weechat.prefix('error'), SHELL_PREFIX, data, int(rc)))
                 for line in lines:
                     if line:
                         weechat.prnt(cmd_buffer, '%s%s' % (weechat.prefix('error'), line))
@@ -223,7 +223,12 @@ def shell_exec(buffer, command):
         cmd_command = command
         cmd_start_time = datetime.datetime.now()
         cmd_buffer = buffer
-        cmd_hook_process = weechat.hook_process("sh -c '%s'" % command, cmd_timeout * 1000, 'shell_process_cb', '')
+        version = weechat.info_get("version_number", "") or 0
+        if int(version) >= 0x00040000:
+            cmd_hook_process = weechat.hook_process_hashtable('sh', { 'arg1': '-c', 'arg2': command },
+                                                              cmd_timeout * 1000, 'shell_process_cb', command)
+        else:
+            cmd_hook_process = weechat.hook_process("sh -c '%s'" % command, cmd_timeout * 1000, 'shell_process_cb', command)
 
 def shell_input_buffer(data, buffer, input):
     """Input callback on shell buffer."""
