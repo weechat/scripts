@@ -14,7 +14,7 @@ coords - weechat script to map screen coordinates (weechat edition)
 
 =head1 SYNOPSIS
 
-first, copy the file and the F<Nlib.pm> library to your
+first, copy the file to your
 F<.weechat/perl> directory. Then you can type
 
   /script load coords.pl
@@ -106,7 +106,7 @@ script to try and remedy this a little bit, but the perfect scrolling
 position cannot be restored due to internal limitations. (no longer
 the case in recent versions of WeeChat.)
 
-=Item *
+=item *
 
 whether other terminal emulators support selection storage, depends on
 how well they emulate B<xterm>. Set C<xterm_compatible> to your
@@ -194,6 +194,25 @@ when modifying this.
 =head2 url_non_endings
 
 this is matched against the end of a link and removed
+
+=head2 hyper_nicks
+
+make nicks to hyperlinks for menu/pm
+
+=head2 hyper_channels
+
+make channels to hyperlinks for join
+
+=head2 hyper_show
+
+set to types of hyperlinks that are shown by default
+
+=head2 use_nick_menu
+
+use nick menu when opening nick hyperlink (see I<hyper_nicks>,
+requires menu.pl script). otherwise open private message. this setting
+only applies to text mode selection, for mouse see
+I<mouse.nick_2nd_click>
 
 =head2 color.url_highlight
 
@@ -284,61 +303,18 @@ for full pod documentation, filter this script with
 use MIME::Base64;
 
 use constant SCRIPT_NAME => 'coords';
-weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.5', 'GPL3', 'copy text and urls', 'stop_coords', '');
+weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.6', 'GPL3', 'copy text and urls', 'stop_coords', '') || return;
+sub SCRIPT_FILE() {
+	my $infolistptr = weechat::infolist_get('perl_script', '', SCRIPT_NAME);
+	my $filename = weechat::infolist_string($infolistptr, 'filename') if weechat::infolist_next($infolistptr);
+	weechat::infolist_free($infolistptr);
+	return $filename unless @_;
+}
+
 {
 package Nlib;
 # this is a weechat perl library
 use strict; use warnings;
-
-# to read the following docs, you can use "perldoc Nlib.pm"
-
-=head1 NAME
-
-Nlib - weechat perl library with helper functions for infolists and to
-map screen coordinates
-
-=head1 USAGE
-
-To use this library in a weechat perl script, put the library file in
-either the weechat perl directory or in the same place as the script
-file you use in the C</perl load> command.
-
-Then, add the following preamble to your script, replacing
-C<YOUR_SCRIPT_NAME_HERE> with the name of your script and the call to
-C<weechat::register> with the appropriate data:
-
-  use constant SCRIPT_NAME => 'YOUR_SCRIPT_NAME_HERE';
-  weechat::register(SCRIPT_NAME, 'Author <address>', '9.99', 'License', 'Script description', 'stop_script_function', 'parameters');
-  sub SCRIPT_FILE() {
-  	my $infolistptr = weechat::infolist_get('perl_script', '', SCRIPT_NAME);
-  	my $filename = weechat::infolist_string($infolistptr, 'filename') if weechat::infolist_next($infolistptr);
-  	weechat::infolist_free($infolistptr);
-  	return $filename unless @_;
-  	my $sep = weechat::info_get('dir_separator', '');
-  	my @path = split $sep, $filename;
-  	my $link = readlink $filename;
-  	my @lpath = split $sep, $link if defined $link;
-  	(join '/', @path[0..$#path-1]),
-  	($path[-2] eq 'autoload' ? join '/', @path[0..$#path-2] : ()),
-  	(@lpath ? join '/', ($lpath[0] ne '' ? @path[0..$#path-1] : ''), @lpath[0..$#lpath-1] : ()),
-  	(join '/', (split $sep, weechat::info_get('weechat_dir', '')), 'perl')
-  }
-  require lib; lib->import(&SCRIPT_FILE(1));
-  require Nlib;
-
-To use the functions provided herein, call them with C<Nlib::function_name parameters...>
-  
-=head1 FUNCTION DESCRIPTION
-
-for full pod documentation, filter this script with
-
-  perl -pE'
-  (s/^## (.*?) -- (.*)/=head2 $1\n\n$2\n\n=over\n/ and $o=1) or
-   s/^## (.*?) - (.*)/=item I<$1>\n\n$2\n/ or
-  (s/^## (.*)/=back\n\n$1\n\n=cut\n/ and $o=0,1) or
-  ($o and $o=0,1 and s/^sub /=back\n\n=cut\n\nsub /)'
-
-=cut
 
 ## i2h -- copy weechat infolist content into perl hash
 ## $infolist - name of the infolist in weechat
@@ -378,11 +354,20 @@ sub i2h {
 					my ($key, $idx) = ($1, $2);
 					my @idx = split '_', $idx; shift @idx;
 					my $target = \$list{$key};
-					for my $x (@idx) { $target = \$$target->[$x-1] }
+					for my $x (@idx) {
+						my $o = 1;
+						if ($key eq 'key' or $key eq 'key_command') {
+							$o = 0;
+						}
+						if ($x-$o < 0) {
+							local $" = '|';
+							weechat::print('',"list error: $target/$$_/$key/$x/$idx/@idx(@_)");
+							$o = 0;
+						}
+						$target = \$$target->[$x-$o]
+					}
 					$$target = $r;
 
-					#$idx =~ s/_(\d+)/[$1]/g;
-					#print $Nlib::s $Nlib::gc, "Nlib/i2h/do/evalqq", Nlib::SNL ()  if defined $Nlib::s;
 					my $code = qq{
 						local \$[=1;
 						\$list{"\Q$key\E"}$idx = \$r
@@ -396,14 +381,16 @@ sub i2h {
 		} };
 	}
 	weechat::infolist_free($infptr);
-	@infolist
+	!wantarray && @infolist ? \@infolist : @infolist
 }
 
 ## hdh -- hdata helper
 sub hdh {
+	if (@_ > 1 && $_[0] !~ /^0x/ && $_[0] !~ /^\d+$/) {
+		my $arg = shift;
+		unshift @_, weechat::hdata_get_list(weechat::hdata_get($_[0]), $arg);
+	}
 	while (@_ > 2) {
-		#weechat::print(weechat::current_buffer(),join ':', @_);
-		#print STDERR '',(join ':', @_), "\n";
 		my ($arg, $name, $var) = splice @_, 0, 3;
 		my $hdata = weechat::hdata_get($name);
 
@@ -415,12 +402,9 @@ sub hdh {
 		}
 
 		my $fn = "weechat::hdata_$type";
-		#weechat::print(weechat::current_buffer(),"$fn $hdata $name $arg $var $plain_var");
-		#print STDERR "$fn $hdata $arg $var\n";
 		unshift @_, do { no strict 'refs';
 						 &$fn($hdata, $arg, $var) };
 	}
-	#weechat::print(weechat::current_buffer(),join ':', @_);
 	wantarray ? @_ : $_[0]
 }
 
@@ -504,43 +488,6 @@ sub has_false_value {
 	$v =~ /^(?:off|no|n|false|f|0)?$/i
 }
 
-## hook_dynamic -- weechat::hook something and store hook reference
-## $hook_call - hook type (e.g. modifier)
-## $what - event type to hook (depends on $hook_call)
-## $sub - subroutine name to install
-## @params - parameters
-sub hook_dynamic {
-	my ($hook_call, $what, $sub, @params) = @_;
-	my $caller_package = (caller)[0];
-	eval qq{
-		package $caller_package;
-		no strict 'vars';
-		\$DYNAMIC_HOOKS{\$what}{\$sub} =
-			weechat::hook_$hook_call(\$what, \$sub, \@params)
-				unless exists \$DYNAMIC_HOOKS{\$what} &&
-					exists \$DYNAMIC_HOOKS{\$what}{\$sub};
-	};
-	die $@ if $@;
-}
-
-## unhook_dynamic -- weechat::unhook something where hook reference has been stored with hook_dynamic
-## $what - event type that was hooked
-## $sub - subroutine name that was installed
-sub unhook_dynamic {
-	my ($what, $sub) = @_;
-	my $caller_package = (caller)[0];
-	eval qq{
-		package $caller_package;
-		no strict 'vars';
-		weechat::unhook(\$DYNAMIC_HOOKS{\$what}{\$sub})
-			if exists \$DYNAMIC_HOOKS{\$what} &&
-				exists \$DYNAMIC_HOOKS{\$what}{\$sub};
-		delete \$DYNAMIC_HOOKS{\$what}{\$sub};
-		delete \$DYNAMIC_HOOKS{\$what} unless \%{\$DYNAMIC_HOOKS{\$what}};
-	};	
-	die $@ if $@;
-}
-
 ## bar_filling -- get current filling according to position
 ## $bar_infos - info about bar (from find_bar_window)
 ## returns filling as an integer number
@@ -573,7 +520,6 @@ sub bar_column_max_length {
 	for (@items) {
 		my $item_length = screen_length fu8on weechat::string_remove_color($_, '');
 		$max_length = $item_length if $max_length < $item_length;
-		#weechat::print('',"length: $item_length item: $_") if DEBUG_BAR_ITEM_CODE;
 	}
 	$max_length;
 }
@@ -700,7 +646,6 @@ sub bar_items_skip_to {
 		$prefix_col = 1+(1+$item_max_length)*int(@prefix / $col_vert_lines);
 	}
 
-	#weechat::print('', "looking for subitem @ $prefix_col $item_pos_a $item_pos_b ".join ':',@prefix) if DEBUG_BAR_ITEM_CODE;
 	(undef,
 	 $item_pos_a, $item_pos_b,
 	 $prefix_col, $prefix_y,
@@ -728,7 +673,6 @@ sub bar_item_get_subitem_at {
 	$row += $bar_infos->[0]{'scroll_y'};
 
 	return $error if $error;
-	#weechat::print('', "item@$item_pos_a/$item_pos_b prefix\@$prefix_col,$prefix_y (#:$prefix_cnt)");
 	
 	return 'no viable position'
 		unless (($row == $prefix_y  && $col >= $prefix_col) || $row > $prefix_y || bar_filling($bar_infos) >= 3);
@@ -742,8 +686,6 @@ sub bar_item_get_subitem_at {
 			bar_line_wrap_horiz(\($prefix_col, $prefix_y), $bar_infos);
 		}
 
-		#weechat::print('', "test $idx @ prefix_col: $prefix_col [col: $col] prefix_y: $prefix_y [row: $row] ".sprintf("prefix_col > col %d; row < prefix_y %d", ($prefix_col > $col), ($row < $prefix_y))) if DEBUG_BAR_ITEM_CODE;
-
 		return (undef, $idx, $_, [$beg_col, $col, $prefix_col, $beg_y, $row, $prefix_y])
 			if (($prefix_col > $col && $row == $prefix_y) || ($row < $prefix_y && bar_filling($bar_infos) < 3));
 
@@ -753,7 +695,6 @@ sub bar_item_get_subitem_at {
 			++$prefix_col;
 			return ('outside', $idx-1, $_)
 				if ($prefix_y == $row && $prefix_col > $col);
-			#|| $prefix_col > $bar_infos->[0]{'width'};
 		}
 		elsif (bar_filling($bar_infos) == 1) {
 			return ('outside', $idx-1, $_)
@@ -763,8 +704,6 @@ sub bar_item_get_subitem_at {
 		}
 		elsif (bar_filling($bar_infos) == 2) {
 			$prefix_col += 1+$item_max_length-(($prefix_col-1)%($item_max_length+1));
-
-			#weechat::print('', "prefix_col --> $prefix_col [item size: $item_max_length] prefix_y $prefix_y" ) if DEBUG_BAR_ITEM_CODE;
 
 			return ('outside', $idx-1, $_)
 				if ($prefix_y == $row && $prefix_col > $col);
@@ -784,52 +723,156 @@ sub bar_item_get_subitem_at {
 			$prefix_y = 1+(($idx+$prefix_cnt) % $col_vert_lines);
 			$prefix_col = 1+(1+$item_max_length)*int(($idx+$prefix_cnt) / $col_vert_lines);
 
-			#weechat::print('', "idx: $idx y: $prefix_y col: $prefix_col [lines: $col_vert_lines]") if DEBUG_BAR_ITEM_CODE;
 		}
 	}
 	'not found';
 }
 
-## bar_item_get_item_and_subitem_at -- gets item and subitem at position
-## $bar_infos - info about bar
-## $col - pointer column
-## $row - pointer row
-## returns generic item, error if outside subitem, index of subitem and text of subitem
-sub bar_item_get_item_and_subitem_at {
-	my ($bar_infos, $col, $row) = @_;
-	my $item_pos_a = 0;
-	my $item_pos_b;
-	for (@{ $bar_infos->[-1]{'items_array'} }) {
-		$item_pos_b = 0;
-		for (@$_) {
-			my $g_item = "^\Q$_\E\$";
-			my ($error, @rest) =
-				bar_item_get_subitem_at($bar_infos, $g_item, $col, $row);
-			return ($_, $error, @rest)
-				if (!defined $error || $error =~ /^outside/);
-			return () if $error eq 'no viable position';
-			++$item_pos_b;
-		}
-		++$item_pos_a;
+use Pod::Select qw();
+use Pod::Simple::TextContent;
+
+## get_desc_from_pod -- return setting description from pod documentation
+## $file - filename with pod
+## $setting - name of setting
+## returns description as text
+sub get_desc_from_pod {
+	my $file = shift;
+	return unless -s $file;
+	my $setting = shift;
+
+	open my $pod_sel, '>', \my $ss;
+	Pod::Select::podselect({
+	   -output => $pod_sel,
+	   -sections => ["SETTINGS/$setting"]}, $file);
+
+	my $pt = new Pod::Simple::TextContent;
+	$pt->output_string(\my $ss_f);
+	$pt->parse_string_document($ss);
+
+	my ($res) = $ss_f =~ /^\s*\Q$setting\E\s+(.*)\s*$/;
+	$res
+}
+
+## get_settings_from_pod -- retrieve all settings in settings section of pod
+## $file - file with pod
+## returns list of all settings
+sub get_settings_from_pod {
+	my $file = shift;
+	return unless -s $file;
+
+	open my $pod_sel, '>', \my $ss;
+	Pod::Select::podselect({
+	   -output => $pod_sel,
+	   -sections => ["SETTINGS//!.+"]}, $file);
+
+	$ss =~ /^=head2\s+(.*)\s*$/mg
+}
+
+## mangle_man_for_wee -- turn man output into weechat codes
+sub mangle_man_for_wee {
+	for (@_) {
+		s/_\x08(.)/weechat::color('underline').$1.weechat::color('-underline')/ge;
+		s/(.)\x08\1/weechat::color('bold').$1.weechat::color('-bold')/ge;
 	}
-	()
+	wantarray ? @_ : $_[0]
+}
+
+## read_manpage -- read a man page in weechat window
+## $file - file with pod
+## $name - buffer name
+sub read_manpage {
+	my $caller_package = (caller)[0];
+	my $file = shift;
+	my $name = shift;
+
+	if (my $obuf = weechat::buffer_search('perl', "man $name")) {
+		weechat::buffer_close($obuf);
+	}
+
+	my @wee_keys = Nlib::i2h('key');
+	my @keys;
+
+	my $winptr = weechat::current_window();
+	my ($wininfo) = Nlib::i2h('window', $winptr);
+	my $buf = weechat::buffer_new("man $name", '', '', '', '');
+	return weechat::WEECHAT_RC_OK unless $buf;
+
+	my $width = $wininfo->{'chat_width'};
+	--$width if $wininfo->{'chat_width'} < $wininfo->{'width'} || ($wininfo->{'width_pct'} < 100 && (grep { $_->{'y'} == $wininfo->{'y'} } Nlib::i2h('window'))[-1]{'x'} > $wininfo->{'x'});
+
+	weechat::buffer_set($buf, 'time_for_each_line', 0);
+	eval qq{
+		package $caller_package;
+		weechat::buffer_set(\$buf, 'display', 'auto');
+	};
+	die $@ if $@;
+
+	@keys = map { $_->{'key'} }
+		grep { $_->{'command'} eq '/input history_previous' ||
+			   $_->{'command'} eq '/input history_global_previous' } @wee_keys;
+	@keys = 'meta2-A' unless @keys;
+	weechat::buffer_set($buf, "key_bind_$_", '/window scroll -1') for @keys;
+
+	@keys = map { $_->{'key'} }
+		grep { $_->{'command'} eq '/input history_next' ||
+			   $_->{'command'} eq '/input history_global_next' } @wee_keys;
+	@keys = 'meta2-B' unless @keys;
+	weechat::buffer_set($buf, "key_bind_$_", '/window scroll +1') for @keys;
+
+	weechat::buffer_set($buf, 'key_bind_ ', '/window page_down');
+
+	@keys = map { $_->{'key'} }
+		grep { $_->{'command'} eq '/input delete_previous_char' } @wee_keys;
+	@keys = ('ctrl-?', 'ctrl-H') unless @keys;
+	weechat::buffer_set($buf, "key_bind_$_", '/window page_up') for @keys;
+
+	weechat::buffer_set($buf, 'key_bind_g', '/window scroll_top');
+	weechat::buffer_set($buf, 'key_bind_G', '/window scroll_bottom');
+
+	weechat::buffer_set($buf, 'key_bind_q', '/buffer close');
+
+	weechat::print($buf, " \t".mangle_man_for_wee($_))
+			for `pod2man \Q$file\E | GROFF_NO_SGR=1 nroff -mandoc -rLL=${width}n -rLT=${width}n -Tutf8 2>/dev/null`;
+	weechat::command($buf, '/window scroll_top');
+
+	unless (hdh($buf, 'buffer', 'lines', 'lines_count') > 0) {
+		weechat::print($buf, weechat::prefix('error').$_)
+				for "Unfortunately, your @{[weechat::color('underline')]}nroff".
+					"@{[weechat::color('-underline')]} command did not produce".
+					" any output.",
+					"Working pod2man and nroff commands are required for the ".
+					"help viewer to work.",
+					"In the meantime, please use the command ", '',
+					"\tperldoc $file", '',
+					"on your shell instead in order to read the manual.",
+					"Thank you and sorry for the inconvenience."
+	}
 }
 
 1
 }
 
 use constant CMD_COPYWIN => 'copywin';
-weechat::hook_command(CMD_COPYWIN, 'copy active window', '', '', '', 'copywin_cmd', '');
+weechat::hook_command(CMD_COPYWIN, 'copy active window for hyperlink operations or free selection of text',
+					  '[/] || url nicks channels',
+					  'if any or more arguments are given, go into hyperlink mode and set this filter.'."\n".
+						  'in the title bar of opened copy window, the possible key bindings are displayed.'."\n".
+							  'use '.weechat::color('bold').'/'.CMD_COPYWIN.' help'.weechat::color('-bold').
+								  ' to read the manual',
+					  '|| / %- || url %- || nicks %- || channels %- || url,nicks %- || url,channels %- '.
+						  '|| url,nicks,channels %- || nicks,channels %- || help',
+					  'copywin_cmd', '');
 weechat::hook_signal('buffer_closed', 'garbage_str', '');
+weechat::hook_signal('upgrade', 'close_copywin', '');
 weechat::hook_config('plugins.var.perl.'.SCRIPT_NAME.'.*', 'default_options', '');
 weechat::hook_signal('mouse', 'mouse_evt', '');
 weechat::hook_signal('input_flow_free', 'binding_mouse_fix', '');
 weechat::hook_modifier('input_text_display_with_cursor', 'input_text_hlsel', '');
 # is there builtin mouse support?
-weechat::hook_hsignal('coords', 'hsignal_evt', '');
+weechat::hook_hsignal(SCRIPT_NAME, 'hsignal_evt', '');
 weechat::key_bind('mouse', +{
-	map { $_ => 'hsignal:coords' }
-	'@chat:button1*',
+	map { $_ => 'hsignal:'.SCRIPT_NAME }
+	'@chat:button1*', '@chat:button1-event-*'
 });
 
 # downloaded line fields
@@ -843,6 +886,7 @@ use constant URL_S => 1;
 use constant URL => 2;
 use constant URL_E => 3;
 use constant URL_LINE => 4;
+use constant URL_INFO => 5;
 
 # captured control codes fields
 use constant RES => 0;
@@ -862,6 +906,7 @@ use constant URLS => 4;
 use constant MODE => 5;
 use constant CUR => 6;
 use constant MOUSE_AUTOMODE => 7;
+use constant URL_TYPE_FILTER => 8;
 # currently active storage key
 our $ACT_STR;
 
@@ -871,6 +916,8 @@ our $mouse_2nd_click;
 our $autoclose_in_progress;
 our $drag_speed_timer;
 our $delayed_nick_menu_timer;
+
+our $hsignal_mouse_down_sent;
 
 our $input_sel;
 
@@ -887,7 +934,7 @@ sub hdh_get_lineinfo {
 	+{
 		next_line => scalar Nlib::hdh(@_, 'next_line'),
 		(map { $_ => scalar Nlib::hdh(@line_data,  $_) }
-			qw(displayed message prefix str_time buffer date)),
+			qw(displayed message prefix str_time buffer date highlight)),
 		tag => [ map { Nlib::hdh(@line_data, "$_|tags_array") }
 					 0 .. Nlib::hdh(@line_data, 'tags_count')-1 ]
 	   }
@@ -907,6 +954,7 @@ sub fu8on(@) {
 ## $lineinfo - lineinfo with message to break into lines
 ## $wininfo - window info hash with chat_width
 ## $base_trace - ref to base trace with # fields
+## $prev_lineinfo - lineinfo of previous message for prefix erasure
 ## returns (layoutinfo hashref, partial trace arrayref)
 sub calculate_trace {
 	# b : pos // break between words
@@ -917,74 +965,127 @@ sub calculate_trace {
 	# p : x # j // prefix (nick etc.)
 	# q : x # j // separator
 	# q : x . line
-	my ($lineinfo, $wininfo, $base_trace) = @_;
+	my ($lineinfo, $wininfo, $base_trace, $prev_lineinfo) = @_;
 	my $msg = fu8on $lineinfo->{'message'};
 	my $layoutinfo = +{ count => 1 };
 	my @trace;
 	my $show_time = $base_trace->[1];
+	my $no_prefix_align;
+	if ($base_trace->[-1] < 0) {
+		$no_prefix_align = $base_trace->[5];
+		$base_trace->[5] = $base_trace->[-1] = 0;
+		my $prefix = $lineinfo->{'prefix'};
+		if (defined $prefix) {
+			
+			my ($nick_tag) = grep { /^nick_/ } @{$lineinfo->{'tag'}||[]};
+			my ($pnick_tag) = grep { /^nick_/ } @{$prev_lineinfo->{'tag'}||[]};
+			if ($nick_tag && $pnick_tag && $nick_tag eq $pnick_tag && !$lineinfo->{'highlight'} &&
+					(grep { /_action$/ && !/^nick_/ } @{$lineinfo->{'tag'}||[]}) == 0 &&
+					$prev_lineinfo && $lineinfo->{'prefix'} eq $prev_lineinfo->{'prefix'}) {
+				my $repl = weechat::config_string(weechat::config_get(
+					'weechat.look.prefix_same_nick'));
+				$prefix = $repl if length $repl;
+				$prefix = '' if $repl eq ' ';
+			}
+			$base_trace->[5] = (sort { $a <=> $b } ($no_prefix_align?$no_prefix_align+1:0), screen_length fu8on weechat::string_remove_color($prefix, ''))[0];
+		}
+	}
 	$base_trace->[1] = $show_time ? screen_length fu8on weechat::string_remove_color($lineinfo->{'str_time'}, '') : 0;
 	for (my ($i, $pos) = (0, 0); $i < @$base_trace; $i+=2) {
 		$pos += $base_trace->[$i+1] + 1 if $base_trace->[$i+1];
-		push @trace, $base_trace->[$i] . ':' . $pos . '#'
+		push @trace, $base_trace->[$i] . ':' . $pos . '#' if $base_trace->[$i+1];
 	}
-	$base_trace->[1] = $show_time;
 	my ($ctrl, $plain_msg) = capture_color_codes($msg);
 	my @words = split /(\s+)/, $plain_msg;
-	my ($screen) = ((trace_cond('q', [\@trace], 0))[0] =~ /:(\d+)/);
-	my $new_screen = $screen;
+	my $screen = 0;
+	if ($base_trace->[-1]) {
+		($screen) = ((trace_cond('q', [\@trace], 0))[0] =~ /:(\d+)/);
+	}
+	elsif ($base_trace->[5]) {
+		($screen) = ((trace_cond('p', [\@trace], 0))[0] =~ /:(\d+)/);
+	}
+	elsif ($base_trace->[3]) {
+		($screen) = ((trace_cond('u', [\@trace], 0))[0] =~ /:(\d+)/);
+	}
+	elsif ($base_trace->[1]) {
+		($screen) = ((trace_cond('t', [\@trace], 0))[0] =~ /:(\d+)/);
+	}
+	my $new_screen = 0;
 	my $eol_pos = weechat::config_string(weechat::config_get('weechat.look.align_end_of_lines'));
-	if ($eol_pos eq 'time') {
-		$new_screen = 0;
+	unless ($eol_pos eq 'time') {
+		($new_screen) = ((trace_cond('t', [\@trace], 0))[0] =~ /:(\d+)/)
+			if $base_trace->[1];
+		unless ($eol_pos eq 'buffer') {
+			($new_screen) = ((trace_cond('u', [\@trace], 0))[0] =~ /:(\d+)/)
+				if $base_trace->[3];
+			unless ($eol_pos eq 'prefix') {
+				($new_screen) = ((trace_cond('p', [\@trace], 0))[0] =~ /:(\d+)/)
+					if $base_trace->[5];
+				unless ($eol_pos eq 'suffix') {
+					$new_screen = $screen;
+				}
+			}
+		}
 	}
-	elsif ($eol_pos eq 'buffer') {
-		($new_screen) = ((trace_cond('t', [\@trace], 0))[0] =~ /:(\d+)/);
-	}
-	elsif ($eol_pos eq 'prefix') {
-		($new_screen) = ((trace_cond('u', [\@trace], 0))[0] =~ /:(\d+)/);
-	}
-	elsif ($eol_pos eq 'suffix') {
-		($new_screen) = ((trace_cond('p', [\@trace], 0))[0] =~ /:(\d+)/);
-	}
-
-	unless ($lineinfo->{date}) {
+	unless ($lineinfo->{'date'}) {
 		$screen = $new_screen = 0;
 		@trace = ();
+		if ($base_trace->[3]) {
+			$screen = $base_trace->[3] + 1;
+			push @trace, "u:$screen#";
+		}
 	}
+	$base_trace->[1] = $show_time;
+	if (defined $no_prefix_align) {
+		$base_trace->[5] = $no_prefix_align;
+		$base_trace->[-1] = -1;
+	}
+
 	# XXX missing special case:  $wininfo->{'chat_width'} - $screen < 4
-	# ignore all line break rules, just X every screenful
+	# `--> ignore all line break rules, just X every screenful
 	my $pos = 0;
 	my $width = $wininfo->{'chat_width'};
-	--$width if $wininfo->{'chat_width'} < $wininfo->{'width'} || $wininfo->{'width_pct'} < 100;
+	--$width if $wininfo->{'chat_width'} < $wininfo->{'width'} || ($wininfo->{'width_pct'} < 100 && (grep { $_->{'y'} == $wininfo->{'y'} } Nlib::i2h('window'))[-1]{'x'} > $wininfo->{'x'});
 	for (my $i = 0; $i < @words; $i+=2) {
 		my $len = defined $words[$i] ? screen_length $words[$i] : 0;
-		my $len2 = $len + ($i == $#words ? 0 : screen_length $words[$i+1]);
+		my $len2 = $i == $#words ? 0 : screen_length $words[$i+1];
 		if ($len <= $width - $screen) {
 			# no action needed
-			$screen += $len2;
+			$screen += $len + $len2;
 		}
 		elsif ($len > $width - $screen) {
-			if ($len <= $width - $new_screen) {
+			if ($len <= $width - $new_screen && $pos) { #cannot break before first word
 				push @trace, 'b:'.$pos;
 				push @trace, 'q:'.$new_screen.'.'.$layoutinfo->{'count'}++;
-				$screen = $new_screen+$len2;
+				$screen = $new_screen + $len + $len2;
 			}
 			else {
 				my $pump = $width - $screen;
-				if ($pump < 0) {
+				if ($pump <= 0) {
 					push @trace, 'b:'.$pos;
 					push @trace, 'q:'.$new_screen.'.'.$layoutinfo->{'count'}++;
 					$pump = $width - $new_screen;
 				}
-				while ($pump < $len) {
-					last if $width - $new_screen <= 0;
-					push @trace, 'x:'.($pos+$pump);
-					push @trace, 'q:'.$new_screen.'.'.$layoutinfo->{'count'}++;
-					$pump += $width - $new_screen;
+				if ($pump > 0) {
+					my $ipos = $pos;
+					while ($pump < $len) {
+						my $i = 0;
+						for (;;) {
+							my $clen = screen_length substr $plain_msg, $ipos, 1;
+							last if $i + $clen > $pump;
+							$i += $clen;
+							++$ipos;
+						}
+						push @trace, 'x:'.$ipos;
+						push @trace, 'q:'.$new_screen.'.'.$layoutinfo->{'count'}++;
+						$len -= $i;
+						$pump = $width - $new_screen;
+					}
 				}
-				$screen = $new_screen+($len2-$len)+($width - $new_screen + $len - $pump);
+				$screen = $new_screen + $len + $len2;
 			}
 		}
-		$pos += $len2;
+		$pos += ($len ? length $words[$i] : 0) + ($len2 ? length $words[$i+1] : 0);
 	}
 	while (@{$ctrl->[POS_S]}) {
 		my $ctrl_s = shift @{$ctrl->[POS_S]};
@@ -1012,7 +1113,7 @@ sub download_lines {
 	my $show_time = Nlib::hdh($wininfo->{'buffer'}, 'buffer', 'time_for_each_line');
 	my $buffer_len = (sort { $a <=> $b } Nlib::hdh(@lines_in, 'buffer_max_length'), grep { $_ > 0 } weechat::config_integer(weechat::config_get('weechat.look.prefix_buffer_align_max')))[0];
 	my $prefix_len = (sort { $a <=> $b } Nlib::hdh(@lines_in, 'prefix_max_length'), grep { $_ > 0 } weechat::config_integer(weechat::config_get('weechat.look.prefix_align_max')))[0];
-	my $separator_len = screen_length fu8on weechat::config_string(weechat::config_get('weechat.look.prefix_suffix'));
+	my $separator_len = weechat::config_string(weechat::config_get('weechat.look.prefix_align')) eq 'none' ? -1 : screen_length fu8on weechat::config_string(weechat::config_get('weechat.look.prefix_suffix'));
 
 	my @base_trace = (t => $show_time, u => $buffer_len, p => $prefix_len, q => $separator_len);
 
@@ -1020,11 +1121,13 @@ sub download_lines {
 	my $last_read_line = weechat::config_string(weechat::config_get('weechat.look.read_marker')) eq 'line'
 		? Nlib::hdh(@lines_in, 'last_read_line')
 			: '';
+	my $read_marker_always = weechat::config_boolean(weechat::config_get('weechat.look.read_marker_always_show'));
 	$last_read_line = '' if $last_read_line eq $line[0]
-		&& !weechat::config_boolean(weechat::config_get('weechat.look.read_marker_always_show'));
+		&& !$read_marker_always;
 	my $lp;
-	if (Nlib::hdh(@scroll_area, 'scrolling')) {
-		@line = Nlib::hdh(@scroll_area, 'start_line');
+	my @scroll_line = Nlib::hdh(@scroll_area, 'start_line');
+	if ($scroll_line[0]) {
+		@line = @scroll_line;
 		$lineinfo = hdh_get_lineinfo(@line);
 		$wininfo->{'start_line_pos'} = Nlib::hdh
 			(@scroll_area, 'start_line_pos');
@@ -1033,43 +1136,90 @@ sub download_lines {
 		$wininfo->{'start_line_pos'} = 0;
 		my $total = Nlib::hdh(@lines_in, 'lines_count');
 		return [] unless $total;
+		my $not_last_line = 0;
 		for (my ($i, $j) = (0, 0); $j < $wininfo->{'chat_height'} && $i < $total; ++$i) {
+
 			$line[0] = Nlib::hdh(@line, 'prev_line') if $i > 0;
+
+			if ($line[0] eq $last_read_line) {
+				if ($not_last_line || $read_marker_always) {
+					++$j;
+				}
+				else {
+					$last_read_line = '';
+				}
+			}
 			my @line_data = Nlib::hdh(@line, 'data');
 			if (Nlib::hdh(@line_data, 'displayed')) {
-				my ($layout_info) = calculate_trace(+{ map { $_ => Nlib::hdh(@line_data, $_) } qw(message str_time date) },
-													$wininfo, \@base_trace);
+				my $lineinfo = +{ map { $_ => Nlib::hdh(@line_data, $_) } qw(message str_time date highlight) };
+				my $prev_lineinfo;
+				if ($base_trace[-1] < 0 && $i + 1 < $total) {
+				HAS_PREV: {
+						my @prev_line = @line;
+						my @prev_linedata;
+						do {
+							@prev_line = Nlib::hdh(@prev_line, 'prev_line');
+							last HAS_PREV unless $prev_line[0];
+							@prev_linedata = Nlib::hdh(@prev_line, 'data');
+						} until (Nlib::hdh(@prev_linedata, 'displayed'));
+						$prev_lineinfo = +{
+							(map { $_ => Nlib::hdh(@prev_linedata, $_) } qw(message str_time date highlight prefix)),
+							tag => [
+								map { Nlib::hdh(@prev_linedata, "$_|tags_array") }
+									0 .. Nlib::hdh(@prev_linedata, 'tags_count')-1 ]
+						   };
+						my ($prev_layoutinfo) = calculate_trace($prev_lineinfo,
+																$wininfo, \@base_trace);
+						my ($this_layoutinfo) = calculate_trace($lineinfo,
+																$wininfo, \@base_trace);
+						$prev_lineinfo = undef if $prev_layoutinfo->{'count'} + $this_layoutinfo->{'count'} + $j > $wininfo->{'chat_height'};
+					}
+					$lineinfo->{'prefix'} = Nlib::hdh(@line_data, 'prefix');
+					$lineinfo->{'tag'} = [
+						map { Nlib::hdh(@line_data, "$_|tags_array") }
+							0 .. Nlib::hdh(@line_data, 'tags_count')-1 ];
+				}
+				my ($layout_info) = calculate_trace($lineinfo,
+													$wininfo, \@base_trace,
+													$prev_lineinfo);
+				$prev_lineinfo = $lineinfo;
 				$j+=$layout_info->{'count'};
+				$not_last_line = 1 if $j;
 				$wininfo->{'start_line_pos'} -= $wininfo->{'chat_height'} - $j
 					if $j > $wininfo->{'chat_height'};
-			}
-			if ($line[0] eq $last_read_line) {
-				++$j;
 			}
 		}
 		$lineinfo = hdh_get_lineinfo(@line);
 	}
 	$lp = $line[0];
 
-	my @lines = [+{%$lineinfo}, calculate_trace($lineinfo, $wininfo, \@base_trace)];
-	my $current_line = $lines[0][LAYOUT]{'count'}-$wininfo->{'start_line_pos'};
+	my @lines;
+	my $current_line = 0;
+	if ($lineinfo->{'displayed'}) {
+		push @lines, [+{%$lineinfo}, calculate_trace($lineinfo, $wininfo, \@base_trace)];
+		$current_line = $lines[0][LAYOUT]{'count'}-$wininfo->{'start_line_pos'};
+	}
+	my $prev_lineinfo;
+	$prev_lineinfo = $lineinfo unless $wininfo->{'start_line_pos'};
+	# XXX start_line_pos is buggy under yet uncertain multi-line messages
+	#$wininfo->{'start_line_pos'} = 6;
 
-	do {{
-		$lp = $lineinfo->{'next_line'};
-		$lineinfo = hdh_get_lineinfo($lineinfo->{'next_line'}, 'line');
-		
-		if ($lineinfo->{'displayed'}) {
-			push @lines, [+{%$lineinfo}, calculate_trace($lineinfo, $wininfo, \@base_trace)];
-			$current_line += $lines[-1][LAYOUT]{'count'};
-		}
-
+	do {
 		if ($lp eq $last_read_line) {
 			push @lines, [+{message=>'',prefix=>''}, +{count=>1}, []];
 			++$current_line;
 		}
-	}}
-	while ($lineinfo->{'next_line'} && $current_line < $wininfo->{'chat_height'});
 
+		$lp = $lineinfo->{'next_line'};
+		$lineinfo = hdh_get_lineinfo($lineinfo->{'next_line'}, 'line');
+		
+		if ($lineinfo->{'displayed'}) {
+			push @lines, [+{%$lineinfo}, calculate_trace($lineinfo, $wininfo, \@base_trace, $prev_lineinfo)];
+			$prev_lineinfo = $lineinfo;
+			$current_line += $lines[-1][LAYOUT]{'count'};
+		}
+	}
+	while ($lineinfo->{'next_line'} && $current_line < $wininfo->{'chat_height'});
 
 	\@lines;
 }
@@ -1083,7 +1233,6 @@ sub OLD_download_lines {
 	my @lines;
 
 	# get first line of buffer
-#### XXX needs replacement: start_line, start_line_pos, layout, buffer_lines
 	return \@lines unless $wininfo->{'start_line'};
 	my ($lineinfo) = Nlib::i2h('buffer_lines', @{$wininfo}{'buffer','start_line'});
 	my ($layoutinfo) = Nlib::i2h('layout', $wininfo->{'pointer'}, $lineinfo->{'line'}, $listptr);
@@ -1091,7 +1240,6 @@ sub OLD_download_lines {
 
 	push @lines, [+{%$lineinfo}, $layoutinfo, [Nlib::l2l($listptr, 1)]];
 
-#### XXX needs replacement: next_line
 	while ($lineinfo->{'next_line'} && $current_line < $wininfo->{'chat_height'}) {
 		($lineinfo) = Nlib::i2h('buffer_lines', @{$lineinfo}{'buffer','next_line'});		
 		next unless $lineinfo->{'displayed'};
@@ -1138,7 +1286,7 @@ sub to_pos {
 	my $pos = $1;
 	my $current_length = screen_length fu8on weechat::string_remove_color($$c_ref, '');
 	if ($pos-$current_length < 0) {
-		chop $$c_ref while length $$c_ref && (screen_length fu8on weechat::string_remove_color($$c_ref, '')) >= $pos;
+		chop $$c_ref while length $$c_ref && (screen_length fu8on weechat::string_remove_color($$c_ref, '')) > $pos;
 	}
 	else {
 		$$c_ref .= ' 'x($pos-$current_length);
@@ -1196,7 +1344,8 @@ sub show_prefix {
 		my $prefix = fu8on $line->[LINE]{'prefix'};
 		my ($nick_tag) = grep { /^nick_/ } @{$line->[LINE]{'tag'}||[]};
 		my ($pnick_tag) = grep { /^nick_/ } @{$prev_line->[LINE]{'tag'}||[]};
-		if ($nick_tag && $pnick_tag && $nick_tag eq $pnick_tag &&
+		if ($nick_tag && $pnick_tag && $nick_tag eq $pnick_tag && !$line->[LINE]{'highlight'} &&
+				(grep { /_action$/ && !/^nick_/ } @{$line->[LINE]{'tag'}||[]}) == 0 &&
 				$prev_line && $line->[LINE]{'prefix'} eq $prev_line->[LINE]{'prefix'}) {
 			my $repl = fu8on weechat::config_string(weechat::config_get(
 					'weechat.look.prefix_same_nick'));
@@ -1217,11 +1366,10 @@ sub show_prefix {
 sub show_separator {
 	my ($line, $c_ref, $lineno) = @_;
 	if (my ($tr) = trace_cond('q', $line, $lineno)) {
-		my $separator = weechat::color('chat_prefix_suffix').
-			            weechat::config_string(weechat::config_get('weechat.look.prefix_suffix')).
-					    weechat::color('reset');
+		my $separator = fu8on weechat::color('chat_prefix_suffix').
+			            weechat::config_string(weechat::config_get('weechat.look.prefix_suffix'));
 		right_align($tr, \$separator, $c_ref);
-		$$c_ref .= $separator;
+		$$c_ref .= $separator; # if XXX
 		to_pos($tr, $c_ref);
 	}
 }
@@ -1245,7 +1393,6 @@ sub calc_free_image {
 	my ($wininfo, $lines_ref) = @_;
 	my @image;
 	my $i = 0;
-#### XXX needs replacement: start_line_pos
 	my $first_line = $wininfo->{'start_line_pos'};
 	my $prev_line;
 	for my $line (@$lines_ref) {
@@ -1261,8 +1408,10 @@ sub calc_free_image {
 					show_time($line, \$construction);
 					show_buffername($line, \$construction);
 					show_prefix($line, \$construction, $prev_line);
+					$prev_line = $line if exists $line->[LINE]{'date'};
 				}
 				show_separator($line, \$construction, $_);
+				$construction .= weechat::color('reset');
  				$construction .= repeat_control_codes(substr $line->[LINE]{'message'}, 0, $splits[0][0]);
 				$subm =~ s/^ +// if $splits[0][1] =~ /[bn]/;
  				$construction .= $subm;
@@ -1274,7 +1423,6 @@ sub calc_free_image {
 			shift @splits;
 		}
 		$first_line = 0;
-		$prev_line = $line;
 	}
 	\@image
 }
@@ -1372,7 +1520,7 @@ sub DEBUG_hyperlink {
 ## $er - reference to end position of hyperlink
 ## $bracketing_r - calculated bracketing for this string
 sub hyperlink_adjust_region {
-	my ($sr, $msg_r, $er, $bracketing_r) = @_;
+	my ($sr, $msg_r, $er, $bracketing_r, $no_url) = @_;
 	my $non_endings = weechat::config_get_plugin('url_non_endings');
 	my $non_beginnings = weechat::config_get_plugin('url_non_beginnings');
 	for (undef) {
@@ -1385,16 +1533,20 @@ sub hyperlink_adjust_region {
 		elsif (exists $bracketing_r->{$$sr} && $bracketing_r->{$$sr}[-2] > $$er-1) {
 			++$$sr; redo;
 		}
-		if ((substr $$msg_r, $$er-1, 1) =~ /$non_endings/) {
-			--$$er; redo;
-		}
-		elsif ((substr $$msg_r, $$sr, 1) =~ /$non_beginnings/) {
-			++$$sr; redo;
+		unless ($no_url) {
+			if ((substr $$msg_r, $$er-1, 1) =~ /$non_endings/) {
+				--$$er; redo;
+			}
+			elsif ((substr $$msg_r, $$sr, 1) =~ /$non_beginnings/) {
+				++$$sr; redo;
+			}
 		}
 	}
 }
 
-sub trace_to_u8 {
+sub trace_to_u8 {}
+
+sub OLD_trace_to_u8 {
 	my ($line) = @_;
 	my $bytes_msg = $line->[LINE]{'message'};
 	Encode::_utf8_off($bytes_msg);
@@ -1482,7 +1634,8 @@ sub hyperlink_replay_codes {
 	my $max_loop = 2*( @{$ctrl->[POS_S]} + @$url_sr + @$url_er );
 	while (@{$ctrl->[POS_S]} || @$url_sr || @$url_er) {
 		print $fx "<S> @$url_sr\n<E> @$url_er\n<C> @{$ctrl->[POS_S]}\n" if $fx;
-		if (@$url_sr && $url_sr->[0] <= $url_er->[0] && (!@{$ctrl->[POS_S]} || $url_sr->[0] <= $ctrl->[POS_S][0])) {
+	   #if (@$url_sr && $url_sr->[0] <= $url_er->[0] && (!@{$ctrl->[POS_S]} || $url_sr->[0] <= $ctrl->[POS_S][0])) # code goes before original ctl code
+		if (@$url_sr && $url_sr->[0] <= $url_er->[0] && (!@{$ctrl->[POS_S]} || $url_sr->[0] < $ctrl->[POS_S][0])) {
 			$last_url_s = $url_sr->[0];
 			hyperlink_replay_code1($line, $msg_r, ($$active ? \$ul : \$ul_active), 0,
 				$url_sr, $url_er, @{$ctrl}[POS_S,POS_E], $fx, 'S');
@@ -1501,21 +1654,64 @@ sub hyperlink_replay_codes {
 			--$$active;
 		}
 		else { # ($ctrl->[POS_S][0] <= $url_sr->[0] && $ctrl->[POS_S][0] <= $url_er->[0])
+			my $ip = $ctrl->[POS_E][0];
+			my $needs_fixup = defined $last_url_s && $ctrl->[RES][0] =~ $UL_active;
 			hyperlink_replay_code2($ctrl, $msg_r, $url_sr, $url_er, $fx, 'C');
+			if ($needs_fixup) {
+				$last_url_s = $ip;
+				hyperlink_replay_code1($line, $msg_r, ($$active ? \$ul : \$ul_active), 0,
+				[$ip], $url_sr, $url_er, @{$ctrl}[POS_S,POS_E], $fx, 'F');
+			}
 		}
 		--$max_loop; die 'endless loop' if $max_loop < 0;
 	}
+}
+
+## hyperlink_match_type_filter -- checks if current type filter applies to url info
+## $url_info - hashref with a type property
+## returns true or false
+sub hyperlink_match_type_filter {
+	my ($url_info) = @_;
+	my $t = substr $url_info->{'type'}, 0, 1;
+	$ACT_STR->[URL_TYPE_FILTER] =~ $t
 }
 
 ## hyperlink_function -- highlight hyperlinks
 ## $lines_ref - downloaded lines
 sub hyperlink_function {
 	my ($lines_ref) = @_;
-	my $re = weechat::config_get_plugin('url_regex');
 	my $fx;
 	#open $fx, '>', ... || weechat::print('', "error:$!");
+	my ($nicklist, $channels);
+	if (Nlib::has_true_value(weechat::config_get_plugin('hyper_nicks'))) {
+		$nicklist = join '|',
+			map { quotemeta }
+			sort { length $b <=> length $a }
+			map { $_->{'name'} }
+			grep { $_->{'type'} eq 'nick' && $_->{'visible'} && length $_->{'name'} }
+			Nlib::i2h('nicklist', $ACT_STR->[WINDOWS]{'buffer'});
+	}
+	else {
+		$nicklist = '(?!)';
+	}
+	$nicklist = '(?!)' unless length $nicklist; # stop infinite loop on empty pair
+	if (Nlib::has_true_value(weechat::config_get_plugin('hyper_channels'))) {
+		$channels = qr,[#]+(?:\w|[][./+^!&|~}{)(:\\*@?'-])+,;
+	}
+	else {
+		$channels = '(?!)';
+	}
+
+	my $re = weechat::config_get_plugin('url_regex');
 	$ACT_STR->[A_LINK] = -1 unless defined ${$ACT_STR}[A_LINK];
-	my $a_link = $ACT_STR->[A_LINK];
+	my $a_link = -1;
+	if (defined $ACT_STR->[URLS] && $ACT_STR->[A_LINK] < @{$ACT_STR->[URLS]}
+	   && hyperlink_match_type_filter($ACT_STR->[URLS][$ACT_STR->[A_LINK]][URL_INFO])) {
+		for my $i (0 .. $ACT_STR->[A_LINK]) {
+			++$a_link
+				if hyperlink_match_type_filter($ACT_STR->[URLS][$i][URL_INFO]);
+		}
+	}
 	my @urls;
 	my $i = 0; # line index
 	for my $line (@$lines_ref) {
@@ -1524,17 +1720,21 @@ sub hyperlink_function {
 		my $bracketing_r = calculate_bracketing(\$plain_msg);
 		DEBUG_bracketing($bracketing_r, \$plain_msg, $fx);
 		my (@url_s, @url_res, @url_e);
-		while ($plain_msg =~ /$re/gx) {
+		while ($plain_msg =~ /\b($nicklist)(?:(?=\W)|$)|(?:^|(?<=\W))($channels)\b|$re/gx) {
+			my %typeinfo = (type => defined $1 ? 'nick' : defined $2 ? 'channel' : 'url');
 			my ($s, $e) = ($-[0], $+[0]);
 			DEBUG_hyperlink($s, $plain_msg, $e, $fx);
 			
-			hyperlink_adjust_region(\($s, $plain_msg, $e), $bracketing_r);
+			hyperlink_adjust_region(\($s, $plain_msg, $e), $bracketing_r, $typeinfo{'type'} ne 'url')
+				unless $typeinfo{'type'} eq 'nick';
 			my $t = substr $plain_msg, $s, $e-$s;
-			push @url_s, $s;
-			push @url_res, $t;
-			push @url_e, $e;
+			if (hyperlink_match_type_filter(\%typeinfo)) {
+				push @url_s, $s;
+				push @url_res, $t;
+				push @url_e, $e;
+			}
 			DEBUG_hyperlink($s, $plain_msg, $e, $fx);
-			push @urls, [ $line, $s, $t, $e, $i ];
+			push @urls, [ $line, $s, $t, $e, $i, \%typeinfo ];
 		}
 		
 		print $fx "X $plain_msg\n" if $fx;
@@ -1614,7 +1814,6 @@ sub send_clip {
 	my $compatible_terms = join '|', map { split /[,;]/ } split ' ',
 		weechat::config_get_plugin('xterm_compatible');
 	print STDERR $xterm_osc if $ENV{'TERM'} =~ /^xterm|$compatible_terms/;
-	#weechat::print('',$ENV{'TERM'} =~ /^xterm|$compatible_terms/);
 	if ($ENV{'TMUX'}) {
 		my @tmux_clients = `tmux lsc`;
 		my $active_term;
@@ -1624,7 +1823,6 @@ sub send_clip {
 			my ($path, $rest) = split ':', $_;
 			next unless $rest =~ / (?:xterm|$compatible_terms)/;
 			my $atime = -A $path;
-			#weechat::print('', "$path # $atime / $last_time : $rest");
 			if ($last_time >= $atime) {
 				$last_time = $atime;
 				$active_term = $path;
@@ -1677,17 +1875,42 @@ sub hyperlink_dispatch_input {
 		++$ACT_STR->[A_LINK];
 		$ACT_STR->[A_LINK] = 0
 			if $ACT_STR->[A_LINK] > @{ $ACT_STR->[URLS] };
+		until ($ACT_STR->[A_LINK] >= @{$ACT_STR->[URLS]}
+				   || hyperlink_match_type_filter($ACT_STR->[URLS][$ACT_STR->[A_LINK]][URL_INFO])) {
+			++$ACT_STR->[A_LINK];
+		}
 		hyperlink_to_clip();
 	}
 	elsif ($args eq '-') {	
 		--$ACT_STR->[A_LINK];
+		until ($ACT_STR->[A_LINK] < 0
+					 || hyperlink_match_type_filter($ACT_STR->[URLS][$ACT_STR->[A_LINK]][URL_INFO])) {
+			--$ACT_STR->[A_LINK];
+		}
 		$ACT_STR->[A_LINK] = @{ $ACT_STR->[URLS] }
 			if $ACT_STR->[A_LINK] < 0;
 		hyperlink_to_clip();
 	}
 	elsif ($args eq '!') {
 		if ($ACT_STR->[A_LINK] >= 0 && $ACT_STR->[A_LINK] < @{ $ACT_STR->[URLS] }) {
-			hyperlink_urlopen();
+			my $link_type = $ACT_STR->[URLS][$ACT_STR->[A_LINK]][URL_INFO]{'type'};
+			if ($link_type eq 'nick') {
+				my $nick = $ACT_STR->[URLS][$ACT_STR->[A_LINK]][URL];
+				if (Nlib::has_false_value(weechat::config_get_plugin('use_nick_menu'))) {
+					weechat::command($ACT_STR->[WINDOWS]{'buffer'}, "/query $nick");
+				}
+				else {
+					delayed_nick_menu($nick);
+					close_copywin(); # XXX
+				}
+			}
+			elsif ($link_type eq 'channel') {
+				my $channel = $ACT_STR->[URLS][$ACT_STR->[A_LINK]][URL];
+				weechat::command($ACT_STR->[WINDOWS]{'buffer'}, "/join $channel");
+			}
+			else {
+				hyperlink_urlopen();
+			}
 		}
 		else {
 			weechat::command($ACT_STR->[BUFPTR], '/input return');
@@ -1853,7 +2076,14 @@ sub selection_replay_codes {
 				\@ends, \@starts, \@cup, @{$ctrl}[POS_S,POS_E], $fx, 'E');
 		}
 		else { # ($ctrl->[POS_S][0] <= $starts[0] && $ctrl->[POS_S][0] <= $ends[0])
+			my $ip = $ctrl->[POS_E][0];
+			my $needs_fixup = defined $last_seq_s && $ctrl->[RES][0] =~ weechat::color('reset');
 			hyperlink_replay_code2($ctrl, $msg_r, \@starts, \@ends, \@cup, $fx, 'C');
+			if ($needs_fixup) {
+				$last_seq_s = $ip;
+				hyperlink_replay_code1($line, $msg_r, (@cup && $last_seq_s == $cup[0] ? \$cu : \$se), 0,
+				[$ip], \@starts, \@ends, \@cup, @{$ctrl}[POS_S,POS_E], $fx, 'F');
+			}
 		}
 		--$max_loop; die 'endless loop' if $max_loop < 0;
 	}
@@ -1938,11 +2168,14 @@ sub switchmode {
 	$ACT_STR->[MODE] = $ACT_STR->[MODE] eq 'hyperlink' ? 'selection' : 'hyperlink';
 	my ($r_, $R_) = (weechat::color('reverse'), weechat::color('-reverse'));
 	my $I = '▐';
+	my $t_flt = hyper_get_valid_keys('t');
+	$t_flt =~ s/$_/$_/i for split '', $ACT_STR->[URL_TYPE_FILTER];
 	weechat::buffer_set($ACT_STR->[BUFPTR], 'title',
 		($ACT_STR->[MODE] eq 'hyperlink' ?
 		    $r_.' ↑ ↓'.$R_.'move to url'.
 			$I.$r_.'RET' .$I.$R_.'send open'.
-			$I.$r_.'/'   .$I.$R_.'selection mode'.
+			$I.$r_.'/'   .$I.$R_.'sel. mode'.
+			$I.$r_.$t_flt.$I.$R_.
 			$I.$r_.'q'   .$I.$R_.'close'
 						:
 		    $r_.'←↑→↓'.$R_.'move cursor'.
@@ -2002,7 +2235,7 @@ sub apply_keybindings {
 	weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **a') for @keys; # left arrow
 
 	@keys = map { $_->{'key'} }
-		grep { $_->{'command'} eq '/input return' } @wee_keys;
+		grep { $_->{'command'} eq '/input return' || $_->{'command'} eq '/input magic_enter' } @wee_keys;
 	@keys = 'ctrl-M' unless @keys;
 	weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **!') for @keys; # enter key
 
@@ -2010,6 +2243,8 @@ sub apply_keybindings {
 	weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **@') for @keys; # ctrl+space or ctrl+@
 
 	weechat::buffer_set($ACT_STR->[BUFPTR], 'key_bind_/', '/'.CMD_COPYWIN.' **/');
+
+	weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **'.$_) for 'U', 'N', 'C', 'u', 'n', 'c';
 
 	@keys = map { $_->{'key'} }
 		grep { $_->{'command'} =~ "^/@{[CMD_COPYWIN]}" } @wee_keys;
@@ -2024,14 +2259,63 @@ sub binding_mouse_fix {
 	my (undef, undef, $data) = @_;
 	return weechat::WEECHAT_RC_OK unless $ACT_STR && $ACT_STR->[BUFPTR] && weechat::current_buffer() eq $ACT_STR->[BUFPTR];
 	if ($data) {
-		weechat::buffer_set($ACT_STR->[BUFPTR], "key_unbind_$_", '') for ' ', '/', 'q';
+		weechat::buffer_set($ACT_STR->[BUFPTR], "key_unbind_$_", '') for ' ', '/', 'q', 'U', 'N', 'C', 'u', 'n', 'c';
 	}
 	else {
 		weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **@') for ' ';
 		weechat::buffer_set($ACT_STR->[BUFPTR], 'key_bind_/', '/'.CMD_COPYWIN.' **/');
 		weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **q') for 'q';
+		weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **'.$_) for 'U', 'N', 'C', 'u', 'n', 'c';
 	}
 	weechat::WEECHAT_RC_OK
+}
+
+## hyper_get_valid_keys -- get keys for type filter according to enabled settings
+## $res - 't' for title, 'u' for upcase
+sub hyper_get_valid_keys {
+	my ($res) = @_;
+	$res = '' unless defined $res;
+	my $title = $res eq 't';
+	my $uc = $res eq 'u';
+	my $keys = 'u';
+	$keys .= 'n' if Nlib::has_true_value(weechat::config_get_plugin('hyper_nicks'));
+	$keys .= 'c' if Nlib::has_true_value(weechat::config_get_plugin('hyper_channels'));
+	$keys = uc $keys if $title || $uc;
+	if ($title) {
+		length $keys == 1 ? " $keys " :
+			length $keys == 2 ? (substr $keys, 0, 1).' '.(substr $keys, 1) :
+				$keys;
+	}
+	else {
+		$keys = "[$keys]";
+		qr/^$keys$/;
+	}
+}
+
+## hyper_set_type_filter -- sets the type of links shown in url view based on setting and args
+## $args - command line arguments
+## returns new args
+sub hyper_set_type_filter {
+	my ($args) = @_;
+	my $valid_keys = hyper_get_valid_keys();
+	$ACT_STR->[URL_TYPE_FILTER] = join '',
+		keys %{+{ map { $_ => undef } grep { /$valid_keys/ } map { lc substr $_, 0, 1 } map { split /[,;]/ } split ' ',
+				  weechat::config_get_plugin('hyper_show') }};
+	$args = '' unless defined $args;
+	my $urlfilter = $args;
+	if ($urlfilter =~ s/^\/// && length $urlfilter) {
+		$args = '/';
+		$ACT_STR->[URL_TYPE_FILTER] = join '',
+			keys %{+{ map { $_ => undef } grep { /$valid_keys/ } map { lc } split '', $urlfilter }};
+	}
+	elsif (length $urlfilter) {
+		$ACT_STR->[URL_TYPE_FILTER] = join '',
+			keys %{+{ map { $_ => undef } grep { /$valid_keys/ } map { lc substr $_, 0, 1 }
+						  map { split /[,;]/ } split ' ', $urlfilter }};
+		$args = '/' if length $ACT_STR->[URL_TYPE_FILTER];
+	}
+	$ACT_STR->[URL_TYPE_FILTER] = 'u' unless length $ACT_STR->[URL_TYPE_FILTER];
+	$args
 }
 
 ## make_new_copybuf -- creates a new copywin buffer from the current window
@@ -2054,11 +2338,12 @@ sub make_new_copybuf {
 		return;
 	}
 	$ACT_STR->[MODE] = 'hyperlink';
+	$args = hyper_set_type_filter($args);
 	weechat::buffer_set($copybuf, 'short_name', weechat::config_get_plugin('copybuf_short_name')) if $copybuf;
 	weechat::buffer_set($copybuf, 'type', 'free');
 	apply_keybindings();
 	switchmode();
-	switchmode() if $args eq '/' || $args eq 'url';
+	switchmode() if $args eq '/';
 }
 
 sub copywin_cmd {
@@ -2074,7 +2359,21 @@ sub copywin_cmd {
 			return weechat::WEECHAT_RC_OK;
 		}
 		elsif ($args eq '/') {
+			hyper_set_type_filter()
+				unless length $ACT_STR->[URL_TYPE_FILTER];
 			switchmode();
+		}
+		elsif ($args =~ hyper_get_valid_keys()) {
+			switchmode() if $ACT_STR->[MODE] eq 'hyperlink';
+			$ACT_STR->[URL_TYPE_FILTER] = $args;
+			switchmode();
+		}
+		elsif ($args =~ hyper_get_valid_keys('u')) {
+			switchmode() if $ACT_STR->[MODE] eq 'hyperlink';
+			my $t = lc $args;
+			$ACT_STR->[URL_TYPE_FILTER] .= $t
+				unless $ACT_STR->[URL_TYPE_FILTER] =~ s/$t//;
+			switchmode() if length $ACT_STR->[URL_TYPE_FILTER];
 		}
 		elsif ($ACT_STR->[MODE] eq 'hyperlink') {
 			return weechat::WEECHAT_RC_OK
@@ -2084,6 +2383,10 @@ sub copywin_cmd {
 			return weechat::WEECHAT_RC_OK
 				unless selection_dispatch_input($args);			
 		}
+	}
+	elsif ($args =~ /^\s*help\s*$/i) {
+		Nlib::read_manpage(SCRIPT_FILE, SCRIPT_NAME);
+		return weechat::WEECHAT_RC_OK
 	}
 	else {
 		check_layout()
@@ -2104,15 +2407,6 @@ sub copywin_cmd {
 
 
 	my $printy = calc_free_image($wininfo, $lines_ref2);
-
-#	unless (open my $fh, '>', 'window_copy') {
-#		weechat::print('', "error: $!");
-#	}
-#	else {
-#		use Data::Dumper;
-#		local $Data::Dumper::Sortkeys = 1;
-#		print $fh Dumper $wininfo, $lines_ref2, $printy;
-#	}
 
 	for my $i (0..$#$printy) {
 		weechat::print_y($copybuf, $i, $printy->[$i]);
@@ -2143,8 +2437,8 @@ sub mouse_coords_to_cursor {
 	my $lines_ref = copy_lines($ACT_STR->[LINES]);
 
 	my ($i, $l, $p) = (1, 0, 0); # current row, current line index, current line position
-#### XXX needs replacement: start_line_pos
 	my $first_line = $wininfo->{'start_line_pos'};
+	my $prev_line;
 	for my $line (@$lines_ref) {
 		trace_to_u8($line);
 		my $max_length = [(length fu8on $line->[LINE]{'message'}),''];
@@ -2166,9 +2460,10 @@ sub mouse_coords_to_cursor {
 						show_buffername($line, \$construction);
 						return ($l, undef, 'buffername')
 							if (screen_length fu8on weechat::string_remove_color($construction, '')) >= $c;
-						show_prefix($line, \$construction);
+						show_prefix($line, \$construction, $prev_line);
 						return ($l, undef, 'prefix')
 							if (screen_length fu8on weechat::string_remove_color($construction, '')) >= $c;
+						$prev_line = $line if exists $line->[LINE]{'date'};
 					}
 					show_separator($line, \$construction, $_);
 					my $message_start_screen = screen_length fu8on weechat::string_remove_color($construction, '');
@@ -2303,7 +2598,6 @@ sub mouse_scroll_action {
 			if ($_[2] =~ /^`/) { $dir .= '-' } #`
 			elsif ($_[2] =~ /^a/) { $dir .= '+' }
 			for ($bar_infos->[-1]{'name'}) {
-				#weechat::print('', "scrolling $_ $dir".Data::Dumper::Dumper($bar_infos));
 				weechat::command('', '/bar scroll '.$_.' * '.$dir.'10%')
 						if ($_ eq 'title' or $_ eq 'status' or $_ eq 'nicklist')
 			}
@@ -2326,7 +2620,6 @@ sub mouse_scroll_action {
 sub drag_speed_hack {
 	$drag_speed_timer = undef;
 	mouse_evt(undef, undef, $_[0]);
-	#weechat::print('', $_[0]);
 	weechat::WEECHAT_RC_OK
 }
 
@@ -2599,18 +2892,54 @@ sub mouse_evt {
 
 		if (@link == 1) {
 			$ACT_STR->[A_LINK] = $link[0][0];
+			my $t = substr $ACT_STR->[URLS][$ACT_STR->[A_LINK]][URL_INFO]{'type'}, 0, 1;
+			unless ($ACT_STR->[URL_TYPE_FILTER] =~ $t) {
+				switchmode();
+				$ACT_STR->[URL_TYPE_FILTER] = $t;
+				switchmode();
+			}
 		}
 		if ($ACT_STR->[MODE] eq 'hyperlink' && @link == 1) {
 			hyperlink_to_clip();
 			if ($this_last_mouse_seq =~ /^ / && $_[2] =~ /^#/ &&
 				((substr $this_last_mouse_seq, 1) eq (substr $_[2], 1))) { # click
-				if (Nlib::has_false_value(weechat::config_get_plugin('mouse.url_open_2nd_click')) ||
-					($mouse_2nd_click && $mouse_2nd_click->[0] eq 'link' &&
-					 $mouse_2nd_click->[1] == $ACT_STR && $mouse_2nd_click->[2] == $ACT_STR->[A_LINK])) {
-					hyperlink_dispatch_input('!');
+				my $link_type = $ACT_STR->[URLS][$ACT_STR->[A_LINK]][URL_INFO]{'type'};
+				if ($link_type eq 'nick') {
+					my $nick = $ACT_STR->[URLS][$ACT_STR->[A_LINK]][URL];
+					if (Nlib::has_false_value(weechat::config_get_plugin('mouse.nick_2nd_click'))) {
+						delayed_nick_menu($nick);
+					}
+					elsif ($mouse_2nd_click && $mouse_2nd_click->[0] eq 'link' &&
+						   $mouse_2nd_click->[1] == $ACT_STR && $mouse_2nd_click->[2] == $ACT_STR->[A_LINK]) {
+						weechat::command($ACT_STR->[WINDOWS]{'buffer'}, "/query $nick");
+					}
+					elsif (!$mouse_2nd_click) {
+						$one_click = [ 'link', $ACT_STR, $ACT_STR->[A_LINK] ];
+						$delayed_nick_menu_timer = weechat::hook_timer(get_nick_2nd_click_delay(), 0, 1, 'delayed_nick_menu', $nick);
+					}
+					else {
+						delayed_nick_menu($nick);
+					}
 				}
-				elsif (!$mouse_2nd_click) {
-					$one_click = [ 'link', $ACT_STR, $ACT_STR->[A_LINK] ];
+				elsif ($link_type eq 'channel') {
+					my $channel = $ACT_STR->[URLS][$ACT_STR->[A_LINK]][URL];
+					if ($mouse_2nd_click && $mouse_2nd_click->[0] eq 'link' &&
+					    $mouse_2nd_click->[1] == $ACT_STR && $mouse_2nd_click->[2] == $ACT_STR->[A_LINK]) {
+						weechat::command($ACT_STR->[WINDOWS]{'buffer'}, "/join $channel");
+					}
+					elsif (!$mouse_2nd_click) {
+						$one_click = [ 'link', $ACT_STR, $ACT_STR->[A_LINK] ];
+					}
+				}
+				else {
+					if (Nlib::has_false_value(weechat::config_get_plugin('mouse.url_open_2nd_click')) ||
+							($mouse_2nd_click && $mouse_2nd_click->[0] eq 'link' &&
+							 $mouse_2nd_click->[1] == $ACT_STR && $mouse_2nd_click->[2] == $ACT_STR->[A_LINK])) {
+						hyperlink_dispatch_input('!');
+					}
+					elsif (!$mouse_2nd_click) {
+						$one_click = [ 'link', $ACT_STR, $ACT_STR->[A_LINK] ];
+					}
 				}
 			}
 		}
@@ -2621,7 +2950,14 @@ sub mouse_evt {
 		if ($_[2] =~ /^#/) { # button up
 			$mouse_2nd_click = $one_click;
 			my $autoclose_delay = get_autoclose_delay();
-			$autoclose_delay += get_2nd_click_delay() if $one_click && $one_click->[0] eq 'link';
+			if ($one_click && $one_click->[0] eq 'link') {
+				if ($one_click->[1][URLS][$one_click->[2]][URL_INFO]{'type'} eq 'nick') {
+					$autoclose_delay += get_nick_2nd_click_delay();
+				}
+				else {
+					$autoclose_delay += get_2nd_click_delay();
+				}
+			}
 			$autoclose_in_progress = weechat::hook_timer($autoclose_delay, 0, 1, 'copywin_autoclose', '')
 					if $autoclose_delay && $ACT_STR->[MOUSE_AUTOMODE] && !$autoclose_in_progress;
 		}
@@ -2631,8 +2967,29 @@ sub mouse_evt {
 
 sub hsignal_evt {
 	my %data = %{$_[2]};
-	mouse_evt(undef, undef, join '', ' ', (pack 'U', 33+$data{_x}), (pack 'U', 33+$data{_y}));
-	mouse_evt(undef, undef, join '', '#', (pack 'U', 33+$data{_x2}), (pack 'U', 33+$data{_y2}));
+	if ($data{_key} =~ /^(.*)-event-/) {
+		my $msg = "\@chat($data{_buffer_full_name}):$1";
+		for my $k (Nlib::i2h('key', '', 'mouse')) {
+			next if $k->{'key'} =~ /-event/;
+			(my $match = '^'.(quotemeta $k->{'key'})) =~ s/\\\*/.*/g;
+			my $close = $msg =~ $match;
+			last if $close and $k->{'command'} =~ /hsignal:@{[SCRIPT_NAME]}/;
+			return weechat::WEECHAT_RC_OK if $close;
+		}
+	}
+	if ($data{_key} =~ /-event-down/) {
+		mouse_evt(undef, undef, join '', ' ', (pack 'U', 33+$data{_x2}), (pack 'U', 33+$data{_y2}));
+		$hsignal_mouse_down_sent = 1;
+	}
+	elsif ($data{_key} =~ /-event-drag/) {
+		mouse_evt(undef, undef, join '', '@', (pack 'U', 33+$data{_x2}), (pack 'U', 33+$data{_y2}));
+	}
+	else {
+		mouse_evt(undef, undef, join '', ' ', (pack 'U', 33+$data{_x}), (pack 'U', 33+$data{_y}))
+			unless $hsignal_mouse_down_sent;
+		mouse_evt(undef, undef, join '', '#', (pack 'U', 33+$data{_x2}), (pack 'U', 33+$data{_y2}));
+		$hsignal_mouse_down_sent = undef;
+	}
 	weechat::WEECHAT_RC_OK
 }
 
@@ -2641,7 +2998,6 @@ sub check_layout {
 	return weechat::WEECHAT_RC_OK if $LAYOUT_OK;
 #	my $winptr = weechat::current_window();
 #	my ($wininfo) = Nlib::i2h('window', $winptr);
-#### XXX needs replacement: start_line, layout
 #	my ($lineinfo) = Nlib::i2h('buffer_lines', @{$wininfo}{'buffer','start_line'});
 #	my ($layoutinfo) = Nlib::i2h('layout', $wininfo->{'pointer'}, $lineinfo->{'line'}, $listptr);
 #	Nlib::l2l($listptr, 1);
@@ -2710,15 +3066,19 @@ sub default_options {
 			 '(?:^|(?<=\s))(?:\S+\.)+\w{2,5}/(?:\S+)?',
 		url_non_endings    => '[.,;:?!_-]',
 		url_non_beginnings => '\W',
+		hyper_nicks    => 'off',
+		hyper_channels => 'off',
+		hyper_show     => 'url',
+		use_nick_menu  => 'off',
 		xterm_compatible => 'rxvt-uni',
 		'mouse.copy_on_click'        => 'on',
-		'mouse.close_on_release'     => '100',
+		'mouse.close_on_release'     => '110',
 		'mouse.click_select_pane'    => 'on',
 		'mouse.click_through_pane'   => 'off',
 		'mouse.url_open_2nd_click'   => 'off',
 		'mouse.handle_scroll'        => 'off',
 		'mouse.scroll_inactive_pane' => 'on',
-		'copybuf_short_name' => '©',
+		copybuf_short_name => '©',
 		'color.selection_cursor' => 'reverse.underline',
 		'color.selection'        => 'reverse.brown,black',
 		'color.url_highlight'        => 'reverse.underline',
@@ -2727,6 +3087,10 @@ sub default_options {
 	for (keys %defaults) {
 		weechat::config_set_plugin($_, $defaults{$_})
 			unless weechat::config_is_set_plugin($_);
+	}
+	my $sf = SCRIPT_FILE;
+	for (Nlib::get_settings_from_pod($sf)) {
+		weechat::config_set_desc_plugin($_, Nlib::get_desc_from_pod($sf, $_));
 	}
 	if (Nlib::has_true_value(weechat::config_get_plugin('mouse.handle_scroll'))) {
 		decouple_mouse_scroll();
@@ -2737,6 +3101,10 @@ sub default_options {
 	weechat::WEECHAT_RC_OK
 }
 
+sub close_copywin {
+	copywin_cmd(undef, $ACT_STR->[BUFPTR], '**q') if $ACT_STR;
+}
+
 sub init_coords {
 	$listptr = weechat::list_new();
 	weechat::hook_timer(1000, 0, 1, 'check_layout', '');
@@ -2745,6 +3113,7 @@ sub init_coords {
 }
 
 sub stop_coords {
+	close_copywin();
 	restore_mouse_scroll();
 	weechat::list_free($listptr);
 	weechat::WEECHAT_RC_OK
