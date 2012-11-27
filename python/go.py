@@ -23,6 +23,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2012-11-26, Nei <anti.teamidiot.de>
+#     version 1.9: add auto_jump option to automatically go to buffer when it is uniquely selected
 # 2012-09-17, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 1.8: fix jump to non-active merged buffers (jump with buffer name instead of number)
 # 2012-01-03 nils_2 <weechatter@arcor.de>
@@ -68,7 +70,7 @@ import weechat, re
 
 SCRIPT_NAME    = "go"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "1.8"
+SCRIPT_VERSION = "1.9"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Quick jump to buffers"
 
@@ -84,6 +86,7 @@ settings = {
     "short_name"                   : "off",
     "sort_by_activity"             : "off",
     "use_core_instead_weechat"     : "off",
+    "auto_jump"                    : "off",
 }
 
 # hooks management
@@ -289,6 +292,8 @@ def input_modifier(data, modifier, modifier_data, string):
         old_buffers = buffers
         buffers = get_matching_buffers(input)
         if buffers != old_buffers and len(input) > 0:
+            if len(buffers) == 1 and weechat.config_string_to_boolean(weechat.config_get_plugin('auto_jump')):
+                weechat.command(modifier_data, "/wait 1ms /input return")
             buffers_pos = 0
         old_input = input
     names = buffers_to_string(buffers, buffers_pos, input.strip())
