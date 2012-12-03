@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2012-12-03, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 1.3: fix parsing: replace "\r" by space
 # 2012-11-12, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 1.2: use URL transfer in API (for WeeChat >= 0.3.7)
 # 2012-01-03, Sebastien Helleu <flashcode@flashtux.org>:
@@ -54,7 +56,7 @@ import weechat, sys, xml.dom.minidom
 
 SCRIPT_NAME    = "vdm"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "1.2"
+SCRIPT_VERSION = "1.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Display content of viedemerde.fr/fmylife.com website"
 
@@ -189,7 +191,7 @@ def vdm_parse(string):
             texte = node.getElementsByTagName("text")
             if texte:
                 vdm.append({"id": node.getAttribute("id"),
-                            "text": texte[0].firstChild.data.replace("\n", " ").replace("&quot;", "\"")})
+                            "text": texte[0].firstChild.data.replace("\r", " ").replace("\n", " ").replace("&quot;", "\"")})
         dom.unlink()
     return vdm
 
