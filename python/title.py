@@ -22,6 +22,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2012-12-09, WakiMiko
+#     version 0.5, update title when switching window (for WeeChat >= 0.3.7)
 # 2009-06-18, xt
 #     version 0.4, option to use short_name
 # 2009-06-15, xt
@@ -35,7 +37,7 @@ import weechat as w
 
 SCRIPT_NAME    = "title"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.4"
+SCRIPT_VERSION = "0.5"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Set screen title to current buffer name + hotlist items with configurable priority level"
 
@@ -47,6 +49,7 @@ settings = {
 
 hooks = (
         'buffer_switch',
+        'window_switch',
         'hotlist_*',
 )
 
