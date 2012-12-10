@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2012-12-09, Nils Görs <freenode@#weechat>:
+#     version 0.6: add support of core buffer
 # 2012-03-09, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.5: fix reload of config file
 # 2012-01-03, Sebastien Helleu <flashcode@flashtux.org>:
@@ -37,7 +39,7 @@
 
 SCRIPT_NAME    = "buffer_autoset"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.5"
+SCRIPT_VERSION = "0.6"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Auto-set buffer properties when a buffer is opened"
 
@@ -211,6 +213,8 @@ if __name__ == "__main__" and import_ok:
                                     "bas_completion_options_cb", "")
             weechat.hook_signal("buffer_opened", "bas_signal_buffer_opened_cb", "")
 
+            # core buffer is already open on script startup, check manually!
+            bas_signal_buffer_opened_cb("", "", weechat.buffer_search_main())
 # ==================================[ end ]===================================
 
 def bas_unload_script():
