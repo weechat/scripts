@@ -21,6 +21,9 @@
 #
 #
 # History:
+# 2012-10-19, ldvx
+#   version 13: Iterate over every word to prevent incorrect colorization of
+#               nicks. Added option greedy_matching.
 # 2012-04-28, ldvx
 #   version 12: added ignore_tags to avoid colorizing nicks if tags are present
 # 2012-01-14, nesthib
@@ -45,6 +48,9 @@
 #   version 0.2: use ignore_channels when populating to increase performance.
 # 2010-02-03, xt
 #   version 0.1: initial (based on ruby script by dominikh)
+#
+# Known issues: nicks will not get colorized if they begin with a character
+# such as ~ (which some irc networks do happen to accept)
 
 import weechat
 import re
@@ -52,7 +58,7 @@ w = weechat
 
 SCRIPT_NAME    = "colorize_nicks"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "12"
+SCRIPT_VERSION = "13"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Use the weechat nick colors in the chat area"
 
@@ -61,8 +67,8 @@ settings = {
     "blacklist_nicks"           : 'so,root',  # comma separated list of nicks
     "min_nick_length"           : '2',    # length
     "colorize_input"            : 'off',  # boolean
-    "ignore_tags"               : '', # comma separated list of tags to ignore.
-                                      # I.e. irc_join,irc_part,irc_quit
+    "ignore_tags"               : '', # comma separated list of tags to ignore. I.e. irc_join,irc_part,irc_quit
+    "greedy_matching"           : 'on',  # if off, then let's use lazy matching instead
 }
 
 
@@ -106,7 +112,7 @@ def colorize_cb(data, modifier, modifier_data, line):
         w.config_set_plugin('min_nick_length', settings['min_nick_length'])
 
     reset = w.color('reset')
-    
+
     # Don't colorize if the ignored tag is present in message
     tags_line = modifier_data.rsplit(';')
     if len(tags_line) >= 3:
@@ -120,10 +126,42 @@ def colorize_cb(data, modifier, modifier_data, line):
         # Check that nick is not ignored and longer than minimum length
         if len(nick) < min_length or nick in ignore_nicks:
             continue
+        # Check that nick is in the dictionary colored_nicks
         if nick in colored_nicks[buffer]:
             nick_color = colored_nicks[buffer][nick]
-            line = line.replace(nick, '%s%s%s' %(nick_color, nick, reset))
 
+            # Let's use greedy matching. Will check against every word in a line.
+            if w.config_get_plugin('greedy_matching') == "on":
+                for word in line.split():
+                   if nick in word:
+                       # Is there a nick that contains nick and has a greater lenght?
+                       # If so let's save that nick into var biggest_nick
+                       biggest_nick = ""
+                       for i in colored_nicks[buffer]:
+                           if nick in i and nick != i and len(i) > len(nick):
+                               if i in word:
+                                   # If a nick with greater len is found, and that word
+                                   # also happens to be in word, then let's save this nick
+                                   biggest_nick = i
+                       # If there's a nick with greater len, then let's skip this
+                       # As we will have the chance to colorize when biggest_nick
+                       # iterates being nick.
+                       if len(biggest_nick) > 0 and biggest_nick in word:
+                           pass
+                       elif len(word) < len(biggest_nick) or len(biggest_nick) == 0:
+                           new_word = word.replace(nick, '%s%s%s' %(nick_color, nick, reset))
+                           line = line.replace(word, new_word)
+            # Let's use lazy matching for nick
+            elif w.config_get_plugin('greedy_matching') == "off":
+                if nick in colored_nicks[buffer]:
+                    nick_color = colored_nicks[buffer][nick]
+                    # The two .? are in case somebody writes "nick:", "nick,", etc
+                    # to address somebody
+                    regex = r"(\A|\s).?(%s).?(\Z|\s)" % re.escape(nick)
+                    match = re.search(regex, line)
+                    if str(type(match)) == "<type '_sre.SRE_Match'>":
+                        new_line = line[:match.start(2)] + nick_color+nick+reset + line[match.end(2):]
+                        line = new_line
     return line
 
 def colorize_input_cb(data, modifier, modifier_data, line):
