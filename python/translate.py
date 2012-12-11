@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2012-12-11, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 0.6: automatically replace old URL (not working any more) by new one
 # 2012-10-13, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.5: fix call to translate API, use hook_process_hashtable
 #                  (the script now requires WeeChat >= 0.3.7)
@@ -38,7 +40,7 @@
 
 SCRIPT_NAME    = 'translate'
 SCRIPT_AUTHOR  = 'Sebastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '0.5'
+SCRIPT_VERSION = '0.6'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC    = 'Translate string using Google translate API'
 
@@ -231,6 +233,10 @@ if __name__ == '__main__' and import_ok:
         for option, default_value in translate_settings.items():
             if not weechat.config_is_set_plugin(option):
                 weechat.config_set_plugin(option, default_value)
+        # replace old URL (not working any more) by new one
+        if weechat.config_get_plugin('url') == 'http://ajax.googleapis.com/ajax/services/language/translate':
+            weechat.config_set_plugin('url', translate_settings['url'])
+            weechat.prnt('', 'translate: default URL has been set (to replace old URL)')
         # new command
         marker = weechat.config_get_plugin('marker')
         weechat.hook_command('translate',
