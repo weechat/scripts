@@ -20,6 +20,7 @@
 # for settings see help page
 #
 # history:
+# 1.7: fix: broken lines in dcc chat (reported by equatorping)
 # 1.6: improved: wildcard "*" can be used for server and/or nick. (requested by ldvx)
 #    : add: new value, "only", for option "own_lines" (read help!)
 # 1.5: sync: option weechat.look.nickmode changed in 0.3.9 to "irc.look.nick_mode"
@@ -64,7 +65,7 @@
 
 use strict;
 my $prgname	= "colorize_lines";
-my $version	= "1.6";
+my $version	= "1.7";
 my $description	= "colors text in chat area with according nick color. Highlight messages will be fully highlighted in chat area";
 
 # default values
@@ -133,21 +134,33 @@ return $string if ($buf_pointer eq "");                                         
 # some possible names: freenode.#weechat, freenode.#weechat.de, freenode.query, chat.freenode.net.#weechat, chat.freenode.net.#weechat.de
 my $servername = weechat::buffer_get_string($buf_pointer, "localvar_server");
 my $channel_name = weechat::buffer_get_string($buf_pointer, "localvar_channel");
+my $my_nick = weechat::buffer_get_string($buf_pointer, "localvar_nick");
 
 if ( grep /^$servername.$channel_name$/, @var_blacklist_channels ) {                            # check for blacklist_channels
   return $string;
 }
-
-my $my_nick = weechat::info_get( 'irc_nick', $servername );                                     # get nick with servername (;freenode.)
 
 $string =~ m/^(.*)\t(.*)/;                                                                      # get the nick name: nick[tab]string
 my $nick = $1;                                                                                  # nick with nick_mode and color codes
 my $line = $2;                                                                                  # get written text
 
 $line = weechat::string_remove_color($line,"");                                                 # remove color-codes from line, first
-# get the nick name from modifier_data (without nick_mode and color codes! Take care of tag "prefix_nick_ccc")
-$modifier_data =~ m/(^|,)nick_(.*),/;
-my $nick_wo_suffix = $2;                                                                        # nickname without nick_suffix
+
+my $nick_wo_suffix = "";
+# check if modifier tag "nick_" exists in message.
+if ($modifier_data =~ m/(^|,)nick_/)
+{
+    # get the nick name from modifier_data (without "nick_mode" and color codes! Take care of tag "prefix_nick_ccc")
+    # and check for "nick_name" as last modifier_data
+    $modifier_data =~ m/(^|,)nick_([^,]*)/;
+    $nick_wo_suffix = $2;                                                                       # nickname without nick_suffix
+}else
+{
+    # This is a fallback solution!
+    $nick_wo_suffix = weechat::string_remove_color($nick,"");                                   # remove colour-codes from nick
+}
+return $string if ($nick_wo_suffix eq "");
+
 
 if ( lc($nick_wo_suffix) eq lc($my_nick) ){                                                     # this one checks for own messages
   if ( $default_options{var_avail_buffer} ne "all" ){                                           # check for option avail_buffer
@@ -301,6 +314,11 @@ my $nick_color = weechat::info_get('irc_nick_color', $nick_wo_suffix);          
 	if ( $var_hl_max_level_nicks_add eq 0 ){
 	      $line = colorize_nicks($high_color,$modifier_data,$line);
 	      $line = $nick_prefix_with_color . $nick_mode . $high_color . $nick . $nick_suffix_with_color . "\t" . $high_color . $line . weechat::color('reset');
+
+# TODO use of weechat_print_date_tags() to add "notify_highlight" to messages.
+#	      $modifier_data =~ s/,notify_message,/,notify_highlight,/gio;
+#	      weechat::print_date_tags($buf_pointer,0,$modifier_data,$line);
+#	      return "";
 	      return $line;
 	}
 	}
