@@ -17,6 +17,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2012-12-21: nils_2, (freenode.#weechat)
+#       0.2 : fix UnicodeEncodeError
+#
 # 2012-12-09: nils_2, (freenode.#weechat)
 #       0.1 : initial release
 #
@@ -37,7 +40,7 @@ except Exception:
 
 SCRIPT_NAME     = 'histman'
 SCRIPT_AUTHOR   = 'nils_2 <weechatter@arcor.de>'
-SCRIPT_VERSION  = '0.1'
+SCRIPT_VERSION  = '0.2'
 SCRIPT_LICENSE  = 'GPL'
 SCRIPT_DESC     = 'save and restore global and/or buffer command history'
 
@@ -217,7 +220,8 @@ def read_history(filename,ptr_buffer):
     try:
         f = open(filename, 'rb')
         for line in f.xreadlines():
-            line = str(line.strip().decode('utf-8'))
+#            line = line.decode('utf-8')
+            line = str(line.strip())
             if ptr_buffer:
                 # add to buffer history
                 weechat.hdata_update(hdata, '', { 'buffer': ptr_buffer, 'text': line })
@@ -226,10 +230,10 @@ def read_history(filename,ptr_buffer):
                 weechat.hdata_update(hdata, '', { 'text': line })
         f.close()
     except:
-        if global_history == 0:
+        if global_history == 1:
             weechat.prnt('','%s%s: Error loading global history from "%s"' % (weechat.prefix('error'), SCRIPT_NAME, filename))
         else:
-            name = weechat.buffer_get_string(pointer, 'localvar_name')
+            name = weechat.buffer_get_string(ptr_buffer, 'localvar_name')
             weechat.prnt('','%s%s: Error loading buffer history for buffer "%s" from "%s"' % (weechat.prefix('error'), SCRIPT_NAME, name, filename))
         raise
 
