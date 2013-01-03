@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 ###
-# Copyright (c) 2009-2011 by Elián Hanisch <lambdae2@gmail.com>
+# Copyright (c) 2009-2013 by Elián Hanisch <lambdae2@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -189,6 +189,9 @@
 #
 #
 #   History:
+#   2013-01-02
+#   version 0.2.7: bug fixes:
+#   * fix /obankick, don't deop before kicking.
 #
 #   2011-09-18
 #   version 0.2.6: bug fixes:
@@ -257,7 +260,7 @@
 
 SCRIPT_NAME    = "chanop"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.2.6"
+SCRIPT_VERSION = "0.2.7"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Helper script for IRC Channel Operators"
 
@@ -1732,6 +1735,8 @@ class CommandChanop(Command, ChanopBuffers):
 
 class CommandWithOp(CommandChanop):
     """Base class for all the commands that requires op status for work."""
+    deop_delay = 0
+
     def setup(self, buffer):
         self.deopNow = False
         CommandChanop.setup(self, buffer)
@@ -1752,7 +1757,7 @@ class CommandWithOp(CommandChanop):
 
         if (self.autodeop and self.get_config_boolean('autodeop')) or self.deopNow:
             if self.deopNow:
-                delay = 0
+                delay = self.deop_delay
             else:
                 delay = self.get_config_int('autodeop_delay')
             if delay > 0:
@@ -2077,6 +2082,7 @@ class BanKick(Ban, Kick):
     help = "Combines /oban and /okick commands. See /help oban and /help okick."
     command = 'obankick'
     completion = '%(chanop_nicks)'
+    deop_delay = 2
 
     def execute_op(self):
         nick, s, reason = self.args.partition(' ')
@@ -2122,8 +2128,11 @@ class MultiBanKick(BanKick):
                 self.ban(banmask)
             else:
                 self.ban(nick)
+
+        self.deop_delay = 1
         for nick in nicks:
             if self.inChannel(nick):
+                self.deop_delay += 1
                 self.irc.Kick(nick, reason, wait=1)
 
 
@@ -2489,9 +2498,11 @@ def mode_cb(server, channel, nick, opHostmask, signal_data):
             if hostmask:
                 affected_users.extend(hostmask)
             maskCache.add(server, channel, mask, operator=opHostmask, hostmask=hostmask)
-            weechat.hook_signal_send("%s,chanop_mode_%s" %(server, mode),
-                    weechat.WEECHAT_HOOK_SIGNAL_STRING,
-                    "%s %s %s %s" %(opHostmask, channel, mask, ','.join(hostmask)))
+            if mask != '*!*@*':
+                # sending this signal with a *!*@* is annoying
+                weechat.hook_signal_send("%s,chanop_mode_%s" %(server, mode),
+                        weechat.WEECHAT_HOOK_SIGNAL_STRING,
+                        "%s %s %s %s" %(opHostmask, channel, mask, ','.join(hostmask)))
 
         elif action == '-':
             maskCache.remove(server, channel, mask)
