@@ -69,6 +69,10 @@ be sure of the arguments or types, so the user may need to
 do some experimenting ;)
 
 Released under GPL license.
+
+2013-01-03, Sebastien Helleu <flashcode@flashtux.org>:
+    version 0.3: fix buffer used to print message (use buffer in command
+                 callback, not current buffer)
 """
 
 import weechat as wc
@@ -80,7 +84,7 @@ from operator import itemgetter
 DEFAULT_FMT = \
     "/me is listening to: $artist - $title_or_file ($length_min:$length_sec)"
 
-wc.register("mpc", "Perry Hargrave", "0.2", "GPL", "mpc for weechat", "", "")
+wc.register("mpc", "Perry Hargrave", "0.3", "GPL", "mpc for weechat", "", "")
 
 DEFAULT_CONFIG = {
     "host"      : "localhost",
@@ -190,9 +194,9 @@ class __MPC(object):
         """
         ds  = self.currentsong()
         if len(ds) == 0:
-            wc.prnt(wc.current_buffer(), "MPC: ERROR: mpd is stopped")
+            wc.prnt(self.wcb or wc.current_buffer(), "MPC: ERROR: mpd is stopped")
             return
-        wc.command(wc.current_buffer(),
+        wc.command(self.wcb or wc.current_buffer(),
                    Template(wc.config_get_plugin("format")).safe_substitute(ds))
 
     @_print_current
