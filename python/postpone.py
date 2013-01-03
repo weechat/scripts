@@ -20,6 +20,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2012-12-29, Stefan Huber <shuber@sthu.org>
+#   version 0.2.1: fix channel determination in join_cb
 # 2010-05-20, Alexander Schremmer <alex@alexanderweb.de>
 #   version 0.2: removed InfoList code
 # 2010-05-15, Alexander Schremmer <alex@alexanderweb.de>
@@ -30,7 +32,7 @@ import re
 
 SCRIPT_NAME    = "postpone"
 SCRIPT_AUTHOR  = "Alexander Schremmer <alex@alexanderweb.de>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.2.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Postpones written messages for later dispatching if target nick is not on channel"
 
@@ -40,7 +42,7 @@ postpone_data = {}
 
 def join_cb(data, signal, signal_data):
     server = signal.split(',')[0] # EFNet,irc_in_JOIN
-    channel = signal_data.split(':')[-1]
+    channel = re.match('.* JOIN :?(?P<channel>.+)$', signal_data).groups()[0]
     nick = re.match(':(?P<nick>.+)!', signal_data).groups()[0].lower()
     buffer = w.buffer_search("", "%s.%s" % (server, channel))
     if server in postpone_data and channel in postpone_data[server] and\
