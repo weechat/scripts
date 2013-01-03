@@ -24,6 +24,9 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2012-12-29, David Flatz <david@upcs.at>
+#  version 0.9: add option to ignore servers and don't set away status for them
+#               add descriptions to config options
 # 2010-08-07, Filip H.F. "FiXato" Slagter <fixato@gmail.com>
 #  version 0.8: add command on attach feature
 # 2010-05-07, Jani Kesänen <jani.kesanen@gmail.com>
@@ -49,16 +52,17 @@ import os
 
 SCRIPT_NAME    = "screen_away"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.8"
+SCRIPT_VERSION = "0.9"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Set away status on screen detach"
 
 settings = {
-        'message': 'Detached from screen',
-        'interval': '5',        # How often in seconds to check screen status
-        'away_suffix': '',      # What to append to your nick when you're away.
-        'command_on_attach': '', # Command to execute on attach
-        'command_on_detach': '' # Command to execute on detach
+        'message': ('Detached from screen', 'Away mesage'),
+        'interval': ('5', 'How often in seconds to check screen status'),
+        'away_suffix': ('', 'What to append to your nick when you\'re away.'),
+        'command_on_attach': ('', 'Command to execute on attach'),
+        'command_on_detach': ('', 'Command to execute on detach'),
+        'ignore': ('', 'Comma-separated list of servers to ignore.'),
 }
 
 TIMER = None
@@ -70,7 +74,7 @@ def set_timer():
 
     global TIMER
     if TIMER:
-        w.unhook(TIMER);
+        w.unhook(TIMER)
     TIMER = w.hook_timer(int(w.config_get_plugin('interval')) * 1000,
             0, 0, "screen_away_timer_cb", '')
 
@@ -82,10 +86,12 @@ def screen_away_config_cb(data, option, value):
 def get_servers():
     '''Get the servers that are not away, or were set away by this script'''
 
+    ignores = w.config_get_plugin('ignore').split(',')
     infolist = w.infolist_get('irc_server','','')
     buffers = []
     while w.infolist_next(infolist):
-        if not w.infolist_integer(infolist, 'is_connected') == 1:
+        if not w.infolist_integer(infolist, 'is_connected') == 1 or \
+               w.infolist_string(infolist, 'name') in ignores:
             continue
         if not w.infolist_integer(infolist, 'is_away') or \
                w.infolist_string(infolist, 'away_message') == \
@@ -129,9 +135,12 @@ def screen_away_timer_cb(buffer, args):
 
 if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
                     SCRIPT_DESC, "", ""):
-    for option, default_value in settings.iteritems():
+    version = w.info_get('version_number', '') or 0
+    for option, default_desc in settings.iteritems():
         if not w.config_is_set_plugin(option):
-            w.config_set_plugin(option, default_value)
+            w.config_set_plugin(option, default_desc[0])
+        if int(version) >= 0x00030500:
+            w.config_set_desc_plugin(option, default_desc[1])
 
     if 'STY' in os.environ.keys():
         # We are running under screen
