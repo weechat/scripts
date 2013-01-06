@@ -120,7 +120,7 @@ for full pod documentation, filter this script with
 =cut
 
 use constant SCRIPT_NAME => 'multiline';
-weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.2', 'GPL3', 'Multi-line edit box', 'stop_multiline', '') || return;
+weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.3', 'GPL3', 'Multi-line edit box', 'stop_multiline', '') || return;
 sub SCRIPT_FILE() {
 	my $infolistptr = weechat::infolist_get('perl_script', '', SCRIPT_NAME);
 	my $filename = weechat::infolist_string($infolistptr, 'filename') if weechat::infolist_next($infolistptr);
@@ -407,20 +407,22 @@ hook_complete('complete*', 'delete_*', 'move_*');
 
 ## multiline_display -- show multi-lines on display of input string
 ## () - modifier handler
+## $_[2] - buffer pointer
 ## $_[3] - input string
 ## returns modified input string
 sub multiline_display {
 	Encode::_utf8_on($_[3]);
 	Encode::_utf8_on(my $nl = weechat::config_get_plugin('char') || ' ');
 	Encode::_utf8_on(my $tab = weechat::config_get_plugin('tab'));
-	if ($MAGIC_ENTER_TIMER) {
+	my $cb = weechat::current_buffer() eq $_[2] && $MAGIC_ENTER_TIMER;
+	if ($cb) {
 		$_[3] =~ s/$NL\x19b#/\x19b#/ if weechat::config_string_to_boolean(weechat::config_get_plugin('hide_magic_nl'));
 	}
 	if ($_[3] =~ s/$NL/$nl\x0d/g) {
 		$_[3] =~ s/\A/ \x0d/ if weechat::config_string_to_boolean(weechat::config_get_plugin('lead_linebreak'));
 	}
 	$_[3] =~ s/\x09/$tab/g if $tab;
-	if ($MAGIC_ENTER_TIMER) {
+	if ($cb) {
 		Encode::_utf8_on(my $magic = weechat::config_get_plugin('magic'));
 		$_[3] =~ s/\Z/$magic/ if $magic;
 	}
