@@ -11,6 +11,9 @@
 #
 # ### changelog ###
 #
+#  * version 0.7 (Adam Spiers <weechat@adamspiers.org>)
+#      - allow commas in passwords
+#      - fix for FreeNode
 #  * version 0.6 (CrazyCat <crazycat@c-p-f.org>)
 #      - adaptation for weechat 0.3.0
 #  * version 0.5
@@ -31,9 +34,11 @@
 # =============================================================================
 
 
-VERSION="0.6"
+VERSION="0.7"
 NAME="autoauth"
 AUTHOR="Kolter"
+
+DELIMITER="|@|"
 
 import_ok = True
 try:
@@ -113,10 +118,10 @@ def auth_cmdunset(server):
                     conf.append(c)
                 else:
                     found = True
-    if found:                
+    if found:
         weechat.prnt("", "[%s] command for server '%s' successfully removed" % (NAME, server))
         weechat.config_set_plugin("commands", "####".join(conf))
-    
+
 def auth_cmd(args, server):
     if server == '':
         if args == '':
@@ -136,7 +141,7 @@ def auth_list():
         weechat.prnt("", "[%s] accounts (empty)" % (NAME))
     else:
         weechat.prnt("", "[%s] accounts (list)" % (NAME))
-        for e in data.split(","):
+        for e in data.split(DELIMITER):
             if e.find("=") == -1:
                 continue
             (serv_nick, passwd) = e.split("=")
@@ -145,7 +150,7 @@ def auth_list():
 
 def auth_notice_check(data, buffer, args):
     server = buffer.split(',')[0]
-    if args.find("If this is your nickname, type /msg NickServ") != -1 or args.find("This nickname is registered and protected.") != -1 :
+    if args.find("If this is your nickname, type /msg NickServ") != -1 or args.find("This nickname is registered") != -1 :
         passwd = auth_get(weechat.info_get("irc_nick", server), server)
         if passwd != None:
             weechat.command(server, "/quote nickserv identify %s" % (passwd))
@@ -153,7 +158,7 @@ def auth_notice_check(data, buffer, args):
             if commands != '':
                 for c in commands.split("|"):
                     weechat.command(server, c.strip().replace("%n", weechat.get_info('nick')))
-    
+
     return weechat.WEECHAT_RC_OK
 
 def auth_del(the_nick, the_server):
@@ -161,7 +166,7 @@ def auth_del(the_nick, the_server):
 
     found = False
     conf = []
-    for e in data.split(","):
+    for e in data.split(DELIMITER):
         if e.find("=") == -1:
             continue
         (serv_nick, passwd) = e.split("=")
@@ -172,7 +177,7 @@ def auth_del(the_nick, the_server):
             conf.append("%s.%s=%s" % (server, nick, passwd))
 
     if found:
-        weechat.config_set_plugin("data", ",".join(conf))
+        weechat.config_set_plugin("data", DELIMITER.join(conf))
         weechat.prnt("", "[%s] nick '%s@%s' successfully remove" % (NAME, the_nick, the_server))
     else:
         weechat.prnt("", "[%s] an error occured while removing nick '%s@%s' (not found)" % (NAME, the_nick, the_server))
@@ -181,8 +186,8 @@ def auth_add(the_nick, the_passwd, the_server):
     data = weechat.config_get_plugin("data")
 
     found = False
-    conf = []    
-    for e in data.split(","):
+    conf = []
+    for e in data.split(DELIMITER):
         if e.find("=") == -1:
             continue
         (serv_nick, passwd) = e.split("=")
@@ -194,13 +199,13 @@ def auth_add(the_nick, the_passwd, the_server):
 
     if not found:
         conf.append("%s.%s=%s" % (the_server, the_nick, the_passwd))
-        
-    weechat.config_set_plugin("data", ",".join(conf))
+
+    weechat.config_set_plugin("data", DELIMITER.join(conf))
     weechat.prnt("", "[%s] nick '%s@%s' successfully added" % (NAME, the_nick, the_server))
 
 def auth_get(the_nick, the_server):
     data = weechat.config_get_plugin("data")
-    for e in data.split(","):
+    for e in data.split(DELIMITER):
         if e.find("=") == -1:
             continue
         (serv_nick, passwd) = e.split("=")
@@ -219,7 +224,7 @@ def get_channel_from_buffer_args(buffer, args):
   if match_data:
     channel_name = match_data.group(3)
     server_name = match_data.group(2)
-  
+
   return server_name, channel_name
 
 def auth_command(data, buffer, args):
@@ -232,7 +237,7 @@ def auth_command(data, buffer, args):
         list_args.remove(' ')
 
     if len(list_args) ==  0:
-        weechat.command("/help auth") 
+        weechat.command("/help auth")
     elif list_args[0] not in ["add", "del", "list", "cmd"]:
         weechat.prnt(buffer, "[%s] bad option while using /auth command, try '/help auth' for more info" % (NAME))
     elif list_args[0] == "cmd":
