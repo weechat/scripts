@@ -21,10 +21,12 @@
 #
 #   Commands:
 #   * /infos
-#   
+#
 #   History:
-#   2011-10-02
-#   version 0.1: new script!
+#     2013-01-06, Sebastien Helleu <flashcode@flashtux.org>:
+#       version 0.2: make script compatible with Python 3.x
+#     2011-10-02
+#       version 0.1: new script!
 #
 ###
 
@@ -33,13 +35,13 @@ try:
     from weechat import WEECHAT_RC_OK, prnt
     import_ok = True
 except ImportError:
-    print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print("This script must be run under WeeChat.")
+    print("Get WeeChat now at: http://www.weechat.org/")
     import_ok = False
 
 SCRIPT_NAME    = "infos"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "View and use WeeChat's infos."
 
@@ -112,7 +114,7 @@ def catchExceptions(f):
     def function(*args, **kwargs):
         try:
             return f(*args, **kwargs)
-        except Exception, e:
+        except Exception as e:
             error(e)
     return function
 
@@ -145,7 +147,7 @@ def print_infos_description(buffer='', info_name=None):
         prnt(buffer, "arguments .....: %s%s" % (COLOR_CYAN,
                                                 infolist['args_description_nls']
                                                 or '(no description)'))
-        prnt(buffer, "description ...: %s%s" % (COLOR_CYAN, 
+        prnt(buffer, "description ...: %s%s" % (COLOR_CYAN,
                                                 infolist['description_nls']
                                                 or "(no description)"))
 
@@ -157,7 +159,7 @@ def print_infos_description(buffer='', info_name=None):
         elif info_name == info['info_name']:
             found = True
             print_desc(infolist)
-    
+
     if info_name and not found:
         prnt(buffer, "No info found with name \"%s\"" % info_name)
 
@@ -188,7 +190,7 @@ def cmd_infos(data, buffer, args):
         print_infos_description(info_name=info)
     else:
         weechat.command('', "/help infos")
-        
+
     return WEECHAT_RC_OK
 
 
@@ -201,7 +203,7 @@ def cmpl_infos_list(data, completion_item, buffer, completion):
 # Main
 
 if __name__ == '__main__' and import_ok and \
-            weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, 
+            weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR,
                              SCRIPT_VERSION, SCRIPT_LICENSE,
                              SCRIPT_DESC, '', ''):
 
@@ -215,12 +217,12 @@ if __name__ == '__main__' and import_ok and \
 
     # pretty [SCRIPT_NAME]
     script_nick = '%s[%s%s%s]%s' % (COLOR_CHAT_DELIMITERS,
-                                    COLOR_CHAT_NICK, 
-                                    SCRIPT_NAME, 
+                                    COLOR_CHAT_NICK,
+                                    SCRIPT_NAME,
                                     COLOR_CHAT_DELIMITERS,
                                     COLOR_RESET)
 
-    weechat.hook_command("infos", "View and use WeeChat infos", 
+    weechat.hook_command("infos", "View and use WeeChat infos",
                          "show [<info_name>] || get <info_name> [<arguments>]",
                          "show: Shows information about all infos or info <info_name>.\n"\
                          " get: Get info <info_name>.",
@@ -240,7 +242,7 @@ if __name__ == '__main__' and import_ok and \
             debug = pybuffer.debugBuffer(globals(), '%s_debug' % SCRIPT_NAME)
         except ImportError:
             def debug(s, *args):
-                if not isinstance(s, basestring):
+                if not isinstance(s, str):
                     s = str(s)
                 if args:
                     s = s %args
