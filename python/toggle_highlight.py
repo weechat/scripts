@@ -19,6 +19,8 @@
 #
 # History:
 #
+# 2013-01-07 Adam Spiers <weechat@adamspiers.org>
+#     version 0.2: bugfixes
 # 2013-01-06 Adam Spiers <weechat@adamspiers.org>
 #     version 0.1: initial release
 
@@ -28,7 +30,7 @@ import weechat as w
 
 SCRIPT_NAME    = "toggle_highlight"
 SCRIPT_AUTHOR  = "Adam Spiers <weechat@adamspiers.org>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Toggles notifications of normal messages for the current buffer"
 
@@ -38,7 +40,6 @@ SILENCE_DESCR  = "notifications for normal messages silenced"
 NOTIFY_DESCR   = "notifications for normal messages enabled"
 
 settings = {
-    'next_level' : 'highlight', # next notify level
 }
 
 def show_message(buf, msg):
@@ -49,13 +50,14 @@ def get_setting_name(buf):
     bufserv = w.buffer_get_string(buf, 'localvar_server')
     return "weechat.notify.irc.%s.%s" % (bufserv, bufchan)
 
+def is_current_buffer_highlight_set(buf):
+    return w.config_string(w.config_get(get_setting_name(buf))) == 'highlight'
+
 def display_current(buf):
     if not ensure_channel_buffer(buf):
         return
 
-    val = w.config_string(w.config_get(get_setting_name(buf)))
-
-    if val == 'highlight':
+    if is_current_buffer_highlight_set(buf):
         show_message(buf, SILENCE_DESCR)
     else:
         show_message(buf, NOTIFY_DESCR)
@@ -85,15 +87,12 @@ def set_highlight(buf, unset=False):
 
     if unset:
         command = "/unset %s" % get_setting_name(buf)
-        next_level = 'highlight'
         message = NOTIFY_DESCR
     else:
         command = "/set %s highlight" % get_setting_name(buf)
-        next_level = 'unset'
         message = SILENCE_DESCR
 
     w.command('', command)
-    w.config_set_plugin('next_level', next_level)
     show_message(buf, message)
 
 def set_highlight_cmd_cb(data, buf, args):
@@ -102,10 +101,9 @@ def set_highlight_cmd_cb(data, buf, args):
         display_current(buf)
     else:
         if args == 'toggle':
-            toggle = w.config_get_plugin('next_level')
-            if toggle == 'unset':
+            if is_current_buffer_highlight_set(buf):
                 set_highlight(buf, unset=True)
-            elif toggle == 'highlight':
+            else:
                 set_highlight(buf)
         elif args == 'unset':
             set_highlight(buf, unset=True)
