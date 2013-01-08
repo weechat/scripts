@@ -218,7 +218,7 @@ for full pod documentation, filter this script with
 =cut
 
 use constant SCRIPT_NAME => 'menu';
-weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.4', 'GPL3', 'menu system', 'stop_menu', '') || return;
+weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.5', 'GPL3', 'menu system', 'stop_menu', '') || return;
 sub SCRIPT_FILE() {
 	my $infolistptr = weechat::infolist_get('perl_script', '', SCRIPT_NAME);
 	my $filename = weechat::infolist_string($infolistptr, 'filename') if weechat::infolist_next($infolistptr);
@@ -754,7 +754,7 @@ weechat::bar_item_new('main_menu', 'bar_item_main_menu', '');
 weechat::bar_item_new('sub_menu', 'bar_item_sub_menu', '');
 weechat::bar_item_new('menu_help', 'bar_item_menu_help', '');
 weechat::bar_item_new('window_popup_menu', 'bar_item_window_popup_menu', '');
-weechat::hook_command('menu', 'open the menu', '[name] [args] || reset',
+weechat::hook_command(SCRIPT_NAME, 'open the menu', '[name] [args] || reset',
 					  'without arguments, open the main menu.'."\n".
 						  'if name is given, open the popup menu with that name - this is usually done by scripts.'
 							  ."\n".'args are passed on to the menu commands, see the manual for more info.'."\n".
@@ -921,6 +921,7 @@ sub bar_item_main_menu {
 ## $cmd - executed /input command
 sub menu_input_run {
 	my (undef, undef, $cmd) = @_;
+	$cmd =~ s/ insert \\x0a/ return/;
 	return weechat::WEECHAT_RC_OK unless $MENU_OPEN;
 	if ($cmd eq '/input delete_previous_char') {
 		my $bar = weechat::bar_search('menu_help');
@@ -1232,10 +1233,11 @@ sub exec_submenu {
 	map { $_->{'value'} }
 	grep { $_->{'option_name'} =~ /^$main_menu_id[.]$sub_menu_id[.]command$/ }
 	@menu_entries;
+	local $MENU_OPEN;
 	weechat::command(weechat::current_buffer(), $command) if $command
 }
 
-## exec_submenu -- run command of active popup menu item
+## exec_popupmenu -- run command of active popup menu item
 sub exec_popupmenu {
 	my $active_popup_entry = (WINDOW_POPUP_MENU())[$ACT_MENU{'window_popup'}];
 	my @menu_entries = Nlib::i2h('option', '', "menu.var.$POPUP_MENU.*");
@@ -1248,6 +1250,7 @@ sub exec_popupmenu {
 	grep { $_->{'option_name'} =~ /^\Q$POPUP_MENU\E[.]$popup_entry_id[.]command$/ }
 	@menu_entries;
 	$command =~ s/\$(\d)/$POPUP_MENU_ARGS->[$1]/g if $command;
+	local $MENU_OPEN;
 	weechat::command($POPUP_MENU_BUFFER, $command) if $command
 }
 
