@@ -3,7 +3,7 @@
 # TONS OF THANKS TO FlashCode FOR HIS IRC CLIENT AND HIS SUPPORT ON #weechat
 #
 # -----------------------------------------------------------------------------
-# Copyright (c) 2009-2011 by rettub <rettub@gmx.net>
+# Copyright (c) 2009-2013 by rettub <rettub@gmx.net>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 # -----------------------------------------------------------------------------
 # newsbar for weechat version 0.3.0 or later
 #
-# Listens for highlights and sends them to a bar.
+# Listening for highlights and sends them to a bar.
 #
 #
 # Usage:
@@ -30,6 +30,8 @@
 # -----------------------------------------------------------------------------
 # Download:
 # http://github.com/rettub/weechat-plugins/raw/master/perl/newsbar.pl
+# https://github.com/weechatter/weechat-scripts
+# http://www.weechat.org/scripts/
 # -----------------------------------------------------------------------------
 # XXX Known bugs:
 #     Bar must be redrawed if terminal size has changed (wrapping)
@@ -48,6 +50,10 @@
 # -----------------------------------------------------------------------------
 #
 # Changelog:
+# Version 0.14 2013-01-13, nils_2
+#   * IMPROVED: new option "most_recent" (idea by swimmer)
+#   * FIX: typo in help text
+#
 # Version 0.13 2012-02-13, nils_2
 #   * FIX: display error with weechat.look.buffer_time_format (WeeChat >= 0.3.5)
 #
@@ -156,7 +162,7 @@ use POSIX qw(strftime);
 use strict;
 use warnings;
 
-my $Version = "0.13";
+my $Version = "0.14";
 
 # constants
 #
@@ -188,6 +194,7 @@ my %SETTINGS = (
     "colored_help"           => "on",
     "nick_flood_protection"  => 'off',
     "nick_flood_max_nicks"   => '4',
+    "most_recent"            => "first",
     "debug"                  => "on",
 );
 
@@ -337,7 +344,10 @@ Config settings:
     nick_flood_max_nicks:   If messages starts with #nick_flood_max_nicks or
                             more nicks, then it's assumed as nick_flood
                             default: '$SETTINGS{nick_flood_max_nicks}'
-    debug:                  Show some debug/warning messages on failture. ('on'/'off').
+    most_recent             display a new message in bar ('first'/'last')
+                            default: '$SETTINGS{most_recent}'
+
+    debug:                  Show some debug/warning messages on failure. ('on'/'off').
                             default: '$SETTINGS{debug}'
 
 EO_HELP
@@ -492,8 +502,17 @@ sub _bar_show {
         $Bar_hidden = 0;
         weechat::bar_set($bar_title, 'hidden', '0');    # XXX bars must be visible before
         weechat::bar_set($bar, 'hidden', '0');          #     bar_item_update() is called!
+
         weechat::bar_item_update($Bar_title_name);
         weechat::bar_item_update( weechat::config_get_plugin('bar_name'));
+
+        # scroll bar, after(!) update
+        if (lc(weechat::config_get_plugin('most_recent')) eq "last"
+        and weechat::bar_search( weechat::config_get_plugin('bar_name')) ne ""){
+            my $bar_name = weechat::config_get_plugin('bar_name');
+            weechat::command("","/bar scroll " . $bar_name . " * ye");
+        }
+
     } else {
         weechat::print('', "$SCRIPT: ERROR: missing bar, please reload $SCRIPT");
     }
@@ -501,7 +520,13 @@ sub _bar_show {
 
 sub _bar_print {
     my $str = shift;
-    unshift(@Bstr , [_bar_date_time() . " ",  $str]); # insert msg to top
+
+    if (lc(weechat::config_get_plugin('most_recent')) eq "last"){
+        push(@Bstr , [_bar_date_time() . " ",  $str]); # insert msg to bottom
+    }
+    else{
+        unshift(@Bstr , [_bar_date_time() . " ",  $str]); # insert msg to top
+    }
 
     _bar_show();
 }
@@ -839,6 +864,7 @@ sub _bar_recreate {
 # Make new bar if needed
 sub init_bar {
     my $bar_name = weechat::config_get_plugin('bar_name');
+    $bar_name = $SCRIPT if ($bar_name eq "");
 
     $Bar_hidden = weechat::config_get_plugin('bar_hidden_on_start')
       unless defined $Bar_hidden;
@@ -912,6 +938,9 @@ sub unload {
 # FIXME call if config var 'title' changed
 sub build_bar_title {
 
+    my $most_recent = lc(weechat::config_get_plugin('most_recent'));
+    $most_recent = "first" if (($most_recent ne "last") and ($most_recent ne "first"));
+
     # FIXME hook into user config (colors) changed, rebuild title
     my $cfg =
     weechat::color(weechat::config_string(weechat::config_get('weechat.bar.title.color_fg')));
@@ -927,7 +956,7 @@ sub build_bar_title {
       . $cdelm . "] [active:" . $cst_name . " %A"
       . $cdelm . "] [beep: "
       . $cst_name . "%B" . $cdelm . "(" . $cst_name . "%R" . $cdelm . ")"
-      . $cdelm . "] [most recent: " . "first" . "]";
+      . $cdelm . "] [most recent: " . $most_recent . "]";
 
     my $i = @Bstr;
     $i ||= 0;
