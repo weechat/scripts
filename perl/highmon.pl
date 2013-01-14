@@ -1,6 +1,6 @@
 #
 # highmon.pl - Highlight Monitoring for weechat 0.3.0
-# Version 2.3.1
+# Version 2.3.2
 #
 # Add 'Highlight Monitor' buffer/bar to log all highlights in one spot
 #
@@ -63,7 +63,12 @@
 #  #channel is the channel name, (where # is whatever channel type that channel happens to be)
 #
 
+# Bugs and feature requests at: https://github.com/KenjiE20/highmon
+
 # History:
+# 2013-01-15, KenjiE20 <longbow@longbowslair.co.uk>:
+#	v2.3.2:	-fix: Let bar output use the string set in weechat's config option
+#			-add: github info
 # 2012-04-15, KenjiE20 <longbow@longbowslair.co.uk>:
 #	v2.3.1:	-fix: Colour tags in bar timestamp string
 # 2012-02-28, KenjiE20 <longbow@longbowslair.co.uk>:
@@ -90,11 +95,11 @@
 #		-code change: Made more subs to shrink the code down in places
 #		-fix: Stop highmon attempting to double load/hook
 #		-fix: Add version dependant check for away status
-# 2010-01-25, KenjiE20 <longbow@longbowslair.co.uk>: 
-#       v1.7:   -fixture: Let highmon be aware of nick_prefix/suffix 
-#                       and allow custom prefix/suffix for chanmon buffer 
-#                       (Defaults to <> if nothing set, and blank if there is) 
-#               (Thanks to m4v for these) 
+# 2010-01-25, KenjiE20 <longbow@longbowslair.co.uk>:
+#       v1.7:   -fixture: Let highmon be aware of nick_prefix/suffix
+#                       and allow custom prefix/suffix for chanmon buffer
+#                       (Defaults to <> if nothing set, and blank if there is)
+#               (Thanks to m4v for these)
 # 2009-09-07, KenjiE20 <longbow@longbowslair.co.uk>:
 #	v1.6:	-feature: colored buffer names
 #		-change: version sync with chanmon
@@ -205,17 +210,18 @@ sub highmon_bar_build
 	if (@bar_lines)
 	{
 		# Build loop
+		$sep = " ".weechat::config_string(weechat::config_get("weechat.look.prefix_suffix"))." ";
 		foreach(@bar_lines)
 		{
 			# Find max align needed
-			$prefix_num = (index(weechat::string_remove_color($_, ""), " | "));
+			$prefix_num = (index(weechat::string_remove_color($_, ""), $sep));
 			$align_num = $prefix_num if ($prefix_num > $align_num);
-		}		
+		}
 		foreach(@bar_lines)
 		{
 			# Get align for this line
-			$prefix_num = (index(weechat::string_remove_color($_, ""), " | "));
-			
+			$prefix_num = (index(weechat::string_remove_color($_, ""), $sep));
+
 			# Make string
 			$str = $str.$bar_lines_time[$count]." ".(" " x ($align_num - $prefix_num)).$_."\n";
 			# Increment count for sync with time list
@@ -227,10 +233,10 @@ sub highmon_bar_build
 
 # Make a new bar
 sub highmon_bar_open
-{	
+{
 	# Make the bar item
 	weechat::bar_item_new("highmon", "highmon_bar_build", "");
-		
+
 	$highmon_bar = weechat::bar_new ("highmon", "off", 100, "root", "", "bottom", "vertical", "vertical", 0, 0, "default", "cyan", "default", "on", "highmon");
 
 	return weechat::WEECHAT_RC_OK;
@@ -245,7 +251,7 @@ sub highmon_bar_close
 	{
 		weechat::bar_remove($highmon_bar);
 	}
-	
+
 	# Find if bar item exists
 	$highmon_bar_item = weechat::bar_item_search("highmon_bar");
 	# If is does, close it
@@ -253,7 +259,7 @@ sub highmon_bar_close
 	{
 		weechat::bar_remove($highmon_bar_item);
 	}
-	
+
 	@bar_lines = ();
 	return weechat::WEECHAT_RC_OK;
 }
@@ -307,7 +313,7 @@ sub highmon_command_cb
 	$args = $_[2];
 	my $cmd = '';
 	my $arg = '';
-	
+
 	if ($args ne "")
 	{
 		# Split argument up
@@ -320,14 +326,14 @@ sub highmon_command_cb
 			$arg = join(" ", @arg_array);
 		}
 	}
-	
+
 	# Help command
 	if ($cmd eq "" || $cmd eq "help")
 	{
 		print_help();
 	}
 	# /monitor command
-	elsif ($cmd eq "monitor") 
+	elsif ($cmd eq "monitor")
 	{
 		highmon_toggle($data, $buffer, $arg);
 	}
@@ -345,14 +351,14 @@ sub highmon_config_clean
 	$data = $_[0];
 	$buffer = $_[1];
 	$args = $_[2];
-	
+
 	# Don't do anything if bad option given
 	if ($args ne "default" && $args ne "orphan"  && $args ne "all")
 	{
 		weechat::print("", "\thighmon.pl: Unknown option");
 		return weechat::WEECHAT_RC_OK;
 	}
-	
+
 	@chans = ();
 	# Load an infolist of highmon options
 	$infolist = weechat::infolist_get("option", "", "*highmon*");
@@ -436,25 +442,25 @@ sub highmon_config_init
 	{
 		weechat::config_set_plugin("alignment", "none");
 	}
-	
+
 	# Short name default
 	if (!(weechat::config_is_set_plugin ("short_names")))
 	{
 		weechat::config_set_plugin("short_names", "off");
 	}
-	
+
 	# Coloured names default
 	if (!(weechat::config_is_set_plugin ("color_buf")))
 	{
 		weechat::config_set_plugin("color_buf", "on");
 	}
-	
+
 	# Hotlist show default
 	if (!(weechat::config_is_set_plugin ("hotlist_show")))
 	{
 		weechat::config_set_plugin("hotlist_show", "off");
 	}
-	
+
 	# Away only default
 	if (!(weechat::config_is_set_plugin ("away_only")))
 	{
@@ -466,13 +472,13 @@ sub highmon_config_init
 	{
 		weechat::config_set_plugin("logging", "off");
 	}
-	
+
 	# Output default
 	if (!(weechat::config_is_set_plugin ("output")))
 	{
 		weechat::config_set_plugin("output", "buffer");
 	}
-	
+
 	# Private message merging
 	if (!(weechat::config_is_set_plugin ("merge_private")))
 	{
@@ -530,9 +536,9 @@ sub highmon_config_cb
 	$point = $_[0];
 	$name = $_[1];
 	$value = $_[2];
-	
+
 	$name =~ s/^plugins\.var\.perl\.highmon\.//;
-	
+
 	# Set logging on buffer
 	if ($name eq "logging")
 	{
@@ -559,7 +565,7 @@ sub highmon_config_cb
 			{
 				weechat::buffer_close($highmon_buffer)
 			}
-			
+
 			# Output bar lines default
 			if (!(weechat::config_is_set_plugin ("bar_lines")))
 			{
@@ -579,7 +585,7 @@ sub highmon_config_cb
 			# Open buffer
 			highmon_buffer_open();
 		}
-	
+
 	}
 	# Change if hotlist config changes
 	elsif ($name eq "hotlist_show")
@@ -595,6 +601,15 @@ sub highmon_config_cb
 			weechat::buffer_set($highmon_buffer, "notify", "3");
 		}
 	}
+	elsif ($name eq "weechat.look.prefix_suffix")
+	{
+		if (weechat::config_get_plugin("output") eq "bar")
+		{
+			@bar_lines = ();
+			weechat::print("", "\thighmon: weechat.look.prefix_suffix changed, clearing highmon bar");
+			weechat::bar_item_update("highmon");
+		}
+	}
 	return weechat::WEECHAT_RC_OK;
 }
 
@@ -603,10 +618,11 @@ sub highmon_hook
 {
 	weechat::hook_print("", "", "", 0, "highmon_new_message", "");
 	weechat::hook_command("highclean", "Highmon config clean up", "default|orphan|all", " default: Cleans all config entries with the default \"on\" value\n  orphan: Cleans all config entries for channels you aren't currently joined\n     all: Does both defaults and orphan", "default|orphan|all", "highmon_config_clean", "");
-	
+
 	weechat::hook_command("highmon", "Highmon help", "[help] | [monitor [channel [server]]] | [clean default|orphan|all]", "   help: Print help on config options for highmon\n monitor: Toggles monitoring for a channel\n  clean: Highmon config clean up (/highclean)", "help || monitor %(irc_channels) %(irc_servers) || clean default|orphan|all", "highmon_command_cb", "");
-	
+
 	weechat::hook_config("plugins.var.perl.highmon.*", "highmon_config_cb", "");
+	weechat::hook_config("weechat.look.prefix_suffix", "highmon_config_cb", "");
 }
 
 # Main body, Callback for hook_print
@@ -707,13 +723,13 @@ sub highmon_print
 	$cb_msg = $_[0];
 	my $cb_bufferp = $_[1] if ($_[1]);
 	my $nick = $_[2] if ($_[2]);
-	
+
 	#Normal channel message
 	if ($cb_bufferp && $nick)
 	{
 		# Format buffer name
-		$bufname = format_buffer_name($cb_bufferp);	
-	
+		$bufname = format_buffer_name($cb_bufferp);
+
 		# If alignment is #channel | nick msg
 		if (weechat::config_get_plugin("alignment") eq "channel")
 		{
@@ -772,8 +788,8 @@ sub highmon_print
 	elsif ($cb_bufferp && !$nick)
 	{
 		# Format buffer name
-		$bufname = format_buffer_name($cb_bufferp);	
-		
+		$bufname = format_buffer_name($cb_bufferp);
+
 		# If alignment is #channel * | *
 		if (weechat::config_get_plugin("alignment") =~ /channel/)
 		{
@@ -802,7 +818,7 @@ sub highmon_print
 	{
 		$outstr = "\t".$cb_msg;
 	}
-	
+
 	# Send string to buffer
 	if (weechat::config_get_plugin("output") eq "buffer")
 	{
@@ -833,11 +849,11 @@ sub highmon_print
 		}
 		# Push updates to bar lists
 		push (@bar_lines_time, $time);
-		
+
 		# Change tab char
-		$delim = weechat::color(weechat::config_string(weechat::config_get("weechat.color.chat_delimiters")))." | ".weechat::color("reset");
+		$delim = " ".weechat::color(weechat::config_string(weechat::config_get("weechat.color.chat_delimiters"))).weechat::config_string(weechat::config_get("weechat.look.prefix_suffix")).weechat::color("reset")." ";
 		$outstr =~ s/\t/$delim/;
-		
+
 		push (@bar_lines, $outstr);
 		# Trigger update
 		weechat::bar_item_update("highmon");
@@ -868,7 +884,7 @@ sub highmon_toggle
 	$data = $_[0];
 	$buffer = $_[1];
 	$args = $_[2];
-	
+
 	# Check if we've been told what channel to act on
 	if ($args ne "")
 	{
@@ -937,7 +953,7 @@ sub highmon_toggle
 		{
 			# If currently on, set off
 			weechat::config_set_plugin($bufname, "off");
-			
+
 			# Send to output formatter
 			highmon_print("Highlight Monitoring Disabled", $bufp);
 			return weechat::WEECHAT_RC_OK;
@@ -950,7 +966,7 @@ sub format_buffer_name
 {
 	$cb_bufferp = $_[0];
 	$bufname = weechat::buffer_get_string($cb_bufferp, 'name');
-	
+
 	# Set colour from buffer name
 	if (weechat::config_get_plugin("color_buf") eq "on")
 	{
@@ -970,7 +986,7 @@ sub format_buffer_name
 			$color = weechat::config_string($color);
 			$color = weechat::color($color);
 		}
-		
+
 		# Private message just show network
 		if (weechat::config_get_plugin("merge_private") eq "on" && weechat::buffer_get_string($cb_bufferp, "localvar_type") eq "private")
 		{
@@ -985,7 +1001,7 @@ sub format_buffer_name
 		{
 			$bufname =~ s/(.*)\.([#&\+!])(.*)/$1$2$3/;
 		}
-		
+
 		# Build a coloured string
 		$bufname = $color.$bufname.weechat::color("reset");
 	}
@@ -1006,7 +1022,7 @@ sub format_buffer_name
 		{
 			$bufname =~ s/(.*)\.([#&\+!])(.*)/$1$2$3/;
 		}
-	
+
 		$color = weechat::config_get_plugin("color_buf");
 		$bufname = weechat::color($color).$bufname.weechat::color("reset");
 	}
@@ -1028,12 +1044,12 @@ sub format_buffer_name
 			$bufname =~ s/(.*)\.([#&\+!])(.*)/$1$2$3/;
 		}
 	}
-	
+
 	return $bufname;
 }
 
 # Check result of register, and attempt to behave in a sane manner
-if (!weechat::register("highmon", "KenjiE20", "2.3.1", "GPL3", "Highlight Monitor", "", ""))
+if (!weechat::register("highmon", "KenjiE20", "2.3.2", "GPL3", "Highlight Monitor", "", ""))
 {
 	# Double load
 	weechat::print ("", "\tHighmon is already loaded");
