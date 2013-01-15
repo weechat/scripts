@@ -120,7 +120,7 @@ for full pod documentation, filter this script with
 =cut
 
 use constant SCRIPT_NAME => 'multiline';
-weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.3', 'GPL3', 'Multi-line edit box', 'stop_multiline', '') || return;
+weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.4', 'GPL3', 'Multi-line edit box', 'stop_multiline', '') || return;
 sub SCRIPT_FILE() {
 	my $infolistptr = weechat::infolist_get('perl_script', '', SCRIPT_NAME);
 	my $filename = weechat::infolist_string($infolistptr, 'filename') if weechat::infolist_next($infolistptr);
@@ -131,7 +131,7 @@ sub SCRIPT_FILE() {
 {
 package Nlib;
 # this is a weechat perl library
-use strict; use warnings;
+use strict; use warnings; no warnings 'redefine';
 
 ## i2h -- copy weechat infolist content into perl hash
 ## $infolist - name of the infolist in weechat
@@ -211,6 +211,7 @@ sub hdh {
 		my ($arg, $name, $var) = splice @_, 0, 3;
 		my $hdata = weechat::hdata_get($name);
 
+		$var =~ s/!(.*)/weechat::hdata_get_string($hdata, $1)/e;
 		(my $plain_var = $var) =~ s/^\d+\|//;
 		my $type = weechat::hdata_get_var_type_string($hdata, $plain_var);
 		if ($type eq 'pointer') {
@@ -258,7 +259,7 @@ sub unhook_dynamic {
 				exists \$DYNAMIC_HOOKS{\$what}{\$sub};
 		delete \$DYNAMIC_HOOKS{\$what}{\$sub};
 		delete \$DYNAMIC_HOOKS{\$what} unless \%{\$DYNAMIC_HOOKS{\$what}};
-	};	
+	};
 	die $@ if $@;
 }
 
@@ -283,7 +284,7 @@ sub get_desc_from_pod {
 	$pt->output_string(\my $ss_f);
 	$pt->parse_string_document($ss);
 
-	my ($res) = $ss_f =~ /^\s*\Q$setting\E\s+(.*)\s*$/;
+	my ($res) = $ss_f =~ /^\s*\Q$setting\E\s+(.*)\s*/;
 	$res
 }
 
@@ -320,7 +321,10 @@ sub read_manpage {
 	my $name = shift;
 
 	if (my $obuf = weechat::buffer_search('perl', "man $name")) {
-		weechat::buffer_close($obuf);
+		eval qq{
+			package $caller_package;
+			weechat::buffer_close(\$obuf);
+		};
 	}
 
 	my @wee_keys = Nlib::i2h('key');
@@ -366,7 +370,7 @@ sub read_manpage {
 	weechat::buffer_set($buf, 'key_bind_q', '/buffer close');
 
 	weechat::print($buf, " \t".mangle_man_for_wee($_))
-			for `pod2man \Q$file\E | GROFF_NO_SGR=1 nroff -mandoc -rLL=${width}n -rLT=${width}n -Tutf8 2>/dev/null`;
+			for `pod2man \Q$file\E 2>/dev/null | GROFF_NO_SGR=1 nroff -mandoc -rLL=${width}n -rLT=${width}n -Tutf8 2>/dev/null`;
 	weechat::command($buf, '/window scroll_top');
 
 	unless (hdh($buf, 'buffer', 'lines', 'lines_count') > 0) {
@@ -390,6 +394,9 @@ our $MAGIC_ENTER_TIMER;
 our $MAGIC_LOCK;
 our $MAGIC_LOCK_TIMER;
 our $WEECHAT_PASTE_FIX_CTRLJ_CMD;
+our $INPUT_CHANGED_EATER_FLAG;
+our $IGNORE_INPUT_CHANGED;
+our $IGNORE_INPUT_CHANGED2;
 
 use constant KEY_RET => 'ctrl-M';
 use constant INPUT_NL => '/input insert \x0a';
@@ -403,6 +410,8 @@ weechat::hook_command_run('/help '.SCRIPT_NAME, 'help_cmd', '');
 weechat::hook_command_run(INPUT_MAGIC, 'magic_enter', '');
 Nlib::hook_dynamic('signal', 'input_text_*', 'magic_enter_cancel', '');
 weechat::hook_signal('key_pressed', 'magic_lock_hatch', '');
+weechat::hook_signal('500|input_text_changed', 'paste_undo_hack', ''); # we need lower than default priority here or the first character is separated
+weechat::hook_command_run('/input *', 'paste_undo_start_ignore', '');
 hook_complete('complete*', 'delete_*', 'move_*');
 
 ## multiline_display -- show multi-lines on display of input string
@@ -438,6 +447,66 @@ sub lock_timer_exp {
 	weechat::WEECHAT_RC_OK
 }
 
+## paste_undo_stop_ignore -- unset ignore2 flag
+sub paste_undo_stop_ignore {
+	$IGNORE_INPUT_CHANGED2 = undef;
+	weechat::WEECHAT_RC_OK
+}
+
+## paste_undo_start_ignore -- set ignore2 flag when /input is received so to allow /input undo/redo
+## () - command_run handler
+## $_[2] - command that was called
+sub paste_undo_start_ignore {
+	return weechat::WEECHAT_RC_OK if $IGNORE_INPUT_CHANGED;
+	return weechat::WEECHAT_RC_OK if $_[2] =~ /insert/;
+	$IGNORE_INPUT_CHANGED2 = 1;
+	weechat::WEECHAT_RC_OK
+}
+
+## paste_undo_hack -- fix up undo stack when paste is detected by calling /input undo
+## () - signal handler
+## $_[2] - buffer pointer
+sub paste_undo_hack {
+	return weechat::WEECHAT_RC_OK if $IGNORE_INPUT_CHANGED;
+	return paste_undo_stop_ignore() if $IGNORE_INPUT_CHANGED2;
+	if ($MAGIC_LOCK > 0 && get_lock_enabled()) {
+		signall_ignore_input_changed(1);
+
+		Encode::_utf8_on(my $input = weechat::buffer_get_string($_[2], 'input'));
+		my $pos = weechat::buffer_get_integer($_[2], 'input_pos');
+
+		weechat::command($_[2], '/input undo') for 1..2;
+
+		weechat::buffer_set($_[2], 'input', $input);
+		weechat::buffer_set($_[2], 'input_pos', $pos);
+
+		signall_ignore_input_changed(0);
+	}
+	weechat::WEECHAT_RC_OK
+}
+
+## input_changed_eater -- suppress input_text_changed signal on new weechats
+## () - signal handler
+sub input_changed_eater {
+	$INPUT_CHANGED_EATER_FLAG = undef;
+	weechat::WEECHAT_RC_OK_EAT
+}
+
+## signall_ignore_input_changed -- use various methods to "ignore" input_text_changed signal
+## $_[0] - start ignore or stop ignore
+sub signall_ignore_input_changed {
+	if ($_[0]) {
+		weechat::hook_signal_send('input_flow_free', weechat::WEECHAT_HOOK_SIGNAL_INT, 1);
+		Nlib::hook_dynamic('signal', '2000|input_text_changed', 'input_changed_eater', '');
+		$IGNORE_INPUT_CHANGED = 1;
+	}
+	else {
+		$IGNORE_INPUT_CHANGED = undef;
+		Nlib::unhook_dynamic('2000|input_text_changed', 'input_changed_eater');
+		weechat::hook_signal_send('input_flow_free', weechat::WEECHAT_HOOK_SIGNAL_INT, 0);
+	}
+}
+
 ## multiline_complete_fix -- add per line /input handling for completion, movement and deletion
 ## () - command_run handler
 ## $_[0] - original bound data
@@ -445,12 +514,12 @@ sub lock_timer_exp {
 ## $_[2] - original command
 sub multiline_complete_fix {
 	Nlib::unhook_dynamic('input_text_*', 'magic_enter_cancel');
-	Nlib::unhook_dynamic("/input $_[0]", 'multiline_complete_fix');
+	Nlib::unhook_dynamic("1500|/input $_[0]", 'multiline_complete_fix');
 	if ($_[2] =~ s/_message$/_line/ || !weechat::config_string_to_boolean(weechat::config_get_plugin('modify_keys'))) {
 		weechat::command($_[1], $_[2]);
 	}
 	else {
-		weechat::hook_signal_send('input_flow_free', weechat::WEECHAT_HOOK_SIGNAL_INT, 1);
+		signall_ignore_input_changed(1);
 		Encode::_utf8_on(my $input = weechat::buffer_get_string($_[1], 'input'));
 		my $pos = weechat::buffer_get_integer($_[1], 'input_pos');
 		if ($pos && $_[2] =~ /(?:previous|beginning_of)_/ && (substr $input, $pos-1, 1) eq $NL) {
@@ -468,7 +537,10 @@ sub multiline_complete_fix {
 		weechat::buffer_set($_[1], 'input_pos', length $p1);
 
 		Nlib::hook_dynamic('signal', 'input_text_*', 'magic_enter_cancel', '');
+		$INPUT_CHANGED_EATER_FLAG = 1;
 		weechat::command($_[1], $_[2]);
+		my $changed_later = !$INPUT_CHANGED_EATER_FLAG;
+		magic_enter_cancel() if $changed_later;
 		Nlib::unhook_dynamic('input_text_*', 'magic_enter_cancel');
 
 		Encode::_utf8_on(my $p = weechat::buffer_get_string($_[1], 'input'));
@@ -477,7 +549,9 @@ sub multiline_complete_fix {
 		weechat::command($_[1], '/input undo');
 		weechat::buffer_set($_[1], 'input', join $NL, @lines, $p, @after);
 		weechat::buffer_set($_[1], 'input_pos', $pos+length join $NL, @lines, '');
-		weechat::hook_signal_send('input_flow_free', weechat::WEECHAT_HOOK_SIGNAL_INT, 0);
+
+		signall_ignore_input_changed(0);
+		weechat::hook_signal_send('input_text_changed', weechat::WEECHAT_HOOK_SIGNAL_POINTER, $_[1]) if $changed_later;
 	}
 	hook_complete($_[0]);
 	Nlib::hook_dynamic('signal', 'input_text_*', 'magic_enter_cancel', '');
@@ -598,7 +672,7 @@ sub magic_enter_cancel {
 
 ## hook_complete -- dynamically enable the multiline_complete_fix for per-line movement/completion
 sub hook_complete {
-	Nlib::hook_dynamic('command_run', "/input $_", 'multiline_complete_fix', $_)
+	Nlib::hook_dynamic('command_run', "1500|/input $_", 'multiline_complete_fix', $_)
 		for @_;
 	weechat::WEECHAT_RC_OK
 }
@@ -660,15 +734,14 @@ sub default_options {
 		weechat::config_set_plugin($_, $defaults{$_})
 			unless weechat::config_is_set_plugin($_);
 	}
-	if (weechat::config_string_to_boolean(weechat::config_get_plugin('ipl'))) {
-		do_key_bind(KEY_RET, INPUT_NL);
-	}
+	do_key_bind(KEY_RET, INPUT_NL)
+		if weechat::config_string_to_boolean(weechat::config_get_plugin('ipl'));
 	my ($enter_key) = get_key_command(KEY_RET);
 	if (need_magic_enter()) {
 		do_key_bind(KEY_RET, INPUT_MAGIC)
 			if $enter_key eq INPUT_NL;
 	}
-	else {	
+	else {
 		do_key_bind(KEY_RET, INPUT_NL)
 			if $enter_key eq INPUT_MAGIC;
 	}
