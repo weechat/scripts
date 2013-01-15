@@ -86,6 +86,13 @@ menu. It is navigated in the same way as a submenu.
 
 =item *
 
+per-buffer key bindings as are used by iset, urlgrab, coords, the man
+page viewer (/menu help) and some game scripts B<always> override the
+global key bindings, so you will not be able to navigate the menu in
+this case.
+
+=item *
+
 unfortunately, WeeChat scrolls back the nicklist whenever a bar is
 hidden or shown. Some hacks are in this script to scroll it back to
 where it was before, but only when you clicked on the nicklist, not
@@ -122,17 +129,6 @@ command. The entries are
   /menu interactive ask {Connect to server:} {Port:} /connect $0/$1
   /menu interactive ask {Join which channel?} /join $0
   /menu interactive yn {Are you sure?} /quit
-
-=item *
-
-dynamic menu entries are lacking as well (like the current window or
-buffer list), the binding should be along the lines of
-
-  /set menu.var.#.name &Buffers
-  /set menu.var.#.1.name %buffer_menu
-  /set menu.var.2.6.name %window_menu
-
-and call infolists in weechat
 
 =back
 
@@ -205,6 +201,24 @@ The value of C<args> is available in a popup command as I<$0>, I<$1>,
 
 See the included C<nick> popup for an example.
 
+=head2 Dynamic menus
+
+Dynamic menu entries are configured through .command settings. There
+must not be a .name on this level for dynamic menu generation to
+work. The syntax is as follows:
+
+  /set menu.var.#.name &Buffers
+  /set menu.var.#.1.command "%gui_buffers.buffer% ${i} ${buffer.name} % /buffer ${buffer.full_name}"
+
+The first part of command must be %HDATA_LIST.HDATA_NAME% (see the
+weechat api docs for info on hdata).
+
+The second part sets the .name of the dynamic items and the third part
+sets the .command. They are seperated by % and evaluated with /eval
+(see /help eval for more info).
+
+Refer to the three dynamic menus that ship with the sample config.
+
 =head1 FUNCTION DESCRIPTION
 
 for full pod documentation, filter this script with
@@ -218,7 +232,7 @@ for full pod documentation, filter this script with
 =cut
 
 use constant SCRIPT_NAME => 'menu';
-weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.5', 'GPL3', 'menu system', 'stop_menu', '') || return;
+weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.7', 'GPL3', 'menu system', 'stop_menu', '') || return;
 sub SCRIPT_FILE() {
 	my $infolistptr = weechat::infolist_get('perl_script', '', SCRIPT_NAME);
 	my $filename = weechat::infolist_string($infolistptr, 'filename') if weechat::infolist_next($infolistptr);
@@ -229,7 +243,7 @@ sub SCRIPT_FILE() {
 {
 package Nlib;
 # this is a weechat perl library
-use strict; use warnings;
+use strict; use warnings; no warnings 'redefine';
 
 ## i2h -- copy weechat infolist content into perl hash
 ## $infolist - name of the infolist in weechat
@@ -309,6 +323,7 @@ sub hdh {
 		my ($arg, $name, $var) = splice @_, 0, 3;
 		my $hdata = weechat::hdata_get($name);
 
+		$var =~ s/!(.*)/weechat::hdata_get_string($hdata, $1)/e;
 		(my $plain_var = $var) =~ s/^\d+\|//;
 		my $type = weechat::hdata_get_var_type_string($hdata, $plain_var);
 		if ($type eq 'pointer') {
@@ -338,7 +353,7 @@ sub find_bar_window {
 				$col > $_->{'x'} && $col <= $_->{'x'}+$_->{'width'} &&
 					(($bar_info)=i2h('bar', $_->{'bar'})) && !$bar_info->{'hidden'};
 	}
-	
+
 }
 
 ## in_window -- check if given coordinates are in a window
@@ -397,7 +412,7 @@ sub unhook_dynamic {
 				exists \$DYNAMIC_HOOKS{\$what}{\$sub};
 		delete \$DYNAMIC_HOOKS{\$what}{\$sub};
 		delete \$DYNAMIC_HOOKS{\$what} unless \%{\$DYNAMIC_HOOKS{\$what}};
-	};	
+	};
 	die $@ if $@;
 }
 
@@ -500,13 +515,13 @@ sub bar_items_skip_to {
 	my ($bar_infos, $search, $col, $row) = @_;
 	$col += $bar_infos->[0]{'scroll_x'};
 	$row += $bar_infos->[0]{'scroll_y'};
-	my ($item_pos_a, $item_pos_b, $found) = 
+	my ($item_pos_a, $item_pos_b, $found) =
 		find_bar_item_pos($bar_infos, $search);
 
 	return 'item position not found' unless $found;
 
 	# extract items to skip
-	my $item_join = 
+	my $item_join =
 		(bar_filling($bar_infos) <= 1 ? '' : "\n");
 	my @prefix;
 	for (my $i = 0; $i < $item_pos_a; ++$i) {
@@ -579,14 +594,14 @@ sub bar_item_get_subitem_at {
 		$item_pos_a, $item_pos_b,
 		$prefix_col, $prefix_y,
 		$prefix_cnt,
-		$item_max_length, $col_vert_lines) = 
+		$item_max_length, $col_vert_lines) =
 			bar_items_skip_to($bar_infos, $search, $col, $row);
 
 	$col += $bar_infos->[0]{'scroll_x'};
 	$row += $bar_infos->[0]{'scroll_y'};
 
 	return $error if $error;
-	
+
 	return 'no viable position'
 		unless (($row == $prefix_y  && $col >= $prefix_col) || $row > $prefix_y || bar_filling($bar_infos) >= 3);
 
@@ -624,7 +639,7 @@ sub bar_item_get_subitem_at {
 			if ($prefix_col+$item_max_length > 1+$bar_infos->[0]{'width'}) {
 				return ('outside item', $idx-1, $_)
 					if ($prefix_y == $row && $col >= $prefix_col);
-				
+
 				++$prefix_y;
 				$prefix_col = 1;
 			}
@@ -684,7 +699,10 @@ sub read_manpage {
 	my $name = shift;
 
 	if (my $obuf = weechat::buffer_search('perl', "man $name")) {
-		weechat::buffer_close($obuf);
+		eval qq{
+			package $caller_package;
+			weechat::buffer_close(\$obuf);
+		};
 	}
 
 	my @wee_keys = Nlib::i2h('key');
@@ -730,7 +748,7 @@ sub read_manpage {
 	weechat::buffer_set($buf, 'key_bind_q', '/buffer close');
 
 	weechat::print($buf, " \t".mangle_man_for_wee($_))
-			for `pod2man \Q$file\E | GROFF_NO_SGR=1 nroff -mandoc -rLL=${width}n -rLT=${width}n -Tutf8 2>/dev/null`;
+			for `pod2man \Q$file\E 2>/dev/null | GROFF_NO_SGR=1 nroff -mandoc -rLL=${width}n -rLT=${width}n -Tutf8 2>/dev/null`;
 	weechat::command($buf, '/window scroll_top');
 
 	unless (hdh($buf, 'buffer', 'lines', 'lines_count') > 0) {
@@ -921,8 +939,8 @@ sub bar_item_main_menu {
 ## $cmd - executed /input command
 sub menu_input_run {
 	my (undef, undef, $cmd) = @_;
-	$cmd =~ s/ insert \\x0a/ return/;
 	return weechat::WEECHAT_RC_OK unless $MENU_OPEN;
+	$cmd =~ s/ (?:insert \\x0a|magic_enter)/ return/;
 	if ($cmd eq '/input delete_previous_char') {
 		my $bar = weechat::bar_search('menu_help');
 		my $hidden = (Nlib::i2h('bar', $bar))[0]{'hidden'};
@@ -991,7 +1009,7 @@ sub menu_input_run {
 	else {
 		if ($cmd eq '/input switch_active_buffer') {
 			open_menu(); # close here
-		}		
+		}
 	}
 	weechat::WEECHAT_RC_OK_EAT
 }
@@ -1292,7 +1310,7 @@ sub close_menu {
 		weechat::command(weechat::current_buffer(), "/bar scroll nicklist * y+$LAST_NICKLIST_RESCROLL_Y") if $LAST_NICKLIST_RESCROLL_Y;
 		($LAST_NICKLIST_RESCROLL_X, $LAST_NICKLIST_RESCROLL_Y) = (0, 0);
 	}
-	Nlib::unhook_dynamic('/input *', 'menu_input_run');
+	Nlib::unhook_dynamic('1200|/input *', 'menu_input_run');
 	Nlib::unhook_dynamic('input_text_content', 'menu_input_text');
 	Nlib::unhook_dynamic('input_text_display_with_cursor', 'menu_input_text_display');
 }
@@ -1305,6 +1323,52 @@ sub close_window_popup_menu {
 	if ($LAST_NICK_COLOR && $POPUP_MENU eq 'nick') {
 		weechat::nicklist_nick_set(@$LAST_NICK_COLOR);
 		$LAST_NICK_COLOR = undef
+	}
+}
+
+sub expand_dynamic_menus {
+	my (@menu_entries, $key);
+	if ($MENU_OPEN == 2) {
+		my $active_main_menu = (MAIN_MENU())[$ACT_MENU{'main'}];
+		@menu_entries = Nlib::i2h('option', '', 'menu.var.*');
+		my ($main_menu_id) =
+		map { $_->{'option_name'} =~ /^(\d+)[.]/ && $1 }
+		grep { $_->{'option_name'} =~ /^\d+[.]name$/ && $_->{'value'} eq $active_main_menu }
+		@menu_entries;
+		$key = $main_menu_id;
+	}
+	elsif ($MENU_OPEN == 3) {
+		@menu_entries = Nlib::i2h('option', '', "menu.var.$POPUP_MENU.*");
+		$key = quotemeta $POPUP_MENU;
+	}
+	my %opt_table;
+	for (map { [ $_->{'option_name'}, $_->{'value'} ] }
+		 grep { $_->{'option_name'} =~ /^$key[.]\d+[.](?:name|command)$/ }
+		 @menu_entries) {
+		my ($pfx, $dig, $t) = $_->[0] =~ /^(.*)[.](\d+)[.](name|command)$/;
+		$opt_table{$dig}{$t} = [ $pfx, $_->[1] ];
+	}
+	for my $dig (sort keys %opt_table) {
+		next if exists $opt_table{$dig}{'name'};
+		next unless $opt_table{$dig}{'command'}[1] =~ /^%/;
+		my $pfx = $opt_table{$dig}{'command'}[0];
+		my $raw = $dig . '090';
+		weechat::command('', "/mute /unset menu.var.$pfx.$raw*");
+		# %gui_buffers.buffer<50% ${buffer.number} ${buffer.name} % /buffer ${buffer.number}
+		my (undef, $hdata, $name, $command) = split /\s?%\s?/, $opt_table{$dig}{'command'}[1];
+		my $limit;
+		($hdata, $limit) = split /</, $hdata, 2;
+		my @hdata = Nlib::hdh(split '[.]', $hdata);
+		my $i = 0;
+		while ($hdata[0]) {
+			$i = sprintf '%04d', $i + 1;
+			my %pointer = reverse @hdata;
+			my %vars = (i => 0+$i);
+			weechat::command('', "/mute /set menu.var.$pfx.$raw$i.name @{[weechat::string_eval_expression($name, \%pointer, \%vars)]}");
+			weechat::command('', "/mute /set menu.var.$pfx.$raw$i.command @{[weechat::string_eval_expression($command, \%pointer, \%vars)]}");
+			@hdata = Nlib::hdh(@hdata, '!var_next');
+			last if defined $limit && $i >= $limit;
+		}
 	}
 }
 
@@ -1330,7 +1394,7 @@ sub open_menu {
 		close_menu();
 		return weechat::WEECHAT_RC_OK;
 	}
-	Nlib::hook_dynamic('command_run', '/input *', 'menu_input_run', '');
+	Nlib::hook_dynamic('command_run', '1200|/input *', 'menu_input_run', '');
 	Nlib::hook_dynamic('modifier', 'input_text_content', 'menu_input_text', '');
 	Nlib::hook_dynamic('modifier', 'input_text_display_with_cursor', 'menu_input_text_display', '');
 	unless (@args) {
@@ -1350,6 +1414,7 @@ sub open_menu {
 		$POPUP_MENU_ARGS = [ @args[1..$#args] ];
 		close_submenu() if $MENU_OPEN && $MENU_OPEN == 2;
 		$MENU_OPEN = 3;
+		expand_dynamic_menus();
 		$ACT_MENU{'window_popup'} = 0;
 		weechat::bar_set(weechat::bar_search('window_popup_menu'), 'hidden', 0);
 		update_window_popup_menu();
@@ -1379,6 +1444,7 @@ sub close_submenu {
 
 ## open_submenu -- open sub menu (does not reset $MENU_OPEN counter)
 sub open_submenu {
+	expand_dynamic_menus();
 	$ACT_MENU{'sub'} = 0;
 	my $bar = weechat::bar_search('sub_menu');
 	weechat::bar_set($bar, 'hidden', 0);
@@ -1502,7 +1568,8 @@ sub menu_config {
 }
 
 sub initial_menus {
-	my @menu_entries = $_[0] ? () : Nlib::i2h('option', '', 'menu.var.*');
+	weechat::command('', '/mute /unset menu.var.*') if $_[0];
+	my @menu_entries = Nlib::i2h('option', '', 'menu.var.*');
 	return if @menu_entries;
 	my %initial_menu = (
 		'1.1.command' => '/close',
@@ -1533,6 +1600,12 @@ sub initial_menus {
 		'4.4.command' => '/iset',
 		'4.4.name' => '&Settings editor',
 		'4.name' => '&Tools',
+		'5.1.command' => '%irc_servers.irc_server% ${irc_server.name} % /connect ${irc_server.name}',
+		'5.name' => '&Connect',
+		'6.1.command' => '%gui_buffers.buffer% ${i} ${buffer.name} % /buffer ${buffer.full_name}',
+		'6.name' => '&Buffers',
+		'7.1.command' => '%gui_windows.window% ${window.number} ${window.buffer.name} % /window ${window.number}',
+		'7.name' => 'Win&list',
 		'9.1.name' => 'Menu system by Nei',
 		'9.2.name' => '&Help',
 		'9.2.command' => '/menu help',
