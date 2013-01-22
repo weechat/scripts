@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2012 by nils_2 <weechatter@arcor.de>
+# Copyright (c) 2012-2013 by nils_2 <weechatter@arcor.de>
 #
 # save and restore global and/or buffer command history
 #
@@ -16,6 +16,9 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# 2013-01-20: nils_2, (freenode.#weechat)
+#       0.3: fix wrong command argument in help-text
 #
 # 2012-12-21: nils_2, (freenode.#weechat)
 #       0.2 : fix UnicodeEncodeError
@@ -40,14 +43,14 @@ except Exception:
 
 SCRIPT_NAME     = 'histman'
 SCRIPT_AUTHOR   = 'nils_2 <weechatter@arcor.de>'
-SCRIPT_VERSION  = '0.2'
+SCRIPT_VERSION  = '0.3'
 SCRIPT_LICENSE  = 'GPL'
 SCRIPT_DESC     = 'save and restore global and/or buffer command history'
 
 OPTIONS         = { 'number'       : ('0','number of history commands/text to save. A positive number will save from oldest to latest, a negative number will save from latest to oldest. 0 = save whole history (e.g. -10 will save the last 10 history entries'),
                     'pattern'      : ('(.*password|.*nickserv|/quit)','a simple regex to ignore commands/text. Empty value disable pattern matching'),
                     'skip_double'  : ('on','skip lines that already exists (case sensitive)'),
-                    'save'         : ('all','define what should be save from history. Possible values are \"command\", \"text\", \"all\". This is a fallback option (see /help' + SCRIPT_NAME +')'),
+                    'save'         : ('all','define what should be save from history. Possible values are \"command\", \"text\", \"all\". This is a fallback option (see /help ' + SCRIPT_NAME +')'),
                     'history_dir'  : ('%h/history','locale cache directory for history files (\"%h\" will be replaced by WeeChat home, \"~/.weechat\" by default)'),
                     'save_global'  : ('off','save global history, possible values are \"command\", \"text\", \"all\" or \"off\"(default: off)'),
                     'min_length'   : ('2','minimum length of command/text (default: 2)'),
@@ -385,9 +388,9 @@ if __name__ == '__main__':
                             ' save the command history manually (for example with /cron script):\n'
                             '   /' + SCRIPT_NAME + ' save\n'
                             ' save and restore command history for buffer #weechat on freenode (text only):\n'
-                            '   /autosetbuffer set irc.freenode.#weechat localvar_set_save_history text\n'
+                            '   /autosetbuffer add irc.freenode.#weechat localvar_set_save_history text\n'
                             ' save and restore command history for weechat core buffer (commands only):\n'
-                            '   /autosetbuffer set core.weechat localvar_set_save_history command\n',
+                            '   /autosetbuffer add core.weechat localvar_set_save_history command\n',
                             'save %-'
                             '|| list %-',
                             'histman_cmd_cb', '')
