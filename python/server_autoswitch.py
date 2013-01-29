@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2012 by nils_2 <weechatter@arcor.de>
+# Copyright (c) 2012-2013 by nils_2 <weechatter@arcor.de>
 #
 # cylce to currently used server if you are using merged server buffer
 #
@@ -16,6 +16,9 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# 2013-01-25: nils_2, (freenode.#weechat)
+#       0.4 : make script compatible with Python 3.x
 #
 # 2012-01-28: nils_2,(freenode.#weechat)
 #       0.3 : adapted to bugfix #31158 and new signal hook_signal("window_switch")
@@ -33,13 +36,13 @@ try:
     import weechat,re
 
 except Exception:
-    print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print("This script must be run under WeeChat.")
+    print("Get WeeChat now at: http://www.weechat.org/")
     quit()
 
 SCRIPT_NAME     = "server_autoswitch"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.3"
+SCRIPT_VERSION  = "0.4"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "cycle to currently used server if you are using merged server buffer"
 
@@ -94,7 +97,7 @@ def server_switch(signal_data,servername_from_current_buffer,name):
 # switch though all server and stop at server from current buffer
     i = 0
     while i <= len(SERVER):
-        for servername,full_name in SERVER.items():
+        for servername,full_name in list(SERVER.items()):
             bufpointer = weechat.buffer_search("irc","%s" % full_name)                  # search pointer from server buffer
             if bufpointer == "":                                                        # core buffer
                 if weechat.buffer_get_integer(weechat.buffer_search_main(),'active') == 1:
