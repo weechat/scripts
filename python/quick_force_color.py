@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2012 by nils_2 <weechatter@arcor.de>
+# Copyright (c) 2012-2013 by nils_2 <weechatter@arcor.de>
 #
 # quickly add/del/change entry in nick_color_force
 #
@@ -17,6 +17,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2013-01-25: nils_2,(freenode.#weechat)
+#       0.4 : make script compatible with Python 3.x
 # 2012-07-08: obiwahn, (freenode)
 #     0.3.1 : fix: list nick
 #           : - show nick: color if it is in list
@@ -36,16 +38,16 @@
 #
 
 try:
-    import weechat,re
+    import weechat, re
 
 except Exception:
-    print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print("This script must be run under WeeChat.")
+    print("Get WeeChat now at: http://www.weechat.org/")
     quit()
 
 SCRIPT_NAME     = "quick_force_color"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.3.1"
+SCRIPT_VERSION  = "0.4"
 SCRIPT_LICENSE  = "GPL3"
 SCRIPT_DESC     = "quickly add/del/change entry in nick_color_force"
 
@@ -84,7 +86,8 @@ def nick_colors_cmd_cb(data, buffer, args):
             return weechat.WEECHAT_RC_OK
 
         weechat.prnt(buffer,"List of nicks in : nick_color_force")
-        for nick,color in colored_nicks.items():
+#        for nick,color in colored_nicks.items():
+        for nick,color in list(colored_nicks.items()):
             weechat.prnt(buffer,"%s%s: %s" % (weechat.color(color),nick,color))
         return weechat.WEECHAT_RC_OK
 
@@ -104,18 +107,21 @@ def nick_colors_cmd_cb(data, buffer, args):
 
 def save_new_force_nicks():
     global colored_nicks
-    new_nick_color_force = ';'.join([ ':'.join(item) for item in colored_nicks.items()])
+#    new_nick_color_force = ';'.join([ ':'.join(item) for item in colored_nicks.items()])
+    new_nick_color_force = ';'.join([ ':'.join(item) for item in list(colored_nicks.items())])
     config_pnt = weechat.config_get('irc.look.nick_color_force')
     weechat.config_option_set(config_pnt,new_nick_color_force,1)
 
 def nick_colors_completion_cb(data, completion_item, buffer, completion):
-    for id,color in DEFAULT_COLORS.items():
+#    for id,color in DEFAULT_COLORS.items():
+    for id,color in list(DEFAULT_COLORS.items()):
         weechat.hook_completion_list_add(completion, color, 0, weechat.WEECHAT_LIST_POS_SORT)
     return weechat.WEECHAT_RC_OK
 
 def force_nick_colors_completion_cb(data, completion_item, buffer, completion):
     create_list()
-    for nick,color in colored_nicks.items():
+#    for nick,color in colored_nicks.items():
+    for nick,color in list(colored_nicks.items()):
         weechat.hook_completion_list_add(completion, nick, 0, weechat.WEECHAT_LIST_POS_SORT)
     return weechat.WEECHAT_RC_OK
 
