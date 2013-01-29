@@ -21,6 +21,8 @@
 #
 #
 # History:
+# 2013-01-29, nils_2
+#   version 14: make script compatible with Python 3.x
 # 2012-10-19, ldvx
 #   version 13: Iterate over every word to prevent incorrect colorization of
 #               nicks. Added option greedy_matching.
@@ -58,7 +60,7 @@ w = weechat
 
 SCRIPT_NAME    = "colorize_nicks"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "13"
+SCRIPT_VERSION = "14"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Use the weechat nick colors in the chat area"
 
@@ -290,11 +292,13 @@ if __name__ == "__main__":
     if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
                         SCRIPT_DESC, "", ""):
         # Set default settings
-        for option, default_value in settings.iteritems():
+#        for option, default_value in settings.iteritems():
+        for option, default_value in list(settings.items()):
             if not w.config_is_set_plugin(option):
                 w.config_set_plugin(option, default_value)
 
-        for key, value in PREFIX_COLORS.iteritems():
+        for key, value in list(PREFIX_COLORS.items()):
+#        for key, value in PREFIX_COLORS.iteritems():
             PREFIX_COLORS[key] = w.color(w.config_string(w.config_get('weechat.look.%s'%value)))
 
         update_blacklist() # Set blacklist
