@@ -17,6 +17,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2013-01-25: nils_2 (freenode.#weechat)
+#       0.4 : make script compatible with Python 3.x
+#
 # 2013-01-20: nils_2, (freenode.#weechat)
 #       0.3: fix wrong command argument in help-text
 #
@@ -37,13 +40,13 @@ try:
     import weechat,re,os
 
 except Exception:
-    print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print("This script must be run under WeeChat.")
+    print("Get WeeChat now at: http://www.weechat.org/")
     quit()
 
 SCRIPT_NAME     = 'histman'
 SCRIPT_AUTHOR   = 'nils_2 <weechatter@arcor.de>'
-SCRIPT_VERSION  = '0.3'
+SCRIPT_VERSION  = '0.4'
 SCRIPT_LICENSE  = 'GPL'
 SCRIPT_DESC     = 'save and restore global and/or buffer command history'
 
@@ -221,8 +224,9 @@ def read_history(filename,ptr_buffer):
         return
 
     try:
-        f = open(filename, 'rb')
-        for line in f.xreadlines():
+        f = open(filename, 'r')
+#        for line in f.xreadlines():    # old python 2.x
+        for line in f:                  # should also work with python 2.x
 #            line = line.decode('utf-8')
             line = str(line.strip())
             if ptr_buffer:
@@ -347,7 +351,7 @@ def histman_cmd_cb(data, buffer, args):
 
 # ================================[ weechat options & description ]===============================
 def init_options():
-    for option,value in OPTIONS.items():
+    for option,value in list(OPTIONS.items()):
         if not weechat.config_is_set_plugin(option):
             weechat.config_set_plugin(option, value[0])
             weechat.config_set_desc_plugin(option, '%s (default: "%s")' % (value[1], value[0]))
