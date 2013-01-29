@@ -8,6 +8,9 @@
 # TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
 #
 # 0. You just DO WHAT THE FUCK YOU WANT TO.
+#
+# 2013-01-29, SuperT1R:
+#   v0.2.2: add -m switch to append /me to the beginning of the output
 
 
 import weechat as w
@@ -17,7 +20,7 @@ import re
 
 SCRIPT_NAME    = "prism"
 SCRIPT_AUTHOR  = "Alex Barrett <al.barrett@gmail.com>"
-SCRIPT_VERSION = "0.2.1"
+SCRIPT_VERSION = "0.2.2"
 SCRIPT_LICENSE = "WTFPL"
 SCRIPT_DESC    = "Taste the rainbow."
 
@@ -42,11 +45,12 @@ if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION,
               SCRIPT_LICENSE, SCRIPT_DESC, "", ""):
     w.hook_command("prism",
                    SCRIPT_DESC,
-                   "[-rw] text",
+                   "[-rwm] text",
                    "    -r: randomizes the order of the color sequence\n"
                    "    -w: color entire words instead of individual characters\n"
+                   "    -m: append /me to beginning of output\n"
                    "  text: text to be colored",
-                   "", "prism_cmd_cb", "")
+                   "-r|-w|-m", "prism_cmd_cb", "")
 
 
 def prism_cmd_cb(data, buffer, args):
@@ -57,8 +61,9 @@ def prism_cmd_cb(data, buffer, args):
     # select a tokenizer and increment mode
     regex = regex_chars
     inc = 1
+    mepfx = 0
 
-    m = re.match('-[rw]* ', input)
+    m = re.match('-[rwm]* ', input)
     if m:
         opts = m.group(0)
         input = input[len(opts):]
@@ -66,6 +71,8 @@ def prism_cmd_cb(data, buffer, args):
             regex = regex_words
         if 'r' in opts:
             inc = 0
+        if 'm' in opts:
+            mepfx = 1
 
     output = u""
     tokens = re.findall(regex, input)
@@ -79,12 +86,14 @@ def prism_cmd_cb(data, buffer, args):
         if inc == 0:
             color_index += random.randint(1, color_count - 1)
         else:
-            color_index += inc 
+            color_index += inc
 
     # output starting with a / will be executed as a
     # command unless we escape it with a preceding /
     if len(output) > 0 and output[0] == "/":
         output = "/" + output
+    if mepfx == 1:
+        output = "/me " + output
 
     w.command(w.current_buffer(), output.encode("UTF-8"))
     return w.WEECHAT_RC_OK
