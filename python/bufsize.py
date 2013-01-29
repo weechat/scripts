@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2012 by nils_2 <weechatter@arcor.de>
-#                   and nesthib <nesthib@gmail.com>
+# Copyright (c) 2012-2013 by nils_2 <weechatter@arcor.de>
+#                         and nesthib <nesthib@gmail.com>
 #
 # scroll indicator; displaying number of lines below last line, overall lines in buffer, number of current line and percent displayed
 #
@@ -18,6 +18,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2013-01-25: nils_2 (freenode.#weechat)
+#       0.3 : make script compatible with Python 3.x
+#           : internal changes
 # 2012-07-09: nils_2 (freenode.#weechat)
 #       0.2 : fix: display bug with more than one window
 #           : hide item when buffer empty
@@ -30,16 +33,16 @@
 # https://github.com/weechatter/weechat-scripts
 
 try:
-    import weechat,re
+    import weechat, re
 
 except Exception:
-    print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print("This script must be run under WeeChat.")
+    print("Get WeeChat now at: http://www.weechat.org/")
     quit()
 
 SCRIPT_NAME     = "bufsize"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.2"
+SCRIPT_VERSION  = "0.3"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "scroll indicator; displaying number of lines below last line, overall lines in buffer, number of current line and percent displayed"
 
@@ -48,7 +51,8 @@ OPTIONS         = { 'format'            : ('${yellow}%P${default}⋅%{${yellow}%
                    }
 # ================================[ weechat item ]===============================
 # regexp to match ${color} tags
-regex_color=re.compile('\$\{[^\{\}]+\}')
+regex_color=re.compile('\$\{([^\{\}]+)\}')
+
 # regexp to match ${optional string} tags
 regex_optional_tags=re.compile('%\{[^\{\}]+\}')
 
@@ -71,14 +75,11 @@ def show_item (data, item, window):
             '%L': str(lines_count),
             '%P': str(percent)+"%"}
 
-    bufsize_item = OPTIONS['format']
-
-    # substitute colors in output
-    for color_tag in regex_color.findall(bufsize_item):
-        bufsize_item = bufsize_item.replace(color_tag, weechat.color(color_tag.lstrip('${').rstrip('}')))
+    bufsize_item = substitute_colors(OPTIONS['format'])
 
     # replace mandatory tags
-    for tag in tags.keys():
+    for tag in list(tags.keys()):
+#    for tag in tags.keys():
         bufsize_item = bufsize_item.replace(tag, tags[tag])
 
     # replace optional tags
@@ -91,6 +92,9 @@ def show_item (data, item, window):
 
     return bufsize_item
 
+def substitute_colors(text):
+    # substitute colors in output
+    return re.sub(regex_color, lambda match: weechat.color(match.group(1)), text)
 
 def count_lines(winpointer,bufpointer):
 
@@ -120,7 +124,7 @@ def update_cb(data, signal, signal_data):
 
 # ================================[ weechat options and description ]===============================
 def init_options():
-    for option,value in OPTIONS.items():
+    for option,value in list(OPTIONS.items()):
         if not weechat.config_get_plugin(option):
           weechat.config_set_plugin(option, value[0])
     else:
