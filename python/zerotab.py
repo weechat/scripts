@@ -5,6 +5,8 @@
 # Script License: GPL
 # Alternate Contact: Freenode IRC nick i686
 #
+# 2013-01-27, Nils Görs <weechatter@arcor.de>:
+#     version 1.5: make script compatible with Python 3.x
 # 2011-09-20, Nils Görs <weechatter@arcor.de>:
 #     version 1.4: fixed: latest nick from join/part messages were used.
 # 2010-12-04, Sebastien Helleu <flashcode@flashtux.org>:
@@ -17,7 +19,7 @@
 
 SCRIPT_NAME='zerotab'
 SCRIPT_AUTHOR='Lucian Adamson <lucian.adamson@yahoo.com>'
-SCRIPT_VERSION='1.4'
+SCRIPT_VERSION='1.5'
 SCRIPT_LICENSE='GPL'
 SCRIPT_DESC='Will tab complete the last nick in channel without typing anything first. This is good for rapid conversations.'
 
@@ -26,8 +28,8 @@ import_ok=True
 try:
     import weechat, re
 except ImportError:
-    print 'This script must be run under WeeChat'
-    print 'You can obtain a copy of WeeChat, for free, at http://www.weechat.org'
+    print ('This script must be run under WeeChat')
+    print ('You can obtain a copy of WeeChat, for free, at http://www.weechat.org')
     import_ok=False
 
 latest_speaker={}
