@@ -21,11 +21,11 @@ F<.weechat/perl> directory. Then you can type
 
 in weechat to load the script. Use
 
-  /copywin
+  /coords
 
 to open the coords screen, or conveniently
 
-  /key bind meta-/ /copywin /
+  /key bind meta-/ /coords /
 
 to open it with the Alt+/ keybinding.
 
@@ -50,7 +50,7 @@ your F<perl-lib> directory and add it to your F<.Xresources> like such:
 
 =head1 USAGE
 
-to open the url overlay on a window, type C</copywin> or use the
+to open the url overlay on a window, type C</coords> or use the
 keybinding you created as explained in the L</SYNOPSIS>.
 
 =head2 Selection Mode
@@ -62,7 +62,7 @@ Space key. The selection content will be transfered into clipboard.
 =head2 URL Mode
 
 to switch between selection mode and URL mode, use the C</> key or
-type the command C</copywin /> to directly start in URL mode.
+type the command C</coords /> to directly start in URL mode.
 
 inside the overlay, you can use Arrow-Up and Arrow-Down keys to select
 URLs. This script will try to copy them into your selection clipboard
@@ -234,20 +234,20 @@ the color of the currently selected text in selection mode
 
 =head2 copybuf_short_name
 
-short_name to use for copywin buffer. it is set to the copy sign by
+short_name to use for coords buffer. it is set to the copy sign by
 default to not disturb buffers bar width, set to the empty string to
 have window position and size shown
 
 =head2 mouse.copy_on_click
 
 set to on if it should be possible to directly click on URLs and
-select text, set to off if mouse should only work in open copywin
+select text, set to off if mouse should only work in open coords
 buffer
 
 =head2 mouse.close_on_release
 
-set to on or a delay (in ms) to autoclose copywin buffer opened by
-I<copy_on_click> on button release, set to off if the copywin buffer
+set to on or a delay (in ms) to autoclose coords buffer opened by
+I<copy_on_click> on button release, set to off if the coords buffer
 should stay open after click
 
 =head2 mouse.click_select_pane
@@ -263,7 +263,7 @@ to be active
 =head2 mouse.url_open_2nd_click
 
 if this is set, URLs are only opened when clicked twice (in the same
-incarnation of a copywin) instead of on first click. it can be set to
+incarnation of a coords buffer) instead of on first click. it can be set to
 a delay (in ms) that will be added to the I<close_on_release> delay if
 the script is waiting for a second click on the URL to happen
 
@@ -303,7 +303,7 @@ for full pod documentation, filter this script with
 use MIME::Base64;
 
 use constant SCRIPT_NAME => 'coords';
-weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.6', 'GPL3', 'copy text and urls', 'stop_coords', '') || return;
+weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.7', 'GPL3', 'copy text and urls', 'stop_coords', '') || return;
 sub SCRIPT_FILE() {
 	my $infolistptr = weechat::infolist_get('perl_script', '', SCRIPT_NAME);
 	my $filename = weechat::infolist_string($infolistptr, 'filename') if weechat::infolist_next($infolistptr);
@@ -314,7 +314,7 @@ sub SCRIPT_FILE() {
 {
 package Nlib;
 # this is a weechat perl library
-use strict; use warnings;
+use strict; use warnings; no warnings 'redefine';
 
 ## i2h -- copy weechat infolist content into perl hash
 ## $infolist - name of the infolist in weechat
@@ -394,6 +394,7 @@ sub hdh {
 		my ($arg, $name, $var) = splice @_, 0, 3;
 		my $hdata = weechat::hdata_get($name);
 
+		$var =~ s/!(.*)/weechat::hdata_get_string($hdata, $1)/e;
 		(my $plain_var = $var) =~ s/^\d+\|//;
 		my $type = weechat::hdata_get_var_type_string($hdata, $plain_var);
 		if ($type eq 'pointer') {
@@ -749,7 +750,7 @@ sub get_desc_from_pod {
 	$pt->output_string(\my $ss_f);
 	$pt->parse_string_document($ss);
 
-	my ($res) = $ss_f =~ /^\s*\Q$setting\E\s+(.*)\s*$/;
+	my ($res) = $ss_f =~ /^\s*\Q$setting\E\s+(.*)\s*/;
 	$res
 }
 
@@ -786,7 +787,10 @@ sub read_manpage {
 	my $name = shift;
 
 	if (my $obuf = weechat::buffer_search('perl', "man $name")) {
-		weechat::buffer_close($obuf);
+		eval qq{
+			package $caller_package;
+			weechat::buffer_close(\$obuf);
+		};
 	}
 
 	my @wee_keys = Nlib::i2h('key');
@@ -832,7 +836,7 @@ sub read_manpage {
 	weechat::buffer_set($buf, 'key_bind_q', '/buffer close');
 
 	weechat::print($buf, " \t".mangle_man_for_wee($_))
-			for `pod2man \Q$file\E | GROFF_NO_SGR=1 nroff -mandoc -rLL=${width}n -rLT=${width}n -Tutf8 2>/dev/null`;
+			for `pod2man \Q$file\E 2>/dev/null | GROFF_NO_SGR=1 nroff -mandoc -rLL=${width}n -rLT=${width}n -Tutf8 2>/dev/null`;
 	weechat::command($buf, '/window scroll_top');
 
 	unless (hdh($buf, 'buffer', 'lines', 'lines_count') > 0) {
@@ -852,7 +856,7 @@ sub read_manpage {
 1
 }
 
-use constant CMD_COPYWIN => 'copywin';
+use constant CMD_COPYWIN => SCRIPT_NAME;
 weechat::hook_command(CMD_COPYWIN, 'copy active window for hyperlink operations or free selection of text',
 					  '[/] || url nicks channels',
 					  'if any or more arguments are given, go into hyperlink mode and set this filter.'."\n".
@@ -872,8 +876,10 @@ weechat::hook_modifier('input_text_display_with_cursor', 'input_text_hlsel', '')
 weechat::hook_hsignal(SCRIPT_NAME, 'hsignal_evt', '');
 weechat::key_bind('mouse', +{
 	map { $_ => 'hsignal:'.SCRIPT_NAME }
-	'@chat:button1*', '@chat:button1-event-*'
+	'@chat:button1*', '@chat:button1-event-*', '@chat(perl.[*):button1'
 });
+weechat::command('', '/alias copywin '.CMD_COPYWIN)
+	if 'copywin' ne CMD_COPYWIN && !Nlib::i2h('alias', '', 'copywin') && Nlib::i2h('hook', '', 'command,alias');
 
 # downloaded line fields
 use constant TRACE => -1;
@@ -987,7 +993,8 @@ sub calculate_trace {
 				$prefix = $repl if length $repl;
 				$prefix = '' if $repl eq ' ';
 			}
-			$base_trace->[5] = (sort { $a <=> $b } ($no_prefix_align?$no_prefix_align+1:0), screen_length fu8on weechat::string_remove_color($prefix, ''))[0];
+			$base_trace->[5] = (sort { $a <=> $b } #($no_prefix_align?$no_prefix_align+1:0),
+									screen_length fu8on weechat::string_remove_color($prefix, ''))[0];
 		}
 	}
 	$base_trace->[1] = $show_time ? screen_length fu8on weechat::string_remove_color($lineinfo->{'str_time'}, '') : 0;
@@ -3103,6 +3110,7 @@ sub default_options {
 
 sub close_copywin {
 	copywin_cmd(undef, $ACT_STR->[BUFPTR], '**q') if $ACT_STR;
+	weechat::WEECHAT_RC_OK
 }
 
 sub init_coords {
