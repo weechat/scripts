@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2012 by nils_2 <weechatter@arcor.de>
+# Copyright (c) 2012-2013 by nils_2 <weechatter@arcor.de>
 # Copyright (c) 2006 by EgS <i@egs.name>
 #
 # script to keep your nick and recover it in case it's occupied
@@ -17,6 +17,9 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# 2013-01-27: nils_2 (freenode.#weechat)
+#       0.8 : make script compatible with Python 3.x
 #
 # 2012-10-05: nils_2, (freenode.#weechat)
 #       0.7 : add options "plugins.var.python.keepnick.nickserv", "plugins.var.python.keepnick.<server>.password"
@@ -62,14 +65,14 @@ try:
 
 
 except Exception:
-    print "This script is to be loaded as PythonScript in WeeChat"
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print("This script must be run under WeeChat.")
+    print("Get WeeChat now at: http://www.weechat.org/")
     quit()
 
 # -------------------------------[ Constants ]-------------------------------------
 SCRIPT_NAME     = "keepnick"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.7"
+SCRIPT_VERSION  = "0.8"
 SCRIPT_LICENCE  = "GPL3"
 SCRIPT_DESC     = "keep your nick and recover it in case it's occupied"
 
@@ -99,13 +102,13 @@ def redirect_isonhandler(data, signal, hashtable):
 
     nothing, message, nicks = hashtable['output'].split(':')
     nicks = [nick.lower() for nick in nicks.split()]
-    for nick in servernicks(hashtable['server']):
+    for nick in server_nicks(hashtable['server']):
         mynick = weechat.info_get('irc_nick',hashtable['server'])
         if nick.lower() == mynick.lower():
             return weechat.WEECHAT_RC_OK
         elif nick.lower() not in nicks:
             password = weechat.config_get_plugin('%s.password' % hashtable['server'])   # get password for given server
-            grabnick(hashtable['server'], nick)                         # get back your nick
+            grabnick(hashtable['server'], nick)                                         # get your nick back
             if (password) != '':
                 if OPTIONS['nickserv'] == '':
                     return weechat.WEECHAT_RC_OK
@@ -114,7 +117,7 @@ def redirect_isonhandler(data, signal, hashtable):
                 weechat.command('',run_msg)
             return weechat.WEECHAT_RC_OK
 
-    if 0 in [nick.lower() in [mynick.lower() for mynick in servernicks(hashtable['server'])] for nick in nicks]:
+    if 0 in [nick.lower() in [mynick.lower() for mynick in server_nicks(hashtable['server'])] for nick in nicks]:
         # if any nick which is return by ison is not on our checklist we're not the caller
         return weechat.WEECHAT_RC_OK
     else:
@@ -122,32 +125,31 @@ def redirect_isonhandler(data, signal, hashtable):
         return weechat.WEECHAT_RC_OK
 
 # ================================[ functions ]===============================
-def servernicks(servername):
+def server_nicks(servername):
     infolist = weechat.infolist_get('irc_server','',servername)
     weechat.infolist_next(infolist)
     nicks = weechat.infolist_string(infolist, 'nicks')
     weechat.infolist_free(infolist)
-    servernicks = nicks.split(',')
-    return servernicks
+    return nicks.split(',')
 
-def checknicks(data, remaining_calls):
+def check_nicks(data, remaining_calls):
     serverlist = OPTIONS['serverlist'].split(',')
     infolist = weechat.infolist_get('irc_server','','')
 
     while weechat.infolist_next(infolist):
         servername = weechat.infolist_string(infolist, 'name')
-        bufpointer = weechat.infolist_pointer(infolist,'buffer')
+        ptr_buffer = weechat.infolist_pointer(infolist,'buffer')
         nick = weechat.infolist_string(infolist, 'nick')
         ssl_connected = weechat.infolist_integer(infolist,'ssl_connected')
         is_connected = weechat.infolist_integer(infolist,'is_connected')
         if servername in serverlist:
             if nick and ssl_connected + is_connected:
-                ison(bufpointer,servername,nick,servernicks(servername))
+                ison(ptr_buffer,servername,nick,server_nicks(servername))
     weechat.infolist_free(infolist)
     return weechat.WEECHAT_RC_OK
 
 def grabnick(servername, nick):
-    if nick:
+    if nick and servername:
         weechat.prnt(weechat.current_buffer(),OPTIONS['text'] % servername)
         weechat.command(weechat.buffer_search('irc','%s.%s' % ('server',servername)), OPTIONS['command'] % nick)
 
@@ -160,7 +162,7 @@ def install_hooks():
 
     if not OPTIONS['delay'] or not OPTIONS['timeout']:
         return
-    HOOK['timer'] = weechat.hook_timer(int(OPTIONS['delay']) * 1000, 0, 0, 'checknicks', '')
+    HOOK['timer'] = weechat.hook_timer(int(OPTIONS['delay']) * 1000, 0, 0, 'check_nicks', '')
     HOOK['redirect'] = weechat.hook_hsignal('irc_redirection_%s_ison' % SCRIPT_NAME, 'redirect_isonhandler', '' )
 
     if HOOK['timer'] == 0:
@@ -181,10 +183,10 @@ def remove_hooks():
 # ================================[ weechat options and description ]===============================
 def init_options():
     global HOOK,OPTIONS
-    for option,value in OPTIONS.items():
+    for option,value in list(OPTIONS.items()):
+        weechat.config_set_desc_plugin(option, '%s (default: "%s")' % (value[1], value[0]))
         if not weechat.config_is_set_plugin(option):
             weechat.config_set_plugin(option, value[0])
-            weechat.config_set_desc_plugin(option, '%s (default: "%s")' % (value[1], value[0]))
             OPTIONS[option] = value[0]
         else:
             OPTIONS[option] = weechat.config_get_plugin(option)
@@ -208,7 +210,7 @@ if __name__ == '__main__':
 
     version = weechat.info_get("version_number", "") or 0
     if int(version) >= 0x00030400:
-        if OPTIONS['delay'] > 0 and OPTIONS['timeout'] > 0:
+        if int(OPTIONS['delay'][0]) > 0 and int(OPTIONS['timeout'][0]) > 0:
             init_options()
             install_hooks()
             weechat.hook_config( 'plugins.var.python.' + SCRIPT_NAME + '.*', 'toggle_refresh', '' )
