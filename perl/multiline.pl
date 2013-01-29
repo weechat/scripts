@@ -120,7 +120,7 @@ for full pod documentation, filter this script with
 =cut
 
 use constant SCRIPT_NAME => 'multiline';
-weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.4', 'GPL3', 'Multi-line edit box', 'stop_multiline', '') || return;
+weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.5', 'GPL3', 'Multi-line edit box', 'stop_multiline', '') || return;
 sub SCRIPT_FILE() {
 	my $infolistptr = weechat::infolist_get('perl_script', '', SCRIPT_NAME);
 	my $filename = weechat::infolist_string($infolistptr, 'filename') if weechat::infolist_next($infolistptr);
@@ -202,6 +202,10 @@ sub i2h {
 }
 
 ## hdh -- hdata helper
+## $_[0] - arg pointer or hdata list name
+## $_[1] - hdata name
+## $_[2..$#_] - hdata variable name
+## returns value of hdata, and hdata name in list ctx
 sub hdh {
 	if (@_ > 1 && $_[0] !~ /^0x/ && $_[0] !~ /^\d+$/) {
 		my $arg = shift;
@@ -304,6 +308,8 @@ sub get_settings_from_pod {
 }
 
 ## mangle_man_for_wee -- turn man output into weechat codes
+## @_ - list of grotty lines that should be turned into weechat attributes
+## returns modified lines and modifies lines in-place
 sub mangle_man_for_wee {
 	for (@_) {
 		s/_\x08(.)/weechat::color('underline').$1.weechat::color('-underline')/ge;
@@ -337,6 +343,7 @@ sub read_manpage {
 
 	my $width = $wininfo->{'chat_width'};
 	--$width if $wininfo->{'chat_width'} < $wininfo->{'width'} || ($wininfo->{'width_pct'} < 100 && (grep { $_->{'y'} == $wininfo->{'y'} } Nlib::i2h('window'))[-1]{'x'} > $wininfo->{'x'});
+	$width -= 2; # when prefix is shown
 
 	weechat::buffer_set($buf, 'time_for_each_line', 0);
 	eval qq{
@@ -369,7 +376,7 @@ sub read_manpage {
 
 	weechat::buffer_set($buf, 'key_bind_q', '/buffer close');
 
-	weechat::print($buf, " \t".mangle_man_for_wee($_))
+	weechat::print($buf, " \t".mangle_man_for_wee($_)) # weird bug with \t\t showing nothing?
 			for `pod2man \Q$file\E 2>/dev/null | GROFF_NO_SGR=1 nroff -mandoc -rLL=${width}n -rLT=${width}n -Tutf8 2>/dev/null`;
 	weechat::command($buf, '/window scroll_top');
 
@@ -410,8 +417,10 @@ weechat::hook_command_run('/help '.SCRIPT_NAME, 'help_cmd', '');
 weechat::hook_command_run(INPUT_MAGIC, 'magic_enter', '');
 Nlib::hook_dynamic('signal', 'input_text_*', 'magic_enter_cancel', '');
 weechat::hook_signal('key_pressed', 'magic_lock_hatch', '');
-weechat::hook_signal('500|input_text_changed', 'paste_undo_hack', ''); # we need lower than default priority here or the first character is separated
-weechat::hook_command_run('/input *', 'paste_undo_start_ignore', '');
+# we need lower than default priority here or the first character is separated
+weechat::hook_signal('500|input_text_changed', 'paste_undo_hack', '')
+	# can only do this on weechat 0.4.0
+	if (weechat::info_get('version_number', '') || 0) >= 0x00040000;
 hook_complete('complete*', 'delete_*', 'move_*');
 
 ## multiline_display -- show multi-lines on display of input string
@@ -471,6 +480,7 @@ sub paste_undo_hack {
 	return paste_undo_stop_ignore() if $IGNORE_INPUT_CHANGED2;
 	if ($MAGIC_LOCK > 0 && get_lock_enabled()) {
 		signall_ignore_input_changed(1);
+		Nlib::hook_dynamic('command_run', '/input *', 'paste_undo_start_ignore', '');
 
 		Encode::_utf8_on(my $input = weechat::buffer_get_string($_[2], 'input'));
 		my $pos = weechat::buffer_get_integer($_[2], 'input_pos');
@@ -480,6 +490,7 @@ sub paste_undo_hack {
 		weechat::buffer_set($_[2], 'input', $input);
 		weechat::buffer_set($_[2], 'input_pos', $pos);
 
+		Nlib::unhook_dynamic('/input *', 'paste_undo_start_ignore');
 		signall_ignore_input_changed(0);
 	}
 	weechat::WEECHAT_RC_OK
