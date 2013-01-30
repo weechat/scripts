@@ -26,6 +26,8 @@
 #     On the "client" (where the notifications will end up), host is
 #     the remote host where weechat is running:
 #		python2 location/of/pyrnotify.py 4321 & ssh -R 4321:localhost:4321 username@host
+#     You can have a second argument to specified the time to display the notification
+#       python2 location/of/pyrnotify.py 4321 2000 & ssh -R 4321:localhost:4321 username@host
 #     Important to remember is that you should probably setup the
 #     connection with public key encryption and use something like
 #     autossh to do this in the background.
@@ -40,7 +42,7 @@
 # and doesn't require any ports but ssh to be open.
 
 # ChangeLog:
-#  
+#
 # 2012-06-19: Added simple escaping to the title and body strings for
 #             the script to handle trailing backslashes.
 
@@ -57,7 +59,7 @@ import shlex
 
 SCRIPT_NAME    = "pyrnotify"
 SCRIPT_AUTHOR  = "Krister Svanlund <krister.svanlund@gmail.com>"
-SCRIPT_VERSION = "0.8"
+SCRIPT_VERSION = "0.9"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Send remote notifications over SSH"
 
@@ -110,25 +112,29 @@ def weechat_script():
 ## supposed to be executed in weechat, instead it runs when the script is executed from
 ## commandline.
 
-def accept_connections(s):
+def accept_connections(s, timeout=None):
     conn, addr = s.accept()
     try:
         data = ""
         d = conn.recv(1024)
         while d:
-            data += d 
+            data += d
             d = conn.recv(1024)
     finally:
         conn.close()
     if data:
         try:
             urgency, icon, title, body = shlex.split(data)
-            subprocess.call(["notify-send", "-u", urgency, "-c", "IRC", "-i", icon, escape(title), escape(body)])
+            if timeout:
+                subprocess.call(["notify-send", "-t", timeout, "-u", urgency, "-c", "IRC", "-i", icon, escape(title), escape(body)])
+            else:
+                subprocess.call(["notify-send", "-u", urgency, "-c", "IRC", "-i", icon, escape(title), escape(body)])
+
         except ValueError as e:
             print e
         except OSError as e:
             print e
-    accept_connections(s)
+    accept_connections(s, timeout)
 
 def weechat_client(argv):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -136,7 +142,7 @@ def weechat_client(argv):
     s.bind(("localhost", int(argv[1] if len(sys.argv) > 1 else 4321)))
     s.listen(5)
     try:
-        accept_connections(s)
+        accept_connections(s, argv[2] if len(sys.argv) > 2 else None)
     except KeyboardInterrupt as e:
         print "Keyboard interrupt"
         print e
