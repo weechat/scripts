@@ -18,6 +18,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2013-01-29: nils_2 (freenode.#weechat)
+#       0.9 : script optimized
+#
 # 2013-01-27: nils_2 (freenode.#weechat)
 #       0.8 : make script compatible with Python 3.x
 #
@@ -72,7 +75,7 @@ except Exception:
 # -------------------------------[ Constants ]-------------------------------------
 SCRIPT_NAME     = "keepnick"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.8"
+SCRIPT_VERSION  = "0.9"
 SCRIPT_LICENCE  = "GPL3"
 SCRIPT_DESC     = "keep your nick and recover it in case it's occupied"
 
@@ -100,31 +103,32 @@ def redirect_isonhandler(data, signal, hashtable):
     if hashtable['output'] == '':
         return weechat.WEECHAT_RC_OK
 
-    nothing, message, nicks = hashtable['output'].split(':')
-    nicks = [nick.lower() for nick in nicks.split()]
+    # ISON_nicks contains nicks that are already online on server (separated with space)
+    message,ISON_nicks = hashtable['output'].split(':')[1:]
+    ISON_nicks = [nick.lower() for nick in ISON_nicks.split()]
+
     for nick in server_nicks(hashtable['server']):
         mynick = weechat.info_get('irc_nick',hashtable['server'])
         if nick.lower() == mynick.lower():
             return weechat.WEECHAT_RC_OK
-        elif nick.lower() not in nicks:
+        elif nick.lower() not in ISON_nicks and nick != '':
             password = weechat.config_get_plugin('%s.password' % hashtable['server'])   # get password for given server
             grabnick(hashtable['server'], nick)                                         # get your nick back
-            if (password) != '':
-                if OPTIONS['nickserv'] == '':
-                    return weechat.WEECHAT_RC_OK
+            if password != '' and OPTIONS['nickserv'] != '':
                 t = Template(OPTIONS['nickserv'])
                 run_msg = t.safe_substitute(server=hashtable['server'], passwd=password)
                 weechat.command('',run_msg)
-            return weechat.WEECHAT_RC_OK
+    return weechat.WEECHAT_RC_OK
 
-    if 0 in [nick.lower() in [mynick.lower() for mynick in server_nicks(hashtable['server'])] for nick in nicks]:
+#    if 0 in [nick.lower() in [mynick.lower() for mynick in server_nicks(hashtable['server'])] for nick in nicks]:
         # if any nick which is return by ison is not on our checklist we're not the caller
-        return weechat.WEECHAT_RC_OK
-    else:
+#        return weechat.WEECHAT_RC_OK
+#    else:
         # seems like we're the caller -> ignore the output
-        return weechat.WEECHAT_RC_OK
+#        return weechat.WEECHAT_RC_OK
 
 # ================================[ functions ]===============================
+# nicks used on server
 def server_nicks(servername):
     infolist = weechat.infolist_get('irc_server','',servername)
     weechat.infolist_next(infolist)
