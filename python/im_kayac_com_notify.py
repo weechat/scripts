@@ -2,7 +2,7 @@
 """
 Author: Gosuke Miyashita <gosukenator@gmail.com>
 Homepage: https://github.com/mizzy/weechat-plugins/
-Version: 1.1
+Version: 1.2
 License: MIT License
 
 This plugin is for pushing notifications to im.kayac.com.
@@ -28,7 +28,7 @@ import hashlib
 
 ## registration
 
-weechat.register("im_kayac_com_notify", "Gosuke Miyashita", "1.1", "MIT License",
+weechat.register("im_kayac_com_notify", "Gosuke Miyashita", "1.2", "MIT License",
     "im_kayac_com_notify: Push notification to iPod touch/iPhone with im.kayac.com", "", "")
 
 ## settings
@@ -49,7 +49,7 @@ if weechat.config_get_plugin("password") == "" and weechat.config_get_plugin("se
 
 ## functions
 
-def postIm(message, handler=None, label=None, title=None):
+def postIm(message, handler=None, label=None, title=None, buffer_name=None, prefix=None):
     USERNAME  = weechat.config_get_plugin("username")
     PASSWORD  = weechat.config_get_plugin("password")
     SECRETKEY = weechat.config_get_plugin("secretkey")
@@ -57,7 +57,7 @@ def postIm(message, handler=None, label=None, title=None):
     if USERNAME != "":
         url = "http://im.kayac.com/api/post/" + USERNAME
         opt_dict = {
-            "message": "[%s] - %s\n%s" % (label, title, message),
+            "message": "[%s][%s] - %s\n%s %s" % (label, buffer_name, title, prefix, message),
             }
 
         if PASSWORD != "":
@@ -74,13 +74,13 @@ def postIm(message, handler=None, label=None, title=None):
 def hook_process_cb(data, command, rc, stdout, stderr):
     return weechat.WEECHAT_RC_OK
 
-def signal_callback(data, signal, signal_data):
-    if signal == "weechat_pv":
-        postIm(signal_data, label="weechat", title="Private Message")
-    elif signal == "weechat_highlight":
-        postIm(signal_data, label="weechat", title="Highlight")
+def print_callback(data, buffer, date, tags, displayed, highlight, prefix, message):
+    buffer_name = weechat.buffer_get_string(buffer, "name")
+    if highlight == "1":
+        postIm(message, label="weechat", title="Highlight", buffer_name=buffer_name, prefix=prefix)
+    elif "notify_private" in tags.split(','):
+        postIm(message, label="weechat", title="Private Message", buffer_name=buffer_name, prefix=prefix)
     return weechat.WEECHAT_RC_OK
 
-weechat.hook_signal("weechat_highlight", "signal_callback", "")
-weechat.hook_signal("weechat_pv", "signal_callback", "")
+weechat.hook_print("", "", "", 1, "print_callback", "");
 
