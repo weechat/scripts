@@ -39,12 +39,14 @@
 #       Version 0.3: missing return value for callbacks fixed
 #                    version check added
 #                    improved option handling
+#   2013-02-07, Ailin Nemui <anti.teamidiot.de>
+#       Version 0.4: add focus info
 #
 
 use strict;
 use warnings;
 
-my $version         = "0.3";
+my $version         = "0.4";
 my $script_name     = "chatters";
 my $weechat_version = "";
 
@@ -88,7 +90,11 @@ weechat::hook_timer(60000, 0, 0, "cleanup_chatters", 0);
 # On config change
 weechat::hook_config("plugins.var.perl.${script_name}.*", "config_change_cb", "");
 
+
 weechat::bar_item_new($chatters_bar_item_name, "chatters_bar_cb", "");
+
+# For mouse support
+weechat::hook_focus($chatters_bar_item_name, "chatters_focus_cb", "") if $weechat_version >= 0x00030600;
 
 ###############################################################################
 # Buffer update callback
@@ -131,7 +137,7 @@ sub buffer_close_cb
     {
         delete $chatter_groups{$channel};
     }
-return weechat::WEECHAT_RC_OK;
+	return weechat::WEECHAT_RC_OK;
 }
 
 ###############################################################################
@@ -202,7 +208,22 @@ sub config_change_cb
     {
         cleanup_chatters();
     }
-return weechat::WEECHAT_RC_OK;
+	return weechat::WEECHAT_RC_OK;
+}
+
+###############################################################################
+# Adds nick info to focus hashtable
+sub chatters_focus_cb
+{
+    my $channel = buf_to_channel_key($_[1]{_buffer});
+    if ($channel and $chatter_groups{$channel} and
+			$_[1]{_bar_item_line} > 0 and $_[1]{_bar_item_line} <= keys %{ $chatter_groups{$channel} })
+    {
+        +{ nick => (sort {uc($a) cmp uc($b)} keys %{ $chatter_groups{$channel} })[$_[1]{_bar_item_line}-1] }
+    }
+	else {
+		$_[1]
+	}
 }
 
 ###############################################################################
