@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2011-2012 Sebastien Helleu <flashcode@flashtux.org>
+# Copyright (C) 2011-2013 Sebastien Helleu <flashcode@flashtux.org>
 # Copyright (C) 2011 xt <xt@bash.no>
 # Copyright (C) 2012 Filip H.F. "FiXato" Slagter <fixato+weechat+urlserver@gmail.com>
+# Copyright (C) 2012 WillyKaze <willykaze@willykaze.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -33,10 +34,14 @@
 # 4. It is recommended to customize/protect the HTTP server using script options
 #    (see /help urlserver)
 #
-# Example:
+# Example after message:
 #
-#   FlashCode | look at this: http://test.server.com/this-is-a-very-looooong-url
-#             | http://myhost.org:1234/8aK
+#   FlashCode | look at this: http://test.server.com/this-is-a-long-url
+#             | [ http://myhost.org:1234/8aK ]
+#
+# Example inside message:
+#
+#   FlashCode | look at this: http://test.server.com/this-is-a-long-url [ http://myhost.org:1234/8aK ]
 #
 # List of URLs:
 # - in WeeChat: /urlserver
@@ -44,6 +49,9 @@
 #
 # History:
 #
+# 2012-12-12, WillyKaze <willykaze@willykaze.org>:
+#     version 1.0: add options "http_time_format", "display_msg_in_url" (works with relay/irc),
+#                  "color_in_msg", "separators"
 # 2012-04-18, Filip H.F. "FiXato" Slagter <fixato+weechat+urlserver@gmail.com>:
 #     version 0.9: add options "http_autostart", "http_port_display"
 #                  "url_min_length" can now be set to -1 to auto-detect minimal url length
@@ -73,7 +81,7 @@
 
 SCRIPT_NAME    = 'urlserver'
 SCRIPT_AUTHOR  = 'Sebastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '0.9'
+SCRIPT_VERSION = '1.0'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC    = 'Shorten URLs with own HTTP server'
 
@@ -129,6 +137,7 @@ urlserver_settings_default = {
     'http_embed_youtube_size': ('480*350', 'size for embedded youtube video, format is "xxx*yyy"'),
     'http_prefix_suffix' : (' ', 'suffix displayed between prefix and message in HTML page'),
     'http_title'         : ('WeeChat URLs', 'title of the HTML page'),
+    'http_time_format'   : ('%d/%m/%y %H:%M:%S', 'time format in the HTML page'),
     # message filter settings
     'msg_ignore_buffers' : ('core.weechat,python.grep', 'comma-separated list (without spaces) of buffers to ignore (full name like "irc.freenode.#weechat")'),
     'msg_ignore_tags'    : ('irc_quit,irc_part,notify_none', 'comma-separated list (without spaces) of tags (or beginning of tags) to ignore (for example, use "notify_none" to ignore self messages or "nick_weebot" to ignore messages from nick "weebot")'),
@@ -136,8 +145,11 @@ urlserver_settings_default = {
     'msg_ignore_regex'   : ('', 'ignore messages matching this regex'),
     'msg_ignore_dup_urls': ('off', 'ignore duplicated URLs (do not add an URL in list if it is already)'),
     # display settings
-    'color'              : ('darkgray', 'color for urls displayed'),
+    'color'              : ('darkgray', 'color for urls displayed after message'),
+    'color_in_msg'       : ('', 'color for urls displayed inside irc message: it is a number (irc color) between 00 and 15 (see doc for a list of irc colors)'),
+    'separators'         : ('[|]', 'separators for short url list (string with exactly 3 chars)'),
     'display_urls'       : ('on', 'display URLs below messages'),
+    'display_urls_in_msg': ('off', 'add shorten url next to the original url (only in IRC messages) (useful for urlserver behind relay/irc)'),
     'url_min_length'     : ('0', 'minimum length for an URL to be shortened (0 = shorten all URLs, -1 = detect length based on shorten URL)'),
     'urls_amount'        : ('100', 'number of URLs to keep in memory (and in file when script is not loaded)'),
     'buffer_short_name'  : ('off', 'use buffer short name on dedicated buffer'),
@@ -169,8 +181,8 @@ def base64_decode(s):
         # python 2.x
         return base64.b64decode(s)
 
-def urlserver_short_url(number):
-    """Return short URL with number."""
+def urlserver_get_hostname(full = True):
+    """Return hostname with port number if != 80."""
     global urlserver_settings
 
     hostname = urlserver_settings['http_hostname_display'] or urlserver_settings['http_hostname'] or socket.getfqdn()
@@ -191,7 +203,18 @@ def urlserver_short_url(number):
     if urlserver_settings['http_url_prefix']:
         prefix = '%s/' % urlserver_settings['http_url_prefix']
 
-    return 'http://%s%s/%s%s' % (hostname, prefixed_port, prefix, base62_encode(number))
+    if full:
+        return 'http://%s%s/%s' % (hostname, prefixed_port, prefix)
+    else:
+        return 'http://%s%s' % (hostname, prefixed_port)
+
+def urlserver_short_url(number):
+    """Return short URL with number."""
+    global urlserver_settings
+
+    hostname = urlserver_get_hostname()
+
+    return '%s%s' % (hostname, base62_encode(number))
 
 def urlserver_server_reply(conn, code, extra_header, message, mimetype='text/html'):
     """Send a HTTP reply to client."""
@@ -266,6 +289,7 @@ def urlserver_server_reply_list(conn, sort='-time'):
         message = cgi.escape(item[4].replace(url, '\x01\x02\x03\x04')).split('\t', 1)
         message[0] = '<span class="prefix">%s</span>' % message[0]
         message[1] = '<span class="message">%s</span>' % message[1]
+
         strjoin = '<span class="prefix_suffix"> %s </span>' % urlserver_settings['http_prefix_suffix'].replace(' ', '&nbsp;')
         message = strjoin.join(message).replace('\x01\x02\x03\x04', '</span><a class="url" href="%s" title="%s">%s</a><span class="message">' % (urlserver_short_url(key), url, url))
         if urlserver_settings['http_embed_image'] == 'on' and url.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.svg')):
@@ -445,22 +469,26 @@ def urlserver_server_restart():
     urlserver_server_stop()
     urlserver_server_start()
 
-def urlserver_display_url_detail(key):
+def urlserver_display_url_detail(key, return_url=False):
     global urlserver
     url = urlserver['urls'][key]
     nick = url[1]
     if nick:
         nick += ' @ '
-    weechat.prnt_date_tags(urlserver['buffer'], 0, 'notify_none',
-                           '%s, %s%s%s%s: %s%s%s -> %s' % (url[0],
-                                                           nick,
-                                                           weechat.color('chat_buffer'),
-                                                           url[2],
-                                                           weechat.color('reset'),
-                                                           weechat.color(urlserver_settings['color']),
-                                                           urlserver_short_url(key),
-                                                           weechat.color('reset'),
-                                                           url[3]))
+
+    if return_url:
+        return urlserver_short_url(key)
+    else:
+        weechat.prnt_date_tags(urlserver['buffer'], 0, 'notify_none',
+                               '%s, %s%s%s%s: %s%s%s -> %s' % (url[0],
+                                                               nick,
+                                                               weechat.color('chat_buffer'),
+                                                               url[2],
+                                                               weechat.color('reset'),
+                                                               weechat.color(urlserver_settings['color']),
+                                                               urlserver_short_url(key),
+                                                               weechat.color('reset'),
+                                                               url[3]))
 
 def urlserver_buffer_input_cb(data, buffer, input_data):
     if input_data in ('q', 'Q'):
@@ -508,52 +536,49 @@ def urlserver_cmd_cb(data, buffer, args):
         urlserver_open_buffer()
     return weechat.WEECHAT_RC_OK
 
-def urlserver_print_cb(data, buffer, time, tags, displayed, highlight, prefix, message):
-    """Callback for messages printed in buffers."""
+def urlserver_update_urllist(buffer_full_name, buffer_short_name, tags, prefix, message, nick=None):
+    """Update urls list and return a list of short urls for message."""
     global urlserver, urlserver_settings
-
-    buffer_full_name = '%s.%s' % (weechat.buffer_get_string(buffer, 'plugin'), weechat.buffer_get_string(buffer, 'name'))
-    if urlserver_settings['buffer_short_name'] == 'on':
-        buffer_name = weechat.buffer_get_string(buffer, 'short_name')
-    else:
-        buffer_name = buffer_full_name
-
-    listtags = tags.split(',')
 
     # skip ignored buffers
     if urlserver_settings['msg_ignore_buffers']:
         if buffer_full_name in urlserver_settings['msg_ignore_buffers'].split(','):
-            return weechat.WEECHAT_RC_OK
+            return None
 
-    # skip ignored tags
-    if urlserver_settings['msg_ignore_tags']:
-        for itag in urlserver_settings['msg_ignore_tags'].split(','):
-            for tag in listtags:
-                if tag.startswith(itag):
-                    return weechat.WEECHAT_RC_OK
+    listtags = []
+    if tags:
+        listtags = tags.split(',')
 
-    # exit if a required tag is missing
-    if urlserver_settings['msg_require_tags']:
-        for rtag in urlserver_settings['msg_require_tags'].split(','):
-            tagfound = False
-            for tag in listtags:
-                if tag.startswith(rtag):
-                    tagfound = True
-                    break
-            if not tagfound:
-                return weechat.WEECHAT_RC_OK
+        # skip ignored tags
+        if urlserver_settings['msg_ignore_tags']:
+            for itag in urlserver_settings['msg_ignore_tags'].split(','):
+                for tag in listtags:
+                    if tag.startswith(itag):
+                        return None
+
+        # exit if a required tag is missing
+        if urlserver_settings['msg_require_tags']:
+            for rtag in urlserver_settings['msg_require_tags'].split(','):
+                tagfound = False
+                for tag in listtags:
+                    if tag.startswith(rtag):
+                        tagfound = True
+                        break
+                if not tagfound:
+                    return None
 
     # ignore message is matching the "msg_ignore_regex"
     if urlserver_settings['msg_ignore_regex']:
         if re.search(urlserver_settings['msg_ignore_regex'], prefix + '\t' + message):
-            return weechat.WEECHAT_RC_OK
+            return None
 
     # extract nick from tags
-    nick = ''
-    for tag in listtags:
-        if tag.startswith('nick_'):
-            nick = tag[5:]
-            break
+    if not nick:
+        nick = ''
+        for tag in listtags:
+            if tag.startswith('nick_'):
+                nick = tag[5:]
+                break
 
     # get URL min length
     min_length = 0
@@ -566,18 +591,19 @@ def urlserver_print_cb(data, buffer, time, tags, displayed, highlight, prefix, m
         min_length = 0
 
     # shorten URL(s) in message
+    urls_short = []
     for url in urlserver['regex'].findall(message):
         if len(url) >= min_length:
             if urlserver_settings['msg_ignore_dup_urls'] == 'on':
                 if [key for key, value in urlserver['urls'].items() if value[3] == url]:
                     continue
             number = urlserver['number']
-            urlserver['urls'][number] = (datetime.datetime.now().strftime('%d/%m/%y %H:%M'), nick, buffer_name, url, '%s\t%s' % (prefix, message))
-            if urlserver_settings['display_urls'] == 'on':
-                weechat.prnt_date_tags(buffer, 0, 'no_log,notify_none', '%s%s' % (weechat.color(urlserver_settings['color']), urlserver_short_url(number)))
-            if urlserver['buffer']:
-                urlserver_display_url_detail(number)
-            urlserver['number'] += 1
+            if not url.startswith(urlserver_get_hostname()): # don't save urls already shorten
+                urlserver['urls'][number] = (datetime.datetime.now().strftime(urlserver_settings['http_time_format']), nick, buffer_short_name, url, '%s\t%s' % (prefix, message))
+                urls_short.append(urlserver_short_url(number))
+                if urlserver['buffer']:
+                    urlserver_display_url_detail(number)
+                urlserver['number'] += 1
 
     # remove old URLs if we have reach max list size
     urls_amount = 50
@@ -591,7 +617,75 @@ def urlserver_print_cb(data, buffer, time, tags, displayed, highlight, prefix, m
         keys = sorted(urlserver['urls'])
         del urlserver['urls'][keys[0]]
 
+    return urls_short
+
+def urlserver_print_cb(data, buffer, time, tags, displayed, highlight, prefix, message):
+    """Callback for message printed in buffer: display short URLs after message."""
+    global urlserver, urlserver_settings
+
+    if urlserver_settings['display_urls'] == 'on':
+        buffer_full_name = '%s.%s' % (weechat.buffer_get_string(buffer, 'plugin'), weechat.buffer_get_string(buffer, 'name'))
+        if urlserver_settings['buffer_short_name'] == 'on':
+            buffer_short_name = weechat.buffer_get_string(buffer, 'short_name')
+        else:
+            buffer_short_name = buffer_full_name
+        urls_short = urlserver_update_urllist(buffer_full_name, buffer_short_name, tags, prefix, message)
+        if urls_short:
+            if urlserver_settings['separators'] and len(urlserver_settings['separators']) == 3:
+                separator = ' %s ' % (urlserver_settings['separators'][1])
+                urls_string = separator.join(urls_short)
+                urls_string = '%s %s %s' % (urlserver_settings['separators'][0], urls_string, urlserver_settings['separators'][2])
+            else:
+                urls_string = ' | '.join(urls_short)
+                urls_string = '[ ' + urls_string + ' ]'
+            weechat.prnt_date_tags(buffer, 0, 'no_log,notify_none', '%s%s' % (weechat.color(urlserver_settings['color']), urls_string))
+
     return weechat.WEECHAT_RC_OK
+
+def urlserver_modifier_irc_cb(data, modifier, modifier_data, string):
+    """Modifier for IRC message: add short URLs at the end of IRC message."""
+    global urlserver, urlserver_settings
+
+    if urlserver_settings['display_urls_in_msg'] != 'on':
+        return string
+
+    msg = weechat.info_get_hashtable('irc_message_parse',
+                                     { 'message': string,
+                                       'server': modifier_data })
+    if 'nick' not in msg or 'channel' not in msg or 'arguments' not in msg:
+        return string
+
+    try:
+        message = msg['arguments'].split(' ', 1)[1]
+        if message.startswith(':'):
+            message = message[1:]
+    except:
+        return string
+
+    if weechat.info_get('irc_is_channel', '%s,%s' % (modifier_data, msg['channel'])) == '1':
+        name = msg['channel']
+    else:
+        name = msg['nick']
+    buffer_full_name = 'irc.%s.%s' % (modifier_data, name)
+    if urlserver_settings['buffer_short_name'] == 'on':
+        buffer_short_name = name
+    else:
+        buffer_short_name = buffer_full_name
+    urls_short = urlserver_update_urllist(buffer_full_name, buffer_short_name, None, msg['nick'], message, msg['nick'])
+    if urls_short:
+        if urlserver_settings['separators'] and len(urlserver_settings['separators']) == 3:
+            separator = ' %s ' % (urlserver_settings['separators'][1])
+            urls_string = separator.join(urls_short)
+            urls_string = '%s %s %s' % (urlserver_settings['separators'][0], urls_string, urlserver_settings['separators'][2])
+        else:
+            urls_string = ' | '.join(urls_short)
+            urls_string = '[ ' + urls_string + ' ]'
+
+        if urlserver_settings['color_in_msg']:
+            urls_string = '\x03%s%s' % (urlserver_settings['color_in_msg'], urls_string)
+        string = "%s %s" % (string, urls_string)
+
+    return string
 
 def urlserver_config_cb(data, option, value):
     """Called when a script option is changed."""
@@ -695,7 +789,11 @@ if __name__ == '__main__' and import_ok:
         urlserver_read_urls()
 
         # catch URLs in buffers
-        weechat.hook_print("", "", "://", 1, "urlserver_print_cb", "")
+        weechat.hook_print('', '', '://', 1, 'urlserver_print_cb', '')
+
+        # modify URLS in irc messages (for relay)
+        weechat.hook_modifier('irc_in2_privmsg', 'urlserver_modifier_irc_cb', '')
+        weechat.hook_modifier('irc_in2_notice', 'urlserver_modifier_irc_cb', '')
 
         # search buffer
         urlserver['buffer'] = weechat.buffer_search('python', SCRIPT_BUFFER)
