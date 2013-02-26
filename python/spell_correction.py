@@ -17,6 +17,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2013-02-16: nils_2, (freenode.#weechat)
+#       0.4 : bug with empty localvar removed (reported by swimmer)
+#
 # 2013-01-31: nils_2, (freenode.#weechat)
 #       0.3 : using new info "aspell_dict" (weechat >= 0.4.1)
 #
@@ -41,7 +44,7 @@ except Exception:
 
 SCRIPT_NAME     = "spell_correction"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.3"
+SCRIPT_VERSION  = "0.4"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "a simple spell correction for a 'misspelled' word"
 
@@ -235,6 +238,11 @@ def input_text_changed_cb(data, signal, signal_data):
 
 def replace_misspelled_word(buffer):
     input_line = weechat.buffer_get_string(buffer, 'localvar_spell_correction_suggest_input_line')
+    if not input_line:
+        # remove spell_correction item
+        weechat.buffer_set(buffer, 'localvar_del_spell_correction_suggest_item', '')
+        weechat.bar_item_update('spell_correction')
+        return
     if OPTIONS['eat_input_char'].lower() == 'off' or input_line == '':
         input_pos = weechat.buffer_get_integer(buffer,'input_pos')
         # check cursor position
