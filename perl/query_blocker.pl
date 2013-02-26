@@ -3,7 +3,8 @@
 # query_blocker.pl - Simple blocker for private messages (i.e. spam).
 #
 # -----------------------------------------------------------------------------
-# Copyright (c) 2009-2012 by rettub <rettub@gmx.net>
+# Copyright (c) 2009-2013 by rettub <rettub@gmx.net>
+# Copyright (c) 2011-2013 by nils_2 <weechatter@arcor.de>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -32,8 +33,26 @@
 # Newest version available at:
 #   git://github.com/rettub/weechat-plugins.git
 #
+## Development is currently hosted at
+# https://github.com/weechatter/weechat-scripts
+#
 # -----------------------------------------------------------------------------
 # History:
+# 2013-02-24, nils_2:
+#     version 0.7:
+#     FIX: case insensitive comparison for "nickserv" and "chanserv"
+#     ADD: option 'show_first_message_only' (suggested by gry)
+#
+# 2012-08-16, nils_2:
+#     version 0.6.1:
+#     IMPROVED: help text to allow a temporary query
+# 2012-06-12, nils_2:
+#     version 0.6:
+#     FIX: allow own queries without 'mynick' in query whitelist
+#     ADD: option 'temporary_mode'.
+#     ADD: whitelist is now using format: server.nickname (please update your qb-whitelist!)
+#     ADD: tab completion for all commands
+#
 # 2012-05-03, nils_2:
 #     version 0.5:
 #     FIX: invalid pointer for function infolist_get()
@@ -61,9 +80,6 @@
 #     version 0.1: initial release
 #
 # -----------------------------------------------------------------------------
-# FIXME
-#   - add 'mynick' to list - needed?
-#
 # TODO
 #   - make Auto-Messages configurable
 
@@ -73,7 +89,7 @@ use strict;
 
 my $SCRIPT      = 'query_blocker';
 my $AUTHOR      = 'rettub <rettub@gmx.net>';
-my $VERSION     = '0.5';
+my $VERSION     = '0.7';
 my $LICENSE     = 'GPL3';
 my $DESCRIPTION = 'Simple blocker for private message (i.e. spam)';
 my $COMMAND     = "query_blocker";             # new command name
@@ -83,6 +99,7 @@ my %help_desc = ( "block_queries"       => "to enable or disable $COMMAND (defau
                   "show_deny_message"   => "show you the deny message, sent to user. (default: 'off')",
                   "show_hint"           => "show hint how to allow queries for nick. (default: 'on')",
                   "show_nick_only"      => "only show nick and server. (default: 'off')",
+                  "show_first_message_only"=> "Show only first message sent by blocked queries (default: 'on')",
                   "whitelist"           => "path/file-name to store/read nicks not to be blocked (default: qb-whitelist.txt)",
                   "auto_message"        => "messages to inform user that you don't like to get private messages without asking first. '%N' will be replaced with users nick.",
                   "auto_message_prefix" => "Prefix for auto message, may not be empty!",
@@ -90,6 +107,7 @@ my %help_desc = ( "block_queries"       => "to enable or disable $COMMAND (defau
                   "logger"              => "logger status for $SCRIPT buffer (default: 'off')",
                   "hotlist_show"        => "$SCRIPT buffer appear in hotlists (status bar/buffer.pl) (default: 'off')",
                   "open_on_startup"     => "open $SCRIPT buffer on startup. option msgbuffer has to be set to 'buffer' (default: 'off')",
+                  "temporary_mode"       => "if 'on' you have to manually add a nick to whitelist. otherwise a conversation will be temporary only and after closing query buffer the nick will be discard (default: 'off')",
 );
 
 my $CMD_HELP    = <<EO_HELP;
@@ -118,16 +136,25 @@ Script Options:
               logger: $help_desc{logger}
         hotlist_show: $help_desc{hotlist_show}
      open_on_startup: $help_desc{open_on_startup}
+      temporary_mode: $help_desc{temporary_mode}
 
 By default all private messages (/query, /msg) from nicks not in the whitelist will be blocked.
  - to allow all private message, $SCRIPT can be disabled, type '/$COMMAND off'.
  - to allow private messages from certain nicks, put them into the whitelist, type '/$COMMAND add nick' (you can use nick-completion).
+   if you start a query, the nick will be added as a temporary nick. the nick will be removed when you close query
  - to remove a nick from the whitelist, type '/$COMMAND del nick' (you can use nick-completion).
 
 NOTE: If you load $SCRIPT the first time, blocking of private messages is disabled, you have to enable blocking, type '/$COMMAND on'.
 EO_HELP
 
-my $COMPLETITION  = "on %-||off %-||status %-||list %-||add %(perl_query_blocker_add) %-||del %(perl_query_blocker_del) %-||reload %-||blocked %-";
+my $COMPLETITION  = "on %-".
+                    "||off %-".
+                    "||status %-".
+                    "||list last %-".
+                    "||add %(perl_query_blocker_add)| %(nick)|%*".
+                    "||del %(perl_query_blocker_del)| %(nick)|%*".
+                    "||reload %-".
+                    "||blocked clear %-";
 my $CALLBACK      = $COMMAND;
 my $CALLBACK_DATA = undef;
 my $weechat_version;
@@ -139,6 +166,7 @@ my %SETTINGS = (
     "show_deny_message" => "off",
     "show_hint"     => "on",
     "show_nick_only"=> "off",
+    "show_first_message_only" => "on",
     "whitelist"     => "qb-whitelist.txt",
     "auto_message"  => "I'm using a query blocking script, please wait while i whitelist you!",
     "auto_message_prefix" => "Auto-Message: ",
@@ -146,9 +174,9 @@ my %SETTINGS = (
     "logger"        => "off",
     "hotlist_show"  => "off",
     "open_on_startup"  => "off",
+    "temporary_mode" => "off",
 );
 
-# FIXME store server too?
 my $Last_query_nick = undef;
 
 sub DEBUG {weechat::print('', "***\t" . $_[0]);}
@@ -174,15 +202,24 @@ sub whitelist_read {
     open (WL, "<", $whitelist) || DEBUG("$whitelist: $!");
 	while (<WL>) {
 		chomp;
-		$Allowed{$_} = 1  if length $_;
+                my ( $server, $nick ) = split /\./,$_;           # servername.nickname
+                if (not defined $nick){
+                    close WL;
+                    weechat::print("",weechat::prefix("error")."$SCRIPT: $whitelist wrong format for entry: $_ (new format: servername.nickname).");
+                    return 1;
+                }
+                $Allowed{$_} = 1  if length $_;
 	}
 	close WL;
+	return 0;
 }
 
 sub whitelist_save {
     my $whitelist = weechat::config_get_plugin( "whitelist" );
     open (WL, ">", $whitelist) || DEBUG("write whitelist: $!");
-    print WL "$_\n" foreach ( sort { "\L$a" cmp "\L$b" } keys %Allowed );
+    foreach ( sort { "\L$a" cmp "\L$b" } keys %Allowed ){
+        print WL "$_\n" if ($Allowed{$_} == 1);
+    }
     close WL;
 }
 
@@ -220,6 +257,7 @@ sub print_info {
     my ( $buffer, $server, $my_nick, $nick, $message ) = @_;
     my $prefix_network = weechat::config_string( weechat::config_get("weechat.look.prefix_network"));
     my $buf_pointer = "";
+    my $orig_message = $message;
 
     if     ( $buffer eq "current" ){
         $buf_pointer = weechat::current_buffer();
@@ -249,23 +287,39 @@ sub print_info {
     }
     return $buf_pointer if (lc(weechat::config_get_plugin('quiet') eq "on"));
 
-    if (weechat::config_get_plugin('show_nick_only') eq 'off') {
+    if (lc(weechat::config_get_plugin('show_nick_only') eq 'off')) {
         $message = ": $message";
     }else{
         $message = "";
     }
-    weechat::print($buf_pointer,"$prefix_network\t"
-                                .irc_nick_find_color($nick).$nick
-                                .weechat::color('reset')
-                                ." tries to start a query on "
-                                .irc_nick_find_color($server).$server
-                                .weechat::color('reset')
-                                .$message );
-    
-    weechat::print($buf_pointer,"$prefix_network\t"
-                                ."to allow query: /$COMMAND add "
-                                .irc_nick_find_color($nick).$nick
-                                .weechat::color('reset') ) unless (weechat::config_get_plugin('show_hint') eq 'off');
+
+    unless ( exists $Blocked{$server.".".$nick} and lc(weechat::config_get_plugin('show_first_message_only') eq 'off') ) {
+        weechat::print($buf_pointer,"$prefix_network\t"
+                                    .irc_nick_find_color($nick).$nick
+                                    .weechat::color('reset')
+                                    ." tries to start a query on "
+                                    .irc_nick_find_color($server).$server
+                                    .weechat::color('reset')
+                                    .$message );
+        weechat::print($buf_pointer,"$prefix_network\t"
+                                    ."to allow query: /$COMMAND add "
+                                    .irc_nick_find_color($server).$server
+                                    .weechat::color('reset')
+                                    ."."
+                                    .irc_nick_find_color($nick).$nick
+                                    .weechat::color('reset')."\n"
+                                    ."or to allow temporary query: /query -server "
+                                    .irc_nick_find_color($server).$server
+                                    .weechat::color('reset')
+                                    ." "
+                                    .irc_nick_find_color($nick).$nick
+                                    .weechat::color('reset')) unless (weechat::config_get_plugin('show_hint') eq 'off');
+    }else{
+        weechat::print($buf_pointer,irc_nick_find_color($server).$server."."
+                                    .irc_nick_find_color($nick).$nick."\t"
+                                    .weechat::color('reset')
+                                    .$orig_message );
+    }
     return $buf_pointer;
 }
 
@@ -292,13 +346,16 @@ sub modifier_irc_in_privmsg {
         my $query_nick = $1;
         my $query_msg  = $2;
 
-        # if nick is allowed to send queries, let WeeChat handle the query
-        return $arg if nick_allowed($query_nick);
+        # always allow own queries
+        return $arg if ($query_nick eq $my_nick);
 
-        $Last_query_nick = $query_nick;
+        # if nick is allowed to send queries, let WeeChat handle the query
+        return $arg if nick_allowed($server . "." . $query_nick);
+
+        $Last_query_nick = $server . "." . $query_nick;
         my $buf_pointer;
-        unless ( exists $Blocked{$query_nick} ) {
-            unless (weechat::config_get_plugin('quiet') eq 'on') {
+        unless ( exists $Blocked{$server.".".$query_nick} and lc(weechat::config_get_plugin('show_first_message_only') eq 'on') ) {
+            unless (lc(weechat::config_get_plugin('quiet') eq 'on')) {
                 # print messages to.... newsbar, current, private, server, weechat, buffer, highmon
                 if ( newsbar() eq "1" and lc(weechat::config_get_plugin('msgbuffer')) eq 'newsbar' ) {
                     info2newsbar( 'lightred', '[QUERY-WARN]', $server, $query_nick, $query_msg );
@@ -334,9 +391,10 @@ sub modifier_irc_in_privmsg {
                 weechat::command( '', "/mute -all /msg -server $server $query_nick $msg " );
                 weechat::print($buf_pointer,"$SCRIPT\t"."$query_nick"."@"."$server: $msg");
             }
-            $Blocked{$query_nick} = 0;
+            # counter for how many blocked messages
+            $Blocked{$server.".".$query_nick} = 0;
         }
-            $Blocked{$query_nick}++;
+            $Blocked{$server.".".$query_nick}++;
     } else {
         return $arg;
     }
@@ -345,21 +403,46 @@ sub modifier_irc_in_privmsg {
     return '';
 }
 
+# add nick to whitelist
 sub _add {
     my $arg = shift;
+    my $temporary_mode = shift;
+    my $temporary_txt = "";
 
     if ( defined $arg ) {
         foreach ( split( / +/, $arg ) ) {
-            $Last_query_nick = undef if ( defined $Last_query_nick and $_ eq $Last_query_nick );
-            $Allowed{$_} = 1;
-            delete $Blocked{$_};
-            weechat::print( '', "Allow queries for: '" . irc_nick_find_color($_) . $_ . weechat::color('reset') . "'");
+            my ($server,$nick);
+            ($server,$nick) = split(/\./,$_);
+            if (not defined $nick){
+                $nick = $server;
+                $server = weechat::buffer_get_string(weechat::current_buffer(),"localvar_server");
+                if ($server eq ""){
+                    weechat::print( '', "Server missing for: '".
+                                        irc_nick_find_color($nick).
+                                        $nick . weechat::color('reset') . "'");
+                    return;
+                }
+            }
+            $Last_query_nick = undef if ( defined $Last_query_nick and $server.".".$nick eq $Last_query_nick );
+            $Allowed{$server.".".$nick} = $temporary_mode;
+            delete $Blocked{$server.".".$nick};
+            $temporary_txt = " (temporary)" if ($temporary_mode == 2);
+            weechat::print( '', "Allow" . $temporary_txt ." queries for: '".
+                                weechat::color(weechat::config_color(weechat::config_get("weechat.color.chat_server"))).$server .
+                                weechat::color('reset') . "." .
+                                irc_nick_find_color($nick).
+                                $nick . weechat::color('reset') . "'");
         }
         whitelist_save();
     } elsif ( defined $Last_query_nick and not exists $Allowed{$Last_query_nick} ) {
-        $Allowed{$Last_query_nick} = 1;
+        $Allowed{$Last_query_nick} = $temporary_mode;
+        my ($server,$nick) = split(/\./,$Last_query_nick);
         delete $Blocked{$Last_query_nick};
-        weechat::print( '', "Allow queries for: '" . irc_nick_find_color($Last_query_nick) . $Last_query_nick . weechat::color('reset') . "'");
+        weechat::print( '', "Allow" . $temporary_txt . " queries for: '".
+                            weechat::color(weechat::config_color(weechat::config_get("weechat.color.chat_server"))).$server .
+                            weechat::color('reset') . "." .
+                            irc_nick_find_color($nick).
+                            $nick . weechat::color('reset') . "'");
         $Last_query_nick = undef;
         whitelist_save();
         # FIXME: open query window
@@ -377,9 +460,9 @@ sub qb_hooked { %Hooks };
 sub qb_hook {
     return 1 if qb_hooked();
 
-    $Hooks{query}    = weechat::hook_command_run( '/query *', 'qb_query', "" );
-    $Hooks{msg}      = weechat::hook_command_run( '/msg *',   'qb_msg',   "" );
-    $Hooks{modifier} = weechat::hook_modifier( "irc_in_privmsg", "modifier_irc_in_privmsg", "" );
+    $Hooks{query}          = weechat::hook_command_run( '/query *', 'qb_query', "" );
+    $Hooks{msg}            = weechat::hook_command_run( '/msg *',   'qb_msg',   "" );
+    $Hooks{modifier_in}    = weechat::hook_modifier( "irc_in_privmsg", "modifier_irc_in_privmsg", "" );
     $Hooks{completion_del} = weechat::hook_completion("perl_query_blocker_del", "query blocker completion_del", "query_blocker_completion_del_cb", "");
     $Hooks{completion_add} = weechat::hook_completion("perl_query_blocker_add", "query blocker completion_add", "query_blocker_completion_add_cb", "");
 
@@ -388,7 +471,7 @@ sub qb_hook {
     DEBUG("cant hook completion for add argument")      if $Hooks{completion_add}    eq '';
     DEBUG("cant hook command '/query'")                 if $Hooks{query}    eq '';
     DEBUG("cant hook command '/msg'")                   if $Hooks{msg}      eq '';
-    DEBUG("cant hook modifier 'irc_in_privmsg'")        if $Hooks{modifier} eq '';
+    DEBUG("cant hook modifier 'irc_in_privmsg'")        if $Hooks{modifier_in} eq '';
 
     return 0;
 }
@@ -399,7 +482,7 @@ sub qb_unhook {
     # FIXME handle hook errors (hook_ returns NULL := '')
     weechat::unhook( $Hooks{query} );
     weechat::unhook( $Hooks{msg} );
-    weechat::unhook( $Hooks{modifier} );
+    weechat::unhook( $Hooks{modifier_in} );
     weechat::unhook( $Hooks{completion_del} );
     weechat::unhook( $Hooks{completion_add} );
     undef %Hooks;
@@ -469,7 +552,12 @@ sub query_blocker {
         if ( $cmd eq 'list' ) {
             if ( defined $arg and $arg eq 'last' ) {
                 if (defined $Last_query_nick) {
-                    weechat::print( '', "Last blocked nick: '" . irc_nick_find_color($Last_query_nick) . $Last_query_nick . weechat::color('reset') . "'");
+                    my ($server,$nick) = split(/\./,$Last_query_nick);
+                    weechat::print( '', "Last blocked nick: '".
+                                        weechat::color(weechat::config_color(weechat::config_get("weechat.color.chat_server"))).$server .
+                                        weechat::color('reset') . "." .
+                                        irc_nick_find_color($nick).
+                                        $nick . weechat::color('reset') . "'");
                 } else {
                     weechat::print( '', "No blocked nicks");
                 }
@@ -477,32 +565,56 @@ sub query_blocker {
                 my $n = keys %Allowed;
                 weechat::print( '', "Allowed nicks for queries ($n):" );
                 foreach ( sort { "\L$a" cmp "\L$b" } keys %Allowed ) {
-                    weechat::print( '', "   " . irc_nick_find_color($_) . $_ );
+                    my ($server,$nick) = split(/\./,$_);
+                    my $temporary_txt = "";
+                    $temporary_txt = "  (temporary)" if ( $Allowed{$server.".".$nick} == 2);
+                    weechat::print( '', "   ".
+                                        weechat::color(weechat::config_color(weechat::config_get("weechat.color.chat_server"))).$server .
+                                        weechat::color('reset') . "." .
+                                        irc_nick_find_color($nick).
+                                        $nick . weechat::color('reset').
+                                        $temporary_txt);
                 }
             }
         } elsif ( $cmd eq 'blocked' ) {
             if ( keys %Blocked ) {
                 if ( defined $arg and $arg eq 'clear' ) {
+                    weechat::print( '', "Removing blocked state from:");
                     foreach ( sort { "\L$a" cmp "\L$b" } keys %Blocked ) {
-                        weechat::print( '', "Removing blocked state from" . irc_nick_find_color($_) . $_ );
+                        my ($server,$nick) = split(/\./,$_);
+                        weechat::print( '', "   " .
+                                            weechat::color(weechat::config_color(weechat::config_get("weechat.color.chat_server"))).$server .
+                                            weechat::color('reset') . "." .
+                                            irc_nick_find_color($nick) . $nick .
+                                            weechat::color('reset') . " (#$Blocked{$_})");
                         delete $Blocked{$_};
                     }
                 } else {
                     weechat::print( '', "Queries of this nicks have been blocked:" );
                     foreach ( sort { "\L$a" cmp "\L$b" } keys %Blocked ) {
-                        weechat::print( '', "   " . irc_nick_find_color($_) . $_ . weechat::color('reset') . " (#$Blocked{$_})");
+                        my ($server,$nick) = split(/\./,$_);
+                        weechat::print( '', "   " .
+                                            weechat::color(weechat::config_color(weechat::config_get("weechat.color.chat_server"))).$server .
+                                            weechat::color('reset') . "." .
+                                            irc_nick_find_color($nick) . $nick .
+                                            weechat::color('reset') . " (#$Blocked{$_})");
                     }
                 }
             } else {
                 weechat::print( '', "No nicks have been blocked" );
             }
         } elsif ( $cmd eq 'add' ) {
-            _add($arg);
+            _add($arg,1);
         }elsif ( $cmd eq 'del' and defined $arg ) {
             foreach ( split( / +/, $arg ) ) {
                 if (exists $Allowed{$_} ) {
                     delete $Allowed{$_};
-                    weechat::print( '', "Nick removed from whitelist: '" . irc_nick_find_color($_) . $_ . weechat::color('reset') . "'");
+                    my ($server,$nick) = split(/\./,$_);
+                    weechat::print( '', "Nick removed from whitelist: '".
+                                        weechat::color(weechat::config_color(weechat::config_get("weechat.color.chat_server"))).$server .
+                                        weechat::color('reset') . "." .
+                                        irc_nick_find_color($nick) . $nick .
+                                        weechat::color('reset') . "'");
                 } else {
                     weechat::print( '', "Can't remove nick, not in whitelist: '" . irc_nick_find_color($_) . $_ . weechat::color('reset') . "'");
                 }
@@ -526,20 +638,35 @@ sub _get_nick {
     return $l;
 }
 
+# /query
 sub qb_query {
-    my $n = _get_nick($_[2]);
-    _add($n) unless nick_allowed($n);
+    my ($data, $buffer, $command) = @_;
+    my $server = weechat::buffer_get_string($buffer,"localvar_server");
+    return weechat::WEECHAT_RC_OK if ($server eq "");
+
+    my $n = _get_nick($command);
+    return weechat::WEECHAT_RC_OK if (lc($n) eq "nickserv" or lc($n) eq "chanserv");
+    my $temporary_mode = 1;
+    $temporary_mode = 2 if (weechat::config_get_plugin('temporary_mode') eq "on");
+    _add($server.".".$n,$temporary_mode) unless nick_allowed($server.".".$n);
 
     return weechat::WEECHAT_RC_OK;
 }
 
 # add nick as allowed if responce isn't auto reply
 sub qb_msg {
-    my ($msg) = $_[2] =~ /^\/msg -server .*?\s.*?\s(.*)/;
+    my ($data, $buffer, $command) = @_;
+    my $server = weechat::buffer_get_string($buffer,"localvar_server");
+    return weechat::WEECHAT_RC_OK if ($server eq "");
+
+    my ($msg) = $command =~ /^\/msg -server .*?\s.*?\s(.*)/;
     my $n = _get_nick($_[2]);
+    return weechat::WEECHAT_RC_OK if (lc($n) eq "nickserv" or lc($n) eq "chanserv");
     my $prefix = weechat::config_get_plugin('auto_message_prefix');
 
-    _add($n) unless nick_allowed($n) or $msg =~ /^$prefix/;
+    my $temporary_mode = 1;
+    $temporary_mode = 2 if (weechat::config_get_plugin('temporary_mode') eq "on");
+    _add($server.".".$n,$temporary_mode) unless nick_allowed($server.".".$n) or $msg =~ /^$prefix/;
 
     return weechat::WEECHAT_RC_OK;
 }
@@ -570,6 +697,17 @@ sub query_blocker_buffer_input
     return weechat::WEECHAT_RC_OK;
 }
 
+sub buffer_closing_cb{
+    my ($data, $signal, $signal_data) = @_;
+    return weechat::WEECHAT_RC_OK if ( weechat::buffer_get_string($signal_data, "localvar_type" ne "private"));
+    my $name = weechat::buffer_get_string($signal_data, "localvar_name");
+    foreach ( sort { "\L$a" cmp "\L$b" } keys %Allowed ) {
+        my ($server,$nick) = split(/\./,$_);
+        delete $Allowed{$_} if ( $Allowed{$server.".".$nick} == 2 and $name eq $server.".".$nick);
+    }
+    return weechat::WEECHAT_RC_OK;
+}
+
 # -----------------------------------------------------------------------------
 #
 if ( weechat::register( $SCRIPT, $AUTHOR, $VERSION, $LICENSE, $DESCRIPTION, "", "" ) ) {
@@ -587,9 +725,14 @@ if ( weechat::register( $SCRIPT, $AUTHOR, $VERSION, $LICENSE, $DESCRIPTION, "", 
         weechat::config_set_plugin( $option, $default_value )
           if weechat::config_get_plugin($option) eq "";
     }
-    whitelist_read();
+
+    if ( whitelist_read() ){
+        weechat::command("","/wait 1ms /perl unload $SCRIPT");
+        return;
+    }
     weechat::print( '', "$COMMAND: loaded whitelist '" . weechat::config_get_plugin( "whitelist" ) . "'");
 
+    weechat::hook_signal("buffer_closing","buffer_closing_cb","");
     weechat::hook_config( "plugins.var.perl.$SCRIPT.block_queries", 'toggled_by_set', $SCRIPT );
     if ( ($weechat_version ne "") && (weechat::info_get("version_number", "") >= 0x00030500) ) {    # v0.3.5
         foreach my $option ( keys %help_desc ){
@@ -609,5 +752,3 @@ if ( weechat::register( $SCRIPT, $AUTHOR, $VERSION, $LICENSE, $DESCRIPTION, "", 
         weechat::print( '', "$COMMAND: disabled");
     }
 }
-
-# vim: ai ts=4 sts=4 et sw=4 tw=0 foldmethod=marker :
