@@ -20,8 +20,13 @@
 # WeeChat scripts manager.
 # (this script requires WeeChat >= 0.3.0 and python >= 2.6)
 #
+# IMPORTANT: this script is obsolete since WeeChat 0.3.9, it is replaced
+#            by command /script (script plugin).
+#
 # History:
 #
+# 2013-03-06, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 2.0: display "obsolete script" warning on WeeChat >= 0.3.9
 # 2012-10-08, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 1.9: remove obsolete database field "desc_fr"
 #                  (it was causing error with /weeget list xxx)
@@ -71,7 +76,7 @@
 
 SCRIPT_NAME    = "weeget"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "1.9"
+SCRIPT_VERSION = "2.0"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "WeeChat scripts manager"
 
@@ -972,6 +977,11 @@ if __name__ == "__main__" and import_ok:
                                 "wg_completion_scripts_installed_cb", "")
         weechat.hook_completion("weeget_scripts_tags", "tags of scripts in repository",
                                 "wg_completion_scripts_tags_cb", "")
+        version = weechat.info_get("version_number", "") or 0
+        if int(version) >= 0x00030900:
+            weechat.prnt("", "%sWARNING: the script weeget.py is obsolete since WeeChat 0.3.9 "
+                         "(it is replaced by command /script)" % weechat.prefix("error"))
+            weechat.prnt("", "%sTo uninstall weeget.py: /weeget remove weeget.py" % weechat.prefix("error"))
 
 # ==================================[ end ]===================================
 
