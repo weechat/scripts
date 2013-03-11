@@ -40,7 +40,8 @@
 # ported to WeeChat (http://www.weechat.org/) by Nils Görs. Copyright
 # (c) 2011-2012 Nils Görs
 #
-#
+# 2013-03-06: 0.6 Thomas Poechtrager <t.poechtrager@gmail.com>
+#           : fixed memory usage
 # 2012-11-15: 0.5 nils_2 (freenode@nils_2)
 #           : based on sysinfo 2.81.21
 #           : bug with "armv5tel" in sysinfo 2.81.21 fixed (Version bumped to 2.81.22 and sent to maintainer)
@@ -63,7 +64,7 @@ use POSIX qw(floor);
 use strict;
 
 my $SCRIPT_NAME         = "sysinfo";
-my $SCRIPT_VERSION      = "0.5";
+my $SCRIPT_VERSION      = "0.6";
 my $SCRIPT_DESCR        = "provides a system info command";
 my $SCRIPT_LICENSE      = "GPL3";
 my $SCRIPT_AUTHOR       = "Nils Görs <weechatter\@arcor.de>";
@@ -805,10 +806,10 @@ sub memoryusage {
 		$vard = `vmstat -s | grep 'pages active' | awk '{print \$1}'` * `vmstat -s | grep 'per page' | awk '{print \$1}'`;
 		$vara = `$sysctl -n hw.physmem`;
 	}
-	$varp = sprintf("%.2f", $vard / $vara * 100);
+	$varp = sprintf("%.2f", 100-($vard / ($vara-$vard) * 100));
 	$vara = sprintf("%.2f", $vara / 1024 / 1024);
 	$vard = sprintf("%.2f", $vard / 1024 / 1024);
-	return $vard."MB/".$vara."MB ($varp%)";
+	return ($vara-$vard)."MB/".$vara."MB ($varp%)";
 }
 
 sub networkinfobsd {
