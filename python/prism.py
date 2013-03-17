@@ -9,6 +9,8 @@
 #
 # 0. You just DO WHAT THE FUCK YOU WANT TO.
 #
+# 2013-03-12, R1cochet
+#   v0.2.3: add -b switch for backwards/reverse text
 # 2013-01-29, SuperT1R:
 #   v0.2.2: add -m switch to append /me to the beginning of the output
 
@@ -20,7 +22,7 @@ import re
 
 SCRIPT_NAME    = "prism"
 SCRIPT_AUTHOR  = "Alex Barrett <al.barrett@gmail.com>"
-SCRIPT_VERSION = "0.2.2"
+SCRIPT_VERSION = "0.2.3"
 SCRIPT_LICENSE = "WTFPL"
 SCRIPT_DESC    = "Taste the rainbow."
 
@@ -45,12 +47,13 @@ if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION,
               SCRIPT_LICENSE, SCRIPT_DESC, "", ""):
     w.hook_command("prism",
                    SCRIPT_DESC,
-                   "[-rwm] text",
+                   "[-rwmb] text",
                    "    -r: randomizes the order of the color sequence\n"
                    "    -w: color entire words instead of individual characters\n"
                    "    -m: append /me to beginning of output\n"
+                   "    -b: backwards text (entire string is reversed)\n"
                    "  text: text to be colored",
-                   "-r|-w|-m", "prism_cmd_cb", "")
+                   "-r|-w|-m|-b", "prism_cmd_cb", "")
 
 
 def prism_cmd_cb(data, buffer, args):
@@ -63,7 +66,7 @@ def prism_cmd_cb(data, buffer, args):
     inc = 1
     mepfx = 0
 
-    m = re.match('-[rwm]* ', input)
+    m = re.match('-[rwmb]* ', input)
     if m:
         opts = m.group(0)
         input = input[len(opts):]
@@ -73,6 +76,8 @@ def prism_cmd_cb(data, buffer, args):
             inc = 0
         if 'm' in opts:
             mepfx = 1
+        if 'b' in opts:
+            input = input[::-1]
 
     output = u""
     tokens = re.findall(regex, input)
