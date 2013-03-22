@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# ListBuffer, version 0.7.1 for WeeChat version 0.3
+# ListBuffer, version 0.8.1 for WeeChat version 0.3
 # Latest development version: https://github.com/FiXato/listbuffer
 #
 #   Show /list results in a common buffer and interact with them.
@@ -55,6 +55,19 @@
 # * version 0.7.1: Forgetful bugfix
 #     * Made sure lb_curline global variable is defined
 #
+### 2013-03-19: FiXato:
+#
+# * version 0.8: Sorted out the sorting
+#     * Added automatically updating options for sorting:
+#       * plugins.var.python.listbuffer.sort_inverted
+#       * plugins.var.python.listbuffer.sort_order
+# * version 0.8.1: Pad it baby!
+#     * Channel modes are equally padded even when there are no channel modes.
+#     * Added padding options:
+#       * plugins.var.python.listbuffer.modes_min_width
+#       * plugins.var.python.listbuffer.channel_min_width
+#       * plugins.var.python.listbuffer.users_min_width
+#
 ## Acknowledgements:
 # * Dmitry "troydm" Geurkov, for providing the inverse-sorting patch to the project.
 # * Sebastien "Flashcode" Helleu, for developing the kick-ass IRC client WeeChat
@@ -68,15 +81,12 @@
 #    copied and ported to Python.
 # * Khaled Mardam-Bey, for making me yearn for similar /list support in
 #    WeeChat as mIRC already offered. :P
+# * mave_, for pointing out that sort orders weren't remembered.
 #
 ## TODO:
 #   - Auto-scroll selected line upon window scroll.
 #   - Add option to hide already joined channels.
 #   - Improve sorting methods
-#   - Add default sorting option
-#   - Add channel padding length option
-#   - Add usercount padding length option
-#   - Add modes padding length option
 #   - Add auto-join support
 #   - Detect if channel is already in auto-join
 #   - Allow automatically switching to the listbuffer
@@ -87,9 +97,9 @@
 #   - Allow selecting multiple channels
 #   - Add optional command redirection.
 #
-## Copyright (c) 2011,2012 Filip H.F. "FiXato" Slagter,
+## Copyright (c) 2011,2012,2013 Filip H.F. "FiXato" Slagter,
 #   <FiXato [at] Gmail [dot] com>
-#   http://google.com/profiles/FiXato
+#   http://profile.fixato.org
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -112,7 +122,7 @@
 #
 SCRIPT_NAME    = "listbuffer"
 SCRIPT_AUTHOR  = "Filip H.F. 'FiXato' Slagter <fixato [at] gmail [dot] com>"
-SCRIPT_VERSION = "0.7.1"
+SCRIPT_VERSION = "0.8.1"
 SCRIPT_LICENSE = "MIT"
 SCRIPT_DESC    = "A common buffer for /list output."
 SCRIPT_COMMAND = "listbuffer"
@@ -129,6 +139,11 @@ import re
 
 lb_settings = (
   ("autofocus", "on", "Focus the listbuffer in the current window if it isn't already displayed by a window."),
+  ("sort_order", "users", "Last used sort order for the channel list."),
+  ("sort_inverted", "on", "Invert the sort order for the channel list."),
+  ("modes_min_width", "8", "The minimum width used for modes in the channel list. If a channel has less modes than this amount, the column will be padded with spaces."),
+  ("channel_min_width", "25", "The minimum width used for the channel name in the channel list. If a channelname is shorter than this amount, the column will be padded with spaces."),
+  ("users_min_width", "8", "The minimum width used for the usercount in the channel list. If the usercount has less digits than this amount, the column will be padded with spaces."),
 )
 lb_buffer = None
 lb_curline = 0
@@ -138,10 +153,10 @@ lb_list_started = False
 lb_current_sort = None
 lb_sort_inverted = False
 lb_sort_options = (
-  'users',
   'channel',
-  'topic',
+  'users',
   'modes',
+  'topic',
 )
 
 #                              server numeric Nick Chan  Users     Modes    Topic
@@ -154,13 +169,7 @@ def lb_create_buffer():
   if not lb_buffer:
     lb_buffer = weechat.buffer_new("listbuffer", "lb_input_cb", \
                 "", "lb_close_cb", "")
-    weechat.buffer_set(lb_buffer, "title", lb_line_format({
-      'channel': 'Channel name',
-      'users': 'Users',
-      'modes': 'Modes',
-      'topic': 'Topic',
-      'nomodes': None,
-    }))
+    lb_set_buffer_title()
     # Sets notify to 0 as this buffer does not need to be in hotlist.
     weechat.buffer_set(lb_buffer, "notify", "0")
     weechat.buffer_set(lb_buffer, "nicklist", "0")
@@ -179,6 +188,17 @@ def lb_create_buffer():
   if weechat.config_get_plugin("autofocus") == "on":
     if not weechat.window_search_with_buffer(lb_buffer):
       weechat.command("", "/buffer " + weechat.buffer_get_string(lb_buffer,"name"))
+
+def lb_set_buffer_title():
+  global lb_buffer, lb_current_sort
+  ascdesc = '(v)' if lb_sort_inverted else '(^)'
+  weechat.buffer_set(lb_buffer, "title", lb_line_format({
+    'channel': 'Channel name%s' % (ascdesc if lb_current_sort == 'channel' else ''),
+    'users': 'Users%s' % (ascdesc if lb_current_sort == 'users' else ''),
+    'modes': 'Modes%s' % (ascdesc if lb_current_sort == 'modes' else ''),
+    'topic': 'Topic%s' % (ascdesc if lb_current_sort == 'topic' else ''),
+    'nomodes': None,
+  }))
 
 def lb_list_start(data, signal, message):
   lb_initialise_list
@@ -223,6 +243,8 @@ def lb_list_end(data, signal, message):
     lb_initialise_list(signal)
 
   lb_list_started = False
+  if lb_current_sort:
+    lb_sort()
   lb_refresh()
   return weechat.WEECHAT_RC_OK
 
@@ -262,9 +284,15 @@ def lb_line_format(list_data,curr=False):
   str = ""
   if (curr):
     str += weechat.color("yellow,red")
-  str += "%s%25s %7s " % (weechat.color("bold"), list_data['channel'], "(%s)" % list_data['users'])
+  channel_text = list_data['channel'].ljust(int(weechat.config_get_plugin('channel_min_width')))
+  users_text = "(%s)" % list_data['users']
+  padded_users_text = users_text.rjust(int(weechat.config_get_plugin('users_min_width')) + 2)
+  str += "%s%s %s " % (weechat.color("bold"), channel_text, padded_users_text)
   if not list_data['nomodes']:
-    str += "%10s: " % ("[%s]" % list_data['modes'])
+    modes = "[%s]" % list_data['modes']
+  else:
+    modes = "[]"
+  str += "%s: " % modes.rjust(int(weechat.config_get_plugin('modes_min_width')) + 2)
   str += "%s" % list_data['topic']
   return str
 
@@ -338,8 +366,18 @@ def lb_sort_next():
   if len(lb_sort_options) <= new_index:
     new_index = 0
 
-  lb_current_sort = lb_sort_options[new_index]
+  lb_set_current_sort_order(lb_sort_options[new_index])
   lb_sort()
+
+def lb_set_current_sort_order(value):
+  global lb_current_sort
+  lb_current_sort = value
+  weechat.config_set_plugin('sort_order', lb_current_sort)
+
+def lb_set_invert_sort_order(value):
+  global lb_sort_inverted
+  lb_sort_inverted = value
+  weechat.config_set_plugin('sort_inverted', ('on' if lb_sort_inverted else 'off'))
 
 def lb_sort_previous():
   global lb_current_sort, lb_sort_options
@@ -351,25 +389,26 @@ def lb_sort_previous():
   if new_index < 0:
     new_index = len(lb_sort_options) - 1
 
-  lb_current_sort = lb_sort_options[new_index]
+  lb_set_current_sort_order(lb_sort_options[new_index])
   lb_sort()
 
 def lb_sort(sort_key=None):
   global lb_channels, lb_current_sort, lb_sort_inverted
   if sort_key:
-    lb_current_sort = sort_key
+    lb_set_current_sort_order(sort_key)
   if lb_current_sort == 'users':
     lb_channels = sorted(lb_channels, key=lambda chan_data: int(chan_data[lb_current_sort]))
   else:
     lb_channels = sorted(lb_channels, key=lambda chan_data: chan_data[lb_current_sort])
   if lb_sort_inverted:
     lb_channels.reverse()
+  lb_set_buffer_title()
   lb_refresh()
 
 def lb_sort_invert():
   global lb_current_sort, lb_sort_inverted
   if lb_current_sort:
-    lb_sort_inverted = not lb_sort_inverted
+    lb_set_invert_sort_order(not lb_sort_inverted)
     lb_sort()
 
 def lb_close_cb(*kwargs):
@@ -407,10 +446,16 @@ def lb_set_default_settings():
          if int(version) >= 0x00030500:
              weechat.config_set_desc_plugin(option, description)
 
+def lb_reset_stored_sort_order():
+  global lb_current_sort, lb_sort_inverted
+  lb_current_sort = weechat.config_get_plugin('sort_order')
+  lb_sort_inverted = (True if weechat.config_get_plugin('sort_inverted') == 'on' else False)
+
 if __name__ == "__main__" and import_ok:
   if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION,
                       SCRIPT_LICENSE, SCRIPT_DESC, "lb_close_cb", ""):
     lb_set_default_settings()
+    lb_reset_stored_sort_order()
     lb_buffer = weechat.buffer_search("python", "listbuffer")
 
     weechat.hook_signal("*,irc_in_321", "lb_list_start", "")
