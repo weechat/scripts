@@ -4,6 +4,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2013-03-18, mythmon
+#   version 0.7: Channels get a bonus based on priority in sorting.
 # 2012-02-09, mythmon
 #   version 0.6: Allow sorting of channels
 # 2010-10-21, xt
@@ -59,7 +61,7 @@ except:
 
 SCRIPT_NAME    = "chanact"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.6"
+SCRIPT_VERSION = "0.7"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Hotlist replacement, use names and keybindings instead of numbers"
 
@@ -92,7 +94,7 @@ def chanact_command(data, buffer, args):
     args = args.split(' ')
     if args[0] == 'sort':
         if len(args) == 1:
-            s = sort_rank(buffer)
+            s = sort_rank(buffer, 0)
             w.prnt(buffer, 'Sort rank of this buffer: %d' % s)
         elif len(args) == 2:
             s = args[1]
@@ -102,12 +104,14 @@ def chanact_command(data, buffer, args):
     return w.WEECHAT_RC_OK
 
 
-def sort_rank(b):
-    r = w.buffer_get_string(b, 'localvar_sort')
-    if r:
-        return int(r)
+def sort_rank(buffer, priority):
+    rank = w.buffer_get_string(buffer, 'localvar_sort')
+    priority = int(priority) if priority else 0
+
+    if rank:
+        return int(rank) + priority
     else:
-        return 0
+        return priority
 
 
 def keydict_update(*args):
@@ -179,9 +183,9 @@ def chanact_cb(*args):
                     number,
                     w.color(reset))
 
-        activity.append((entry, thebuffer))
+        activity.append((entry, thebuffer, sort_rank(thebuffer, priority)))
 
-    activity.sort(key=lambda t: sort_rank(t[1]), reverse=True)
+    activity.sort(key=lambda t: t[2], reverse=True)
 
     w.infolist_free(hotlist)
     if activity:
