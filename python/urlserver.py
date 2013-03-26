@@ -49,6 +49,9 @@
 #
 # History:
 #
+# 2013-03-25, Hermit (@irc.freenode.net):
+#     version 1.1: made links relative in the html, so that they can be followed when accessing
+#                  the listing remotely using the weechat box's IP directly.
 # 2012-12-12, WillyKaze <willykaze@willykaze.org>:
 #     version 1.0: add options "http_time_format", "display_msg_in_url" (works with relay/irc),
 #                  "color_in_msg", "separators"
@@ -81,7 +84,7 @@
 
 SCRIPT_NAME    = 'urlserver'
 SCRIPT_AUTHOR  = 'Sebastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '1.0'
+SCRIPT_VERSION = '1.1'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC    = 'Shorten URLs with own HTTP server'
 
@@ -181,7 +184,7 @@ def base64_decode(s):
         # python 2.x
         return base64.b64decode(s)
 
-def urlserver_get_hostname(full = True):
+def urlserver_get_hostname(full=True):
     """Return hostname with port number if != 80."""
     global urlserver_settings
 
@@ -206,15 +209,11 @@ def urlserver_get_hostname(full = True):
     if full:
         return 'http://%s%s/%s' % (hostname, prefixed_port, prefix)
     else:
-        return 'http://%s%s' % (hostname, prefixed_port)
+        return '/%s' % prefix
 
-def urlserver_short_url(number):
+def urlserver_short_url(number, full=True):
     """Return short URL with number."""
-    global urlserver_settings
-
-    hostname = urlserver_get_hostname()
-
-    return '%s%s' % (hostname, base62_encode(number))
+    return '%s%s' % (urlserver_get_hostname(full), base62_encode(number))
 
 def urlserver_server_reply(conn, code, extra_header, message, mimetype='text/html'):
     """Send a HTTP reply to client."""
@@ -291,7 +290,7 @@ def urlserver_server_reply_list(conn, sort='-time'):
         message[1] = '<span class="message">%s</span>' % message[1]
 
         strjoin = '<span class="prefix_suffix"> %s </span>' % urlserver_settings['http_prefix_suffix'].replace(' ', '&nbsp;')
-        message = strjoin.join(message).replace('\x01\x02\x03\x04', '</span><a class="url" href="%s" title="%s">%s</a><span class="message">' % (urlserver_short_url(key), url, url))
+        message = strjoin.join(message).replace('\x01\x02\x03\x04', '</span><a class="url" href="%s" title="%s">%s</a><span class="message">' % (urlserver_short_url(key, False), url, url))
         if urlserver_settings['http_embed_image'] == 'on' and url.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.svg')):
             obj = '<div class="obj"><img src="%s" title="%s" alt="%s"></div>' % (url, url, url)
         elif urlserver_settings['http_embed_youtube'] == 'on' and 'youtube.com/' in url:
