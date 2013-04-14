@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2010-2012 by Nils Görs <weechatter@arcor.de>
+# Copyright (c) 2010-2013 by Nils Görs <weechatter@arcor.de>
 #
 # display the status and visited buffers of your buddies in a buddylist bar
 #
@@ -16,6 +16,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 1.7   : fixed: perl error when adding and removing nick
+#       : fixed: perl error: Use of uninitialized value $bitlbee_service_separator (reported by gtmanfred)
+#       : improved: a warning will be displayed if no filename for the buddylist is given.
 # 1.6   : added: support for new option "irc.network.whois_double_nick"
 # 1.5   : fixed: wrong pointer in bar_item_remove()
 #       : fixed: perl error: Use of uninitialized value $nickname
@@ -76,7 +79,7 @@
 use strict;
 
 my $prgname		= "buddylist";
-my $version		= "1.6";
+my $version		= "1.7";
 my $description		= "display status from your buddies a bar-item.";
 
 # -------------------------------[ config ]-------------------------------------
@@ -474,6 +477,7 @@ sub build_buddylist{
                                 # first sort by bitlbee_service and then name case insensitiv
                                 foreach my $n (sort { $nick_structure{$s}{$b}->{bitlbee_service} cmp $nick_structure{$s}{$a}->{bitlbee_service}} (sort {uc($a) cmp uc($b)} (sort keys(%{$nick_structure{$s}})) ) ){
                                   # write each bitlbee_service only once
+                                  $nick_structure{$s}{$n}{bitlbee_service} = "" if ( not defined $nick_structure{$s}{$n}{bitlbee_service} );
                                   $bitlbee_service_separator = $nick_structure{$s}{$n}{bitlbee_service};
                                   if ( $bitlbee_service_separator ne "" and $bitlbee_service_separator_copy ne $bitlbee_service_separator ){
                                     $str .= weechat::color($default_options{display_social_net_color}) . "(" . $bitlbee_service_separator . ") " . $visual;
@@ -607,31 +611,33 @@ sub nick_changed{
 }
 
 sub add_nick{
-	my ( $data, $servername, $args ) = @_;
-	my ($server) = split(/,/, $servername);                                 # get name from server
-		my ($nickname) = ($args =~ /\:(.*)\!/);
+    my ( $data, $servername, $args ) = @_;
+    my ($server) = split(/,/, $servername);                                 # get name from server
+        my ($nickname) = ($args =~ /\:(.*)\!/);
 
-	if (exists $nick_structure{$server}{$nickname}){                        # nick in buddylist?
-            $nick_structure{$server}{$nickname}{status} = 0;                    # create structure
-            $nick_structure{$server}{$nickname}{bitlbee_service} = "";
-            weechat::bar_item_update($prgname);
-	}
+    if (defined $nick_structure{$server}{$nickname} and exists $nick_structure{$server}{$nickname}){                        # nick in buddylist?
+        $nick_structure{$server}{$nickname}{status} = 0;                    # create structure
+        $nick_structure{$server}{$nickname}{bitlbee_service} = "";
+        weechat::bar_item_update($prgname);
+    }
 }
 
 # buddy leaves channel (irc_in_part / irc_in_quit)
 sub remove_nick{
 #($nick,$name,$ip,$action,$channel) = ($args =~ /\:(.*)\!n=(.*)@(.*?)\s(.*)\s(.*)/); # maybe for future use
-	my ( $data, $servername, $args ) = @_;
-	my ($server) = split(/,/, $servername);                                 # get name from server
-		my ($nickname) = ($args =~ /\:(.*)\!/);
-	if (exists $nick_structure{$server}{$nickname}){                        # nick in buddylist?
-		$nick_structure{$server}{$nickname}{status} = 2;                # yes and he left channel
-		$nick_structure{$server}{$nickname}{buf_name} = "";
-		$nick_structure{$server}{$nickname}{buffer} = "";
-		$nick_structure{$server}{$nickname}{counter} = "";
-                $nick_structure{$server}{$nickname}{bitlbee_service} = "";
-			weechat::bar_item_update($prgname);
-	}
+    my ( $data, $servername, $args ) = @_;
+    my ($server) = split(/,/, $servername);                                 # get name from server
+            my ($nickname) = ($args =~ /\:(.*)\!/);
+
+
+    if (defined $nick_structure{$server}{$nickname} and exists $nick_structure{$server}{$nickname}){                        # nick in buddylist?
+        $nick_structure{$server}{$nickname}{status} = 2;                # yes and he left channel
+        $nick_structure{$server}{$nickname}{buf_name} = "";
+        $nick_structure{$server}{$nickname}{buffer} = "";
+        $nick_structure{$server}{$nickname}{counter} = "";
+        $nick_structure{$server}{$nickname}{bitlbee_service} = "";
+        weechat::bar_item_update($prgname);
+    }
 }
 
 # get information from who command (irc_in2_352)
@@ -781,6 +787,11 @@ return weechat::WEECHAT_RC_OK;
 ### read the buddylist
 sub buddylist_read {
 	my $buddylist = weechat::config_get_plugin("buddylist");
+	if ($buddylist eq "")
+	{
+            weechat::print("","Please set a valid filename : /set plugins.var.perl.buddylist.buddylist");
+            return;
+        }
 	return unless -e $buddylist;
 	open (WL, "<", $buddylist) || DEBUG("$buddylist: $!");
 	while (<WL>) {
@@ -798,6 +809,11 @@ sub buddylist_read {
 }
 sub buddylist_save {
 	my $buddylist = weechat::config_get_plugin( "buddylist" );
+        if ($buddylist eq "")
+        {
+            weechat::print("","Please set a valid filename : /set plugins.var.perl.buddylist.buddylist");
+            return;
+        }
 	open (WL, ">", $buddylist) || DEBUG("write buddylist: $!");
 	foreach my $s ( sort keys %nick_structure ) {				# sortiert die Server alphabetisch
 		foreach my $n ( sort keys %{$nick_structure{$s}} ) {		# sortiert die Nicks alphabetisch
