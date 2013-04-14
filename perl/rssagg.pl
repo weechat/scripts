@@ -15,8 +15,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 #
-# rssagg, version 1.0, for weechat version 0.3.7 or later
-# watch multiple RSS feeds and display the most current articles
+# rssagg, version 1.1, for weechat version 0.3.7 or later
+# watch multiple RSS/RDF/Atom feeds and display the most current articles
 # Thank you nils_2, Flashcode, Nei
 #
 # Requires Perl module XML::FeedPP
@@ -40,7 +40,10 @@
 #
 #
 # History:
-# 2012-11-05, R1cochet <r1cochet@hushmail.com>:
+# 2013-04-06, R1cochet <deltaxrho@gmail.com>:
+#       v1.1:   Added option "rssagg.engine.autostop". Added "last" option to /rssagg command.
+#               Muted filter in rssagg buffer. Fixed partial feed callback. Other bug fixes.
+# 2012-11-05, R1cochet <deltaxrho@gmail.com>:
 #       v1.0:   Initial Public Release
 #
 
@@ -50,18 +53,18 @@ use POSIX qw(strftime);
 use XML::FeedPP;
 
 my $SCRIPT_NAME = "rssagg";
-my $VERSION     = "1.0";
-my $SCRIPT_DESC = "RSS Aggregator for WeeChat";
+my $VERSION     = "1.1";
+my $SCRIPT_DESC = "RSS/RDF/Atom feed aggregator for WeeChat";
 
 ######################### Global Vars #########################
 my $config_file;            # config file pointer
 my %config = ();            # config hash
 my @feeds;                  # list of feed names
 my %feeds = ();             # feed hash
+my %partial_feed = ();      # for multiple url callbacks on large feeds
 my $rssagg_buffer = "";     # pointer to buffer
 my $rsslist_buffer = "";    # pointer to free buffer
 my $rssagg_bar = "";        # pointer to bar
-my $partial_feed = "";      # for multiple url callbacks on large feeds
 my @buffer_lines;           # buffer display lines
 my @bar_lines;              # bar lines
 my @bar_lines_time;         # bar line time
@@ -197,6 +200,8 @@ sub init_config {
                                                                        "Automatically start a feed once added.", "", 0, 0, "off", "off", 0, "", "", "", "", "", "",);
     $config{'options'}{'autostart_on_load'} = weechat::config_new_option($config_file, $config{'sections'}{'engine'}, "autostart_on_load", "boolean",
                                                                        "Automatically start all feeds on script load.", "", 0, 0, "off", "off", 0, "", "", "", "", "", "",);
+    $config{'options'}{'autostop'} = weechat::config_new_option($config_file, $config{'sections'}{'engine'}, "autostop", "integer",
+                                                                       "Automatically stop feed after n number of fails (set to 0 to disable).", "", 0, 20, "3", "3", 0, "", "", "", "", "", "",);
     $config{'options'}{'default_delay'} = weechat::config_new_option($config_file, $config{'sections'}{'engine'}, "default_delay", "integer",
                                                                        "Set the default delay for fetching feeds (mins).", "", 10, 240, "60", "60", 0, "", "", "", "", "", "",);
     $config{'options'}{'max_headlines'} = weechat::config_new_option($config_file, $config{'sections'}{'engine'}, "max_headlines", "integer",
@@ -728,14 +733,14 @@ sub buffer_input {
             if ($commands[0] eq "f") {
                 my $filter = infolist_filter();
                 if ($filter eq "rssagg") {
-                        weechat::command("", "/filter del rssagg");
+                        weechat::command("", "/mute /filter del rssagg");
                 }
                 if ($commands[1]) {
                     if (weechat::config_string($config{'options'}{'filter_mode'}) eq "reverse") {
                         $commands[1] = "!".$commands[1];
                         $commands[1] =~ s/,/,!/g;
                     }
-                    weechat::command("", "/filter add rssagg perl.rssagg * $commands[1]");
+                    weechat::command("", "/mute /filter add rssagg perl.rssagg * $commands[1]");
                 }
                 set_buffer_title();
             }
@@ -744,10 +749,10 @@ sub buffer_input {
             }
             if ($commands[0] eq "m") {
                 if (weechat::config_string($config{'options'}{'filter_mode'}) eq "normal") {
-                    weechat::command("", "/set rssagg.look.filter_mode reverse");
+                    weechat::command("", "/mute /set rssagg.look.filter_mode reverse");
                 }
                 else {
-                    weechat::command("", "/set rssagg.look.filter_mode normal");
+                    weechat::command("", "/mute /set rssagg.look.filter_mode normal");
                 }
             }
         }
@@ -821,45 +826,69 @@ sub rssagg_bar_build {
 sub process_cb {
     my ($data, $command, $return_code, $out, $err) = @_;
     if ($return_code > 0) {         # cURL error
-        weechat::print("", weechat::prefix("error")."$SCRIPT_NAME: Error with command: $command ($return_code)");
-        weechat::print("", weechat::prefix("error")."$SCRIPT_NAME: Command Error: $err") if ($err ne "");
-        weechat::command("", "/rssagg stop $data");
-        $partial_feed = "";
+        weechat::print("", weechat::prefix("error")."$SCRIPT_NAME: cURL error: ($return_code) $err");
+        weechat::print("", weechat::prefix("error")."$SCRIPT_NAME: Command: $command");
+        if (weechat::config_integer($config{'options'}{'autostop'}) ) {
+            $feeds{"$data"}{"autostop"}++;
+            if ($feeds{"$data"}{"autostop"} >= weechat::config_integer($config{'options'}{'autostop'}) ) {
+                weechat::command("", "/rssagg stop $data");
+                $feeds{"$data"}{"autostop"} = 0;
+            }
+        }
+        $partial_feed{"$data"} = ""; # delete if defined
     }
     elsif ($return_code == weechat::WEECHAT_HOOK_PROCESS_ERROR) {
         weechat::print("", weechat::prefix("error")."$SCRIPT_NAME: Error with fetching of feed: \"$data\". Maybe the site is down.");
-        weechat::command("", "/rssagg stop $data");
-        $partial_feed = "";
+        if (weechat::config_integer($config{'options'}{'autostop'}) ) {
+            $feeds{"$data"}{"autostop"}++;
+            if ($feeds{"$data"}{"autostop"} >= weechat::config_integer($config{'options'}{'autostop'}) ) {
+                weechat::command("", "/rssagg stop $data");
+                $feeds{"$data"}{"autostop"} = 0;
+            }
+        }
+        $partial_feed{"$data"} = "";
     }
     elsif ($return_code == weechat::WEECHAT_HOOK_PROCESS_RUNNING) {      # handle multiple callbacks. Long feeds
-        $partial_feed .= $out;
+        $partial_feed{"$data"} .= $out;
         return weechat::WEECHAT_RC_OK;
     }
     elsif ($return_code == 0 && $out) {
         my $feed;
-        if ($partial_feed ne "") {
-            $partial_feed .= $out;
-            if ($partial_feed !~ /\<\?xml version=/) {   # RSS feeds have <channel> and <item> tags
-                weechat::print("", weechat::prefix("error")."$SCRIPT_NAME: Feed with name \"$data\" does not appear to be an RSS/Atom feed. This script will only work with RSS/Atom feeds.");
-                weechat::command("", "/rssagg stop $data");
-                $partial_feed = "";
+        if ($partial_feed{"$data"} ne "") {
+            $partial_feed{"$data"} .= $out;
+            if ($partial_feed{"$data"} !~ /\<\?xml version=/) {   # RSS feeds have <channel> and <item> tags
+                weechat::print("", weechat::prefix("error")."$SCRIPT_NAME: Feed with name \"$data\" does not appear to be an RSS/Atom feed. The fetched document is not a valid feed.");
+                if (weechat::config_integer($config{'options'}{'autostop'}) ) {
+                    $feeds{"$data"}{"autostop"}++;
+                    if ($feeds{"$data"}{"autostop"} >= weechat::config_integer($config{'options'}{'autostop'}) ) {
+                        weechat::command("", "/rssagg stop $data");
+                        $feeds{"$data"}{"autostop"} = 0;
+                    }
+                }
+                $partial_feed{"$data"} = "";
                 return weechat::WEECHAT_RC_OK;
             }
             else {
-                $feed = XML::FeedPP->new($partial_feed, -type => 'string', utf8_flag => 1);
-                $partial_feed = "";
+                $feed = XML::FeedPP->new($partial_feed{"$data"}, -type => 'string', utf8_flag => 1);
+                $partial_feed{"$data"} = "";
             }
         }
         else {
             if ($out !~ /\<\?xml version=/) {            # Atom feeds have <entry> tag
-                weechat::print("", weechat::prefix("error")."$SCRIPT_NAME: Feed with name \"$data\" does not appear to be an RSS feed. This script will only work with RSS feeds.");
-                weechat::command("", "/rssagg stop $data");
-                $partial_feed = "";
+                weechat::print("", weechat::prefix("error")."$SCRIPT_NAME: Feed with name \"$data\" does not appear to be an RSS/RDF/Atom feed. The fetched document is not a valid feed.");
+                if (weechat::config_integer($config{'options'}{'autostop'}) ) {
+                    $feeds{"$data"}{"autostop"}++;
+                    if ($feeds{"$data"}{"autostop"} >= weechat::config_integer($config{'options'}{'autostop'}) ) {
+                        weechat::command("", "/rssagg stop $data");
+                        $feeds{"$data"}{"autostop"} = 0;
+                    }
+                }
+                $partial_feed{"$data"} = "";
                 return weechat::WEECHAT_RC_OK;
             }
             else {
                 $feed = XML::FeedPP->new($out, -type => 'string', utf8_flag => 1);
-                $partial_feed = "";
+                $partial_feed{"$data"} = "";
             }
         }
         if ($feed ne "") {
@@ -914,7 +943,7 @@ sub process_cb {
             weechat::print("", weechat::prefix("error")."$SCRIPT_NAME: Error: failed to parse feed: $data\nTry restarting the feed in a couple minutes.");
             weechat::command("", "/rssagg stop $data");
         }
-        $partial_feed = "";     # reset $partial_feed
+        $partial_feed{"$data"} = "";     # reset $partial_feed
     }
     return weechat::WEECHAT_RC_OK;
 }
@@ -942,11 +971,7 @@ sub timer_cb {      # hook process_hashtable to fetch feed
     $feeds{"$data"}{'last_call'} = strftime "%H:%M", localtime;
     if ($rsslist_buffer ne "") {    # update rsslist window
         @feeds = sort(@feeds);
-        for (0..$#feeds) {
-            if ($data eq "$feeds[$_]") {
-                refresh_line($_);
-            }
-        }
+        refresh_feed_line($data);
     }
     return weechat::WEECHAT_RC_OK;
 }
@@ -954,9 +979,12 @@ sub timer_cb {      # hook process_hashtable to fetch feed
 sub autostart_cb {
     my ($feed, $remaining) = @_;
     unless (exists  $feeds{"$feed"}{'timer'}) {
+        $partial_feed{"$feed"} = "";
         timer_cb($feed);
         $feeds{"$feed"}{'timer'} = weechat::hook_timer(weechat::config_integer($feeds{"$feed"}{'delay'}) * 60000, 0, 0, "timer_cb", $feed);
+        refresh_feed_line($feed);
     }
+    delete $feeds{"$feed"}{'autostart'} if (exists $feeds{"$feed"}{'autostart'});
     return weechat::WEECHAT_RC_OK;
 }
 # hooked config options
@@ -1077,6 +1105,20 @@ sub command_rss {
         }
         return weechat::WEECHAT_RC_OK;
     }
+    if ($args[0] eq "last") {
+        if (@buffer_lines) {
+            if ($args[1] && ($args[1] =~ /^\d+$/)) {
+                my $last = weechat::config_integer($config{'options'}{'buffer_max_headlines'});
+                $last = $args[1] if ($args[1] < $last);
+                for (my $i = scalar @buffer_lines - $last; $i <= $#buffer_lines; $i++) {   
+                    weechat::print($buffer, "$buffer_lines[$i]");
+                }
+            }
+            else {
+                weechat::print($buffer, "$_") for @buffer_lines;
+            }
+        }
+    }
     if ($args[0] eq "add") {
         if ($args[2]) {
             if (weechat::config_search_option($config_file, $config{'sections'}{'feeds'}, "$args[1]")) {
@@ -1163,12 +1205,17 @@ sub command_rss {
                 weechat::print("", "Feed is already running: $args[1]");
             }
             elsif (exists $feeds{"$args[1]"}{'link'}) {
+                $partial_feed{"$args[1]"} = "";
                 timer_cb($args[1]);                         # hook process for initial feed fetch
                 # hook timer
                 $feeds{"$args[1]"}{'timer'} = weechat::hook_timer(weechat::config_integer($feeds{"$args[1]"}{'delay'}) * 60000, 0, 0, "timer_cb", $args[1]);
                 weechat::print($buffer, "Started feed: $args[1]") if ($buffer_name ne "rsslist");
                 set_buffer_title();
                 refresh_feed_line($args[1]);
+                if (exists $feeds{"$args[1]"}{'autostart'}) {
+                    weechat::unhook($feeds{"$args[1]"}{'autostart'});
+                    delete $feeds{"$args[1]"}{'autostart'};
+                }
             }
             else {
                 weechat::print($buffer, "Cannot find feed: $args[1]");
@@ -1185,6 +1232,7 @@ sub command_rss {
                 # destroy feed timer
                 delete $feeds{"$args[1]"}{'timer'};
                 delete $feeds{"$args[1]"}{'last_call'};
+                delete $partial_feed{"$args[1]"};
                 clean_tmp("$args[1]");
                 weechat::print($buffer, "Stopped feed: $args[1]") if ($buffer_name ne "rsslist");
                 set_buffer_title();
@@ -1282,7 +1330,8 @@ sub command_rss {
 weechat::hook_config("rssagg.*", "config_cb", "");
 weechat::hook_completion("rssagg_feeds", "List of RSS feeds", "command_completion_cb", "");
 weechat::hook_command($SCRIPT_NAME, $SCRIPT_DESC,                                                           # command, command description
-    "list || add <name> <url> || cookie <name> <cookie> || del <name> || restart <name> || start <name> || stop <name>",     # args
+    "last <number> || list || add <name> <url> || cookie <name> <cookie> || del <name> || restart <name> || start <name> || stop <name>",     # args
+    "   last:   Show last n number of feeds in current buffer (defaults to rssagg.look.buffer_max_headlines)\n".
     "   list:   List all feeds (you must have at least one feed)\n".                                               # args description
     "    add:   Add a new feed\n".
     " cookie:   Add a cookie to a feed\n".
@@ -1327,7 +1376,7 @@ weechat::hook_command($SCRIPT_NAME, $SCRIPT_DESC,                               
     "    /rssagg start feed2\n".
     "  stop a running feed with name \"feed2\":\n".
     "    /rssagg stop feed2",
-    "list %-|| add * * %-|| cookie %(rssagg_feeds) * %-|| del %(rssagg_feeds) %-|| restart %(rssagg_feeds) %-|| start %(rssagg_feeds) %-|| stop %(rssagg_feeds) %-",  # completion
+    "last * %-|| list %-|| add * * %-|| cookie %(rssagg_feeds) * %-|| del %(rssagg_feeds) %-|| restart %(rssagg_feeds) %-|| start %(rssagg_feeds) %-|| stop %(rssagg_feeds) %-",  # completion
     "command_rss", "");         # callback, callback data
 
 ######################### STARTUP #########################
@@ -1345,8 +1394,8 @@ else {
 if (weechat::config_integer($config{'options'}{'autostart_on_load'})) {
     for (my $i = 0; $i <= $#feeds; $i++) {
         if ($feeds[$i]) {
-            my $interval = $i * 60000 * weechat::config_integer($config{'options'}{'autostart_delay'});
-            weechat::hook_timer($interval, 0, 1, "autostart_cb", $feeds[$i]);
+            my $interval = $i * 60000 * weechat::config_integer($config{'options'}{'autostart_delay'}) + 1;
+            $feeds{"$feeds[$i]"}{'autostart'} = weechat::hook_timer($interval, 0, 1, "autostart_cb", $feeds[$i]);
         }
     }
 }
