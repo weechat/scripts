@@ -5,8 +5,9 @@
 # license: GPL3
 # contact: shmibs@gmail.com
 # history:
-#	1.3	a small fix to formatting $message
-#	1.2	use config options
+#	1.4		another small bug-fix
+#	1.3		a small fix to formatting $message
+#	1.2		use config options
 #	1.1 	restructured code for (greater) sanity
 #	1.0 	first working version
 
@@ -14,7 +15,7 @@ use strict;
 use warnings;
 use constant SCRIPT_NAME => 'notify_send';
 
-weechat::register(SCRIPT_NAME, 'shmibs', '1.3', 'GPL3', 'execute a user-defined system command upon highlight or private message (with smart delays to avoid spam)', '', '');
+weechat::register(SCRIPT_NAME, 'shmibs', '1.4', 'GPL3', 'execute a user-defined system command upon highlight or private message (with smart delays to avoid spam)', '', '');
 
 # global var declarations
 my %pv_times;
@@ -29,7 +30,7 @@ my %settings=();
 
 #------------------------------------[ START CONFIGURATION ]------------------------------------
 
-sub config_changed{
+sub config_changed {
     my ($pointer, $name, $value) = @_;
     $name = substr($name, length("plugins.var.perl.".SCRIPT_NAME."."), length($name));
     $settings{$name} = $value;
@@ -37,23 +38,18 @@ sub config_changed{
 }
 
 sub config_init{
-    my $version = weechat::info_get("version_number", "") || 0;
-    foreach my $option (keys %settings_default)
-    {
-        if (!weechat::config_is_set_plugin($option))
-        {
-            weechat::config_set_plugin($option, $settings_default{$option}[0]);
-            $settings{$option} = $settings_default{$option}[0];
-        }
-        else
-        {
-            $settings{$option} = weechat::config_get_plugin($option);
-        }
-        if ($version >= 0x00030500)
-        {
-            weechat::config_set_desc_plugin($option, $settings_default{$option}[1]." (default: \"".$settings_default{$option}[0]."\")");
-        }
-    }
+	my $version = weechat::info_get("version_number", "") || 0;
+	foreach my $option (keys %settings_default) {
+		if (!weechat::config_is_set_plugin($option)) {
+			weechat::config_set_plugin($option, $settings_default{$option}[0]);
+			$settings{$option} = $settings_default{$option}[0];
+		} else {
+			$settings{$option} = weechat::config_get_plugin($option);
+		}
+		if ($version >= 0x00030500) {
+			weechat::config_set_desc_plugin($option, $settings_default{$option}[1]." (default: \"".$settings_default{$option}[0]."\")");
+		}
+	}
 }
 
 config_init();
@@ -61,15 +57,14 @@ weechat::hook_config("plugins.var.perl.".SCRIPT_NAME.".*", "config_changed", "")
 
 #-------------------------------------[ END CONFIGURATION ]-------------------------------------
 
-# get highlight and pm signals from weechat
 my @signals=qw(weechat_pv weechat_highlight);
 
 # message received hook
-foreach(@signals){
+foreach(@signals) {
 	weechat::hook_signal($_,'new_notification','');
 }
 
-sub new_notification{
+sub new_notification {
 	# $_[1] is the type (either weechat_highlight, weechat_pv)
 	# $_[2] is the actual content
 
@@ -78,7 +73,7 @@ sub new_notification{
 	my $message=substr($_[2],index($_[2],'	'));
 	if($name eq ' *'){
 		$name=substr($_[2],index($_[2],' *')+3);
-		$message=substr($name,index($name,' '+1));
+		$message=substr($name,index($name,' '));
 		$name=substr($name,0,index($name,' '));
 	}
 	$message =~ s/	//;
@@ -86,7 +81,7 @@ sub new_notification{
 
 	# get the type of the message
 	my $type;
-	if($_[1] eq 'weechat_pv'){
+	if($_[1] eq 'weechat_pv') {
 		$type='PM';
 	} else {
 		$type='HL';
@@ -96,27 +91,23 @@ sub new_notification{
 	# be sent
 	my $send='true';
 
-	# the following line and line can be uncommented to
-	# disable highlight triggering from system messages.
-	# the strings in the quotes should match your personal
-	# setting for weechat.prefix_error and
-	# weechat.prefix_network string values.
-	foreach(split(/,/,$settings{'ignore_nicks'})){
+	# ignore messages from nicks in ignore_nicks option
+	foreach(split(/,/,$settings{'ignore_nicks'})) {
 		$send='false' if($name eq $_);
 	}
 
 	# determine whether a notification of the same type has been
 	# made recently. if so, ignore it
 	if($type eq 'PM'){
-		if(exists $pv_times{$name}){
-			if(time-$pv_times{$name} < int($settings{'wait_pm'})){
+		if(exists $pv_times{$name}) {
+			if(time-$pv_times{$name} < int($settings{'wait_pm'})) {
 				$send='false';
 			}
 		}
 		$pv_times{$name} = time;
 	} else {
-		if(exists $highlight_times{$name}){
-			if(time-$highlight_times{$name} < int($settings{'wait_highlight'})){
+		if(exists $highlight_times{$name}) {
+			if(time-$highlight_times{$name} < int($settings{'wait_highlight'})) {
 				$send='false';
 			}
 		}
@@ -124,7 +115,7 @@ sub new_notification{
 	}
 
 	# run system command
-	if($send eq 'true'){
+	if($send eq 'true') {
 		my ($command,$args) = split(/ /,$settings{'command'},2);
 		$args =~ s/\$type/$type/g;
 		$args =~ s/\$name/$name/g;
