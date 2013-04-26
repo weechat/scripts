@@ -9,6 +9,8 @@
 #
 # 0. You just DO WHAT THE FUCK YOU WANT TO.
 #
+# 2013-04-26, Biohazard
+#   v0.2.4: add support for using the command through keybindings
 # 2013-03-12, R1cochet
 #   v0.2.3: add -b switch for backwards/reverse text
 # 2013-01-29, SuperT1R:
@@ -22,7 +24,7 @@ import re
 
 SCRIPT_NAME    = "prism"
 SCRIPT_AUTHOR  = "Alex Barrett <al.barrett@gmail.com>"
-SCRIPT_VERSION = "0.2.3"
+SCRIPT_VERSION = "0.2.4"
 SCRIPT_LICENSE = "WTFPL"
 SCRIPT_DESC    = "Taste the rainbow."
 
@@ -60,6 +62,12 @@ def prism_cmd_cb(data, buffer, args):
     global color_index
 
     input = args.decode("UTF-8")
+    input_method = "command"
+
+    if not input:
+        input = w.buffer_get_string(buffer, "input")
+        input = input.decode("UTF-8")
+        input_method = "keybinding"
 
     # select a tokenizer and increment mode
     regex = regex_chars
@@ -67,7 +75,7 @@ def prism_cmd_cb(data, buffer, args):
     mepfx = 0
 
     m = re.match('-[rwmb]* ', input)
-    if m:
+    if m and input_method == "command":
         opts = m.group(0)
         input = input[len(opts):]
         if 'w' in opts:
@@ -78,7 +86,6 @@ def prism_cmd_cb(data, buffer, args):
             mepfx = 1
         if 'b' in opts:
             input = input[::-1]
-
     output = u""
     tokens = re.findall(regex, input)
     for token in tokens:
@@ -99,6 +106,8 @@ def prism_cmd_cb(data, buffer, args):
         output = "/" + output
     if mepfx == 1:
         output = "/me " + output
-
-    w.command(w.current_buffer(), output.encode("UTF-8"))
+    if input_method == "keybinding":
+        w.buffer_set(w.current_buffer(), "input", output.encode("UTF-8"))
+    else:
+        w.command(w.current_buffer(), output.encode("UTF-8"))
     return w.WEECHAT_RC_OK
