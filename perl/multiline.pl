@@ -120,7 +120,7 @@ for full pod documentation, filter this script with
 =cut
 
 use constant SCRIPT_NAME => 'multiline';
-weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.5', 'GPL3', 'Multi-line edit box', 'stop_multiline', '') || return;
+weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.6', 'GPL3', 'Multi-line edit box', 'stop_multiline', '') || return;
 sub SCRIPT_FILE() {
 	my $infolistptr = weechat::infolist_get('perl_script', '', SCRIPT_NAME);
 	my $filename = weechat::infolist_string($infolistptr, 'filename') if weechat::infolist_next($infolistptr);
@@ -185,10 +185,6 @@ sub i2h {
 					}
 					$$target = $r;
 
-					my $code = qq{
-						local \$[=1;
-						\$list{"\Q$key\E"}$idx = \$r
-					};
 					$key => $list{$key}
 				}
 				else {
@@ -205,7 +201,8 @@ sub i2h {
 ## $_[0] - arg pointer or hdata list name
 ## $_[1] - hdata name
 ## $_[2..$#_] - hdata variable name
-## returns value of hdata, and hdata name in list ctx
+## $_[-1] - hashref with key/value to update (optional)
+## returns value of hdata, and hdata name in list ctx, or number of variables updated
 sub hdh {
 	if (@_ > 1 && $_[0] !~ /^0x/ && $_[0] !~ /^\d+$/) {
 		my $arg = shift;
@@ -214,18 +211,22 @@ sub hdh {
 	while (@_ > 2) {
 		my ($arg, $name, $var) = splice @_, 0, 3;
 		my $hdata = weechat::hdata_get($name);
+		unless (ref $var eq 'HASH') {
+			$var =~ s/!(.*)/weechat::hdata_get_string($hdata, $1)/e;
+			(my $plain_var = $var) =~ s/^\d+\|//;
+			my $type = weechat::hdata_get_var_type_string($hdata, $plain_var);
+			if ($type eq 'pointer') {
+				my $name = weechat::hdata_get_var_hdata($hdata, $var);
+				unshift @_, $name if $name;
+			}
 
-		$var =~ s/!(.*)/weechat::hdata_get_string($hdata, $1)/e;
-		(my $plain_var = $var) =~ s/^\d+\|//;
-		my $type = weechat::hdata_get_var_type_string($hdata, $plain_var);
-		if ($type eq 'pointer') {
-			my $name = weechat::hdata_get_var_hdata($hdata, $var);
-			unshift @_, $name if $name;
+			my $fn = "weechat::hdata_$type";
+			unshift @_, do { no strict 'refs';
+							 &$fn($hdata, $arg, $var) };
 		}
-
-		my $fn = "weechat::hdata_$type";
-		unshift @_, do { no strict 'refs';
-						 &$fn($hdata, $arg, $var) };
+		else {
+			return weechat::hdata_update($hdata, $arg, $var);
+		}
 	}
 	wantarray ? @_ : $_[0]
 }
@@ -263,7 +264,7 @@ sub unhook_dynamic {
 				exists \$DYNAMIC_HOOKS{\$what}{\$sub};
 		delete \$DYNAMIC_HOOKS{\$what}{\$sub};
 		delete \$DYNAMIC_HOOKS{\$what} unless \%{\$DYNAMIC_HOOKS{\$what}};
-	};
+	};	
 	die $@ if $@;
 }
 
@@ -510,8 +511,10 @@ sub signall_ignore_input_changed {
 		weechat::hook_signal_send('input_flow_free', weechat::WEECHAT_HOOK_SIGNAL_INT, 1);
 		Nlib::hook_dynamic('signal', '2000|input_text_changed', 'input_changed_eater', '');
 		$IGNORE_INPUT_CHANGED = 1;
+		weechat::buffer_set('', 'completion_freeze', '1');
 	}
 	else {
+		weechat::buffer_set('', 'completion_freeze', '0');
 		$IGNORE_INPUT_CHANGED = undef;
 		Nlib::unhook_dynamic('2000|input_text_changed', 'input_changed_eater');
 		weechat::hook_signal_send('input_flow_free', weechat::WEECHAT_HOOK_SIGNAL_INT, 0);
