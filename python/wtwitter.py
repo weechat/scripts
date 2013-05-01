@@ -1,14 +1,17 @@
 """
-    twitter.py
+    wtwitter.py
 
     author: Jimmy Zelinskie <jimmyzelinskie@gmail.com>
       desc: Sends your latest tweet to the current buffer
      usage:
-       /set plugins.var.python.twitter.twitter_handle yourusername
-       /twitter
+       /set plugins.var.python.wtwitter.twitter_handle yourusername
+       /wtwitter
    license: GPL3
 
    history:
+
+       0.2 - rename script to wtwitter.py (twitter is a python module)
+       Sebastien Helleu <flashcode@flashtux.org>
 
        0.1 - initial script
        Jimmy Zelinskie <jimmyzelinskie@gmail.com>
@@ -21,7 +24,7 @@
 import weechat
 import feedparser
 
-weechat.register("twitter", "Jimmy Zelinskie", "0.1", "GPL3", "Sends your latest tweet to the current buffer", "", "")
+weechat.register("wtwitter", "Jimmy Zelinskie", "0.2", "GPL3", "Sends your latest tweet to the current buffer", "", "")
 
 defaults = {
         "twitter_handle" : "nobody",
@@ -74,9 +77,9 @@ def twitter_cb(data, command, rc, stdout, stderr):
         return weechat.WEECHAT_RC_OK
 
 hook = weechat.hook_command(
-        "twitter",
-        "Sends your latest tweet to the current buffer. Before using /twitter, set your twitter handle like this:\n\n"
-        "    /set plugins.var.python.twitter.twitter_handle yourhandle\n\n"
+        "wtwitter",
+        "Sends your latest tweet to the current buffer. Before using /wtwitter, set your twitter handle like this:\n\n"
+        "    /set plugins.var.python.wtwitter.twitter_handle yourhandle\n\n"
         "You can also customize the command that will be sent to the buffer like this:\n\n"
-        "    /set plugins.var.python.twitter.command I last tweeted %s\n",
+        "    /set plugins.var.python.wtwitter.command I last tweeted %s\n",
         "", "", "", "twitter_cmd", "")
