@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 ###
 # Copyright (c) 2009-2011 by Elián Hanisch <lambdae2@gmail.com>
+# Copyright (c) 2013 by Filip H.F. "FiXato" Slagter <fixato+weechat@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -47,6 +48,13 @@
 #
 #
 #   History:
+#   2013-04-28
+#   version 0.6:
+#   * Improved support for target msgbuffer. Takes the following settings into account:
+#       - irc.msgbuffer.whois
+#       - irc.msgbuffer.$servername.whois
+#       - irc.look.msgbuffer_fallback
+#
 #   2011-08-14
 #   version 0.5:
 #   * make time format configurable.
@@ -80,7 +88,7 @@
 
 SCRIPT_NAME    = "country"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.5"
+SCRIPT_VERSION = "0.6"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Prints user's country and local time in whois replies"
 SCRIPT_COMMAND = "country"
@@ -109,7 +117,7 @@ database_file = 'GeoIPCountryWhois.csv'
 ### config
 settings = {
         'time_format': '%x %X %Z',
-        'show_in_whois': 'on', 
+        'show_in_whois': 'on',
         'show_localtime': 'on'
         }
 
@@ -145,18 +153,18 @@ def whois(nick, string, buffer=''):
     prefix_network = weechat.prefix('network')
     color_delimiter = weechat.color('chat_delimiters')
     color_nick = weechat.color('chat_nick')
-    prnt(buffer, '%s%s[%s%s%s] %s' % (prefix_network, 
-                                      color_delimiter, 
-                                      color_nick, 
+    prnt(buffer, '%s%s[%s%s%s] %s' % (prefix_network,
+                                      color_delimiter,
+                                      color_nick,
                                       nick,
-                                      color_delimiter, 
+                                      color_delimiter,
                                       string))
 
 def string_country(country, code):
     """Format for country info string."""
     color_delimiter = weechat.color('chat_delimiters')
     color_chat = weechat.color('chat')
-    return '%s%s %s(%s%s%s)' % (color_chat, 
+    return '%s%s %s(%s%s%s)' % (color_chat,
                                 country,
                                 color_delimiter,
                                 color_chat,
@@ -473,6 +481,29 @@ def cmd_country(data, buffer, args):
         print_country(host, buffer)
     return WEECHAT_RC_OK
 
+def find_buffer(server, nick, message_type='whois'):
+    # See if there is a target msgbuffer set for this server
+    msgbuffer = weechat.config_string(weechat.config_get('irc.msgbuffer.%s.%s' % (server, message_type)))
+    # No whois msgbuffer for this server; use the global setting
+    if msgbuffer == '':
+        msgbuffer = weechat.config_string(weechat.config_get('irc.msgbuffer.%s' % message_type))
+
+    # Use the fallback msgbuffer setting if private buffer doesn't exist
+    if msgbuffer == 'private':
+        buffer = weechat.buffer_search('irc', '%s.%s' %(server, nick))
+        if buffer != '':
+            return buffer
+        else:
+            msgbuffer = weechat.config_string(weechat.config_get('irc.look.msgbuffer_fallback'))
+
+    # Find the appropriate buffer
+    if msgbuffer == "current":
+        return weechat.current_buffer()
+    elif msgbuffer == "weechat":
+        return weechat.buffer_search_main()
+    else:
+        return weechat.buffer_search('irc', 'server.%s' % server)
+
 ### signal callbacks
 def whois_cb(data, signal, signal_data):
     """function for /WHOIS"""
@@ -481,11 +512,8 @@ def whois_cb(data, signal, signal_data):
     nick, user, host = signal_data.split()[3:6]
     server = signal[:signal.find(',')]
     #debug('%s | %s | %s' %(data, signal, signal_data))
-    buffer = weechat.buffer_search('irc', '%s.%s' %(server, nick))
-    if weechat.config_string(weechat.config_get('irc.msgbuffer.whois')) != "private" or buffer == "":
-        buffer = weechat.buffer_search('irc', 'server.%s' %server)
     host = get_ip_from_userhost(user, host)
-    print_country(host, buffer, quiet=True, broken=True, nick=nick)
+    print_country(host, find_buffer(server, nick), quiet=True, broken=True, nick=nick)
     return WEECHAT_RC_OK
 
 ### main
