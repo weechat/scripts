@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2010-2012 by Nils Görs <weechatter@arcor.de>
+# Copyright (c) 2010-2013 by Nils Görs <weechatter@arcor.de>
 #
 # colors the channel text with nick color and also highlight the whole line
 # colorize_nicks.py script will be supported
@@ -20,6 +20,8 @@
 # for settings see help page
 #
 # history:
+# 1.8  add: option "use_irc_colors" (requested by Zertap)
+#      fix: empty char for nick_mode was used, even when "irc.look.nick_mode_empty" was OFF (reported by FlashCode)
 # 1.7: fix: broken lines in dcc chat (reported by equatorping)
 # 1.6: improved: wildcard "*" can be used for server and/or nick. (requested by ldvx)
 #    : add: new value, "only", for option "own_lines" (read help!)
@@ -65,7 +67,7 @@
 
 use strict;
 my $prgname	= "colorize_lines";
-my $version	= "1.7";
+my $version	= "1.8";
 my $description	= "colors text in chat area with according nick color. Highlight messages will be fully highlighted in chat area";
 
 # default values
@@ -80,6 +82,7 @@ my %default_options = ( "var_highlight"                         => "on",        
                         "var_blacklist_channels"                => "",
                         "var_nicks"                             => "",
                         "var_own_lines"                         => "off",
+                        "var_use_irc_colors"                    => "off",
 );
 
 my %help_desc = ( "avail_buffer"         => "messages will be colored in buffer (all = all buffers, channel = channel buffers, query = query buffers (default: all ",
@@ -93,6 +96,7 @@ my %help_desc = ( "avail_buffer"         => "messages will be colored in buffer 
                   "look_highlight_regex" => "toggle highlight color in chat area for value in option \"weechat.look.highlight_regex\" (default: off)",
                   "nicks"                => "comma separated list with nicknames. Only messages from nicks in this list will be colorized. (e.g.: freenode.nils_2,freenode.flashcode,freenode.weebot). You can use \"*\" as a wildcard (e.g.: *.nils_* to match all \"nils_\" on all servers). Also a file with nicks is allowed. The filename in option has to start with \"/\" (e.g.: /buddylist.txt). The format has to be, one nick each line with <servername>.<nickname>",
                   "own_lines"            => "messages written by your own will be colored. color from \"weechat.color.chat_nick_self\" will be used. If you only want to color your lines, use value \"only\" (default: off)",
+                  "use_irc_colors"       => "if a message contains irc_color_codes, those color codes will be used instead of the nick color (default: off)",
 );
 
 my $weechat_version;
@@ -118,6 +122,16 @@ if (index($modifier_data,"irc_privmsg") == -1){                                 
 
 if (index($modifier_data,"irc_ctcp") >= 0){                                                    # don't do anything with CTCP messages
   return $string;
+}
+
+if ( weechat::config_boolean(weechat::config_get("irc.network.colors_receive")) and $default_options{var_use_irc_colors} eq "on" )
+{
+    my $string2 = $string;
+    $string2 =~ s/\[cl_irc_color\]//g;
+    if ( $string2 ne $string )
+    {
+        return $string2;
+    }
 }
 
 if ($default_options{var_highlight} eq "off" and $default_options{var_chat} eq "off"){          # all options OFF
@@ -215,6 +229,7 @@ if ( $nickmode_value ==  1 and ($nick ne $get_prefix_action) and (index($modifie
         $nick_mode = "";
       }else{                                                                                    # nick_mode exists
         $nick_mode = $color_mode . $nick_mode;
+        $nick_mode = "" if (! weechat::config_boolean(weechat::config_get("irc.look.nick_mode_empty")) );
       }
 }
 
@@ -378,6 +393,36 @@ if ( $default_options{var_avail_buffer} ne "all" ){                             
     }
 } # end of sub colorize_cb{}
 
+
+# check for irc color codes in message.
+# if exists, add "[cl_irc_color]" to message body
+# :nick!host PRIVMSG #channel : 02message
+sub irc_in_privmsg_cb
+{
+    my ( $data, $modifier, $modifier_data, $string ) = @_;
+
+    if ( weechat::config_boolean(weechat::config_get("irc.network.colors_receive")) and $default_options{var_use_irc_colors} eq "on" )
+    {
+        # search for color code in string!
+        if ( $string =~ /\03/ )
+        {
+            $string =~ m/^(.*) :(.*)/;
+            my $msg_part1 = $1;
+            weechat::print("","msg_part1: $msg_part1");
+            if (index($msg_part1,"PRIVMSG") == -1)
+            {                                             # its neither a channel nor a query buffer
+                return $string;
+            }
+            if (index($msg_part1,"NOTICE") >= 0)
+            {
+                return $string;
+            }
+            my $msg_part2 = "[cl_irc_color]" . $2;
+            $string = $msg_part1 . " :" . $msg_part2;
+        }
+    }
+    return $string;
+}
 # whitelist nicks : 0 = color, 1 = no color
 sub check_whitelist_nicks{
 my ( $servername, $my_nick, $nick_wo_suffix ) = @_;
@@ -434,8 +479,8 @@ my ( $nick_color, $mf_data, $line ) = @_;
 my $pyth_ptn = weechat::infolist_get("python_script","","colorize_nicks");
 weechat::infolist_next($pyth_ptn);
 
-if ( "colorize_nicks" eq weechat::infolist_string($pyth_ptn,"name") ){				# does colorize_nicks is installed?
-	$line = weechat::hook_modifier_exec( "colorize_nicks",$mf_data,$line);			# call colorize_nicks function and color the nick(s)
+if ( "colorize_nicks" eq weechat::infolist_string($pyth_ptn,"name") ){                          # does colorize_nicks is installed?
+	$line = weechat::hook_modifier_exec( "colorize_nicks",$mf_data,$line);                  # call colorize_nicks function and color the nick(s)
 	my @array = "";
 	my $color_code_reset = weechat::color('reset');
 	@array=split(/$color_code_reset/,$line);
@@ -443,7 +488,7 @@ if ( "colorize_nicks" eq weechat::infolist_string($pyth_ptn,"name") ){				# does
 	foreach (@array){
 	  $new_line .=  $nick_color . $_ . weechat::color('reset');
 	}
-	$new_line =~ s/\s+$//g;									# remove space at end
+	$new_line =~ s/\s+$//g;                                                                 # remove space at end
 	$line = $new_line;
 }
 weechat::infolist_free($pyth_ptn);
@@ -580,6 +625,7 @@ init_config();
 
 
 $get_prefix_action = weechat::config_string(weechat::config_get("weechat.look.prefix_action"));
+weechat::hook_modifier("1000|irc_in_privmsg","irc_in_privmsg_cb", "");          # use higher prio than "weechat_print"!
 weechat::hook_modifier("weechat_print","colorize_cb", "");
 weechat::hook_modifier("colorize_lines","colorize_cb", "");
 
