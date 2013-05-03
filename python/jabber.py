@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2009-2012 Sebastien Helleu <flashcode@flashtux.org>
+# Copyright (C) 2009-2013 Sebastien Helleu <flashcode@flashtux.org>
 # Copyright (C) 2010 xt <xt@bash.no>
 # Copyright (C) 2010 Aleksey V. Zapparov <ixti@member.fsf.org>
 #
@@ -26,6 +26,10 @@
 # Happy chat, enjoy :)
 #
 # History:
+#
+# 2013-05-03, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 1.4: add tags in user messages: notify_xxx, no_highlight,
+#                  nick_xxx, prefix_nick_xxx, log1
 # 2012-05-12, Sebastian Rydberg <sr@rydbergtech.se>:
 #     version 1.3: Added support for fetching names from roster
 # 2012-04-11, Sebastien Helleu <flashcode@flashtux.org>:
@@ -79,7 +83,7 @@
 
 SCRIPT_NAME    = "jabber"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "1.3"
+SCRIPT_VERSION = "1.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Jabber/XMPP protocol for WeeChat"
 SCRIPT_COMMAND = SCRIPT_NAME
@@ -634,22 +638,25 @@ class Server:
             self.disconnect()
             if weechat.config_boolean(self.options['autoreconnect']):
                 autoreconnect_delay = 30
-                weechat.command('', '/wait %s /%s connect %s' %(\
-                    autoreconnect_delay, SCRIPT_COMMAND, self.name))
+                weechat.command('', '/wait %s /%s connect %s' %
+                                (autoreconnect_delay, SCRIPT_COMMAND, self.name))
 
     def recv_message(self, buddy, message):
         """ Receive a message from buddy. """
-        weechat.prnt_date_tags(self.buffer, 0, "notify_private",
+        weechat.prnt_date_tags(self.buffer, 0,
+                               "notify_private,nick_%s,prefix_nick_%s,log1" %
+                               (buddy.alias,
+                                weechat.config_string(weechat.config_get("weechat.color.chat_nick_other"))),
                                "%s%s\t%s" % (weechat.color("chat_nick_other"),
                                              buddy.alias,
                                              message))
 
     def print_status(self, nickname, status):
-        ''' Print a status in server window and in chat '''
-        weechat.prnt_date_tags(self.buffer, 0, 'no_highlight', "%s%s has status %s" % (\
-                weechat.prefix("action"),
-                nickname,
-                status))
+        """ Print a status in server window and in chat. """
+        weechat.prnt_date_tags(self.buffer, 0, "no_highlight", "%s%s has status %s" %
+                               (weechat.prefix("action"),
+                                nickname,
+                                status))
         for chat in self.chats:
             if nickname in chat.buddy.alias:
                 chat.print_status(status)
@@ -697,9 +704,13 @@ class Server:
             sender = self.buddy.alias
         except:
             sender = self.jid
-        weechat.prnt(self.buffer, "%s%s\t%s" % (weechat.color("chat_nick_self"),
-                                               sender,
-                                               message.strip()))
+        weechat.prnt_date_tags(self.buffer, 0,
+                               "notify_none,no_highlight,nick_%s,prefix_nick_%s,log1" %
+                               (sender,
+                                weechat.config_string(weechat.config_get("weechat.color.chat_nick_self"))),
+                               "%s%s\t%s" % (weechat.color("chat_nick_self"),
+                                             sender,
+                                             message.strip()))
 
     def set_away(self, message):
         """ Set/unset away on server.
@@ -966,7 +977,7 @@ def jabber_search_context(buffer):
     return context
 
 def jabber_search_context_by_name(server_name):
-    ''' Search for buffer given name of server '''
+    """Search for buffer given name of server. """
 
     bufname = "%s.server.%s" % (SCRIPT_NAME, server_name)
     return jabber_search_context(weechat.buffer_search("python", bufname))
@@ -1005,7 +1016,10 @@ class Chat:
         if buddy.alias != self.buffer_title:
             self.buffer_title = buddy.alias
             weechat.buffer_set(self.buffer, "title", "%s" % self.buffer_title)
-        weechat.prnt_date_tags(self.buffer, 0, "notify_private",
+        weechat.prnt_date_tags(self.buffer, 0,
+                               "notify_private,nick_%s,prefix_nick_%s,log1" %
+                               (buddy.alias,
+                                weechat.config_string(weechat.config_get("weechat.color.chat_nick_other"))),
                                "%s%s\t%s" % (weechat.color("chat_nick_other"),
                                              buddy.alias,
                                              message))
@@ -1017,15 +1031,19 @@ class Chat:
                          % weechat.prefix("error"))
             return
         self.server.send_message(self.buddy, message)
-        weechat.prnt(self.buffer, "%s%s\t%s" % (weechat.color("chat_nick_self"),
-                                                   self.server.buddy.alias,
-                                                   message))
+        weechat.prnt_date_tags(self.buffer, 0,
+                               "notify_none,no_highlight,nick_%s,prefix_nick_%s,log1" %
+                               (self.server.buddy.alias,
+                                weechat.config_string(weechat.config_get("weechat.color.chat_nick_self"))),
+                               "%s%s\t%s" % (weechat.color("chat_nick_self"),
+                                             self.server.buddy.alias,
+                                             message))
     def print_status(self, status):
-        ''' Print a status message in chat '''
-        weechat.prnt(self.buffer, "%s%s has status %s" % (\
-                    weechat.prefix("action"),
-                    self.buddy.alias,
-                    status))
+        """ Print a status message in chat. """
+        weechat.prnt(self.buffer, "%s%s has status %s" %
+                     (weechat.prefix("action"),
+                      self.buddy.alias,
+                      status))
 
     def close_buffer(self):
         """ Close chat buffer. """
@@ -1567,10 +1585,6 @@ class AliasCommand(object):
         weechat.prnt("", prnt_format % ('Alias', 'JID'))
         for alias, jid in sorted(jabber_jid_aliases.items()):
             weechat.prnt("", prnt_format % (alias, jid))
-        #FIXME \\\
-        import sys
-        weechat.prnt('', "jabber: sys.version: %s" % (sys.version))        # FIXME
-        #FIXME ///
         return
 
     def parse(self):
