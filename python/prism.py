@@ -8,7 +8,9 @@
 # TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
 #
 # 0. You just DO WHAT THE FUCK YOU WANT TO.
-#
+# 2013-05-04, Rylai
+#    v0.2.5: add -e switch for the option to destroy the eyes of all
+#            who have the misfortune of seeing your text
 # 2013-04-26, Biohazard
 #   v0.2.4: add support for using the command through keybindings
 # 2013-03-12, R1cochet
@@ -24,7 +26,7 @@ import re
 
 SCRIPT_NAME    = "prism"
 SCRIPT_AUTHOR  = "Alex Barrett <al.barrett@gmail.com>"
-SCRIPT_VERSION = "0.2.4"
+SCRIPT_VERSION = "0.2.5"
 SCRIPT_LICENSE = "WTFPL"
 SCRIPT_DESC    = "Taste the rainbow."
 
@@ -49,14 +51,19 @@ if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION,
               SCRIPT_LICENSE, SCRIPT_DESC, "", ""):
     w.hook_command("prism",
                    SCRIPT_DESC,
-                   "[-rwmb] text",
+                   "[-rwmbe] text",
                    "    -r: randomizes the order of the color sequence\n"
                    "    -w: color entire words instead of individual characters\n"
                    "    -m: append /me to beginning of output\n"
                    "    -b: backwards text (entire string is reversed)\n"
+                   "    -e: eye-destroying colors (randomized background colors)\n"
                    "  text: text to be colored",
-                   "-r|-w|-m|-b", "prism_cmd_cb", "")
-
+                   "-r|-w|-m|-b|-e", "prism_cmd_cb", "")
+def find_another_color(colorCode):
+    otherColor = (unicode(colors[random.randint(1, color_count - 1) % color_count]).rjust(2, "0"))
+    while (otherColor == colorCode):
+        otherColor = (unicode(colors[random.randint(1, color_count - 1) % color_count]).rjust(2, "0"))
+    return otherColor
 
 def prism_cmd_cb(data, buffer, args):
     global color_index
@@ -73,8 +80,8 @@ def prism_cmd_cb(data, buffer, args):
     regex = regex_chars
     inc = 1
     mepfx = 0
-
-    m = re.match('-[rwmb]* ', input)
+    bs    = 0
+    m = re.match('-[rwmbe]* ', input)
     if m and input_method == "command":
         opts = m.group(0)
         input = input[len(opts):]
@@ -86,12 +93,18 @@ def prism_cmd_cb(data, buffer, args):
             mepfx = 1
         if 'b' in opts:
             input = input[::-1]
+        if 'e' in opts:
+             bs = 1
+
     output = u""
     tokens = re.findall(regex, input)
     for token in tokens:
         # prefix each token with a color code
         color_code = unicode(colors[color_index % color_count]).rjust(2, "0")
-        output += u"\x03" + color_code  + token
+        if bs == 1:
+            output += u'\x03' + color_code + ',' + find_another_color(color_code) + token
+        else:
+            output += u"\x03" + color_code  + token
 
         # select the next color or another color at
         # random depending on the options specified
