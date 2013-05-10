@@ -141,7 +141,7 @@ swipe, so it is faster and the freeze is of shorter duration.
 =cut
 
 use constant SCRIPT_NAME => 'luanma';
-weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.1', 'GPL3',
+weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.2', 'GPL3',
 				  'more flexibility with incoming charset', 'stop_luanma', '') || return;
 sub SCRIPT_FILE() {
 	my $infolistptr = weechat::infolist_get('perl_script', '', SCRIPT_NAME);
@@ -379,6 +379,8 @@ weechat::hook_command(CMD_NAME, 'a better /charset',
 					   ' encodings: list of whitespace separated encodings to try, in order, to decode incoming message',
 					   '            see `man Encode::Supported\' for a list of supported encodings',
 					   '            special encoding "x" means do not decode',
+					   '            an "!" can be added after utf8 to signify that partial decoding is acceptable',
+					   '            (for example invalid utf8 resulting by last character cut short)',
 				   ), (join ' || ', 'list %-',
 					   'set %- %(buffers_names) %(nick)',
 					   'del %- %(buffers_names) %(nick) -g %-',
@@ -528,14 +530,22 @@ sub apply_recode {
 			last;
 		}
 		else {
-			next if $enc eq 'hz' && $s =~ /[^\000-\177]/; # hack for hz
+			my $enc2 = $enc;
+			my $partial = $enc2 =~ s/!$//;
+			next if $enc2 eq 'hz' && $s =~ /[^\000-\177]/; # hack for hz
 			# put further hacks here...
 
-			my $t = $DEC{$enc}->decode($s, Encode::FB_QUIET); # FB_CROAK not reliable
+			my $t = $DEC{$enc2}->decode($s, Encode::FB_QUIET); # FB_CROAK not reliable
 			#$t =~ s/[[:cntrl:]]//g;
 			if (length $t && !length $s) { # decoding succeeds
 				$s = $t;
-				$e = $enc;
+				$e = $enc2;
+				last;
+			}
+			elsif (length $t && $partial) {
+				esc1($s);
+				$s = $t . '<?>' . $s;
+				$e = $enc2 . '_loss';
 				last;
 			}
 		}
@@ -1013,7 +1023,9 @@ sub lma_set {
 				undef
 			}
 			else {
+				my $partial_decode;
 				if ($_ ne 'x') {
+					$partial_decode = s/!$//;
 					my $dec = Encode::find_encoding($_);
 					unless (defined $dec) {
 						weechat::print('', Nlib::fu8on(weechat::prefix('error'))."Error: unknown encoding: $_ in \"@{[CMD_NAME]} set\" command$conf_err");
@@ -1024,6 +1036,7 @@ sub lma_set {
 				}
 				$out_charset = $_ if $out_p || $out_next;
 				$out_next = 0 if $out_next;
+				$partial_decode and $_ .= '!';
 				$enc_seen{$_}++ ? undef : $_
 			}
 		} @charsets;
