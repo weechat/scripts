@@ -4,6 +4,7 @@
 # Copyright (C) 2011 xt <xt@bash.no>
 # Copyright (C) 2012 Filip H.F. "FiXato" Slagter <fixato+weechat+urlserver@gmail.com>
 # Copyright (C) 2012 WillyKaze <willykaze@willykaze.org>
+# Copyright (C) 2013 Thomas Kindler <mail_weechat@t-kindler.de>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -49,6 +50,9 @@
 #
 # History:
 #
+# 2013-05-04, Thomas Kindler <mail_weechat@t-kindler.de>
+#     version 1.2: added a "http_scheme_display" option. This makes it possible to run
+#                  the server behind a reverse proxy with https:// URLs.
 # 2013-03-25, Hermit (@irc.freenode.net):
 #     version 1.1: made links relative in the html, so that they can be followed when accessing
 #                  the listing remotely using the weechat box's IP directly.
@@ -84,7 +88,7 @@
 
 SCRIPT_NAME    = 'urlserver'
 SCRIPT_AUTHOR  = 'Sebastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '1.1'
+SCRIPT_VERSION = '1.2'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC    = 'Shorten URLs with own HTTP server'
 
@@ -125,6 +129,7 @@ urlserver = {
 urlserver_settings_default = {
     # HTTP server settings
     'http_autostart'     : ('on', 'start the built-in HTTP server automatically)'),
+    'http_scheme_display': ('http', 'display this scheme in shortened URLs'),
     'http_hostname'      : ('', 'force hostname/IP in bind of socket (empty value = auto-detect current hostname)'),
     'http_hostname_display': ('', 'display this hostname in shortened URLs'),
     'http_port'          : ('', 'force port for listening (empty value = find a random free port)'),
@@ -185,9 +190,10 @@ def base64_decode(s):
         return base64.b64decode(s)
 
 def urlserver_get_hostname(full=True):
-    """Return hostname with port number if != 80."""
+    """Return hostname with port number if != default port for the protocol."""
     global urlserver_settings
 
+    scheme = urlserver_settings['http_scheme_display']
     hostname = urlserver_settings['http_hostname_display'] or urlserver_settings['http_hostname'] or socket.getfqdn()
 
     # If the built-in HTTP server isn't running, default to port from settings
@@ -197,9 +203,12 @@ def urlserver_get_hostname(full=True):
     elif urlserver['socket']:
         port = urlserver['socket'].getsockname()[1]
 
-    # Don't add :port if the port matches the default port for the http protocol, port 80
+    # Don't add :port if the port matches the default port for the protocol
     prefixed_port = ':%s' % port
-    if prefixed_port == ':80':
+
+    if scheme == "http" and prefixed_port == ':80':
+        prefixed_port = ''
+    elif scheme == "https" and prefixed_port == ':443':
         prefixed_port = ''
 
     prefix = ''
@@ -207,7 +216,7 @@ def urlserver_get_hostname(full=True):
         prefix = '%s/' % urlserver_settings['http_url_prefix']
 
     if full:
-        return 'http://%s%s/%s' % (hostname, prefixed_port, prefix)
+        return '%s://%s%s/%s' % (scheme, hostname, prefixed_port, prefix)
     else:
         return '/%s' % prefix
 
@@ -774,8 +783,8 @@ if __name__ == '__main__' and import_ok:
                              '      See https://raw.github.com/FiXato/weechat_scripts/master/urlserver/sample.css\n'
                              '  - don\'t like the built-in HTTP server to start automatically? Disable it:\n'
                              '      /set plugins.var.python.urlserver.http_autostart "off"\n'
-                             '  - have external port 80 forwarded to your internal server port? Remove :port with:\n'
-                             '      /set plugins.var.python.urlserver.http_port_display "80"\n'
+                             '  - have external port 80 or 443 (https) forwarded to your internal server port? Remove :port with:\n'
+                             '      /set plugins.var.python.urlserver.http_port_display "80" or "443" respectively\n'
                              '\n'
                              'Tip: use URL without key at the end to display list of all URLs in your browser.',
                              'start|restart|stop|status|clear', 'urlserver_cmd_cb', '')
