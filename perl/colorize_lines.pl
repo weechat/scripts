@@ -20,6 +20,7 @@
 # for settings see help page
 #
 # history:
+# 1.9: fix: display bug with nick_mode
 # 1.8  add: option "use_irc_colors" (requested by Zertap)
 #      fix: empty char for nick_mode was used, even when "irc.look.nick_mode_empty" was OFF (reported by FlashCode)
 # 1.7: fix: broken lines in dcc chat (reported by equatorping)
@@ -67,7 +68,7 @@
 
 use strict;
 my $prgname	= "colorize_lines";
-my $version	= "1.8";
+my $version	= "1.9";
 my $description	= "colors text in chat area with according nick color. Highlight messages will be fully highlighted in chat area";
 
 # default values
@@ -101,7 +102,6 @@ my %help_desc = ( "avail_buffer"         => "messages will be colored in buffer 
 
 my $weechat_version;
 my $zahl = 0;
-my $nick_mode = "";
 my $get_prefix_action = "";
 my @var_blacklist_channels = "";
 my @nick_list = "";
@@ -210,26 +210,32 @@ if (index($modifier_data,"irc_action") >= 0){
 }
 
 # check if look.nickmode is ON and no prefix and no query buffer
-$nick_mode = "";
-my $nickmode_value = 0;
+my $nick_mode = "";
+my $nick_mode_value = 0;
 
 if (($weechat_version ne "") && ($weechat_version >= 0x00030900)){
-    my $temp_nickmode_value = weechat::config_integer(weechat::config_get("irc.look.nick_mode"));
-    $nickmode_value = 1 if ($temp_nickmode_value == 1 or $temp_nickmode_value == 3);
-}else{
-    $nickmode_value = weechat::config_boolean(weechat::config_get("weechat.look.nickmode"));
+    # 0 = none, 1 = prefix, 2 = action, 3 = both
+    my $temp_nickmode_value = weechat::config_string(weechat::config_get("irc.look.nick_mode"));
+    $nick_mode_value = 1 if ($temp_nickmode_value eq "prefix" or $temp_nickmode_value eq "both");
+}
+else
+{
+    $nick_mode_value = weechat::config_boolean(weechat::config_get("weechat.look.nickmode"));
 }
 
-if ( $nickmode_value ==  1 and ($nick ne $get_prefix_action) and (index($modifier_data,"notify_private")) == -1){
-#   if ($nick  =~ m/^\@|^\%|^\+|^\~|^\*|^\&|^\!|^\-/) {                                                  # check for nick modes (@%+~*&!-) without colour
+if ( $nick_mode_value ==  1 and ($nick ne $get_prefix_action) and (index($modifier_data,"notify_private")) == -1)
+{
+#   if ($nick  =~ m/^\@|^\%|^\+|^\~|^\*|^\&|^\!|^\-/) {                                                  # check for nick modes (@%+~*&!-) without color
       my $nick_pointer = weechat::nicklist_search_nick($buf_pointer,"",$nick_wo_suffix);
       $nick_mode = weechat::nicklist_nick_get_string($buf_pointer,$nick_pointer,"prefix");
       my $color_mode = weechat::color( weechat::nicklist_nick_get_string($buf_pointer, $nick_pointer, "prefix_color") );
-      if ( $nick_mode eq "" or $color_mode eq ""){                                             # no nick_mode!
-        $nick_mode = "";
-      }else{                                                                                    # nick_mode exists
+      if ( $nick_mode eq " ")
+      {
+        $nick_mode = "" if ( !weechat::config_boolean(weechat::config_get("irc.look.nick_mode_empty")) );
+      }
+      else
+      {
         $nick_mode = $color_mode . $nick_mode;
-        $nick_mode = "" if (! weechat::config_boolean(weechat::config_get("irc.look.nick_mode_empty")) );
       }
 }
 
@@ -257,8 +263,8 @@ if ( $nickmode_value ==  1 and ($nick ne $get_prefix_action) and (index($modifie
 
 # get nick color
 $nick = $nick_wo_suffix;
-#$nick = weechat::string_remove_color($nick_wo_suffix,"");                                      # remove colour-codes from nick
-my $nick_color = weechat::info_get('irc_nick_color', $nick_wo_suffix);                          # get nick-colour
+#$nick = weechat::string_remove_color($nick_wo_suffix,"");                                      # remove color-codes from nick
+my $nick_color = weechat::info_get('irc_nick_color', $nick_wo_suffix);                          # get nick-color
 
     my $var_hl_max_level_nicks_add = 0;
 # highlight message received?
