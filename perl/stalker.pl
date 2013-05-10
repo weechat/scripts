@@ -19,6 +19,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # History:
+# version 0.3: nils_2@freenode.#weechat
+# 2013-05-05: fix: typos in help and description option (thanks FiXato)
+#             add: 'ChanServ' to option 'guest_nick_regex'
+#
 # version 0.2: nils_2@freenode.#weechat
 # 2013-05-01: fix: bug with regular expressions using /whois
 #             removed: option 'allow_regex_for_search'
@@ -50,7 +54,7 @@ use File::Spec;
 use DBI;
 
 my $SCRIPT_NAME         = "stalker";
-my $SCRIPT_VERSION      = "0.2";
+my $SCRIPT_VERSION      = "0.3";
 my $SCRIPT_AUTHOR       = "Nils Görs <weechatter\@arcor.de>";
 my $SCRIPT_LICENCE      = "GPL3";
 my $SCRIPT_DESC         = "Records and correlates nick!user\@host information";
@@ -66,7 +70,7 @@ my %options = ('db_name'                => '%h/nicks.db',
                'recursive_search'       => 'on',
                'ignore_guest_hosts'     => 'off',
                'ignore_guest_nicks'     => 'on',
-               'guest_nick_regex'       => '^(guest|weebot|Floodbot).*',
+               'guest_nick_regex'       => '^(guest|weebot|Floodbot|ChanServ).*',
                'guest_host_regex'       => '^webchat',
                'normalize_nicks'        => 'on',
                'search_this_network_only' => 'on',
@@ -80,7 +84,7 @@ my %desc_options = ('db_name'           => 'file containing the SQLite database 
                     'max_recursion'     => 'For each correlation between nick <-> host that happens, one point of recursion happens. A corrupt database, general evilness, or misfortune can cause the recursion to skyrocket. This is a ceiling number that says if after this many correlation attempts we have not found all nickname and hostname correlations, stop the process and return the list to this point.',
                     'recursive_search'  => 'When enabled, recursive search causes stalker to function better than a simple hostname to nickname map. Disabling the recursive search in effect turns stalker into a more standard hostname -> nickname map.',
                     'ignore_guest_hosts'=> 'See option guest_host_regex',
-                    'guest_hosts_regex' => 'regex mask to ignore host masks',
+                    'guest_host_regex' => 'regex mask to ignore host masks',
                     'ignore_guest_nicks'=> 'See option guest_nick_regex',
                     'guest_nick_regex'  => 'Some networks set default nicknames when a user fails to identify to nickserv, other networks using relay-bots, some irc clients set default nicknames when someone connects and often these change from network to network depending on who is configuring the java irc clients. This allows a regular expression to be entered. When a nickname matches the regular expression and "ignore_guest_nicks" is enabled the nickname is dropped from the search as if it had never been seen. (default: ^(guest|weebot|Floodbot).*)',
                     'normalize_nicks' => 'this option will truncate special chars from username (like: ~) (default: on)',
@@ -885,15 +889,21 @@ weechat::register($SCRIPT_NAME, $SCRIPT_AUTHOR, $SCRIPT_VERSION,
         weechat::hook_command($SCRIPT_NAME, $SCRIPT_DESC, "host <host> [server] [-regex] || nick <nick> [server] [-regex] || scan [<server.channel>]",
                       "   host : look for hostname\n".
                       "   nick : look for nick\n".
-                      "   scan : scan a channel (be careful; scanning large channels take a while!)\n".
+                      "   scan : scan a channel (be careful; scanning large channels takes a while!)\n".
                       "          you should manually /WHO #channel first or use /quote PROTOCTL UHNAMES\n".
                       "\n\n".
                       "Stalker will add nick!user\@host to database monitoring JOIN/WHOIS/NICK messages.\n\n".
                       "\n".
-                      "It's possible to only monitore specific channels. You'll have to set a localvar for those channels:\n".
-                      "/buffer set localvar_set_stalker [value]\n".
-                      "  values: \"on\", \"true\", \"t\", \"yes\", \"y\", \"1\")\n".
+                      "Monitor specific channels:\n".
+                      "==========================\n".
+                      "Set following option:\n".
+                      "    /set plugins.var.perl.".$SCRIPT_NAME.".use_localvar \"on\"  (default: off)\n".
+                      "Now you'll have to set a localvar for those channels to monitor:\n".
+                      "    /buffer set localvar_set_stalker [value]\n".
+                      "       values: \"on\", \"true\", \"t\", \"yes\", \"y\", \"1\")\n".
                       "\n".
+                      "Regex:\n".
+                      "======\n".
                       "$SCRIPT_NAME performs standard perl regular expression matching with option '-regex'.\n".
                       "Note that regex matching will not use SQLite indices, but will iterate over all rows, so it could be quite costly in terms of performance.\n".
                       "\n".
