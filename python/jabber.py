@@ -27,6 +27,8 @@
 #
 # History:
 #
+# 2013-05-14, Billiam <billiamthesecond@gmail.com>:
+#     version 1.5: fix unicode encoding error in /jabber buddies
 # 2013-05-03, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 1.4: add tags in user messages: notify_xxx, no_highlight,
 #                  nick_xxx, prefix_nick_xxx, log1
@@ -83,7 +85,7 @@
 
 SCRIPT_NAME    = "jabber"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "1.4"
+SCRIPT_VERSION = "1.5"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Jabber/XMPP protocol for WeeChat"
 SCRIPT_COMMAND = SCRIPT_NAME
@@ -749,19 +751,20 @@ class Server:
 
         len_max = { 'alias': 5, 'jid': 5 }
         lines = []
-        for buddy in sorted(self.buddies, key=lambda x: str(x.jid)):
+        for buddy in sorted(self.buddies, key=lambda x: x.jid.getStripped().encode('utf-8')):
             alias = ''
             if buddy.alias != buddy.bare_jid:
                 alias = buddy.alias
+            buddy_jid_string = buddy.jid.getStripped().encode('utf-8')
             lines.append( {
-                'jid': str(buddy.jid),
+                'jid': buddy_jid_string,
                 'alias': alias,
                 'status': buddy.away_string(),
                 })
             if len(alias) > len_max['alias']:
                 len_max['alias'] = len(alias)
-            if len(str(buddy.jid)) > len_max['jid']:
-                len_max['jid'] = len(str(buddy.jid))
+            if len(buddy_jid_string) > len_max['jid']:
+                len_max['jid'] = len(buddy_jid_string)
         prnt_format = "  %s%-" + str(len_max['jid']) + "s %-" + str(len_max['alias']) + "s %s"
         weechat.prnt(self.buffer, prnt_format % ('', 'JID', 'Alias', 'Status'))
         for line in lines:
