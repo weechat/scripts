@@ -38,6 +38,10 @@
 #
 # -----------------------------------------------------------------------------
 # History:
+# 2013-05-01, nils_2:
+#     version 0.8:
+#     ADD: option ignore_auto_message (suggested by bpeak)
+#
 # 2013-02-24, nils_2:
 #     version 0.7:
 #     FIX: case insensitive comparison for "nickserv" and "chanserv"
@@ -46,6 +50,7 @@
 # 2012-08-16, nils_2:
 #     version 0.6.1:
 #     IMPROVED: help text to allow a temporary query
+#
 # 2012-06-12, nils_2:
 #     version 0.6:
 #     FIX: allow own queries without 'mynick' in query whitelist
@@ -89,7 +94,7 @@ use strict;
 
 my $SCRIPT      = 'query_blocker';
 my $AUTHOR      = 'rettub <rettub@gmx.net>';
-my $VERSION     = '0.7';
+my $VERSION     = '0.8';
 my $LICENSE     = 'GPL3';
 my $DESCRIPTION = 'Simple blocker for private message (i.e. spam)';
 my $COMMAND     = "query_blocker";             # new command name
@@ -107,7 +112,8 @@ my %help_desc = ( "block_queries"       => "to enable or disable $COMMAND (defau
                   "logger"              => "logger status for $SCRIPT buffer (default: 'off')",
                   "hotlist_show"        => "$SCRIPT buffer appear in hotlists (status bar/buffer.pl) (default: 'off')",
                   "open_on_startup"     => "open $SCRIPT buffer on startup. option msgbuffer has to be set to 'buffer' (default: 'off')",
-                  "temporary_mode"       => "if 'on' you have to manually add a nick to whitelist. otherwise a conversation will be temporary only and after closing query buffer the nick will be discard (default: 'off')",
+                  "temporary_mode"      => "if 'on' you have to manually add a nick to whitelist. otherwise a conversation will be temporary only and after closing query buffer the nick will be discard (default: 'off')",
+                  "ignore_auto_message" => "path/file-name to store/read nicks to not send an auto message (default: qb-ignore_auto_message.txt)",
 );
 
 my $CMD_HELP    = <<EO_HELP;
@@ -124,6 +130,7 @@ Arguments:
      blocked [clear]: list blocked nicks. If arg 'clear' is given all blocked nicks will be removed.
 
 Script Options:
+ ignore_auto_message: $help_desc{ignore_auto_message}
            whitelist: $help_desc{whitelist}
        block_queries: $help_desc{block_queries}
         auto_message: $help_desc{auto_message}
@@ -175,6 +182,7 @@ my %SETTINGS = (
     "hotlist_show"  => "off",
     "open_on_startup"  => "off",
     "temporary_mode" => "off",
+    "ignore_auto_message" => "qb-ignore_auto_message.txt",
 );
 
 my $Last_query_nick = undef;
@@ -193,6 +201,27 @@ sub irc_nick_find_color
 
 my %Blocked = ();
 my %Allowed = ();
+my %ignore_auto_message = ();
+
+sub check_ignore_auto_message { return exists $ignore_auto_message{ $_[0] }; }
+
+sub ignore_auto_message_read {
+    my $whitelist = weechat::config_get_plugin( "ignore_auto_message" );
+    return unless -e $whitelist;
+    open (WL, "<", $whitelist) || DEBUG("$whitelist: $!");
+        while (<WL>) {
+                chomp;
+                my ( $server, $nick ) = split /\./,$_;           # servername.nickname
+                if (not defined $nick){
+                    close WL;
+                    weechat::print("",weechat::prefix("error")."$SCRIPT: $whitelist wrong format for entry: $_ (new format: servername.nickname).");
+                    return 1;
+                }
+                $ignore_auto_message{$_} = 1  if length $_;
+        }
+        close WL;
+        return 0;
+}
 
 sub nick_allowed { return exists $Allowed{ $_[0] }; }
 
@@ -352,10 +381,15 @@ sub modifier_irc_in_privmsg {
         # if nick is allowed to send queries, let WeeChat handle the query
         return $arg if nick_allowed($server . "." . $query_nick);
 
+        # if nick is in ignore_auto_message list, ignore it.
+        return '' if check_ignore_auto_message($server . "." . $query_nick);
+
         $Last_query_nick = $server . "." . $query_nick;
         my $buf_pointer;
-        unless ( exists $Blocked{$server.".".$query_nick} and lc(weechat::config_get_plugin('show_first_message_only') eq 'on') ) {
-            unless (lc(weechat::config_get_plugin('quiet') eq 'on')) {
+        unless ( exists $Blocked{$server.".".$query_nick} and lc(weechat::config_get_plugin('show_first_message_only') eq 'on') )
+        {
+            unless (lc(weechat::config_get_plugin('quiet') eq 'on'))
+            {
                 # print messages to.... newsbar, current, private, server, weechat, buffer, highmon
                 if ( newsbar() eq "1" and lc(weechat::config_get_plugin('msgbuffer')) eq 'newsbar' ) {
                     info2newsbar( 'lightred', '[QUERY-WARN]', $server, $query_nick, $query_msg );
@@ -386,7 +420,8 @@ sub modifier_irc_in_privmsg {
             if (lc(weechat::config_get_plugin('show_deny_message')) eq 'off' or lc(weechat::config_get_plugin('quiet') eq 'on'))
             {
                 weechat::command( '', "/mute -all /msg -server $server $query_nick $msg " );
-            }else
+            }
+            else
             {
                 weechat::command( '', "/mute -all /msg -server $server $query_nick $msg " );
                 weechat::print($buf_pointer,"$SCRIPT\t"."$query_nick"."@"."$server: $msg");
@@ -395,7 +430,9 @@ sub modifier_irc_in_privmsg {
             $Blocked{$server.".".$query_nick} = 0;
         }
             $Blocked{$server.".".$query_nick}++;
-    } else {
+    }
+    else
+    {
         return $arg;
     }
 
@@ -697,13 +734,15 @@ sub query_blocker_buffer_input
     return weechat::WEECHAT_RC_OK;
 }
 
-sub buffer_closing_cb{
+sub buffer_closing_cb
+{
     my ($data, $signal, $signal_data) = @_;
     return weechat::WEECHAT_RC_OK if ( weechat::buffer_get_string($signal_data, "localvar_type" ne "private"));
     my $name = weechat::buffer_get_string($signal_data, "localvar_name");
-    foreach ( sort { "\L$a" cmp "\L$b" } keys %Allowed ) {
+    foreach ( sort { "\L$a" cmp "\L$b" } keys %Allowed )
+    {
         my ($server,$nick) = split(/\./,$_);
-        delete $Allowed{$_} if ( $Allowed{$server.".".$nick} == 2 and $name eq $server.".".$nick);
+        delete $Allowed{$_} if ( defined $Allowed{$_} and $Allowed{$server.".".$nick} == 2 and $name eq $server.".".$nick );
     }
     return weechat::WEECHAT_RC_OK;
 }
@@ -730,7 +769,10 @@ if ( weechat::register( $SCRIPT, $AUTHOR, $VERSION, $LICENSE, $DESCRIPTION, "", 
         weechat::command("","/wait 1ms /perl unload $SCRIPT");
         return;
     }
+
     weechat::print( '', "$COMMAND: loaded whitelist '" . weechat::config_get_plugin( "whitelist" ) . "'");
+
+    ignore_auto_message_read();
 
     weechat::hook_signal("buffer_closing","buffer_closing_cb","");
     weechat::hook_config( "plugins.var.perl.$SCRIPT.block_queries", 'toggled_by_set', $SCRIPT );
