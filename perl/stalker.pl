@@ -19,6 +19,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # History:
+# version 0.4: nils_2@freenode.#weechat
+# 2013-05-18: add: option 'tags'
+#
 # version 0.3: nils_2@freenode.#weechat
 # 2013-05-05: fix: typos in help and description option (thanks FiXato)
 #             add: 'ChanServ' to option 'guest_nick_regex'
@@ -54,7 +57,7 @@ use File::Spec;
 use DBI;
 
 my $SCRIPT_NAME         = "stalker";
-my $SCRIPT_VERSION      = "0.3";
+my $SCRIPT_VERSION      = "0.4";
 my $SCRIPT_AUTHOR       = "Nils Görs <weechatter\@arcor.de>";
 my $SCRIPT_LICENCE      = "GPL3";
 my $SCRIPT_DESC         = "Records and correlates nick!user\@host information";
@@ -77,6 +80,7 @@ my %options = ('db_name'                => '%h/nicks.db',
                'use_localvar'           => 'off',
                'ignore_nickchange'      => 'off',
                'ignore_whois'           => 'off',
+               'tags'                   => '',
 #               '' => '',
 );
 my %desc_options = ('db_name'           => 'file containing the SQLite database where information is recorded. This database is created on loading of ' . $SCRIPT_NAME . ' if it does not exist. ("%h" will be replaced by WeeChat home, "~/.weechat" by default) (default: %h/nicks.db)',
@@ -92,6 +96,7 @@ my %desc_options = ('db_name'           => 'file containing the SQLite database 
                     'use_localvar'      => 'When enabled, only channels with a localvar \'stalker\' will be monitored. This option will not affect /NICK and /WHOIS monitoring. It\'s only for /JOIN messages. (default: off)',
                     'ignore_nickchange' => 'When enabled, /NICK changes won\'t be monitored. (default: off)',
                     'ignore_whois'      => 'When enabled, /WHOIS won\'t be monitored. (default: off)',
+                    'tags'              => 'comma separated list of tags used in messages printed by stalker. See documentation for possible tags (e.g. \'no_log\', \'no_highlight\'). Debug messages will ignore this option.',
 );
 
 my $count;
@@ -393,7 +398,14 @@ sub _r_search {
                          join( " , ", @nicks ).
                          " from host $host";
 
-            weechat::print($ptr_buffer,$output) if ($suppress eq 'no');
+            if ( $options{'tags'} ne '' )
+            {
+                weechat::print_date_tags($ptr_buffer,0,$options{'tags'},$output) if ($suppress eq 'no');
+            }
+            else
+            {
+                weechat::print($ptr_buffer,$output) if ($suppress eq 'no');
+            }
 
             # use regex only for host search!
             $use_regex = 0 if ( $use_regex );
@@ -803,7 +815,14 @@ sub irc_in2_whois_cb
     $ptr_buffer = weechat::buffer_search_main() unless ($ptr_buffer);
 
     # print /WHOIS with [stalker] line
-    weechat::print($ptr_buffer,$output);
+    if ( $options{'tags'} ne '' )
+    {
+        weechat::print_date_tags($ptr_buffer,0,$options{'tags'},$output);
+    }
+    else
+    {
+        weechat::print($ptr_buffer,$output);
+    }
 
     return weechat::WEECHAT_RC_OK;
 }
@@ -907,6 +926,11 @@ weechat::register($SCRIPT_NAME, $SCRIPT_AUTHOR, $SCRIPT_VERSION,
                       "$SCRIPT_NAME performs standard perl regular expression matching with option '-regex'.\n".
                       "Note that regex matching will not use SQLite indices, but will iterate over all rows, so it could be quite costly in terms of performance.\n".
                       "\n".
+                      "Tags:\n".
+                      "======\n".
+                      $SCRIPT_NAME." can use tags to display messages. See documentation for most commonly used tags and add them in following option:\n".
+                      "    /set plugins.var.perl.".$SCRIPT_NAME.".tags \"no_log\"\n".
+                      "\n".
                       "Examples:\n".
                       "  search for nick 'nils_2'\n".
                       "    /".$SCRIPT_NAME." nick nils_2\n".
@@ -914,7 +938,7 @@ weechat::register($SCRIPT_NAME, $SCRIPT_AUTHOR, $SCRIPT_VERSION,
                       "    /".$SCRIPT_NAME." nick nils_2 unknown\n".
                       "  search for nicks starting with 'ni'\n".
                       "    /".$SCRIPT_NAME." nick \\bni.* -regex\n".
-                      "  search all hosts located in 'de'\n".
+                      "  search all hosts located in '.de'\n".
                       "    /".$SCRIPT_NAME." host .*\\.de -regex\n".
                       "",
                       "host %% %(irc_servers)|-regex %-||".
