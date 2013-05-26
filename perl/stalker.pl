@@ -19,6 +19,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # History:
+# version 0.5: nils_2@freenode.#weechat
+# 2013-05-26: add: function 'count'
+#
 # version 0.4: nils_2@freenode.#weechat
 # 2013-05-18: add: option 'tags'
 #
@@ -57,7 +60,7 @@ use File::Spec;
 use DBI;
 
 my $SCRIPT_NAME         = "stalker";
-my $SCRIPT_VERSION      = "0.4";
+my $SCRIPT_VERSION      = "0.5";
 my $SCRIPT_AUTHOR       = "Nils Görs <weechatter\@arcor.de>";
 my $SCRIPT_LICENCE      = "GPL3";
 my $SCRIPT_DESC         = "Records and correlates nick!user\@host information";
@@ -548,6 +551,32 @@ sub stalker_command_cb
 
     return weechat::WEECHAT_RC_OK if ($number <= 0);
 
+    if (lc($args_array[0]) eq 'count')
+    {
+        my $ptr_buffer = weechat::current_buffer();
+        my ($count) = $DBH->selectrow_array("SELECT count(*) FROM records");
+        my $output = weechat::color('chat_prefix_network').
+                     weechat::prefix('network').
+                     weechat::color('chat_delimiters').
+                     "[".
+                     weechat::color('chat_nick').
+                     $SCRIPT_NAME.
+                     weechat::color('chat_delimiters').
+                     "] ".
+                     weechat::color('reset').
+                     "number of rows: ".
+                     $count;
+
+        if ( $options{'tags'} ne '' )
+        {
+            weechat::print_date_tags($ptr_buffer,0,$options{'tags'},$output);
+        }
+        else
+        {
+            weechat::print($ptr_buffer,$output);
+        }
+        return weechat::WEECHAT_RC_OK;
+    }
     # get localvar from current buffer
     my $name = weechat::buffer_get_string(weechat::current_buffer(),'localvar_name');
     my $server = weechat::buffer_get_string(weechat::current_buffer(),'localvar_server');
@@ -905,11 +934,12 @@ weechat::register($SCRIPT_NAME, $SCRIPT_AUTHOR, $SCRIPT_VERSION,
         init_config();
         open_database();
 
-        weechat::hook_command($SCRIPT_NAME, $SCRIPT_DESC, "host <host> [server] [-regex] || nick <nick> [server] [-regex] || scan [<server.channel>]",
+        weechat::hook_command($SCRIPT_NAME, $SCRIPT_DESC, "host <host> [server] [-regex] || nick <nick> [server] [-regex] || scan [<server.channel>] || count",
                       "   host : look for hostname\n".
                       "   nick : look for nick\n".
                       "   scan : scan a channel (be careful; scanning large channels takes a while!)\n".
                       "          you should manually /WHO #channel first or use /quote PROTOCTL UHNAMES\n".
+                      "   count: display the number of rows in database\n".
                       "\n\n".
                       "Stalker will add nick!user\@host to database monitoring JOIN/WHOIS/NICK messages.\n\n".
                       "\n".
@@ -941,6 +971,7 @@ weechat::register($SCRIPT_NAME, $SCRIPT_AUTHOR, $SCRIPT_VERSION,
                       "  search all hosts located in '.de'\n".
                       "    /".$SCRIPT_NAME." host .*\\.de -regex\n".
                       "",
+                      "count %-||".
                       "host %% %(irc_servers)|-regex %-||".
                       "nick %(nick) %(irc_servers)|-regex -regex %-||".
                       "scan %(buffers_names) %-", "stalker_command_cb", "");
