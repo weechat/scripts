@@ -194,6 +194,11 @@
 #
 #
 #   History:
+#   2013-05-24
+#   version 0.3.1: bug fixes
+#   * fix exceptions while fetching bans with /mode
+#   * fix crash with /olist command in networks that don't support +q channel masks.
+#
 #   2013-04-14
 #   version 0.3:
 #   * cycle between different banmasks in /oban /oquiet commands.
@@ -275,7 +280,7 @@ WEECHAT_VERSION = (0x30200, '0.3.2')
 
 SCRIPT_NAME    = "chanop"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.3"
+SCRIPT_VERSION = "0.3.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Helper script for IRC Channel Operators"
 
@@ -1475,8 +1480,12 @@ class MaskSync(object):
     def _maskCallback(self, data, modifier, modifier_data, string):
         """callback for store a single mask."""
         #debug("MASK %s: %s %s", modifier, modifier_data, string)
-        server, channel, mode = self.queue[0]
         args = string.split()
+        if self.queue:
+            server, channel, _ = self.queue[0]
+        else:
+            server, channel = modifier_data, args[3]
+
         if modifier == 'irc_in_367':
             try:
                 mask, op, date = args[4:]
@@ -1495,7 +1504,18 @@ class MaskSync(object):
     def _endCallback(self, data, modifier, modifier_data, string):
         """callback for end of channel's mask list."""
         #debug("MASK END %s: %s %s", modifier, modifier_data, string)
-        server, channel, mode = self.queue.pop(0)
+        if self.queue:
+            server, channel, mode = self.queue.pop(0)
+        else:
+            args = string.split()
+            server, channel = modifier_data, args[3]
+            if modifier == 'irc_in_368':
+                mode = args[7]
+            elif modifier == 'irc_in_729':
+                mode = args[4]
+            else:
+                return string
+
         maskCache = modeCache[mode]
 
         # delete old masks in cache
@@ -2341,15 +2361,7 @@ class ShowBans(CommandChanop):
         except KeyError:
             raise ValueError('incorrect argument')
 
-        if mode not in supported_modes(self.server):
-            self.clear()
-            self.prnt("\n%sNetwork '%s' doesn't support %s" % (color_channel,
-                                                               self.server,
-                                                               type))
-            raise NoArguments
-
         self.mode = mode
-        self.maskCache = modeCache[mode]
         # fix self.type so is "readable" (ie, 'bans' instead of 'b')
         if mode == 'b':
             self.type = 'bans'
@@ -2362,6 +2374,7 @@ class ShowBans(CommandChanop):
     def get_buffer(self):
         if self.showbuffer:
             return self.showbuffer
+
         buffer = weechat.buffer_search('python', SCRIPT_NAME)
         if not buffer:
             buffer = weechat.buffer_new(SCRIPT_NAME, '', '', '', '')
@@ -2405,13 +2418,22 @@ class ShowBans(CommandChanop):
 
     def execute(self):
         self.showbuffer = ''
+        if self.mode not in supported_modes(self.server):
+            self.clear()
+            self.prnt("\n%sNetwork '%s' doesn't support %s" % (color_channel,
+                                                               self.server,
+                                                               self.type))
+            return
+
+        maskCache = modeCache[self.mode]
         key = (self.server, self.channel)
         try:
-            masklist = self.maskCache[key]
+            masklist = maskCache[key]
         except KeyError:
             if not (weechat.info_get('irc_is_channel', key[1]) and self.server):
                 error("Command /%s must be used in an IRC buffer." % self.command)
                 return
+
             masklist = None
         self.clear()
         mask_count = 0
