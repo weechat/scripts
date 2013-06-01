@@ -19,11 +19,13 @@
 # Allows you to visually see if there are updates to your weechat system
 
 #Versions
-# 0.1 drubin - First release.
-#            - Basic functionality to save version history of your config files (only git, bzr)
+# 0.1 drubin     - First release.
+#                - Basic functionality to save version history of your config files (only git, bzr)
+# 0.2 ShockkPony - Fixed massive weechat startup time caused by initial config loading
+
 SCRIPT_NAME    = "confversion"
 SCRIPT_AUTHOR  = "drubin <drubin at smartcube.co.za>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Stores version controlled history of your configuration files"
 
@@ -35,8 +37,8 @@ except ImportError:
     print "This script must be run under WeeChat."
     print "Get WeeChat now at: http://www.weechat.org/"
     import_ok = False
-    
-    
+
+
 # script options
 settings = {
     #Currently supports git and bzr and possibly other that support simple "init" "add *.conf" "commit -m "message" "
@@ -69,11 +71,32 @@ def init_repo():
     #Save first import OR on start up if needed.
     commit_cb()
 
+confversion_commit_finish_hook = 0
+
 def commit_cb(data=None, remaning=None):
-    #Save configs before doing commit
+    global confversion_commit_finish_hook
+
+    # only hook timer if not already hooked
+    if confversion_commit_finish_hook == 0:
+        confversion_commit_finish_hook = weechat.hook_timer(500, 0, 1, "commit_cb_finish", "")
+
+    return weechat.WEECHAT_RC_OK
+
+def commit_cb_finish(data=None, remaining=None):
+    global confversion_commit_finish_hook
+
+    # save before doing commit
     weechat.command("","/save")
+
+    # add all config changes to git
     shell_in_home("add ./*.conf")
-    shell_in_home("commit -m \"%s\"" % weechat.config_get_plugin("commit_message"))  
+
+    # do the commit
+    shell_in_home("commit -m \"%s\"" % weechat.config_get_plugin("commit_message"))
+
+    # set hook back to 0
+    confversion_commit_finish_hook = 0
+
     return weechat.WEECHAT_RC_OK
 
 def conf_update_cb(data, option, value):
@@ -83,7 +106,7 @@ def conf_update_cb(data, option, value):
         #This is kinda hack but better input would be appricated.
         weechat.hook_timer(500, 0, 1, "commit_cb", "")
     return weechat.WEECHAT_RC_OK
-    
+
 def confversion_cmd(data, buffer, args):
     commit_cb()
     return weechat.WEECHAT_RC_OK
@@ -93,9 +116,9 @@ if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
     for option, default_value in settings.iteritems():
         if weechat.config_get_plugin(option) == "":
             weechat.config_set_plugin(option, default_value)
-            
+
     weechat.hook_command("confversion", "Saves configurations to version control", "",
                          "",
-                         "", "confversion_cmd", "") 
-    init_repo()        
+                         "", "confversion_cmd", "")
+    init_repo()
     hook = weechat.hook_config("*", "conf_update_cb", "")
