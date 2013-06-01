@@ -40,6 +40,8 @@
 #
 #
 #   History:
+#   2013-05-18:
+#   version 0.4: add include_channel option - contributed by Atluxity
 #   2010-11-04:
 #   version 0.3: minor cleanups, fix import, add hook info
 #   2010-03-17:
@@ -51,7 +53,7 @@
 
 SCRIPT_NAME    = "away_action"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.3"
+SCRIPT_VERSION = "0.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Run command on highlight and privmsg when away"
 
@@ -62,6 +64,7 @@ settings = {
 'ignore_text'    : '',
 'command'        : '/mute msg ', # Command to be ran, nick and message will be inserted at the end
 'force_enabled'  : 'off',
+'include_channel': 'off', # Option to include channel in insert after command.
 }
 
 ignore_nick, ignore_text, ignore_channel = (), (), ()
@@ -139,7 +142,11 @@ def away_cb(data, buffer, time, tags, display, hilight, prefix, msg):
                 w.prnt('', '%s: Error: %s' %(SCRIPT_NAME, 'command must start with /'))
                 return WEECHAT_RC_OK
 
-            w.command('', '%s <%s> %s' %(command, prefix, msg))
+            if 'channel' in locals() and \
+                w.config_get_plugin('include_channel') == 'on':
+                w.command('', '%s @%s <%s> %s' %(command, channel, prefix, msg))
+            else:
+                w.command('', '%s <%s> %s' %(command, prefix, msg))
     return WEECHAT_RC_OK
 
 def ignore_update(*args):
