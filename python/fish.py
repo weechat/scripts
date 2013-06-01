@@ -51,7 +51,7 @@
 
 SCRIPT_NAME = "fish"
 SCRIPT_AUTHOR = "David Flatz <david@upcs.at>"
-SCRIPT_VERSION = "0.6"
+SCRIPT_VERSION = "0.7"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "FiSH for weechat"
 CONFIG_FILE_NAME = SCRIPT_NAME
@@ -148,8 +148,8 @@ def fish_config_init():
 
     fish_config_option["mark_position"] = weechat.config_new_option(
             fish_config_file, fish_config_section["look"], "mark_position",
-            "string", "put marker for encrypted INCOMING messages at start or end", "off|begin|end",
-            0,0, "off", "off", 0, "", "", "", "", "", "")
+            "integer", "put marker for encrypted INCOMING messages at start or end", "off|begin|end",
+            0,2, "off", "off", 0, "", "", "", "", "", "")
 
     fish_config_option["mark_encrypted"] = weechat.config_new_option(
             fish_config_file, fish_config_section["look"], "mark_encrypted",
@@ -283,7 +283,7 @@ def blowcrypt_unpack(msg, cipher):
     except ValueError:
         raise MalformedError
 
-    return plain.strip('\x00')
+    return plain.strip('\x00').replace('\n','')
 
 
 #
@@ -814,8 +814,10 @@ def fish_cmd_blowkey(data, buffer, args):
     pos = args.find(" ")
     if pos:
         pos = args.find(" ", pos + 1)
-        if pos:
+        if pos > 0:
             argv2eol = args[pos + 1:]
+        else:
+            argv2eol = args[args.find(" ") +1:]
 
     target = "%s/%s" % (server_name, target_user)
 
