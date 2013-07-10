@@ -21,6 +21,8 @@
 # (this script requires WeeChat 0.3.6 or newer)
 #
 # History:
+# 2013-06-24, Priska Herger <policecar@23bit.net>
+#  version 0.4: bug fix: if TYPING 0, don't show typing.
 # 2013-04-27, Corey Halpin <chalpin@cs.wisc.edu>
 #  version 0.3:
 #    * Use irc_message_parse to extract nicks
@@ -56,7 +58,7 @@ import re
 
 SCRIPT_NAME    = "bitlbee_typing_notice"
 SCRIPT_AUTHOR  = "Alexander Schremmer <alex@alexanderweb.de>"
-SCRIPT_VERSION = "0.3"
+SCRIPT_VERSION = "0.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Shows when somebody is typing on bitlbee and sends the notice as well"
 
@@ -85,7 +87,7 @@ def ctcp_cb(data, modifier, modifier_data, string):
         typing_level = int(match.groups()[0])
         if typing_level == 0 and nick in typing:
             del typing[nick]
-        else:
+        elif typing_level > 0:
             typing[nick] = typing_level
         w.bar_item_update("bitlbee_typing_notice")
         return ""
