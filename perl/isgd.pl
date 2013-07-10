@@ -27,7 +27,7 @@ use CGI;
 my %SCRIPT = (
 	name => 'isgd',
 	author => 'stfn <stfnmd@gmail.com>',
-	version => '0.4',
+	version => '0.5',
 	license => 'GPL3',
 	desc => 'Shorten URLs with is.gd on demand or automatically',
 	opt => 'plugins.var.perl',
@@ -38,21 +38,23 @@ my %OPTIONS_DEFAULT = (
 );
 my %OPTIONS = ();
 my $SHORTENER_URL = "http://is.gd/create.php?format=simple&url=";
+my $SHORTENER_BASE = "http://is.gd/";
 my $TIMEOUT = 30 * 1000;
 my (%LOOKUP, %CACHE);
 
 weechat::register($SCRIPT{"name"}, $SCRIPT{"author"}, $SCRIPT{"version"}, $SCRIPT{"license"}, $SCRIPT{"desc"}, "", "");
 weechat::hook_print("", "", "", 1, "print_cb", "");
 weechat::hook_command($SCRIPT{"name"}, $SCRIPT{"desc"},
-	                    "[<URL> ...]\n" .
-	"                    [<number>]\n" .
-	"                    [<partial expr>]\n",
+	"[-o] [<URL...>|<number>|<partial expr>]\n",
+	"          -o: send shortened URL to current buffer as input\n" .
 	"         URL: URL to shorten (multiple URLs may be given)\n" .
 	"      number: shorten up to n last found URLs in current buffer\n" .
 	"partial expr: shorten last found URL in current buffer which matches the given partial expression\n" .
 	"\nWithout any URL arguments, the last found URL in the current buffer will be shortened.\n\n" .
 	"Examples:\n" .
+	"  /isgd\n" .
 	"  /isgd http://google.de\n" .
+	"  /isgd -o http://slashdot.org/\n" .
 	"  /isgd 3\n" .
 	"  /isgd youtube",
 	"", "command_cb", "");
@@ -72,10 +74,7 @@ sub print_cb
 	}
 
 	# Find URLs
-	while ($message =~ m{(https?://\S+)}gi) {
-		my $url = $1;
-		push(@URLs, $url);
-	}
+	@URLs = grep_urls($message);
 
 	# Process all found URLs
 	shorten_urls(\@URLs, $buffer);
@@ -89,12 +88,18 @@ sub print_cb
 sub command_cb
 {
 	my ($data, $buffer, $args) = @_;
+	my $send = 0;
 	my @URLs;
 
-	# If URLs were provided in command arguments, shorten them
-	while ($args =~ m{(https?://\S+)}gi) {
-		push(@URLs, $1);
+	# Check for command switch
+	if ($args =~ /^-o/) {
+		$args =~ s/^-o//;
+		$send = 1;
 	}
+
+	# If URLs were provided in command arguments, shorten them
+	@URLs = grep_urls($args);
+
 	# Otherwise search backwards in lines of current buffer
 	if (@URLs == 0) {
 		# <number>
@@ -110,8 +115,8 @@ sub command_cb
 		while (weechat::infolist_prev($infolist) == 1) {
 			my $message = weechat::infolist_string($infolist, "message");
 			my $tags = weechat::infolist_string($infolist, "tags");
-			while ($message =~ m{(https?://\S+)}gi) {
-				my $url = $1;
+			foreach (grep_urls($message)) {
+				my $url = $_;
 				if ($match eq "" || $url =~ /\Q$match\E/i) {
 					push(@URLs, $url) unless ($tags =~ /\bno_log\b/);
 				}
@@ -122,7 +127,7 @@ sub command_cb
 	}
 
 	# Now process all found URLs
-	shorten_urls(\@URLs, $buffer);
+	shorten_urls(\@URLs, $buffer, $send);
 
 	return weechat::WEECHAT_RC_OK;
 }
@@ -130,10 +135,11 @@ sub command_cb
 #
 # Shortens a list of URLs
 #
-sub shorten_urls($$)
+sub shorten_urls($$$)
 {
 	my @URLs = @{$_[0]};
 	my $buffer = $_[1];
+	my $send = $_[2];
 
 	foreach (@URLs) {
 		my $url = $_;
@@ -141,14 +147,18 @@ sub shorten_urls($$)
 		$LOOKUP{$cmd} = $url;
 
 		if (my $url_short = $CACHE{$cmd}) {
-			print_url($buffer, $url_short, $url);
+			if ($send) {
+				weechat::command($buffer, $url_short);
+			} else {
+				print_url($buffer, $url_short, $url);
+			}
 		} else {
-			weechat::hook_process($cmd, $TIMEOUT, "process_cb", $buffer);
+			weechat::hook_process($cmd, $TIMEOUT, $send ? "url_send_cb" : "url_cb", $buffer);
 		}
 	}
 }
 
-sub process_cb
+sub url_cb
 {
 	my ($data, $command, $return_code, $out, $err) = @_;
 	my $buffer = $data;
@@ -162,12 +172,36 @@ sub process_cb
 	return weechat::WEECHAT_RC_OK;
 }
 
+sub url_send_cb
+{
+	my ($data, $command, $return_code, $out, $err) = @_;
+	my $buffer = $data;
+	my $url_short = $out;
+
+	if ($return_code == 0 && $url_short) {
+		$CACHE{$command} = $url_short;
+		weechat::command($buffer, $url_short);
+	}
+
+	return weechat::WEECHAT_RC_OK;
+}
+
+sub grep_urls($)
+{
+	my $str = $_[0];
+	my @urls;
+	while ($str =~ m{(https?://\S+)}gi) {
+		push(@urls, $1) unless ($1 =~ /^\Q$SHORTENER_BASE\E/);
+	}
+	return @urls;
+}
+
 sub print_url($$$)
 {
-       my ($buffer, $url_short, $cmd) = @_;
-       my $domain = "";
-       $domain = $1 if ($cmd =~  m{^https?://([^/]+)}gi);
-       weechat::print_date_tags($buffer, 0, "no_log", weechat::color($OPTIONS{color}) . "$url_short ($domain)");
+	my ($buffer, $url_short, $cmd) = @_;
+	my $domain = "";
+	$domain = $1 if ($cmd =~  m{^https?://([^/]+)}gi);
+	weechat::print_date_tags($buffer, 0, "no_log", weechat::color($OPTIONS{color}) . "$url_short ($domain)");
 }
 
 #
