@@ -17,6 +17,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2013-06-27: nils_2, (freenode.#weechat)
+#       0.5 : fix: bug with root input bar
+#
 # 2013-02-16: nils_2, (freenode.#weechat)
 #       0.4 : bug with empty localvar removed (reported by swimmer)
 #
@@ -44,7 +47,7 @@ except Exception:
 
 SCRIPT_NAME     = "spell_correction"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.4"
+SCRIPT_VERSION  = "0.5"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "a simple spell correction for a 'misspelled' word"
 
@@ -146,7 +149,14 @@ def auto_suggest_cmd_cb(data, buffer, args):
     weechat.bar_item_update('spell_correction')
     return weechat.WEECHAT_RC_OK
 
-def show_item_cb (data, item, window):
+
+# spell_correction_suggest_item:
+def show_spell_correction_item_cb (data, item, window):
+
+    # check for root input bar!
+    if not window:
+        window = weechat.current_window()
+#        weechat.buffer_get_string(buffer,'localvar_spell_correction_suggest_item'):
 
     buffer = weechat.window_get_pointer(window,"buffer")
     if buffer == '':
@@ -319,6 +329,7 @@ def aspell_suggest_cb(data, signal, signal_data):
     if OPTIONS['auto_pop_up_item'].lower() == 'on':
         auto_suggest_cmd_cb('', buffer, '')
         weechat.buffer_set(buffer, 'localvar_del_spell_correction_suggest_input_line', '')
+    weechat.bar_item_update('spell_suggest')
     return weechat.WEECHAT_RC_OK
 
 def get_last_position_of_misspelled_word(misspelled_word, buffer):
@@ -363,6 +374,7 @@ def input_complete_cb(data, buffer, command):
     weechat.buffer_set(buffer, 'localvar_set_spell_correction_suggest_item', '%s:%s:%s' % ('2',position,aspell_suggest_item))
 
     auto_suggest_cmd_cb('', buffer, command)
+    weechat.bar_item_update('spell_suggest')
     return weechat.WEECHAT_RC_OK
 
 # if a suggestion is selected and you press [RETURN] replace misspelled word!
@@ -407,6 +419,42 @@ def input_move_cb(data, signal, signal_data):
     weechat.buffer_set(buffer, 'localvar_set_spell_correction_suggest_item', '%s:%s:%s' % ('1',position,aspell_suggest_item))
 
     return weechat.WEECHAT_RC_OK
+
+# aspell_suggest: "mispelled:mi spelled,mi-spelled,misspelled"
+# weechat.bar_item_update('spell_suggest')
+def show_spell_suggestion_item_cb (data, item, window):
+    buffer = weechat.window_get_pointer(window,"buffer")
+    if buffer == '':
+        return ''
+
+    tab_complete,position,aspell_suggest_item = get_position_and_suggest_item(buffer)
+    localvar_aspell_suggest = get_localvar_aspell_suggest(buffer)
+
+    # localvar_aspell_suggest = word,word2/wort,wort2
+    if localvar_aspell_suggest:
+        misspelled_word,aspell_suggestions = localvar_aspell_suggest.split(':')
+        aspell_suggestions_orig = aspell_suggestions
+        aspell_suggestions = aspell_suggestions.replace('/',',')
+        aspell_suggestion_list = aspell_suggestions.split(',')
+
+        if not position:
+            return ''
+        if int(position) < len(aspell_suggestion_list):
+            reset_color = weechat.color('reset')
+            color = weechat.color("red")
+            new_word = aspell_suggestion_list[int(position)].replace(aspell_suggestion_list[int(position)],'%s%s%s' % (color, aspell_suggestion_list[int(position)], reset_color))
+#            weechat.prnt("",new_word)
+    else:
+        return ''
+
+    return aspell_suggestions_orig
+
+def window_switch_cb(data, signal, signal_data):
+    weechat.bar_item_update('spell_correction')
+    return weechat.WEECHAT_RC_OK
+def buffer_switch_cb(data, signal, signal_data):
+    weechat.bar_item_update('spell_correction')
+    return weechat.WEECHAT_RC_OK
 # ================================[ main ]===============================
 if __name__ == "__main__":
     if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, '', ''):
@@ -444,9 +492,13 @@ if __name__ == "__main__":
 
         weechat.hook_signal ('aspell_suggest', 'aspell_suggest_cb', '')
 
+        weechat.hook_signal ('buffer_switch', 'buffer_switch_cb','')
+        weechat.hook_signal ('window_switch', 'window_switch_cb','')
+
         if OPTIONS['catch_input_completion'].lower() == "on":
             Hooks['catch_input_completion'] = weechat.hook_command_run('/input complete*', 'input_complete_cb', '')
             Hooks['catch_input_return'] = weechat.hook_command_run('/input return', 'input_return_cb', '')
         weechat.hook_config('plugins.var.python.' + SCRIPT_NAME + '.*', 'toggle_refresh', '')
-        weechat.bar_item_new('spell_correction', 'show_item_cb', '')
+        weechat.bar_item_new('spell_correction', 'show_spell_correction_item_cb', '')
+        weechat.bar_item_new('spell_suggest', 'show_spell_suggestion_item_cb', '')
 #        weechat.prnt("","%s" % sys.version_info)
