@@ -20,6 +20,7 @@
 # for settings see help page
 #
 # history:
+# 2.0: fix: debugging weechat::print() removed (thanks demure)
 # 1.9: fix: display bug with nick_mode
 # 1.8  add: option "use_irc_colors" (requested by Zertap)
 #      fix: empty char for nick_mode was used, even when "irc.look.nick_mode_empty" was OFF (reported by FlashCode)
@@ -68,7 +69,7 @@
 
 use strict;
 my $prgname	= "colorize_lines";
-my $version	= "1.9";
+my $version	= "2.0";
 my $description	= "colors text in chat area with according nick color. Highlight messages will be fully highlighted in chat area";
 
 # default values
@@ -414,7 +415,6 @@ sub irc_in_privmsg_cb
         {
             $string =~ m/^(.*) :(.*)/;
             my $msg_part1 = $1;
-            weechat::print("","msg_part1: $msg_part1");
             if (index($msg_part1,"PRIVMSG") == -1)
             {                                             # its neither a channel nor a query buffer
                 return $string;
