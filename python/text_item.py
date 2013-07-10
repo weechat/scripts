@@ -17,6 +17,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2013-06-27: nils_2, (freenode.#weechat)
+#       0.3 : fix: bug with root bar
+#
 # 2013-01-25: nils_2, (freenode.#weechat)
 #       0.2 : make script compatible with Python 3.x
 #
@@ -56,7 +59,7 @@ except Exception:
 
 SCRIPT_NAME     = "text_item"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.2"
+SCRIPT_VERSION  = "0.3"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "add a plain text to item bar"
 
@@ -85,6 +88,10 @@ def create_bar_items():
 def update_item (data, item, window):
     if not data:
         return ""
+
+    # window empty? root bar!
+    if not window:
+        window = weechat.current_window()
 
     value = weechat.config_get_plugin(data)
 
