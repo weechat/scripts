@@ -30,6 +30,14 @@
 #       added sound-alarm when cursor position is -1 or higher than 'max_chars'
 #       improved option-handling
 #
+# 0.4 <nils_2@freenode>:
+#       fix display bug with more than one window
+#
+# 0.5 <nils_2@freenode>:
+#       add description for options
+#       add tweet and sms counter for bitlbee and gtalksms (suggested by ahuemer@freenode)
+#
+#
 # Note: As of version 0.2 this script requires a version of weechat
 #       from git 2010-01-25 or newer, or at least 0.3.2 stable.
 #
@@ -38,7 +46,7 @@
 #
 # config:
 # %P = cursor position
-# %L = input lenght
+# %L = input length
 # %R = reverse counting from max_chars
 # %C = displays how many chars are count over max_chars
 # /set plugins.var.python.typing_counter.format "[%P|%L|<%R|%C>]"
@@ -61,7 +69,7 @@
 
 SCRIPT_NAME    = "typing_counter"
 SCRIPT_AUTHOR  = "fauno <fauno@kiwwwi.com.ar>"
-SCRIPT_VERSION = "0.3"
+SCRIPT_VERSION = "0.5"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Bar item showing typing count and cursor position. Add 'tc' to a bar."
 
@@ -73,7 +81,7 @@ except Exception:
     print "Get WeeChat now at: http://www.weechat.org/"
     quit()
 try:
-    import os, sys
+    import os, sys, re
 
 except ImportError as message:
     print('Missing package(s) for %s: %s' % (SCRIPT_NAME, message))
@@ -85,11 +93,13 @@ cursor_pos      = 1
 count_over      = '0'
 
 tc_default_options = {
-    'format'            : '[%P|%L|<%R|%C>]',
-    'warn'              : '140',
-    'warn_colour'       : 'red',
-    'max_chars'         : '200',
-    'warn_command'      : '',
+    'format'            : ('[%P|%L|<%R|%C>]','item name to add in a bar is "tc". item format is: %P = cursor position, %L = input length, %R = reverse counting from max_chars, %C = displays how many chars are count over max_chars'),
+    'warn'              : ('140','turns indicator to "warn_colour" when position is reached'),
+    'warn_colour'       : ('red','color for warn after specified number of chars'),
+    'max_chars'         : ('200','max number of chars to count reverse'),
+    'warn_command'      : ('', 'to activate a display beep use: $beep'),
+    'tweet_buffer'      : ('bitlbee.#tweet','name of tweet buffer. This is a comma separated list'),
+    'sms_buffer'        : ('bitlbee.sms','name of sms buffer (using gtalksms). This is a comma separated list'),
 }
 tc_options = {}
 
@@ -108,9 +118,6 @@ def tc_bar_item_update (data=None, signal=None, signal_data=None):
     '''May be used as a callback or standalone call.'''
     global length, cursor_pos, tc_input_text
 
-    current_buffer = w.current_buffer()
-    length = w.buffer_get_integer(current_buffer,'input_length')
-    cursor_pos = w.buffer_get_integer(current_buffer,'input_pos') + 1
     w.bar_item_update('tc')
     return w.WEECHAT_RC_OK
 
@@ -118,10 +125,72 @@ def tc_bar_item (data, item, window):
     '''Item constructor'''
     global length, cursor_pos, tc_input_text, count_over,tc_options
     count_over = '0'
+    sms = ''
+    tweet = ''
+    reverse_chars = 0
 
-    # reverse check for max_chars
-    reverse_chars = (int(tc_options['max_chars']) - length)
-#    reverse_chars = (int(max_chars) - length)
+    bufpointer = w.window_get_pointer(window,"buffer")
+    if bufpointer == "":
+        return ""
+
+    length = w.buffer_get_integer(bufpointer,'input_length')
+    cursor_pos = w.buffer_get_integer(bufpointer,'input_pos') + 1
+
+    plugin = w.buffer_get_string(bufpointer, 'plugin')
+
+    host = ''
+    if plugin == 'irc':
+        servername = w.buffer_get_string(bufpointer, 'localvar_server')
+        channelname = w.buffer_get_string(bufpointer, 'localvar_channel')
+        channel_type = w.buffer_get_string(bufpointer, 'localvar_type')
+        name = w.buffer_get_string(bufpointer, 'localvar_name')
+        input_line = w.buffer_get_string(bufpointer, 'input')
+        mynick = w.info_get('irc_nick', servername)
+        nick_ptr = w.nicklist_search_nick(bufpointer, '', mynick)
+
+        # check for a sms message
+        if channel_type == 'private' and name in tc_options['sms_buffer'].split(","):
+            # 160 chars for a sms
+            get_sms_text = re.match(r'(s|sms):(.*):(.*)', input_line)
+            if get_sms_text:
+#            if get_sms_text.group(2):
+                sms_len = len(get_sms_text.group(3))
+                input_length = len(input_line)
+                sms_prefix = input_length - sms_len
+
+                sms = 160-sms_len
+#                reverse_chars = str(160 + sms_prefix)
+                reverse_chars = sms
+
+        # check for a tweet buffer
+        elif name in tc_options['tweet_buffer'].split(","):
+            # 140 chars for a tweet! prefix "post " = 5 chars
+
+            # check out if length >= 5 and matches "post "
+            if length >= 5 and re.match(r'post (.*)', input_line):
+                tweet = 145 - length
+                reverse_chars = tweet
+
+        # get host and length from host
+        elif servername != channelname:
+            infolist = w.infolist_get('irc_nick', '', '%s,%s,%s' % (servername,channelname,mynick))
+#            w.prnt("","%s.%s.%s.%s" % (servername,channelname,mynick,nick_ptr))
+            while w.infolist_next(infolist):
+                host = w.infolist_string(infolist, 'host')
+            w.infolist_free(infolist)
+            if host != '':
+                host = ':%s!%s PRIVMSG %s :' % (mynick,host,channelname)
+                host_length = len(host)
+#        w.prnt("","%d" % host_length)
+                reverse_chars = (475 - int(host_length) - length -1)    # -1 = return
+            else:
+                reverse_chars = (int(tc_options['max_chars']) - length)
+        else:
+            reverse_chars = (int(tc_options['max_chars']) - length)
+    else:
+        # reverse check for max_chars
+        reverse_chars = (int(tc_options['max_chars']) - length)
+
     if reverse_chars == 0:
         reverse_chars = "%s" % ("0")
     else:
@@ -131,26 +200,41 @@ def tc_bar_item (data, item, window):
             tc_action_cb()
         else:
             reverse_chars = str(reverse_chars)
+
     out_format = tc_options['format']
-    if length >= int(tc_options['warn']):
-        length_warn = "%s%s%s" % (w.color(tc_options['warn_colour']), str(length), w.color('default'))
-        out_format = out_format.replace('%L', length_warn)
+    if tc_options['warn']:
+        if length >= int(tc_options['warn']):
+            length_warn = "%s%s%s" % (w.color(tc_options['warn_colour']), str(length), w.color('default'))
+            out_format = out_format.replace('%L', length_warn)
+        else:
+            out_format = out_format.replace('%L', str(length))
     else:
-        out_format = out_format.replace('%L', str(length))
+            out_format = out_format.replace('%L', str(length))
 
     out_format = out_format.replace('%P', str(cursor_pos))
-    out_format = out_format.replace('%R', reverse_chars)
+    if sms:
+        out_format = out_format.replace('%R', "s:" + reverse_chars)
+    elif tweet:
+        out_format = out_format.replace('%R', "t:" + reverse_chars)
+    else:
+        out_format = out_format.replace('%R', reverse_chars)
     out_format = out_format.replace('%C', count_over)
+#    out_format = out_format.replace('%T', str(tweet))
+#    out_format = out_format.replace('%S', str(sms))
     tc_input_text = out_format
 
     return tc_input_text
 
 def init_config():
     global tc_default_options, tc_options
-    for option, default_value in tc_default_options.items():
+
+    for option,value in list(tc_default_options.items()):
+        w.config_set_desc_plugin(option, '%s (default: "%s")' % (value[1], value[0]))
         if not w.config_is_set_plugin(option):
-            w.config_set_plugin(option, default_value)
-        tc_options[option] = w.config_get_plugin(option)
+            w.config_set_plugin(option, value[0])
+            tc_options[option] = value[0]
+        else:
+            tc_options[option] = w.config_get_plugin(option)
 
 def config_changed(data, option, value):
     init_config()
