@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2008-2012 Sebastien Helleu <flashcode@flashtux.org>
+# Copyright (C) 2008-2013 Sebastien Helleu <flashcode@flashtux.org>
 # Copyright (C) 2010-2012 Nils Görs <weechatter@arcor.de>
 #
 # This program is free software; you can redistribute it and/or modify
@@ -19,13 +19,17 @@
 #
 # History:
 #
-# 2013-04-30,  arza <arza@arza.us>:
+# 2013-07-14, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 3.1: remove unneeded calls to iset_refresh() in mouse callback
+#                  (faster mouse actions when lot of options are displayed),
+#                  fix bug when clicking on a line after the last option displayed
+# 2013-04-30, arza <arza@arza.us>:
 #     version 3.0: simpler title, fix refresh on unset
-# 2012-12-16,  nils_2 <weechatter@arcor.de>:
+# 2012-12-16, nils_2 <weechatter@arcor.de>:
 #     version 2.9: fix focus window with iset buffer on mouse click
-# 2012-08-25,  nils_2 <weechatter@arcor.de>:
+# 2012-08-25, nils_2 <weechatter@arcor.de>:
 #     version 2.8: most important key and mouse bindings for iset buffer added to title-bar (idea The-Compiler)
-# 2012-07-31,  nils_2 <weechatter@arcor.de>:
+# 2012-07-31, nils_2 <weechatter@arcor.de>:
 #     version 2.7: add combined option and value search (see /help iset)
 #                : add exact value search (see /help iset)
 #                : fix problem with metacharacter in value search
@@ -102,7 +106,7 @@
 use strict;
 
 my $PRGNAME = "iset";
-my $VERSION = "3.0";
+my $VERSION = "3.1";
 my $DESCR   = "Interactive Set for configuration options";
 my $AUTHOR  = "Sebastien Helleu <flashcode\@flashtux.org>";
 my $LICENSE = "GPL3";
@@ -537,14 +541,17 @@ sub iset_full_refresh
 sub iset_set_current_line
 {
     my $new_current_line = $_[0];
-    my $old_current_line = $current_line;
-    $current_line = $new_current_line;
-    $current_line = $#options_names if ($current_line > $#options_names);
-    if ($old_current_line != $current_line)
+    if ($new_current_line >= 0)
     {
-        iset_refresh_line($old_current_line);
-        iset_refresh_line($current_line);
-        weechat::bar_item_update("isetbar_help") if (weechat::config_boolean($options_iset{"show_help_bar"}) == 1);
+        my $old_current_line = $current_line;
+        $current_line = $new_current_line;
+        $current_line = $#options_names if ($current_line > $#options_names);
+        if ($old_current_line != $current_line)
+        {
+            iset_refresh_line($old_current_line);
+            iset_refresh_line($current_line);
+            weechat::bar_item_update("isetbar_help") if (weechat::config_boolean($options_iset{"show_help_bar"}) == 1);
+        }
     }
 }
 
@@ -1100,24 +1107,18 @@ sub iset_hsignal_mouse_cb
     {
         if ($hash{"_key"} eq "button1")
         {
-            $current_line = $hash{"_chat_line_y"};
-            iset_refresh_line($current_line);
-            iset_refresh();
+            iset_set_current_line($hash{"_chat_line_y"});
         }
         elsif ($hash{"_key"} eq "button2")
         {
             if ($options_types[$hash{"_chat_line_y"}] eq "boolean")
             {
                 iset_set_option($options_names[$hash{"_chat_line_y"}], "toggle");
-                $current_line = $hash{"_chat_line_y"};
-                iset_refresh_line($current_line);
-                iset_refresh();
+                iset_set_current_line($hash{"_chat_line_y"});
             }
             elsif ($options_types[$hash{"_chat_line_y"}] eq "string")
             {
-                $current_line = $hash{"_chat_line_y"};
-                iset_refresh_line($current_line);
-                iset_refresh();
+                iset_set_current_line($hash{"_chat_line_y"});
                 weechat::command("", "/$PRGNAME **set");
             }
         }
@@ -1125,20 +1126,16 @@ sub iset_hsignal_mouse_cb
         {
             if ($options_types[$hash{"_chat_line_y"}] eq "integer" or ($options_types[$hash{"_chat_line_y"}] eq "color"))
             {
-                $current_line = $hash{"_chat_line_y"};
-                iset_refresh_line($current_line);
-                iset_refresh();
+                iset_set_current_line($hash{"_chat_line_y"});
                 my $distance = distance($hash{"_chat_line_x"},$hash{"_chat_line_x2"});
                 weechat::command("", "/repeat $distance /$PRGNAME **decr");
             }
         }
         elsif ($hash{"_key"} eq "button2-gesture-right" or $hash{"_key"} eq "button2-gesture-right-long")
         {
-            if ($options_types[$hash{"_chat_line_y"}] eq "integer"  or ($options_types[$hash{"_chat_line_y"}] eq "color"))
+            if ($options_types[$hash{"_chat_line_y"}] eq "integer" or ($options_types[$hash{"_chat_line_y"}] eq "color"))
             {
-                $current_line = $hash{"_chat_line_y"};
-                iset_refresh_line($current_line);
-                iset_refresh();
+                iset_set_current_line($hash{"_chat_line_y"});
                 my $distance = distance($hash{"_chat_line_x"},$hash{"_chat_line_x2"});
                 weechat::command("", "/repeat $distance /$PRGNAME **incr");
             }
