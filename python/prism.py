@@ -8,6 +8,8 @@
 # TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
 #
 # 0. You just DO WHAT THE FUCK YOU WANT TO.
+# 2013-07-19, Sebastien Helleu <flashcode@flashtux.org>
+#    v0.2.6: use buffer received in command callback instead of current buffer
 # 2013-05-04, Rylai
 #    v0.2.5: add -e switch for the option to destroy the eyes of all
 #            who have the misfortune of seeing your text
@@ -26,7 +28,7 @@ import re
 
 SCRIPT_NAME    = "prism"
 SCRIPT_AUTHOR  = "Alex Barrett <al.barrett@gmail.com>"
-SCRIPT_VERSION = "0.2.5"
+SCRIPT_VERSION = "0.2.6"
 SCRIPT_LICENSE = "WTFPL"
 SCRIPT_DESC    = "Taste the rainbow."
 
@@ -120,7 +122,7 @@ def prism_cmd_cb(data, buffer, args):
     if mepfx == 1:
         output = "/me " + output
     if input_method == "keybinding":
-        w.buffer_set(w.current_buffer(), "input", output.encode("UTF-8"))
+        w.buffer_set(buffer, "input", output.encode("UTF-8"))
     else:
-        w.command(w.current_buffer(), output.encode("UTF-8"))
+        w.command(buffer, output.encode("UTF-8"))
     return w.WEECHAT_RC_OK
