@@ -18,11 +18,13 @@
 #
 # 2011-04-14, nils_2:
 #     version 0.1: initial release
+# 2013-07-16, prurigro:
+#     version 0.2: fixed sorting duplicate channel names on different servers
 
 use strict;
 
 my $PRGNAME     = "sort_buffers";
-my $VERSION     = "0.1";
+my $VERSION     = "0.2";
 my $DESCR       = "irc-buffers will be sorted alphabetically or in reverse order";
 
 my %buffer_struct      = ();                                                           # to store servername and buffername
@@ -53,11 +55,8 @@ my $buffer_pnt = weechat::infolist_get("buffer","","");
       if ( $server_name eq "server") {
         next;
       }
-      if ( $args_all == 1){
-        $buffer_struct{"all_in_one"}{$buffer_name}{buffer_short_name}=$buffer_short_name;
-      }else{
-        $buffer_struct{$server_name}{$buffer_short_name}{buffer_number}=$buffer_number;
-      }
+      $buffer_struct{$server_name}{$buffer_name}{buffer_short_name}=$buffer_short_name;
+      $buffer_struct{$server_name}{$buffer_name}{$buffer_short_name}{buffer_number}=$buffer_number;
     }
   }
 
@@ -73,6 +72,12 @@ sub reverse_sort{
         }
       }
     }else{
+      foreach my $s ( reverse sort keys %buffer_struct ) {
+        foreach my $n ( sort { $buffer_struct{$s}{$b}->{buffer_short_name} cmp $buffer_struct{$s}{$a}->{buffer_short_name}} keys %{$buffer_struct{$s}} ) {
+          buffer_movement($n);
+        }
+      }
+
       foreach my $s ( reverse sort keys %buffer_struct ) {
         foreach my $n ( reverse sort keys %{$buffer_struct{$s}} ) {
           buffer_movement($n);
@@ -90,6 +95,12 @@ sub normal_sort{
         }
       }
     }else{
+      foreach my $s ( sort keys %buffer_struct ) {
+        foreach my $n ( sort { $buffer_struct{$s}{$a}->{buffer_short_name} cmp $buffer_struct{$s}{$b}->{buffer_short_name}} keys %{$buffer_struct{$s}} ) {
+          buffer_movement($n);
+        }
+      }
+
       foreach my $s ( sort keys %buffer_struct ) {
         foreach my $n ( sort keys %{$buffer_struct{$s}} ) {
           buffer_movement($n);
