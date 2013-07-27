@@ -10,6 +10,8 @@
 #
 # ### changelog ###
 #
+#  * version 0.8, 2013-07-27, Sebastien Helleu <flashcode@flashtux.org>:
+#      - don't remove empty lines in output of command
 #  * version 0.7, 2012-11-26, Sebastien Helleu <flashcode@flashtux.org>:
 #      - use hashtable for command arguments (for WeeChat >= 0.4.0)
 #  * version 0.6, 2012-11-21, Sebastien Helleu <flashcode@flashtux.org>:
@@ -33,7 +35,7 @@ import weechat, os, datetime
 
 SCRIPT_NAME    = 'shell'
 SCRIPT_AUTHOR  = 'Kolter'
-SCRIPT_VERSION = '0.7'
+SCRIPT_VERSION = '0.8'
 SCRIPT_LICENSE = 'GPL2'
 SCRIPT_DESC    = 'Run shell commands in WeeChat'
 
@@ -91,31 +93,29 @@ def shell_process_cb(data, command, rc, stdout, stderr):
     cmd_stderr += stderr
     if int(rc) >= 0:
         if cmd_stdout:
-            lines = cmd_stdout.split('\n')
+            lines = cmd_stdout.rstrip().split('\n')
             if cmd_send_to_buffer == 'current':
                 for line in lines:
-                    if line:
-                        weechat.command(cmd_buffer, '%s' % line)
+                    weechat.command(cmd_buffer, '%s' % line)
             else:
+                weechat.prnt(cmd_buffer, '')
                 if cmd_send_to_buffer != 'new':
                     weechat.prnt(cmd_buffer, '%sCommand "%s" (rc %d), stdout:'
                                  % (SHELL_PREFIX, data, int(rc)))
                 for line in lines:
-                    if line:
-                        weechat.prnt(cmd_buffer, ' \t%s' % line)
+                    weechat.prnt(cmd_buffer, ' \t%s' % line)
         if cmd_stderr:
-            lines = cmd_stderr.split('\n')
+            lines = cmd_stderr.rstrip().split('\n')
             if cmd_send_to_buffer == 'current':
                 for line in lines:
-                    if line:
-                        weechat.command(cmd_buffer, '%s' % line)
+                    weechat.command(cmd_buffer, '%s' % line)
             else:
+                weechat.prnt(cmd_buffer, '')
                 if cmd_send_to_buffer != 'new':
                     weechat.prnt(cmd_buffer, '%s%sCommand "%s" (rc %d), stderr:'
                                  % (weechat.prefix('error'), SHELL_PREFIX, data, int(rc)))
                 for line in lines:
-                    if line:
-                        weechat.prnt(cmd_buffer, '%s%s' % (weechat.prefix('error'), line))
+                    weechat.prnt(cmd_buffer, '%s%s' % (weechat.prefix('error'), line))
         cmd_hook_process = ''
         shell_set_title()
     return weechat.WEECHAT_RC_OK
