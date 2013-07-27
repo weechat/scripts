@@ -27,7 +27,7 @@ use CGI;
 my %SCRIPT = (
 	name => 'isgd',
 	author => 'stfn <stfnmd@gmail.com>',
-	version => '0.5',
+	version => '0.6',
 	license => 'GPL3',
 	desc => 'Shorten URLs with is.gd on demand or automatically',
 	opt => 'plugins.var.perl',
@@ -40,6 +40,7 @@ my %OPTIONS = ();
 my $SHORTENER_URL = "http://is.gd/create.php?format=simple&url=";
 my $SHORTENER_BASE = "http://is.gd/";
 my $TIMEOUT = 30 * 1000;
+my $CACHE_MAX_SIZE = 128;
 my (%LOOKUP, %CACHE);
 
 weechat::register($SCRIPT{"name"}, $SCRIPT{"author"}, $SCRIPT{"version"}, $SCRIPT{"license"}, $SCRIPT{"desc"}, "", "");
@@ -109,21 +110,32 @@ sub command_cb
 		# <partial expr>
 		my $match = "";
 		$match = $1 if ($count == 0 && $args =~ /^(\S+)$/);
-
-		my $infolist = weechat::infolist_get("buffer_lines", $buffer, "");
 		$count = 1 if ($count == 0);
-		while (weechat::infolist_prev($infolist) == 1) {
-			my $message = weechat::infolist_string($infolist, "message");
-			my $tags = weechat::infolist_string($infolist, "tags");
-			foreach (grep_urls($message)) {
-				my $url = $_;
-				if ($match eq "" || $url =~ /\Q$match\E/i) {
-					push(@URLs, $url) unless ($tags =~ /\bno_log\b/);
+
+		# Iterate through lines of buffer backwards
+		my $own_lines = weechat::hdata_pointer(weechat::hdata_get("buffer"), $buffer, "own_lines");
+		if ($own_lines) {
+			my $line = weechat::hdata_pointer(weechat::hdata_get("lines"), $own_lines, "last_line");
+			my $hdata_line = weechat::hdata_get("line");
+			my $hdata_line_data = weechat::hdata_get("line_data");
+			while ($line) {
+				my $data = weechat::hdata_pointer($hdata_line, $line, "data");
+				if ($data) {
+					my $message = weechat::hdata_string($hdata_line_data, $data, "message");
+					my $tags = weechat::hdata_string($hdata_line_data, $data, "tags");
+
+					foreach (grep_urls($message)) {
+						my $url = $_;
+						if ($match eq "" || $url =~ /\Q$match\E/i) {
+							push(@URLs, $url) unless ($tags =~ /\bno_log\b/);
+						}
+					}
+					last if (@URLs >= $count);
 				}
+				$line = weechat::hdata_move($hdata_line, $line, -1);
 			}
-			last if (@URLs >= $count);
 		}
-		weechat::infolist_free($infolist);
+
 	}
 
 	# Now process all found URLs
@@ -165,7 +177,7 @@ sub url_cb
 	my $url_short = $out;
 
 	if ($return_code == 0 && $url_short) {
-		$CACHE{$command} = $url_short;
+		cache_url($command, $url_short);
 		print_url($buffer, $url_short, $LOOKUP{$command});
 	}
 
@@ -179,7 +191,7 @@ sub url_send_cb
 	my $url_short = $out;
 
 	if ($return_code == 0 && $url_short) {
-		$CACHE{$command} = $url_short;
+		cache_url($command, $url_short);
 		weechat::command($buffer, $url_short);
 	}
 
@@ -202,6 +214,13 @@ sub print_url($$$)
 	my $domain = "";
 	$domain = $1 if ($cmd =~  m{^https?://([^/]+)}gi);
 	weechat::print_date_tags($buffer, 0, "no_log", weechat::color($OPTIONS{color}) . "$url_short ($domain)");
+}
+
+sub cache_url($$)
+{
+	my ($command, $url_short) = @_;
+	%CACHE = () if (keys(%CACHE) > $CACHE_MAX_SIZE);
+	$CACHE{$command} = $url_short;
 }
 
 #
