@@ -29,14 +29,13 @@
 # 0.3 <nils_2@freenode>:
 #       added sound-alarm when cursor position is -1 or higher than 'max_chars'
 #       improved option-handling
-#
 # 0.4 <nils_2@freenode>:
 #       fix display bug with more than one window
-#
 # 0.5 <nils_2@freenode>:
 #       add description for options
 #       add tweet and sms counter for bitlbee and gtalksms (suggested by ahuemer@freenode)
-#
+# 0.6 <nils_2@freenode>:
+#       add support for gtalksms "reply" (suggested by ahuemer@freenode)
 #
 # Note: As of version 0.2 this script requires a version of weechat
 #       from git 2010-01-25 or newer, or at least 0.3.2 stable.
@@ -69,7 +68,7 @@
 
 SCRIPT_NAME    = "typing_counter"
 SCRIPT_AUTHOR  = "fauno <fauno@kiwwwi.com.ar>"
-SCRIPT_VERSION = "0.5"
+SCRIPT_VERSION = "0.6"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Bar item showing typing count and cursor position. Add 'tc' to a bar."
 
@@ -155,12 +154,16 @@ def tc_bar_item (data, item, window):
             if get_sms_text:
 #            if get_sms_text.group(2):
                 sms_len = len(get_sms_text.group(3))
-                input_length = len(input_line)
-                sms_prefix = input_length - sms_len
-
+#                input_length = len(input_line)
+#                sms_prefix = input_length - sms_len
                 sms = 160-sms_len
-#                reverse_chars = str(160 + sms_prefix)
                 reverse_chars = sms
+            else:
+                get_sms_text = re.match(r'(r|reply):(.*)', input_line)
+                if get_sms_text:
+                    sms_len = len(get_sms_text.group(2))
+                    sms = 160-sms_len
+                    reverse_chars = sms
 
         # check for a tweet buffer
         elif name in tc_options['tweet_buffer'].split(","):
