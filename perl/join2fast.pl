@@ -25,7 +25,7 @@ use strict;
 use warnings;
 
 my $SCRIPT_NAME = "join2fast";
-my $VERSION = "0.8";
+my $VERSION = "0.8.1";
 my %timers;
 my %next_join;
 my %channel_list;
@@ -90,8 +90,7 @@ sub event_439_cb {
   # Update bar
   weechat::bar_item_update($SCRIPT_NAME);
 
-  return $string if lc($options{hide_event_msg}) eq 'off';
-  return "";
+  return lc($options{hide_event_msg}) eq 'off' ? $string : "";
 }
 
 sub clear_queue_on_disconnect {
@@ -161,11 +160,7 @@ sub bar_cb {
     $queue_size += scalar @{$channel_list{$server}};
   }
 
-  if ($queue_size > 0) {
-    return "Q: $queue_size N: " . get_next_join_time();
-  }
-
-  return "";
+  return $queue_size > 0 ? "Q: $queue_size N: " . get_next_join_time() : "";
 }
 
 sub get_next_join_time {
