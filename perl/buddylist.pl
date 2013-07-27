@@ -16,6 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 1.8   : fixed: problem with temporary server
+#       : added: %h variable for filename
 # 1.7   : fixed: perl error when adding and removing nick
 #       : fixed: perl error: Use of uninitialized value $bitlbee_service_separator (reported by gtmanfred)
 #       : improved: a warning will be displayed if no filename for the buddylist is given.
@@ -79,11 +81,11 @@
 use strict;
 
 my $prgname		= "buddylist";
-my $version		= "1.7";
+my $version		= "1.8";
 my $description		= "display status from your buddies a bar-item.";
 
 # -------------------------------[ config ]-------------------------------------
-my $default_buddylist	= "buddylist.txt";
+my $default_buddylist	= "%h/buddylist.txt";
 my %buddylist_level = (0 => "online", 1 => "away", 2 => "offline");
 my %default_color_buddylist = ("online" => "yellow",
 			       "away"    => "cyan",
@@ -167,8 +169,8 @@ buddylist_read();
 
 weechat::bar_item_new($prgname, "build_buddylist", "");
 weechat::bar_new($prgname, "1", "0", "root", "", "left", "horizontal",
-		"vertical", "0", "0", "default", "default", "default", "1",
-		$prgname);
+                 "vertical", "0", "0", "default", "default", "default", "1",
+                 $prgname);
 
 weechat::hook_signal("buffer_*", "buddylist_signal_buffer", "");
 
@@ -208,7 +210,7 @@ weechat::hook_command($prgname, $description,
                 "<list> show buddylist\n".
                 "\n".
                 "Options:\n".
-                "'plugins.var.perl.buddylist.buddylist'            : path/file-name to store your buddies.\n".
+                "'plugins.var.perl.buddylist.buddylist'            : path/file-name to store your buddies. \"%h\" will be replaced by WeeChat home (by default: ~/.weechat)\n".
                 "\n".
                 "'plugins.var.perl.buddylist.color.default         : fall back color. (default: standard weechat color)\n".
                 "'plugins.var.perl.buddylist.color.online'         : color for " . weechat::color($default_color_buddylist{online}) . "online " . weechat::color("reset") . "buddies.\n".
@@ -258,60 +260,69 @@ weechat::hook_command($prgname, $description,
                 "\n\n".
                 "name of buddy has to be written 'case sensitive' (it's recommended to use nick-completion or to drag'n'drop buddy with mouse).\n".
                 "\n\n".
-		"Examples:\n".
-		"  Add buddy (nils) to buddylist (server of current buffer will be used):\n".
-		"    /$prgname add nils\n".
-		"  Delete buddy (nils) from buddylist:\n".
-		"    /$prgname del nils (server of current buffer will be used)\n",
-		"add %(nick) %-||".
-                "del %(perl_buddylist) %-||".
-                "list %-", "settings", "");
+                "Examples:\n".
+                "  Add buddy (nils) to buddylist (server of current buffer will be used):\n".
+                "    /$prgname add nils\n".
+                "  Delete buddy (nils) from buddylist:\n".
+                "    /$prgname del nils (server of current buffer will be used)\n",
+                "add %(nick)|%*||".
+                "del %(perl_buddylist)|%*||".
+                "list %-", "settings_cb", "");
 server_check();
 return weechat::WEECHAT_RC_OK;
 
 
-sub buddylist_upgrade_ended{
-  server_check();
-  return weechat::WEECHAT_RC_OK;
+sub buddylist_upgrade_ended
+{
+    server_check();
+    return weechat::WEECHAT_RC_OK;
 }
+
 # weechat connected to a server (irc_server_connected)
-sub server_connected{
-	server_check();
-	weechat::bar_item_update($prgname);
-	return weechat::WEECHAT_RC_OK;
+sub server_connected
+{
+    server_check();
+    weechat::bar_item_update($prgname);
+    return weechat::WEECHAT_RC_OK;
 }
 
 # weechat disconnected from server (irc_server_disconnected)
-sub server_disconnected{
-my $server = $_[2];
-	set_nick_status_for_one_server("2",$server);						# all nicks off for server
-	server_check();
-	weechat::bar_item_update($prgname);
-	return weechat::WEECHAT_RC_OK;
+sub server_disconnected
+{
+    my $server = $_[2];
+    set_nick_status_for_one_server("2",$server);                                                # all nicks off for server
+    server_check();
+    weechat::bar_item_update($prgname);
+    return weechat::WEECHAT_RC_OK;
 }
 
 
-sub set_nick_status_for_one_server{
-my ($status, $server) = @_;
+sub set_nick_status_for_one_server
+{
+    my ($status, $server) = @_;
 
-	foreach my $nickname (%{$nick_structure{$server}} ) {
-	  if (exists $nick_structure{$server}{$nickname}){					# set buddy to offline
-	    $nick_structure{$server}{$nickname}{status} = $status;
-	    if ($status eq "2"){
-	      $nick_structure{$server}{$nickname}{buffer} = "";
-	      $nick_structure{$server}{$nickname}{buf_name} = "";
-	    }elsif($status eq "0"){								# set buddy online
-	      $nick_structure{$server}{$nickname}{buffer} = "()";
-	    }
-	  }
-	}
+    foreach my $nickname (%{$nick_structure{$server}} )
+    {
+        if (exists $nick_structure{$server}{$nickname})                                         # set buddy to offline
+        {
+            $nick_structure{$server}{$nickname}{status} = $status;
+            if ($status eq "2")
+            {
+                $nick_structure{$server}{$nickname}{buffer} = "";
+                $nick_structure{$server}{$nickname}{buf_name} = "";
+            }elsif($status eq "0")                                                              # set buddy online
+            {
+                $nick_structure{$server}{$nickname}{buffer} = "()";
+            }
+        }
+    }
 }
 
-sub buffer_closing{
-my ($signal, $callback, $callback_data) = @_;
-
-weechat::bar_item_update($prgname);
-return weechat::WEECHAT_RC_OK;
+sub buffer_closing
+{
+    my ($signal, $callback, $callback_data) = @_;
+    weechat::bar_item_update($prgname);
+    return weechat::WEECHAT_RC_OK;
 }
 #    my $infolist_buf_closing = weechat::infolist_get("buffer",$callback_data,"");		# get pointer from closing buffer
 #       weechat::infolist_next($infolist_buf_closing);
@@ -356,13 +367,13 @@ return weechat::WEECHAT_RC_OK;
 #return weechat::WEECHAT_RC_OK;
 
 
-sub buffer_moved{
-my ($signal, $callback, $callback_data) = @_;
-weechat::print("","signal: " . $signal);
-weechat::print("","callback: " . $callback);
-weechat::print("","callback_data: " . $callback_data);
-
-return weechat::WEECHAT_RC_OK;
+sub buffer_moved
+{
+    my ($signal, $callback, $callback_data) = @_;
+    weechat::print("","signal: " . $signal);
+    weechat::print("","callback: " . $callback);
+    weechat::print("","callback_data: " . $callback_data);
+    return weechat::WEECHAT_RC_OK;
 }
 
 # build buddylist in bar
@@ -668,83 +679,85 @@ sub add_to_nicktable{
 }
 
 # user commands
-sub settings{
-        my ($getargs) = ($_[2]);
-        my $servername = current_buffer_test();
+sub settings_cb{
+    my ($data, $ptr_buffer, $getargs) = ($_[0], $_[1], $_[2]);
 
-        if ($getargs eq ""){
-                weechat::command("", "/help $prgname");                                         # no arguments given. Print help
-                return weechat::WEECHAT_RC_OK;
+    if ($getargs eq "")
+    {
+        weechat::command("", "/help $prgname");                                 # no arguments given. print help
+        return weechat::WEECHAT_RC_OK;
+    }
+
+    my $localvar_name = weechat::buffer_get_string($ptr_buffer, "localvar_name");
+    my $localvar_servername = weechat::buffer_get_string($ptr_buffer, "localvar_server");
+    my $localvar_channelname = weechat::buffer_get_string($ptr_buffer, "localvar_channel");
+    my $localvar_type = weechat::buffer_get_string($ptr_buffer, "localvar_type");
+#    my $localvar_plugin = weechat::buffer_get_string($ptr_buffer, "localvar_plugin");
+
+    my ( $cmd, $args ) = ( $getargs =~ /(.*?)\s+(.*)/ );                        # get parameters and cut cmd from nicks
+    $cmd = $getargs unless $cmd;
+
+    if ($cmd eq "list")                                                        # print buddylist (with status) in core buffer
+    {
+        weechat::print("",weechat::color("white")."Buddylist:\n" . weechat::color("green"). "Servername" . weechat::color("reset") . "." . weechat::color("lightgreen") . "Nickname" . weechat::color("lightred") . " (status)" . weechat::color("reset") . " ==> Channelname:");
+        foreach my $s ( sort keys %nick_structure )                             # sort server (a-z)
+        {
+            foreach my $n ( sort keys %{$nick_structure{$s}} )                  # sort nicks (a-z)
+            {
+                my $show_buffer = "";
+                my $show_bitlbee_service = "";
+                $show_buffer = "  ==> " . $nick_structure{$s}{$n}{buf_name} if (defined $nick_structure{$s}{$n}{buf_name} and $nick_structure{$s}{$n}{buf_name} ne "");
+                $show_bitlbee_service = " (" . $nick_structure{$s}{$n}{bitlbee_service} .")" if (defined $nick_structure{$s}{$n}{bitlbee_service} and $nick_structure{$s}{$n}{bitlbee_service} ne "");
+                weechat::print( ""," "
+                . weechat::color("green")
+                . $s . weechat::color("reset")
+                . "."
+                . weechat::color("lightgreen")
+                . $n
+                . weechat::color("reset")
+                . $show_bitlbee_service
+                # status
+                . weechat::color("lightred")
+                . " (" . weechat::color($default_color_buddylist{$buddylist_level{$nick_structure{$s}{$n}{status}}})
+                . $buddylist_level{$nick_structure{$s}{$n}{status}}
+                . weechat::color("lightred") . ")"
+                . weechat::color("reset")
+                . $show_buffer);
+            }
         }
+        return weechat::WEECHAT_RC_OK;
+    }
 
-        my ( $cmd, $args ) = ( $getargs =~ /(.*?)\s+(.*)/ );			# get parameters and cut cmd from nicks
-        $cmd = $getargs unless $cmd;
-
-        if ($cmd eq "list"){							# print buddylist (with status) in core buffer
-          weechat::print("",weechat::color("white")."Buddylist:\n" . weechat::color("green"). "Servername" . weechat::color("reset") . "." . weechat::color("lightgreen") . "Nickname" . weechat::color("lightred") . " (status)" . weechat::color("reset") . " ==> Channelname:");
-          foreach my $s ( sort keys %nick_structure ) {				# sort server (a-z)
-                foreach my $n ( sort keys %{$nick_structure{$s}} ) {		# sort nicks (a-z)
-                  my $show_buffer = "";
-                  my $show_bitlbee_service = "";
-                  $show_buffer = "  ==> " . $nick_structure{$s}{$n}{buf_name} if (defined $nick_structure{$s}{$n}{buf_name} and $nick_structure{$s}{$n}{buf_name} ne "");
-                  $show_bitlbee_service = " (" . $nick_structure{$s}{$n}{bitlbee_service} .")" if (defined $nick_structure{$s}{$n}{bitlbee_service} and $nick_structure{$s}{$n}{bitlbee_service} ne "");
-                  weechat::print( ""," "
-                  . weechat::color("green")
-                  . $s . weechat::color("reset")
-                  . "."
-                  . weechat::color("lightgreen")
-                  . $n
-                  . weechat::color("reset")
-                  . $show_bitlbee_service
-                  # status
-                  . weechat::color("lightred")
-                  . " (" . weechat::color($default_color_buddylist{$buddylist_level{$nick_structure{$s}{$n}{status}}})
-                  . $buddylist_level{$nick_structure{$s}{$n}{status}}
-                  . weechat::color("lightred") . ")"
-                  . weechat::color("reset")
-                  . $show_buffer);
-                }
-          }
-          return weechat::WEECHAT_RC_OK;
-        }
-
-        if ($servername eq "0") {
-                weechat::print("",weechat::prefix("error")."$prgname: You can't add nor del buddies in core buffer.");
-                return weechat::WEECHAT_RC_OK;
-        }
-
-        if (defined $args and current_buffer_test() ne "0") {                                   # buddy choosen?
-                foreach ( split( / +/, $args ) ) {                                              # more than one nick?
-                        if ($cmd eq "add"){
-                                $nick_structure{$servername}{$_}{status} = 2;
-                                $nick_structure{$servername}{$_}{bitlbee_service} = "";
-                                buddylist_save();
-                        }
-                        if ($cmd eq "del" and exists $nick_structure{$servername}{$_}){
-                                delete $nick_structure{$servername}{$_};
+    if ( $localvar_type ne "channel" and $localvar_type ne "private" and $localvar_type ne "server" )
+    {
+        weechat::print("",weechat::prefix("error")."$prgname: You can add/del buddies only in channel/server/private buffers.");
+        return weechat::WEECHAT_RC_OK;
+    }
+    if (defined $args)
+    {
+        foreach ( split( / +/, $args ) )                                              # more than one nick?
+        {
+            if ($cmd eq "add")
+            {
+                $nick_structure{$localvar_servername}{$_}{status} = 2;
+                $nick_structure{$localvar_servername}{$_}{bitlbee_service} = "";
+                buddylist_save();
+            }
+            if ($cmd eq "del" and exists $nick_structure{$localvar_servername}{$_})
+            {
+                delete $nick_structure{$localvar_servername}{$_};
 # delete servername from structure, if last nick from server was deleted
-                                delete $nick_structure{$servername} if (keys (%{$nick_structure{$servername}}) == 0);
-                                buddylist_save();
-                        }
-                }
-        }else{
-		weechat::command("", "/help $prgname");						# no arguments given. Print help
-	}
-	weechat::bar_item_update($prgname);
-	return weechat::WEECHAT_RC_OK;
-}
-
-# check for buffer. add/del function can not be used in core buffer
-sub current_buffer_test{
-  my $buffer_name = weechat::buffer_get_string(weechat::current_buffer(),"name");		# get current buffer name
-  if ($buffer_name =~ /\./){									# format?
-      my ($servername, $channelname) = split (/\./,$buffer_name);				# split
-      if ($servername eq "server"){								# user in server buffer?
-	return $channelname;									# yes
-	}
-      return $servername;									# user in channel buffer!
-      }
-return 0;											# in core buffer!!!
+                delete $nick_structure{$localvar_servername} if (keys (%{$nick_structure{$localvar_servername}}) == 0);
+                buddylist_save();
+            }
+        }
+    }
+    else
+    {
+        weechat::command("", "/help $prgname");                                         # no arguments given. Print help
+    }
+    weechat::bar_item_update($prgname);
+    return weechat::WEECHAT_RC_OK;
 }
 
 # check server status for option hide_bar (to hide or show bar)
@@ -785,30 +798,44 @@ return weechat::WEECHAT_RC_OK;
 }
 
 ### read the buddylist
-sub buddylist_read {
-	my $buddylist = weechat::config_get_plugin("buddylist");
-	if ($buddylist eq "")
-	{
-            weechat::print("","Please set a valid filename : /set plugins.var.perl.buddylist.buddylist");
+sub buddylist_read
+{
+    my $buddylist = weechat_dir();
+    if ($buddylist eq "")
+    {
+        weechat::print("","Please set a valid filename : /set plugins.var.perl.".$prgname.".buddylist");
+        return;
+    }
+    return unless -e $buddylist;
+    open (WL, "<", $buddylist) || DEBUG("$buddylist: $!");
+    while (<WL>)
+    {
+        chomp;                                                              # kill LF
+        # search for last "." or "," in buddylist.txt
+        # server.nick or irc.temporary.server.nick
+        my $cut_here = rindex($_,".");
+        $cut_here = rindex($_,",") if ($cut_here == -1);
+        if ($cut_here == -1)
+        {
+            close WL;
+            weechat::print("",weechat::prefix("error")."$prgname: $buddylist is not valid or uses old format (new format: servername.nickname).");
             return;
         }
-	return unless -e $buddylist;
-	open (WL, "<", $buddylist) || DEBUG("$buddylist: $!");
-	while (<WL>) {
-		chomp;								# kill LF
-			my ( $servername, $nickname ) = split /,|\./;		# servername,nickname (seperator could be "," or ".")
-			if (not defined $nickname){
-				close WL;
-				weechat::print("",weechat::prefix("error")."$prgname: $buddylist is not valid or uses old format (new format: servername.nickname).");
-				return;
-			}
-		$nick_structure{$servername}{$nickname}{status} = 2  if length $_;	# status offline
-                $nick_structure{$servername}{$nickname}{bitlbee_service} = "";
-	}
-	close WL;
+        my $servername = substr( $_, 0, $cut_here);
+        my $nickname = substr( $_,$cut_here + 1);
+        if (not defined $nickname)
+        {
+            close WL;
+            weechat::print("",weechat::prefix("error")."$prgname: $buddylist is not valid or uses old format (new format: servername.nickname).");
+            return;
+        }
+        $nick_structure{$servername}{$nickname}{status} = 2  if length $_;	# status offline
+        $nick_structure{$servername}{$nickname}{bitlbee_service} = "";
+    }
+    close WL;
 }
 sub buddylist_save {
-	my $buddylist = weechat::config_get_plugin( "buddylist" );
+	my $buddylist = weechat_dir();
         if ($buddylist eq "")
         {
             weechat::print("","Please set a valid filename : /set plugins.var.perl.buddylist.buddylist");
@@ -914,183 +941,213 @@ sub buddylist_signal_buffer
     return weechat::WEECHAT_RC_OK;
 }
 
+sub weechat_dir
+{
+    my $dir = weechat::config_get_plugin("buddylist");
+    if ( $dir =~ /%h/ )
+    {
+        my $weechat_dir = weechat::info_get( 'weechat_dir', '');
+        $dir =~ s/%h/$weechat_dir/;
+    }
+    return $dir;
+}
+
 # init the settings
 sub init{
-  $weechat_version = weechat::info_get("version_number", "");
-  $default_version = 0;
-  if (($weechat_version ne "") && ($weechat_version >= 0x00030400)){	# v0.3.4
-    $default_version = 1;						# used!!
-  }
+    $weechat_version = weechat::info_get("version_number", "");
+    $default_version = 0;
+    if (($weechat_version ne "") && ($weechat_version >= 0x00030400))   # v0.3.4
+    {
+        $default_version = 1;
+    }
 
-# load buddylist file
-	if ( weechat::config_get_plugin("buddylist") eq "" ) {
-		my $wd = weechat::info_get( "weechat_dir", "" );
-		$wd =~ s/\/$//;
-		weechat::config_set_plugin("buddylist", $wd . "/" . $default_buddylist );
-	}
+    # a filename is defined in option?
+    weechat::config_set_plugin("buddylist", $default_buddylist ) if ( weechat::config_get_plugin("buddylist") eq "" );
 
-	if (!weechat::config_is_set_plugin("color.default")){
-	  weechat::config_set_plugin("color.default", $default_options{color_default});
-	}else{
-	  $default_options{color_default} = weechat::config_get_plugin("color.default");
-	}
-	if (!weechat::config_is_set_plugin("color.server")){
-	  weechat::config_set_plugin("color.server", $default_options{color_server_online});
-	}else{
-	  $default_options{color_server_online} = weechat::config_get_plugin("color.server");
-	}
-	if (!weechat::config_is_set_plugin("color.server.offline")){
-	  weechat::config_set_plugin("color.server.offline", $default_options{color_server_offline});
-	}else{
-	  $default_options{color_server_offline} = weechat::config_get_plugin("color.server.offline");
-	}
-	if (!weechat::config_is_set_plugin("buddy.on.server.color")){
-	  weechat::config_set_plugin("buddy.on.server.color", $default_options{buddy_on_server_color});
-	}else{
-	  $default_options{buddy_on_server_color} = weechat::config_get_plugin("buddy.on.server.color");
-	}
-	if (!weechat::config_is_set_plugin("color.number")){
-	  weechat::config_set_plugin("color.number", $default_options{color_number});
-	}else{
-	  $default_options{color_number} = weechat::config_get_plugin("color.number");
-	}
-	if (!weechat::config_is_set_plugin("show.query")){
-	  weechat::config_set_plugin("show.query", $default_options{show_query});
-	}else{
-	  $default_options{show_query} = weechat::config_get_plugin("show.query");
-	}
-	if (!weechat::config_is_set_plugin("hide.bar")){
-	  weechat::config_set_plugin("hide.bar", $default_options{hide_bar});
-	}else{
-	  $default_options{hide_bar} = weechat::config_get_plugin("hide.bar");
-	}
-	if (!weechat::config_is_set_plugin("sort")){
-	  weechat::config_set_plugin("sort", $default_options{sort});
-	}else{
-	  $default_options{sort} = weechat::config_get_plugin("sort");
-	}
-	if (!weechat::config_is_set_plugin("hide.server.if.buddies.offline")){
-	  weechat::config_set_plugin("hide.server.if.buddies.offline", $default_options{hide_server});
-	}else{
-	  $default_options{hide_server} = weechat::config_get_plugin("hide.server.if.buddies.offline");
-	}
-	if (!weechat::config_is_set_plugin("hide.buddy.if.offline")){
-	  weechat::config_set_plugin("hide.buddy.if.offline", $default_options{hide_buddy});
-	}else{
-	  $default_options{hide_buddy} = weechat::config_get_plugin("hide.buddy.if.offline");
-	}
-	if (!weechat::config_is_set_plugin("buddy.on.server")){
-	  weechat::config_set_plugin("buddy.on.server", $default_options{buddy_on_server});
-	}else{
-	  $default_options{buddy_on_server} = weechat::config_get_plugin("buddy.on.server");
-	}
-	if (!weechat::config_is_set_plugin("check.buddies")){
-	  weechat::config_set_plugin("check.buddies", $default_options{check_buddies});
-	}else{
-	  $default_options{check_buddies} = weechat::config_get_plugin("check.buddies");
-	}
-	if (!weechat::config_is_set_plugin("callback.timeout")){
-	  weechat::config_set_plugin("callback.timeout", $default_options{callback_timeout});
-	}else{
-	  $default_options{callback_timeout} = weechat::config_get_plugin("callback.timeout");
-	}
-	if (!weechat::config_is_set_plugin("use.redirection")){
-	  weechat::config_set_plugin("use.redirection", $default_options{use_redirection});
-	}else{
-	  $default_options{use_redirection} = weechat::config_get_plugin("use.redirection");
-	}
-	if (!weechat::config_is_set_plugin("display.original.nick")){
-	  weechat::config_set_plugin("display.original.nick", $default_options{display_original_nick});
-	}else{
-	  $default_options{display_original_nick} = weechat::config_get_plugin("display.original.nick");
-	}
-        if (!weechat::config_is_set_plugin("display.social.net")){
-          weechat::config_set_plugin("display.social.net", $default_options{display_social_net});
-        }else{
-          $default_options{display_social_net} = weechat::config_get_plugin("display.social.net");
-        }
-        if (!weechat::config_is_set_plugin("display.social.net.color")){
-          weechat::config_set_plugin("display.social.net.color", $default_options{display_social_net_color});
-        }else{
-          $default_options{display_social_net_color} = weechat::config_get_plugin("display.social.net.color");
-        }
-        if (!weechat::config_is_set_plugin("text.online")){
-          weechat::config_set_plugin("text.online", $default_options{text_online});
-        }else{
-          $default_options{text_online} = weechat::config_get_plugin("text.online");
-        }
-        if (!weechat::config_is_set_plugin("text.away")){
-          weechat::config_set_plugin("text.away", $default_options{text_away});
-        }else{
-          $default_options{text_away} = weechat::config_get_plugin("text.away");
-        }
-        if (!weechat::config_is_set_plugin("text.offline")){
-          weechat::config_set_plugin("text.offline", $default_options{text_offline});
-        }else{
-          $default_options{text_offline} = weechat::config_get_plugin("text.offline");
-        }
-        if (!weechat::config_is_set_plugin("text.color")){
-          weechat::config_set_plugin("text.color", $default_options{text_color});
-        }else{
-          $default_options{text_color} = weechat::config_get_plugin("text.color");
-        }
-        if (!weechat::config_is_set_plugin("hide.servername.in.buddylist")){
-          weechat::config_set_plugin("hide.servername.in.buddylist", $default_options{hide_servername_in_buddylist});
-        }else{
-          $default_options{hide_servername_in_buddylist} = weechat::config_get_plugin("hide.servername.in.buddylist");
-        }
+    if (!weechat::config_is_set_plugin("color.default"))
+    {
+        weechat::config_set_plugin("color.default", $default_options{color_default});
+    }else
+    {
+        $default_options{color_default} = weechat::config_get_plugin("color.default");
+    }
+    if (!weechat::config_is_set_plugin("color.server"))
+    {
+        weechat::config_set_plugin("color.server", $default_options{color_server_online});
+    }else
+    {
+        $default_options{color_server_online} = weechat::config_get_plugin("color.server");
+    }
+    if (!weechat::config_is_set_plugin("color.server.offline"))
+    {
+        weechat::config_set_plugin("color.server.offline", $default_options{color_server_offline});
+    }else
+    {
+        $default_options{color_server_offline} = weechat::config_get_plugin("color.server.offline");
+    }
+    if (!weechat::config_is_set_plugin("buddy.on.server.color"))
+    {
+        weechat::config_set_plugin("buddy.on.server.color", $default_options{buddy_on_server_color});
+    }else
+    {
+        $default_options{buddy_on_server_color} = weechat::config_get_plugin("buddy.on.server.color");
+    }
+    if (!weechat::config_is_set_plugin("color.number"))
+    {
+        weechat::config_set_plugin("color.number", $default_options{color_number});
+    }else
+    {
+        $default_options{color_number} = weechat::config_get_plugin("color.number");
+    }
+    if (!weechat::config_is_set_plugin("show.query"))
+    {
+        weechat::config_set_plugin("show.query", $default_options{show_query});
+    }else
+    {
+        $default_options{show_query} = weechat::config_get_plugin("show.query");
+    }
+    if (!weechat::config_is_set_plugin("hide.bar"))
+    {
+        weechat::config_set_plugin("hide.bar", $default_options{hide_bar});
+    }else
+    {
+        $default_options{hide_bar} = weechat::config_get_plugin("hide.bar");
+    }
+    if (!weechat::config_is_set_plugin("sort"))
+    {
+        weechat::config_set_plugin("sort", $default_options{sort});
+    }else
+    {
+        $default_options{sort} = weechat::config_get_plugin("sort");
+    }
+    if (!weechat::config_is_set_plugin("hide.server.if.buddies.offline"))
+    {
+        weechat::config_set_plugin("hide.server.if.buddies.offline", $default_options{hide_server});
+    }else
+    {
+        $default_options{hide_server} = weechat::config_get_plugin("hide.server.if.buddies.offline");
+    }
+    if (!weechat::config_is_set_plugin("hide.buddy.if.offline"))
+    {
+        weechat::config_set_plugin("hide.buddy.if.offline", $default_options{hide_buddy});
+    }else
+    {
+        $default_options{hide_buddy} = weechat::config_get_plugin("hide.buddy.if.offline");
+    }
+    if (!weechat::config_is_set_plugin("buddy.on.server")){
+        weechat::config_set_plugin("buddy.on.server", $default_options{buddy_on_server});
+    }else{
+        $default_options{buddy_on_server} = weechat::config_get_plugin("buddy.on.server");
+    }
+    if (!weechat::config_is_set_plugin("check.buddies")){
+        weechat::config_set_plugin("check.buddies", $default_options{check_buddies});
+    }else{
+        $default_options{check_buddies} = weechat::config_get_plugin("check.buddies");
+    }
+    if (!weechat::config_is_set_plugin("callback.timeout")){
+        weechat::config_set_plugin("callback.timeout", $default_options{callback_timeout});
+    }else{
+        $default_options{callback_timeout} = weechat::config_get_plugin("callback.timeout");
+    }
+    if (!weechat::config_is_set_plugin("use.redirection")){
+        weechat::config_set_plugin("use.redirection", $default_options{use_redirection});
+    }else{
+        $default_options{use_redirection} = weechat::config_get_plugin("use.redirection");
+    }
+    if (!weechat::config_is_set_plugin("display.original.nick")){
+        weechat::config_set_plugin("display.original.nick", $default_options{display_original_nick});
+    }else{
+        $default_options{display_original_nick} = weechat::config_get_plugin("display.original.nick");
+    }
+    if (!weechat::config_is_set_plugin("display.social.net")){
+        weechat::config_set_plugin("display.social.net", $default_options{display_social_net});
+    }else{
+        $default_options{display_social_net} = weechat::config_get_plugin("display.social.net");
+    }
+    if (!weechat::config_is_set_plugin("display.social.net.color")){
+        weechat::config_set_plugin("display.social.net.color", $default_options{display_social_net_color});
+    }else{
+        $default_options{display_social_net_color} = weechat::config_get_plugin("display.social.net.color");
+    }
+    if (!weechat::config_is_set_plugin("text.online")){
+        weechat::config_set_plugin("text.online", $default_options{text_online});
+    }else{
+        $default_options{text_online} = weechat::config_get_plugin("text.online");
+    }
+    if (!weechat::config_is_set_plugin("text.away")){
+        weechat::config_set_plugin("text.away", $default_options{text_away});
+    }else{
+        $default_options{text_away} = weechat::config_get_plugin("text.away");
+    }
+    if (!weechat::config_is_set_plugin("text.offline")){
+        weechat::config_set_plugin("text.offline", $default_options{text_offline});
+    }else{
+        $default_options{text_offline} = weechat::config_get_plugin("text.offline");
+    }
+    if (!weechat::config_is_set_plugin("text.color")){
+        weechat::config_set_plugin("text.color", $default_options{text_color});
+    }else{
+        $default_options{text_color} = weechat::config_get_plugin("text.color");
+    }
+    if (!weechat::config_is_set_plugin("hide.servername.in.buddylist")){
+        weechat::config_set_plugin("hide.servername.in.buddylist", $default_options{hide_servername_in_buddylist});
+    }else{
+        $default_options{hide_servername_in_buddylist} = weechat::config_get_plugin("hide.servername.in.buddylist");
+    }
 
-  if ( ($weechat_version ne "") && (weechat::info_get("version_number", "") >= 0x00030500) ) {    # v0.3.5
-    weechat::config_set_desc_plugin("buddylist","path/file-name to store your buddies");
-    weechat::config_set_desc_plugin("color.default","fall back color. (default: standard weechat color)");
-    weechat::config_set_desc_plugin("color.online","color for online buddies");
-    weechat::config_set_desc_plugin("color.away","color for away buddies");
-    weechat::config_set_desc_plugin("color.offline","color for offline buddies");
-    weechat::config_set_desc_plugin("color.server","color for servername");
-    weechat::config_set_desc_plugin("color.server.offline","color for disconnected server (default: hide)");
-    weechat::config_set_desc_plugin("color.number","color for channel number (default: lightred). If empty, channel list option is off");
+    if ( ($weechat_version ne "") && (weechat::info_get("version_number", "") >= 0x00030500) )  # v0.3.5
+    {
+        weechat::config_set_desc_plugin("buddylist","path/file-name to store your buddies. \"%h\" will be replaced by WeeChat home (by default: ~/.weechat)");
+        weechat::config_set_desc_plugin("color.default","fall back color. (default: standard weechat color)");
+        weechat::config_set_desc_plugin("color.online","color for online buddies");
+        weechat::config_set_desc_plugin("color.away","color for away buddies");
+        weechat::config_set_desc_plugin("color.offline","color for offline buddies");
+        weechat::config_set_desc_plugin("color.server","color for servername");
+        weechat::config_set_desc_plugin("color.server.offline","color for disconnected server (default: hide)");
+        weechat::config_set_desc_plugin("color.number","color for channel number (default: lightred). If empty, channel list option is off");
 
-    weechat::config_set_desc_plugin("show.query","displays a query buffer in front of the channel list");
+        weechat::config_set_desc_plugin("show.query","displays a query buffer in front of the channel list");
 
-    weechat::config_set_desc_plugin("hide.server.if.buddies.offline","hides server when all buddies are offline for this server (default: off)");
-    weechat::config_set_desc_plugin("hide.buddy.if.offline","hide buddy if offline (default: off)");
+        weechat::config_set_desc_plugin("hide.server.if.buddies.offline","hides server when all buddies are offline for this server (default: off)");
+        weechat::config_set_desc_plugin("hide.buddy.if.offline","hide buddy if offline (default: off)");
 
-    weechat::config_set_desc_plugin("buddy.on.server","show buddy who is connected to a server, but not visiting the same channel(s) (default: on)");
-    weechat::config_set_desc_plugin("buddy.on.server.color","color for online buddy but not visiting the same channel(s) (default: lightgreen)");
+        weechat::config_set_desc_plugin("buddy.on.server","show buddy who is connected to a server, but not visiting the same channel(s) (default: on)");
+        weechat::config_set_desc_plugin("buddy.on.server.color","color for online buddy but not visiting the same channel(s) (default: lightgreen)");
 
-    weechat::config_set_desc_plugin("hide.bar","hides buddylist bar when all servers with added buddies are offline (on = default, always = buddylist bar will be hidden (for example if you want to add item 'buddylist' to 'weechat.bar.status.items', off = buddylist bar will not be hidden))");
-    weechat::config_set_desc_plugin("check.buddies","time in seconds to send a /whois request to server. Be careful not to flood server (default: 20)");
-    weechat::config_set_desc_plugin("callback.timeout","time in seconds to wait for answer from server. (default: 60)");
-    weechat::config_set_desc_plugin("display.original.nick","display original nickname even if buddy changed his /nick (you have to add new nick to buddylist (default: off)");
+        weechat::config_set_desc_plugin("hide.bar","hides buddylist bar when all servers with added buddies are offline (on = default, always = buddylist bar will be hidden (for example if you want to add item 'buddylist' to 'weechat.bar.status.items', off = buddylist bar will not be hidden))");
+        weechat::config_set_desc_plugin("check.buddies","time in seconds to send a /whois request to server. Be careful not to flood server (default: 20)");
+        weechat::config_set_desc_plugin("callback.timeout","time in seconds to wait for answer from server. (default: 60)");
+        weechat::config_set_desc_plugin("display.original.nick","display original nickname even if buddy changed his /nick (you have to add new nick to buddylist (default: off)");
 
-    weechat::config_set_desc_plugin("sort","sort method for buddylist (default = buddylist will be sort by nickname, status = buddylist will be sort by status (online, away, offline))");
+        weechat::config_set_desc_plugin("sort","sort method for buddylist (default = buddylist will be sort by nickname, status = buddylist will be sort by status (online, away, offline))");
 
-    weechat::config_set_desc_plugin("display.social.net","using bitlbee, buddies will be sorted in sublists with social-network name (eg. msn/jabber/facebook)(default: on)");
-    weechat::config_set_desc_plugin("display.social.net.color","color for social-network name (default: yellow)");
+        weechat::config_set_desc_plugin("display.social.net","using bitlbee, buddies will be sorted in sublists with social-network name (eg. msn/jabber/facebook)(default: on)");
+        weechat::config_set_desc_plugin("display.social.net.color","color for social-network name (default: yellow)");
 
-    weechat::config_set_desc_plugin("text.color","color for optional online/away/offline-text in buddylist (default: white)");
-    weechat::config_set_desc_plugin("text.online","optional online text in buddylist (sort method has to be 'status')");
-    weechat::config_set_desc_plugin("text.away","optional away text in buddylist (sort method has to be 'status')");
-    weechat::config_set_desc_plugin("text.offline","optional offline text in buddylist (sort method has to be 'status')");
+        weechat::config_set_desc_plugin("text.color","color for optional online/away/offline-text in buddylist (default: white)");
+        weechat::config_set_desc_plugin("text.online","optional online text in buddylist (sort method has to be 'status')");
+        weechat::config_set_desc_plugin("text.away","optional away text in buddylist (sort method has to be 'status')");
+        weechat::config_set_desc_plugin("text.offline","optional offline text in buddylist (sort method has to be 'status')");
 
-    weechat::config_set_desc_plugin("use.redirection","using redirection to get status of buddies (needs weechat >=0.3.4) (default: on)");
-    weechat::config_set_desc_plugin("hide.servername.in.buddylist","hide the servername in buddylist. If \"on\" only nicks will be displayed in buddylist (default: off)");
-  }
+        weechat::config_set_desc_plugin("use.redirection","using redirection to get status of buddies (needs weechat >=0.3.4) (default: on)");
+        weechat::config_set_desc_plugin("hide.servername.in.buddylist","hide the servername in buddylist. If \"on\" only nicks will be displayed in buddylist (default: off)");
+    }
 
 # only for debugging
-	if (weechat::config_is_set_plugin("debug.redir.out")){
-	  $debug_redir_out = weechat::config_get_plugin("debug.redir.out");
-	}
-
+    $debug_redir_out = weechat::config_get_plugin("debug.redir.out") if (weechat::config_is_set_plugin("debug.redir.out"));
 # get color settings.
-	foreach my $level (values %buddylist_level){
-		if (weechat::config_get_plugin("color.".$level) eq ""){
-			weechat::config_set_plugin("color.".$level,
-					$default_color_buddylist{$level});
-		}else{
-		    $default_color_buddylist{$level} = weechat::config_get_plugin("color.".$level);
-		}
-	}
+    foreach my $level (values %buddylist_level)
+    {
+        if (weechat::config_get_plugin("color.".$level) eq "")
+        {
+            weechat::config_set_plugin("color.".$level,
+                                       $default_color_buddylist{$level});
+        }
+        else
+        {
+            $default_color_buddylist{$level} = weechat::config_get_plugin("color.".$level);
+        }
+    }
 }
 
 # hide bar when buddylist was closed
@@ -1124,26 +1181,27 @@ sub hook_timer_and_redirect{
 	return 1;
 }
 
-sub unhook_timer{
-	if (defined $Hooks{timer}){
-	  weechat::unhook($Hooks{timer});
-	  delete $Hooks{timer};
-	}
-	if (defined $Hooks{redirect}){
-	  weechat::unhook($Hooks{redirect});
-	  delete $Hooks{redirect};
-	}
+sub unhook_timer
+{
+    if (defined $Hooks{timer})
+    {
+        weechat::unhook($Hooks{timer});
+        delete $Hooks{timer};
+    }
+    if (defined $Hooks{redirect})
+    {
+        weechat::unhook($Hooks{redirect});
+        delete $Hooks{redirect};
+    }
 }
 
-
-sub call_whois_one{
-my ( $server, $nickname ) = @_;
-
+sub call_whois_one
+{
+    my ( $server, $nickname ) = @_;
     my $hash = { "server" => $server, "pattern" => "whois", "signal" => "buddylist",
-		  "count" => "1", "string" => $nickname, "timeout" => $default_options{callback_timeout}, "cmd_filter" => "" };
+                "count" => "1", "string" => $nickname, "timeout" => $default_options{callback_timeout}, "cmd_filter" => "" };
     weechat::hook_hsignal_send("irc_redirect_command", $hash);
     weechat::hook_signal_send("irc_input_send", weechat::WEECHAT_HOOK_SIGNAL_STRING, $server.";;2;;/whois ".$nickname); #server;channel;flags;tags;text
-
 }
 
 # -------------------------------[ redirection ]-------------------------------------
