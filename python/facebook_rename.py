@@ -8,10 +8,14 @@
 #
 # This script is in the public domain.
 
-# To edit
-fullname="Name" # set the first word in "full name" line that /whois show
+
+# Edit this variables with your own minbif configuration settings
+
+# Set the first word in full name string that "/WHOIS nick nick" or /WII show
+#   italian - fullname="Nome"
+#   spanish - fullname="Nombre completo"
+fullname="Name"
 mode = "minbif"  # set 'bitlbee' or 'minbif' to select gateway type
-# Edit this variables with your own minbif/bitlbee configuration settings
 minbifChannel = "&minbif"
 minbifServer = "minbif"
 bitlbeeChannel = "&bitlbee"
@@ -25,7 +29,7 @@ nicksToRename = set()
 import weechat
 import re
 
-weechat.register("facebook_rename", "crwl", "1.1.1", "Public Domain", "Renames Facebook usernames when using Bitlbee or Minbif", "", "")
+weechat.register("facebook_rename", "crwl", "1.1.2", "Public Domain", "Renames Facebook usernames when using Bitlbee or Minbif", "", "")
 
 def message_join_minbif(data, signal, signal_data):
   signal_data = signal_data.split()
