@@ -19,6 +19,8 @@
 #
 # History:
 #
+# 2013-08-03, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 3.2: allow "q" as input in iset buffer to close it
 # 2013-07-14, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 3.1: remove unneeded calls to iset_refresh() in mouse callback
 #                  (faster mouse actions when lot of options are displayed),
@@ -106,7 +108,7 @@
 use strict;
 
 my $PRGNAME = "iset";
-my $VERSION = "3.1";
+my $VERSION = "3.2";
 my $DESCR   = "Interactive Set for configuration options";
 my $AUTHOR  = "Sebastien Helleu <flashcode\@flashtux.org>";
 my $LICENSE = "GPL3";
@@ -215,6 +217,11 @@ sub iset_create_filter
 sub iset_buffer_input
 {
     my ($data, $buffer, $string) = ($_[0], $_[1], $_[2]);
+    if ($string eq "q")
+    {
+        weechat::buffer_close($buffer);
+        return weechat::WEECHAT_RC_OK;
+    }
     $search_value = "";
     my @cmd_array = split(/ /,$string);
     my $array_count = @cmd_array;
