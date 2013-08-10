@@ -38,8 +38,10 @@
 # You can also reach Travis in #crd on efnet.
 #
 # ported to WeeChat (http://www.weechat.org/) by Nils Görs. Copyright
-# (c) 2011-2012 Nils Görs
+# (c) 2011-2013 Nils Görs
 #
+# 2013-08-10: 0.7 nils_2 (freenode@nils_2)
+#           : add: support of vcgencmd (eg raspberry pi)
 # 2013-03-06: 0.6 Thomas Poechtrager <t.poechtrager@gmail.com>
 #           : fixed memory usage
 # 2012-11-15: 0.5 nils_2 (freenode@nils_2)
@@ -64,7 +66,7 @@ use POSIX qw(floor);
 use strict;
 
 my $SCRIPT_NAME         = "sysinfo";
-my $SCRIPT_VERSION      = "0.6";
+my $SCRIPT_VERSION      = "0.7";
 my $SCRIPT_DESCR        = "provides a system info command";
 my $SCRIPT_LICENSE      = "GPL3";
 my $SCRIPT_AUTHOR       = "Nils Görs <weechatter\@arcor.de>";
@@ -174,7 +176,7 @@ my $col2 = '';
 my $bar_item = "";
 my %Hooks       = ();
 my $weechat_version = "";
-
+my $vcgencmd = "/usr/bin/vcgencmd";
 ###############################################
 ### Nothing below here should need changed. ###
 ###############################################
@@ -542,6 +544,15 @@ if($options{showcpu} eq "on") {
 		}
                 if($arm) {
                         $cpu            = &cpuinfo("Processor\\s+: ");
+                        if (-e $vcgencmd) {
+                            $mhz = `vcgencmd measure_clock arm`;
+                            $mhz = substr($mhz,length($mhz) - (length($mhz)-index($mhz,")=")-2)) / 1000000;
+                            my $temp = `vcgencmd measure_temp`;
+                            $temp =~ tr/\r\n//d;
+                            $temp = substr($temp,5);
+                            $cpu = "$cpu ($mhz MHz / $temp)";
+                        }
+
                 }
 		if($i686 || $i586 || $x86_64) {
 			$cpu		= &cpuinfo("model name\\s+: ");
