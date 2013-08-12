@@ -1,5 +1,6 @@
 #
 # Copyright (c) 2013 by Nils Görs <weechatter@arcor.de>
+# Copyright (c) 2013 by Stefan Wold <ratler@stderr.eu>
 # based on irssi script stalker.pl from Kaitlyn Parkhurst (SymKat) <symkat@symkat.com>
 # https://github.com/symkat/Stalker
 #
@@ -19,6 +20,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # History:
+#
+# version 0.9: Ratler@freenode.#weechat
+# 2013-08-11: fix: removed trailing whitespaces
+#             fix: only add index if it doesn't exist
+#             fix: dynamically create or upgrade database based on missing tables or columns
+#             fix: allow dynamically creating indices for future tables
 #
 # version 0.8: Ratler@freenode.#weechat
 # 2013-08-09: add: case insensitive nick search
@@ -73,7 +80,7 @@ use File::Spec;
 use DBI;
 
 my $SCRIPT_NAME         = "stalker";
-my $SCRIPT_VERSION      = "0.8";
+my $SCRIPT_VERSION      = "0.9";
 my $SCRIPT_AUTHOR       = "Nils Görs <weechatter\@arcor.de>";
 my $SCRIPT_LICENCE      = "GPL3";
 my $SCRIPT_DESC         = "Records and correlates nick!user\@host information";
@@ -124,6 +131,24 @@ my $hook_process = 0;
 my $last_nick = "";
 my $last_host = "";
 
+# SQLite table definition
+my %tables = (
+    'records' => [
+        { 'column' => 'nick', 'type' => 'TEXT NOT NULL' },
+        { 'column' => 'user', 'type' => 'TEXT NOT NULL' },
+        { 'column' => 'host', 'type' => 'TEXT NOT NULL' },
+        { 'column' => 'serv', 'type' => 'TEXT NOT NULL' },
+        { 'column' => 'added', 'type' => 'DATE NOT NULL DEFAULT CURRENT_TIMESTAMP' },
+      ],
+  );
+
+# SQLite index definitions
+my %indices = (
+    'records' => [
+        { 'name' => 'index1', 'column' => 'nick' },
+        { 'name' => 'index2', 'column' => 'host' },
+      ],
+  );
 # -----------------------------[ Database ]-----------------------------------
 sub open_database {
     my $db = weechat_dir();
@@ -161,14 +186,12 @@ sub open_database {
 # Automatic Database Creation And Checking
 sub stat_database {
     my ( $db_file ) = @_;
-    my $do = 0;
 
     DEBUG('info', 'Stat database');
     if ( ! -e $db_file  ) {
         open my $fh, '>', $db_file
             or die 'Cannot create database file.  Abort.';
         close $fh;
-        $do = 1;
     }
     my $DBH = DBI->connect(
         'dbi:SQLite:dbname='.$db_file, "", "",
@@ -179,89 +202,110 @@ sub stat_database {
         }
     );
 
-    create_database( $DBH ) if $do;
-
-    my $sth = $DBH->prepare( "SELECT nick from records WHERE serv = ?" );
-    $sth->execute( 'script-test-string' );
-    my $sane = $sth->fetchrow_array;
-
-    create_database( $DBH ) if ($sane eq '');
-
-    # Magical testing for the new "added" column; this column was added later
-    # Need to test for its existance and "add" it if missing
-    $sth = $DBH->prepare( "SELECT * FROM records WHERE serv = ?;" );
-    $sth->execute( 'script-test-string' );
-    my @arr = $sth->fetchrow_array; # I can't convert to a row count without storing in an array first
-    if( scalar(@arr) == 4 ) { # 4 columns is the old format
-        DEBUG("info", "Add timestamp column to existing database.");
-        add_timestamp_column($DBH);
-    }
-    elsif( scalar(@arr) != 5 ) { # 5 is the new. Anything else is ... wrong
-        die "The DB should have 4 or 5 columns. Found " . scalar(@arr);
-    }
+    create_or_upgrade_database( $DBH );
 
     index_db( $DBH );
 }
 
-sub create_database {
+sub create_or_upgrade_database {
     my ( $DBH ) = @_;
 
-    my @queries = (
-        "DROP TABLE IF EXISTS records",
-        "CREATE TABLE records (nick TEXT NOT NULL," .
-            "user TEXT NOT NULL, host TEXT NOT NULL, serv TEXT NOT NULL, " .
-            "added DATE NOT NULL DEFAULT CURRENT_TIMESTAMP)",
-        "INSERT INTO records (nick, user, host, serv) VALUES( 1, 1, 1, 'script-test-string' )"
-    );
+    # This part will always add missing tables or columns defined in @tables (ie create or upgrade the database)
+    DEBUG("info", "Checking database table structure");
+    my %col_exists;
+    for my $table (keys %tables) {
+        for my $col ( @{ $DBH->selectall_arrayref ( "PRAGMA TABLE_INFO($table)" ) } ) {
+            $col_exists{$table}{$col->[1]} = 1;
+        }
+    }
+    for my $table (keys %tables) {
+        my $upgrade = 0;
 
-    # Drop table is exists
-    # Create the table and indices
-    # Insert test record
+        # Create missing tables
+        unless ( exists( $col_exists{$table} ) ) {
+            create_table( $DBH, $table );
+            next;
+        }
+
+        # Check for missing columns
+        my @cols_not_null;
+        for my $col ( @{$tables{$table}} ) {
+            unless ( $col_exists{$table}{$col->{column}} ) {
+                if ( ($col->{type} =~ /NOT NULL/) and ($col->{type} !~ /DEFAULT/) ) {
+                    push @cols_not_null, $col->{column};
+                }
+                $upgrade = 1;
+            }
+        }
+
+        # Due to limitations in ALTER TABLE in sqlite this cumbersome method is necessary to alter a table
+        if ( $upgrade ) {
+            DEBUG("info", "Upgrade required for table '$table', please wait...");
+            # Save the old records
+            $DBH->do( "ALTER TABLE $table RENAME TO old_$table" );
+
+            # Preserve old column names for copying of data later
+            my $old_columns = join( ", ", map { $_->[1] } @{ $DBH->selectall_arrayref( "PRAGMA TABLE_INFO(old_$table)" ) } );
+
+            # Create the new table
+            create_table( $DBH, $table );
+
+            # Special care for NOT NULL columns, we set value 1 for all missing columns defined with NOT NULL or the copy will fail
+            my $old_select;
+            if ( scalar(@cols_not_null) > 0 ) {
+                $old_select = $old_columns . ", " . join(", ", map { 1 } @cols_not_null );
+                $old_columns .= ", " . join(", ", @cols_not_null);
+            } else {
+                $old_select = $old_columns;
+            }
+
+            # Copy the old records over and drop them
+            my @queries = (
+                "INSERT INTO $table ($old_columns) SELECT $old_select FROM old_$table",
+                "DROP TABLE old_$table",
+              );
+            for my $query (@queries) {
+                my $sth = $DBH->prepare($query) or die "Failed to prepare '$query'. " . $sth->err;
+                $sth->execute() or die "Failed to execute '$query'. " . $sth->err;
+            }
+            DEBUG( "info", "Table '$table' has been successfully upgraded" ) unless ( $DBH->err );
+        }
+    }
+}
+
+# Create table
+sub create_table {
+    my ( $DBH, $table_name ) = @_;
+
+    my @queries;
+
+    DEBUG("info", "Creating table '$table_name'");
+    push @queries, "DROP TABLE IF EXISTS $table_name";
+    push @queries, "CREATE TABLE $table_name (" . join(", ", map { "$_->{column} $_->{type}" } @{ $tables{$table_name} }) . ")";
+
     for my $query (@queries) {
         my $sth = $DBH->prepare($query) or die "Failed to prepare '$query'. " . $sth->err;
         $sth->execute() or die "Failed to execute '$query'. " . $sth->err;
     }
-    index_db( $DBH );
 }
 
-# Add indices to the DB. If they already exist, no harm done.
-# Is there an easy way to test if they exist already?
+# Add indices to the DB.
 sub index_db {
     my ( $DBH ) = @_;
 
-    my @queries = (
-        "CREATE INDEX index1 ON records (nick)",
-        "CREATE INDEX index2 ON records (host)",
-    );
-    $DBH->{RaiseError} = 0;
-    $DBH->{PrintError} = 0;
-    for my $query (@queries) {
-        $DBH->do( $query );
-    }
-    $DBH->{RaiseError} = 1;
-    $DBH->{PrintError} = 1;
-}
+    for my $table (keys %indices) {
+        my %idx_exists;
+        for my $index ( @{ $DBH->selectall_arrayref( "PRAGMA INDEX_LIST($table)" ) } ) {
+            $idx_exists{$index->[1]} = 1;
+        }
 
-# Create a new table with the extra column, move the data over. delete old table and alter name
-sub add_timestamp_column {
-    my ( $DBH ) = @_;
-
-    OUTPUT('','Adding a timestamp column to the nicks db. Please wait...');
-
-    # Save the old records
-    $DBH->do( "ALTER TABLE records RENAME TO old_records" );
-
-    # Create the new table
-    create_database( $DBH );
-
-    # Copy the old records over and drop them
-    my @queries = (
-        "INSERT INTO records (nick,user,host,serv) SELECT nick,user,host,serv FROM old_records",
-        "DROP TABLE old_records",
-    );
-    for my $query (@queries) {
-        my $sth = $DBH->prepare($query) or die "Failed to prepare '$query'. " . $sth->err;
-        $sth->execute() or die "Failed to execute '$query'. " . $sth->err;
+        $DBH->{RaiseError} = 0;
+        $DBH->{PrintError} = 0;
+        for my $index ( @{$indices{$table}} ) {
+            $DBH->do( "CREATE INDEX $index->{name} ON $table ($index->{column})" ) unless ( $idx_exists{$index->{name}} );
+        }
+        $DBH->{RaiseError} = 1;
+        $DBH->{PrintError} = 1;
     }
 }
 
