@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011-2012 by w8rabbit (w8rabbit[at]mail[dot]i2p)
+# Copyright (c) 2011-2013 by w8rabbit (w8rabbit[at]mail[dot]i2p)
 # or from outside i2p: w8rabbit[at]i2pmail[dot]org
 #
 # Script is under GPL3.
@@ -8,6 +8,8 @@
 #
 # thanks to darrob for hard beta-testing
 #
+# 1.7: add support of colors with format "${color:xxx}" (>= WeeChat 0.4.2)
+# 1.6: add wildcard "*" for supported_bot_names.
 # 1.5: cleaned up code and make it more readable
 # 1.4: fix: problem with tag "prefix_nick_ccc"
 #      improved: Nicks will be displayed the same way in Nicklist like in channel buffer.
@@ -58,16 +60,16 @@
 
 use strict;
 my $SCRIPT_NAME         = "parse_relayed_msg";
-my $SCRIPT_VERSION      = "1.5";
+my $SCRIPT_VERSION      = "1.7";
 my $SCRIPT_DESCR        = "proper integration of remote users' nicknames in channel and nicklist";
 my $SCRIPT_AUTHOR       = "w8rabbit";
 my $SCRIPT_LICENCE      = "GPL3";
 
 # =============== options ===============
-my %option = (  "supported_bot_names"   => "uuu,u2,i2pRelay,iRelay,MultiRelay,FLIPRelayBot,fox,wolf,hawk,muninn,gribble,vulpine",
+my %option = (  "supported_bot_names" => "cloudrelay*,MultiRelay*,FLIPRelayBot*,i2pRelay,u2,uuu,RelayBot,lll,iRelay,fox,wolf,hawk,muninn,gribble,vulpine",
                 "debug"                 => "off",
                 "blacklist"             => "",
-                "servername"            => "i2p",
+                "servername"            => "i2p,freenet",
                 "nick_mode"             => "⇅",
                 "nick_mode_color"       => "yellow",
                 "suppress_relaynet"     => "off",
@@ -81,9 +83,9 @@ my %option = (  "supported_bot_names"   => "uuu,u2,i2pRelay,iRelay,MultiRelay,FL
 my %script_desc = ( "blacklist"           => "Comma-separated list of relayed nicknames to be ignored (similar to /ignore). The format is case-sensitive: <server>.<relaynick>",
                     "supported_bot_names" => "Comma-separated list of relay bots.",
                     "debug"               => "Enable output of raw IRC messages. This is a developer feature and should generally be turned off. The format is:  <servername>:<botname> (default: off)",
-                    "servername"          => "Comma-separated list of internal servers to enable $SCRIPT_NAME for. (default: i2p)",
-                    "nick_mode"           => "Prefix character used to mark relayed nicknames. (default: ⇅)",
-                    "nick_mode_color"     => "Color of the prefix character. (default: yellow)",
+                    "servername"          => "Comma-separated list of internal servers to enable $SCRIPT_NAME for. (default: i2p,freenet)",
+                    "nick_mode"           => "Prefix character used to mark relayed nicknames. (default: ⇅). Since WeeChat 0.4.2 you can use format \${color:xxx}, eg: \${color:yellow}⇅",
+                    "nick_mode_color"     => "Color of the prefix character. (default: yellow). This option is obsolet since WeeChat 0.4.2 (see option nick_mode)",
                     "suppress_relaynet"   => "Hide nicknames' network part (if applicable). (default: off)",
                     "suppress_relaynet_channels" => "Comma-separated list of channels to activate suppress_relaynet in. Format: \"servername.channel\", e.g. \"i2p.#i2p-dev,freenode.#weechat\". (default: \"\" (i.e. global))",
                     "relaynet_color"      => "Color of nicknames' network part. Leave blank for altering colors. (default: \"\")",
@@ -139,7 +141,9 @@ sub parse_relayed_msg_cb
     $nick = $2;
 
     # display_mode : 0 = /, 1 = @
-    if ( grep /^$nick$/, @bot_nicks )                                    # does a bot exists?
+    my $result = string_mask_to_regex($nick);
+    if ($result)
+#    if ( grep /^$nick$/, @bot_nicks )                                       # does a bot exists?
     {
         my $blacklist_raw = weechat::config_get_plugin("blacklist");
         @blacklist = split( /,/,$blacklist_raw);
@@ -302,8 +306,7 @@ sub create_string_without_relaynet
         return $string;
     }
     my $nick_color = weechat::info_get('irc_nick_color', $relaynick);# get nick-color
-    $string = weechat::color($option{nick_mode_color}) .
-                    $option{nick_mode} .
+    $string = _color_str( $option{nick_mode_color}, $option{nick_mode} ) .
                     $nick_mode .
                     $nick_color .
                     $relaynick .
@@ -326,8 +329,7 @@ sub create_string_with_relaynet
 
     if ( $option{suppress_relaynet} eq "on" and $option{suppress_relaynet_channels} eq "" or ( grep /^$servername.$channelname$/, @suppress_relaynet_channels) ){
         # suppress relaynet
-        $string = weechat::color($option{nick_mode_color}) .
-                                $option{nick_mode} .
+        $string = _color_str( $option{nick_mode_color}, $option{nick_mode} ) .
                                 $nick_mode .
                                 $nick_color .
                                 $relaynick .
@@ -337,8 +339,7 @@ sub create_string_with_relaynet
     {
         # show relaynet
         my $relay_and_nick = relay_and_nick($relaynet,$relaynick,$display_mode);
-        $string = weechat::color($option{nick_mode_color}) .
-                                $option{nick_mode} .
+        $string = _color_str( $option{nick_mode_color}, $option{nick_mode} ) .
                                 $nick_mode .
                                 $relay_and_nick.
                                 "\t" .
@@ -360,12 +361,10 @@ sub create_action_string_without_relaynet
     my $nick_color = weechat::info_get('irc_nick_color', $relaynick);# get nick-color
     my $prefix_action = weechat::config_string(weechat::config_get("weechat.look.prefix_action"));
     my $prefix_color  = weechat::color(weechat::config_color(weechat::config_get("weechat.color.chat_prefix_action")));
-    $string = $prefix_color .
-                $prefix_action .
+    $string = _color_str($prefix_color, $prefix_action) .
                 $nick_mode .
                 "\t" .
-                weechat::color($option{nick_mode_color}) .
-                $option{nick_mode} .
+                _color_str( $option{nick_mode_color}, $option{nick_mode} ) .
                 $nick_color .
                 $relaynick .
                 weechat::color("default") .
@@ -388,13 +387,12 @@ sub create_action_string_with_relaynet
     my $prefix_action = weechat::config_string(weechat::config_get("weechat.look.prefix_action"));
     my $prefix_color  = weechat::color(weechat::config_color(weechat::config_get("weechat.color.chat_prefix_action")));
 
-    if ( $option{suppress_relaynet} eq "on" and $option{suppress_relaynet_channels} eq "" or ( grep /^$servername.$channelname$/, @suppress_relaynet_channels) ){
-        $string = $prefix_color .
-                    $prefix_action .
+    if ( $option{suppress_relaynet} eq "on" and $option{suppress_relaynet_channels} eq "" or ( grep /^$servername.$channelname$/, @suppress_relaynet_channels) )
+    {
+        $string = _color_str($prefix_color, $prefix_action) .
                     $nick_mode .
                     "\t" .
-                    weechat::color($option{nick_mode_color}) .
-                    $option{nick_mode} .
+                    _color_str( $option{nick_mode_color}, $option{nick_mode} ) .
                     $nick_color .
                     $relaynick .
                     weechat::color("default") .
@@ -404,12 +402,10 @@ sub create_action_string_with_relaynet
     {
         # show relaynet
         my $relay_and_nick = relay_and_nick($relaynet,$relaynick,$display_mode);
-        $string = $prefix_color .
-                    $prefix_action .
+        $string = _color_str($prefix_color, $prefix_action) .
                     $nick_mode .
                     "\t" .
-                    weechat::color($option{nick_mode_color}) .
-                    $option{nick_mode} .
+                    _color_str( $option{nick_mode_color}, $option{nick_mode} ) .
                     $relay_and_nick .
                     weechat::color("default") .
                     " " .
@@ -445,10 +441,10 @@ sub wrecked_msg
         }
     }
 
-    my $prefix_action = weechat::config_string(weechat::config_get("weechat.look.prefix_error"));
+    my $prefix_error = weechat::config_string(weechat::config_get("weechat.look.prefix_error"));
     my $prefix_color  = weechat::color(weechat::config_color(weechat::config_get("weechat.color.chat_prefix_error")));
-    $string = $prefix_color .
-                $prefix_action .
+
+    $string = _color_str($prefix_color, $prefix_error) .
                 "\t" .
                 "wrecked message from: ".
                 $relay_and_nick;
@@ -589,7 +585,9 @@ sub add_relay_nick_to_nicklist
     # add nick to nicklist, if my $group exists
     if ( $ptr_nick_gui eq "" )
     {
-        weechat::nicklist_add_nick($buf_ptr,$ptr_group,$relaynick,$nick_color,$option{nick_mode},$option{nick_mode_color},1);
+        my $test = weechat::string_remove_color( _color_str($option{nick_mode_color},$option{nick_mode}),"" );
+        weechat::nicklist_add_nick($buf_ptr,$ptr_group,$relaynick,$nick_color,$test,$option{nick_mode_color},1);
+#        weechat::nicklist_add_nick($buf_ptr,$ptr_group,$relaynick,$nick_color,$option{nick_mode},$option{nick_mode_color},1);
         weechat::nicklist_nick_set($buf_ptr,$ptr_nick_gui,"prefix",$option{nick_mode});
         weechat::nicklist_nick_set($buf_ptr,$ptr_nick_gui,"prefix_color",$option{nick_mode_color});
     }
@@ -618,6 +616,14 @@ sub check_own_nicklist
         }
     }
 }
+sub _color_str
+{
+    my ($color_name, $string) = @_;
+    # use eval for colors-codes (${color:red} eg in weechat.look.prefix_error)
+    $string = weechat::string_eval_expression($string, {}, {},{}) if ($weechat_version >= 0x00040200);
+    return weechat::color($color_name) . $string  . weechat::color('reset');
+}
+
 # =============== config ===============
 sub init_config
 {
@@ -742,6 +748,20 @@ sub shutdown
         weechat::nicklist_remove_nick($buf_ptr,$ptr_nick_gui);
     }
 return weechat::WEECHAT_RC_OK;
+}
+
+# ========= string_mask_to_regex() =========
+sub string_mask_to_regex
+{
+    my ($nick) = @_;
+    foreach ( @bot_nicks ){
+        my $bot_nick = weechat::string_mask_to_regex($_);
+        if ($nick =~ /^$bot_nick$/i)
+        {
+            return 1;
+        }
+    }
+    return 0;
 }
 
 # ========= colorize_lines =========
