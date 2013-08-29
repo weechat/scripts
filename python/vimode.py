@@ -56,13 +56,14 @@
 # c$                 Delete till end of line, switch to insert mode
 # dd                 Delete line, switch to insert mode
 # /                  Launch WeeChat search mode
-# TODO: yy yw ye yb p
-# TODO (later): u U C-R r R %
-#               better search (/), add: n N ?
-# TODO (even later): .
 # Counts (e.g. 'd2w', '2G') are supported. However, key bindings marked with a
 # '*' won't perform as intended for the time being. Explanation follows in
 # parentheses.
+# TODO: yy yw ye yb p, make 'e'/'w'/... return start/end positions to avoid
+#       redundancy and make them usable by multiple modifiers (e.g. 'de', 'dw')
+# TODO (later): u U C-R r R %
+#               better search (/), add: n N ?
+# TODO (even later): .
 #
 # Current commands:
 # :h                 Help (/help)
@@ -77,13 +78,16 @@
 #                    present, only the first match will be substituted.
 #                    Escapes are not interpreted for repl (e.g. '\&'), and '/'
 #                    isn't expected to be used/escaped anywhere in the command.
-# TODO: :!
+#                    TODO: Improve this.
+# TODO: :! (probably using shell.py)
 #       :w <file> saves buffer's contents to file
 #       :r <file> puts file's content in input line/open in buffer?
 # TODO: Display matching commands with (basic) help, like Penta/Vimp do.
 #
 # History:
 #     version 0.1: initial release
+#     version 0.2: added esc to switch to normal mode, various key bindings and
+#                  commands.
 #
 
 import weechat
@@ -93,7 +97,7 @@ import time
 
 SCRIPT_NAME = "vimode"
 SCRIPT_AUTHOR = "GermainZ <germanosz@gmail.com>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = ("An attempt to add a vi-like mode to WeeChat, which adds some"
                " common vi key bindings and commands, as well as normal/insert"
@@ -322,25 +326,52 @@ def input_rem_char(data, remaining_calls):
     if data == "cursor":
         data = weechat.buffer_get_integer(buf, "input_pos")
     input_line = list(input_line)
-    del input_line[int(data - 1)]
+    try:
+        del input_line[int(data - 1)]
+    # Not sure why nothing is being detected in some cases from the first time
+    except IndexError:
+        weechat.hook_timer(1, 0, 1, "input_rem_char", "cursor")
+        return weechat.WEECHAT_RC_OK
     input_line = ''.join(input_line)
     weechat.buffer_set(buf, "input", input_line)
     # move the cursor back to its position before removing our character
     weechat.command('', "/input move_previous_char")
     return weechat.WEECHAT_RC_OK
 
+def handle_esc(data, remaining_calls):
+    """Esc acts as a modifier and usually waits for another keypress.
+
+    To circumvent that, simulate a keypress then remove what was inserted.
+
+    """
+    global cmd_text
+    weechat.command('', "/input insert %s" % data)
+    weechat.hook_signal_send("key_pressed", weechat.WEECHAT_HOOK_SIGNAL_STRING,
+                            data)
+    if cmd_text == ":[":
+        cmd_text = ':'
+    return weechat.WEECHAT_RC_OK
+
+esc_pressed = False
 def pressed_keys_check(data, remaining_calls):
     """Check the pressed keys and changes modes or detects bound keys
     accordingly.
 
     """
-    global pressed_keys, mode, vi_buffer
+    global pressed_keys, mode, vi_buffer, esc_pressed
+    # If the last pressed key was Escape, this one will be detected as an arg
+    # as Escape acts like a modifier (pressing Esc, then pressing i is detected
+    # as pressing meta-i). We'll emulate it being pressed again, so that the
+    # user's input is actually processed normally.
+    if esc_pressed is True:
+        esc_pressed = False
+        weechat.hook_timer(50, 0, 1, "handle_esc", pressed_keys[-1])
     if mode == "INSERT":
-        # Ctrl + Space
-        if pressed_keys == "@":
+        # Ctrl + Space, or Escape
+        if pressed_keys == "@" or pressed_keys == "[":
             set_mode("NORMAL")
-        pressed_keys = ''
-        vi_buffer = ''
+            if pressed_keys == "[":
+                esc_pressed = True
     elif mode == "NORMAL":
         # We strip all numbers and check if the the combo is recognized below,
         # then extract the numbers, if any, and pass them as the repeat factor.
@@ -368,12 +399,10 @@ def pressed_keys_check(data, remaining_calls):
                 vi_keys[buffer_stripped](repeat)
         else:
             return weechat.WEECHAT_RC_OK
-        pressed_keys = ''
-        vi_buffer = ''
-    weechat.bar_item_update("vi_buffer")
+    clear_vi_buffers()
     return weechat.WEECHAT_RC_OK
 
-def clear_vi_buffers(data, remaining_calls):
+def clear_vi_buffers(data=None, remaining_calls=None):
     """Clear both pressed_keys and vi_buffer.
 
     If data is set to 'check_time', they'll only be cleared if enough time has
