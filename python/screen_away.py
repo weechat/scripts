@@ -24,6 +24,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2013-08-30, Anders Einar Hilden <hildenae@gmail.com>
+#  version: 0.11: Fix reading of set_away
 # 2013-06-16, Renato Botelho <rbgarga@gmail.com>
 #  version 0.10: add option to don't set away, only change nick
 #                   allow multiple commands on attach/dettach
@@ -56,7 +58,7 @@ import os
 
 SCRIPT_NAME    = "screen_away"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.10"
+SCRIPT_VERSION = "0.11"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Set away status on screen detach"
 
@@ -98,7 +100,7 @@ def get_servers():
         if not w.infolist_integer(infolist, 'is_connected') == 1 or \
                w.infolist_string(infolist, 'name') in ignores:
             continue
-        if not w.config_boolean(w.config_get_plugin('set_away')) or \
+        if not w.config_string_to_boolean(w.config_get_plugin('set_away')) or \
                 not w.infolist_integer(infolist, 'is_away') or \
                     w.infolist_string(infolist, 'away_message') == \
                     w.config_get_plugin('message'):
@@ -112,7 +114,7 @@ def screen_away_timer_cb(buffer, args):
 
     global AWAY, SOCK
 
-    set_away = w.config_boolean(w.config_get_plugin('set_away'))
+    set_away = w.config_string_to_boolean(w.config_get_plugin('set_away'))
     suffix = w.config_get_plugin('away_suffix')
     attached = os.access(SOCK, os.X_OK) # X bit indicates attached
 
