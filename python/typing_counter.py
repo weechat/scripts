@@ -1,4 +1,4 @@
-# Copyright (c) 2010-2012 by fauno <fauno@kiwwwi.com.ar>
+# Copyright (c) 2010-2013 by fauno <fauno@kiwwwi.com.ar>
 #
 # Bar item showing typing count. Add 'tc' to a bar.
 #
@@ -36,6 +36,8 @@
 #       add tweet and sms counter for bitlbee and gtalksms (suggested by ahuemer@freenode)
 # 0.6 <nils_2@freenode>:
 #       add support for gtalksms "reply" (suggested by ahuemer@freenode)
+# 0.7 <nils_2@freenode>:
+#       fix bug with root bar (reported by fours_)
 #
 # Note: As of version 0.2 this script requires a version of weechat
 #       from git 2010-01-25 or newer, or at least 0.3.2 stable.
@@ -68,7 +70,7 @@
 
 SCRIPT_NAME    = "typing_counter"
 SCRIPT_AUTHOR  = "fauno <fauno@kiwwwi.com.ar>"
-SCRIPT_VERSION = "0.6"
+SCRIPT_VERSION = "0.7"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Bar item showing typing count and cursor position. Add 'tc' to a bar."
 
@@ -122,6 +124,10 @@ def tc_bar_item_update (data=None, signal=None, signal_data=None):
 
 def tc_bar_item (data, item, window):
     '''Item constructor'''
+    # window empty? root bar!
+    if not window:
+        window = w.current_window()
+
     global length, cursor_pos, tc_input_text, count_over,tc_options
     count_over = '0'
     sms = ''
