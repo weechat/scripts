@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2011 by F. Besser <fbesser@gmail.com>
+# Copyright (c) 2011-2013 by F. Besser <fbesser@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,10 +15,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-
-#
 #
 # History:
+# 2013-09-01, nils_2@freenode.#weechat:
+#     version 0.2: add support of servername for "-exclude"
+#                : make script behave like /allchan and /allserver command
+#                : add function "-current"
+#                : case-insensitive search for query/server
+#
 # 2011-09-05, F. Besser <fbesser@gmail.com>:
 #     version 0.1: script created
 #
@@ -31,7 +35,7 @@
 
 SCRIPT_NAME = "allquery"
 SCRIPT_AUTHOR = "fbesser"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Executes command on all irc query buffer"
 
@@ -55,7 +59,7 @@ except ImportError, message:
 
 def make_list(argument):
     """ Make a list out of argument string of format -argument=value0,value1"""
-    arglist = argument.split("=", 1)
+    arglist = argument.lower().split("=", 1)
     arguments = arglist[1].split(",")
     return arguments
 
@@ -68,15 +72,32 @@ def allquery_command_cb(data, buffer, args):
     argv = args.split(" ")
 
     exclude_nick = None
+    current_server = None
 
-    if argv[0].startswith("-exclude="):
-        exclude_nick = make_list(argv[0])
-        command = " ".join(argv[1::])
+    if '-current' in argv:
+        current_server = weechat.buffer_get_string(weechat.current_buffer(), "localvar_server")
+        # remove "-current" + whitespace from argumentlist
+        args = args.replace("-current", "")
+        args = args.lstrip()
+        argv.remove("-current")
+
+    # search for "-exclude" in arguments
+    i = 0
+    for entry in argv[0:]:
+        if entry.startswith("-exclude="):
+            exclude_nick = make_list(argv[i])
+            command = " ".join(argv[i+1::])
+            break
+        i +=1
     else:
         command = args
-    if not command.startswith("/"):
-        weechat.command("", "/help %s" % SCRIPT_COMMAND)
+
+    # no command found.
+    if not command:
         return weechat.WEECHAT_RC_OK
+
+    if not command.startswith("/"):
+        command = "/%s" % command
 
     infolist = weechat.infolist_get("buffer", "", "")
     while weechat.infolist_next(infolist):
@@ -86,31 +107,44 @@ def allquery_command_cb(data, buffer, args):
             query = weechat.buffer_get_string(ptr, "localvar_channel")
             execute_command = re.sub(r'\$nick', query, command)
             if weechat.buffer_get_string(ptr, "localvar_type") == "private":
-                if exclude_nick is not None:
-                    if not query in exclude_nick:
-                        weechat.command(ptr, execute_command)
+                if current_server is not None:
+                    if server == current_server:
+                        exclude_nick_and_server(ptr,query,server,exclude_nick,execute_command)
                 else:
-                    weechat.command(ptr, execute_command)
+                    exclude_nick_and_server(ptr,query,server,exclude_nick,execute_command)
     weechat.infolist_free(infolist)
     return weechat.WEECHAT_RC_OK
+
+
+def exclude_nick_and_server(ptr, query, server, exclude_nick, execute_command):
+    server = "%s.*" % server            # servername + ".*"
+    if exclude_nick is not None:
+        if not query.lower() in exclude_nick and not server.lower() in exclude_nick:
+            weechat.command(ptr, execute_command)
+    else:
+        weechat.command(ptr, execute_command)
+
 
 if __name__ == '__main__' and import_ok:
     if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION,
                         SCRIPT_LICENSE, SCRIPT_DESC, "", ""):
 
         weechat.hook_command(SCRIPT_COMMAND, SCRIPT_DESC,
-                             '[-exclude=<nick>,[<nick2>...]] command <arguments>',
-                             '   -exclude=nick1,...: exclude some querys from executed command\n'
-                             '              command: command executed in query buffers\n'
-                             '                $nick: gets replaced by query buffer nick\n\n'
+                             '[-current] [-exclude=<nick|server>[,<nick2|server>...]] <command> [<arguments>]',
+                             '   -current: execute command for query of current server only\n'
+                             '   -exclude: exclude some querys and/or server from executed command\n'
+                             '    command: command executed in query buffers\n'
+                             '  arguments: arguments for command (special variables $nick will be replaced by its value)\n\n'
                              'Examples:\n'
                              '  close all query buffers:\n'
-                             '    /' + SCRIPT_COMMAND + ' /buffer close\n'
+                             '    /' + SCRIPT_COMMAND + ' buffer close\n'
                              '  close all query buffers, but don\'t close FlashCode:\n'
-                             '    /' + SCRIPT_COMMAND + ' -exclude=FlashCode /buffer close\n'
+                             '    /' + SCRIPT_COMMAND + ' -exclude=FlashCode buffer close\n'
+                             '  close all query buffers, except for server freenode:\n'
+                             '    /' + SCRIPT_COMMAND + ' -exclude=freenode.* buffer close\n'
                              '  msg to all query buffers:\n'
-                             '    /' + SCRIPT_COMMAND + ' /say Hello\n'
+                             '    /' + SCRIPT_COMMAND + ' say Hello\n'
                              '  notice to all query buffers:\n'
-                             '    /' + SCRIPT_COMMAND + ' /notice $nick Hello',
-                             '',
+                             '    /' + SCRIPT_COMMAND + ' notice $nick Hello',
+                             '%(commands)',
                              'allquery_command_cb', '')
