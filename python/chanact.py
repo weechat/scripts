@@ -4,6 +4,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2013-09-16, d33tah
+#   version 0.8: Added sort_by_number configuration variable.
 # 2013-03-18, mythmon
 #   version 0.7: Channels get a bonus based on priority in sorting.
 # 2012-02-09, mythmon
@@ -61,7 +63,7 @@ except:
 
 SCRIPT_NAME    = "chanact"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.7"
+SCRIPT_VERSION = "0.8"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Hotlist replacement, use names and keybindings instead of numbers"
 
@@ -79,6 +81,7 @@ settings = {
     'use_keybindings'       : 'on',
     'delimiter'             : ',',
     'skip_number_binds'     : 'on',
+    'sort_by_number'        : 'off',
 }
 
 hooks = (
@@ -155,7 +158,8 @@ def chanact_cb(*args):
         if priority < int(w.config_get_plugin('lowest_priority')):
             continue
 
-        number = str(w.infolist_integer(hotlist, 'buffer_number'))
+        int_number = w.infolist_integer(hotlist, 'buffer_number')
+        number = str(int_number)
         thebuffer = w.infolist_pointer(hotlist, 'buffer_pointer')
         name = w.buffer_get_string(thebuffer, 'short_name')
 
@@ -183,9 +187,12 @@ def chanact_cb(*args):
                     number,
                     w.color(reset))
 
-        activity.append((entry, thebuffer, sort_rank(thebuffer, priority)))
+        activity.append((entry, thebuffer, sort_rank(thebuffer, priority), int_number))
 
-    activity.sort(key=lambda t: t[2], reverse=True)
+    if w.config_get_plugin('sort_by_number') == "on":
+        activity.sort(key=lambda t: int(t[3]))
+    else:
+        activity.sort(key=lambda t: int(t[2]), reverse=True)
 
     w.infolist_free(hotlist)
     if activity:
