@@ -20,6 +20,7 @@
 # for settings see help page
 #
 # history:
+# 2.1: fix: changing highlight color did not apply messages already displayed (reported by rafi_)
 # 2.0: fix: debugging weechat::print() removed (thanks demure)
 # 1.9: fix: display bug with nick_mode
 # 1.8  add: option "use_irc_colors" (requested by Zertap)
@@ -69,7 +70,7 @@
 
 use strict;
 my $prgname	= "colorize_lines";
-my $version	= "2.0";
+my $version	= "2.1";
 my $description	= "colors text in chat area with according nick color. Highlight messages will be fully highlighted in chat area";
 
 # default values
@@ -204,10 +205,12 @@ if ( $nick_prefix ne "" ){
 
 # check for action (/me)
 my $prefix_action_with_color = "";
-if (index($modifier_data,"irc_action") >= 0){
-  my $prefix_action_color = weechat::color( weechat::config_color( weechat::config_get( "weechat.color.chat_prefix_action" )));
-  my $prefix_action = weechat::config_string( weechat::config_get("weechat.look.prefix_action"));
-  $prefix_action_with_color = $prefix_action_color . $prefix_action;
+if (index($modifier_data,"irc_action") >= 0)
+{
+#  my $prefix_action_color = weechat::color( weechat::config_color( weechat::config_get( "weechat.color.chat_prefix_action" )));
+    my $prefix_action_color = weechat::color( "chat_prefix_action" );
+    my $prefix_action = weechat::config_string( weechat::config_get("weechat.look.prefix_action"));
+    $prefix_action_with_color = $prefix_action_color . $prefix_action;
 }
 
 # check if look.nickmode is ON and no prefix and no query buffer
@@ -244,8 +247,9 @@ if ( $nick_mode_value ==  1 and ($nick ne $get_prefix_action) and (index($modifi
     if ($nick_wo_suffix eq $my_nick ){                                                                  # i wrote the message
       return $string if check_whitelist_nicks($servername, $my_nick, $nick_wo_suffix);                  # check for whitelist
       if ($default_options{var_chat} eq "on"){
-	  my $nick_color = weechat::config_color(weechat::config_get("weechat.color.chat_nick_self"));  # get my nick color
-	  $nick_color = weechat::color($nick_color);
+#        my $nick_color = weechat::config_color(weechat::config_get("weechat.color.chat_nick_self"));  # get my nick color
+#          my $nick_color = weechat::color($nick_color);
+          my $nick_color = weechat::color("chat_nick_self");                                     # get my nick color
 	  $line = colorize_nicks($nick_color,$modifier_data,$line);
 
           if (index($modifier_data,"irc_action") >= 0){                                                 # /me message?
@@ -302,15 +306,14 @@ my $nick_color = weechat::info_get('irc_nick_color', $nick_wo_suffix);          
 		    my $search_string = shell2regex($_);
 
 		  if ($string =~ m/\b$search_string\b/gi){                                      # i (ignorecase)
-		    my $color_highlight = weechat::config_color(weechat::config_get("weechat.color.chat_highlight"));
-		    my $color_highlight_bg = weechat::config_color(weechat::config_get("weechat.color.chat_highlight_bg"));
-		    my $high_color = weechat::color("$color_highlight,$color_highlight_bg");
-                          if (index($modifier_data,"irc_action") >= 0){
-			    $line = colorize_nicks($high_color,$modifier_data,$line);
-                            $nick = $prefix_action_with_color;
-			    $line = $high_color . $nick . "\t" . $high_color . $line . weechat::color('reset');
-			    return $line;
-			  }
+                      my $high_color = weechat::color('chat_highlight');
+                      if (index($modifier_data,"irc_action") >= 0)
+                      {
+                          $line = colorize_nicks($high_color,$modifier_data,$line);
+                          $nick = $prefix_action_with_color;
+                          $line = $high_color . $nick . "\t" . $high_color . $line . weechat::color('reset');
+                          return $line;
+                       }
 		    $line = colorize_nicks($high_color,$modifier_data,$line);
 		    $line = $nick_mode . $high_color . $nick_prefix_with_color . $nick . $nick_suffix_with_color . "\t" . $high_color . $line . weechat::color('reset');
 		    return $line;
@@ -318,12 +321,10 @@ my $nick_color = weechat::info_get('irc_nick_color', $nick_wo_suffix);          
 	      }
       }
 	# buffer_autoset is off.
-        if ( weechat::string_has_highlight($line, $my_nick) >= 1){
+        if ( weechat::string_has_highlight($line, $my_nick) >= 1)
+        {
 #        if (lc($string) =~ m/(\w.*$my_nick.*)/){                                                # my name called in string (case insensitiv)?
-	    my $color_highlight = weechat::config_color(weechat::config_get("weechat.color.chat_highlight"));
-	    my $color_highlight_bg = weechat::config_color(weechat::config_get("weechat.color.chat_highlight_bg"));
-
-	    my $high_color = weechat::color("$color_highlight,$color_highlight_bg");
+            my $high_color = weechat::color('chat_highlight');
 
               if (index($modifier_data,"irc_action") >= 0){                                    # action used (/me)?
                 $line = colorize_nicks($high_color,$modifier_data,$line);
@@ -360,7 +361,8 @@ if ( $default_options{var_avail_buffer} ne "all" ){                             
     if ($default_options{var_chat} eq "on"){                                                    # chat_mode on?
 	if ($default_options{var_shuffle} eq "on"){                                             # color_shuffle on?
 	  my $zahl2 = 0;
-	  my $my_color = weechat::config_color(weechat::config_get("weechat.color.chat_nick_self"));# get my own nick colour
+#          my $my_color = weechat::config_color(weechat::config_get("weechat.color.chat_nick_self"));# get my own nick colour
+          my $my_color = weechat::color("chat_nick_self");                                      # get my own nick colour
 	    for (1){                                                                            # get a random colour but don't use
 	      redo if ( $zahl ==  ($zahl2 = int(rand(14))) or ($colours{$zahl2} eq $my_color) );# latest color nor own nick color
 	      $zahl = $zahl2;
@@ -372,10 +374,8 @@ if ( $default_options{var_avail_buffer} ne "all" ){                             
        if (( $weechat_version ne "" ) && ( $weechat_version >= 0x00030400 )){        # >= v0.3.4?
 	  if ( $default_options{var_look_highlight_regex} eq "on" ){
 	    if ( weechat::string_has_highlight_regex($line,weechat::config_string(weechat::config_get("weechat.look.highlight_regex"))) eq 1 ){
-		my $color_highlight = weechat::config_color(weechat::config_get("weechat.color.chat_highlight"));
-		my $color_highlight_bg = weechat::config_color(weechat::config_get("weechat.color.chat_highlight_bg"));
+                my $high_color = weechat::color('chat_highlight');
 
-		my $high_color = weechat::color("$color_highlight,$color_highlight_bg");
 		$line = colorize_nicks($high_color,$modifier_data,$line);
 		$line = $nick_prefix_with_color . $nick_mode . $high_color . $nick . $nick_suffix_with_color . "\t" . $high_color . $line . weechat::color('reset');
 		return $line;
