@@ -18,6 +18,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2013-09-17: nils_2 (freenode.#weechat)
+#       1.1 : format of weechat_string_eval_expression() changed
+#
+# 2013-07-29: nils_2 (freenode.#weechat)
+#       1.0 : support of /secure for passwords
+#
 # 2013-01-29: nils_2 (freenode.#weechat)
 #       0.9 : script optimized
 #
@@ -75,7 +81,7 @@ except Exception:
 # -------------------------------[ Constants ]-------------------------------------
 SCRIPT_NAME     = "keepnick"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.9"
+SCRIPT_VERSION  = "1.1"
 SCRIPT_LICENCE  = "GPL3"
 SCRIPT_DESC     = "keep your nick and recover it in case it's occupied"
 
@@ -85,7 +91,7 @@ OPTIONS         =       { 'delay'       : ('600','delay (in seconds) to look at 
                           'timeout'     : ('60','timeout (in seconds) to wait for an answer from server.'),
                           'serverlist'  : ('','comma separated list of servers to look at. Try to register a nickname on server (see: /msg NickServ help).'),
                           'text'        : ('Nickstealer left Network: %s!','text that will be displayed if your nick will not be occupied anymore. (\"%s\" is a placeholder for the servername)'),
-                          'nickserv'    : ('/msg -server $server NICKSERV IDENTIFY $passwd','use this command to IDENTIFY you on server (following placeholder will be used: \"$server\" for server; \"$passwd\" for password. You have to create a option \"plugins.var.python.%s.<servername>.password\" to store your nick password. Use SASL authentification, if possible.' %  SCRIPT_NAME),
+                          'nickserv'    : ('/msg -server $server NICKSERV IDENTIFY $passwd','Use SASL authentification, if possible. This command will be used to IDENTIFY you on server (following placeholder can be used: \"$server\" for servername; \"$passwd\" for password. The password will be stored in a separate option for every single server: \"plugins.var.python.%s.<servername>.password\"). Using the "/secure" function, you\'ll have to add a format described in "/help secure" to password option (eg: ${sec.data.keepnick_freenode_password})' %  SCRIPT_NAME),
                           'command'     : ('/nick %s','This command will be used to rename your nick (\"%s\" will be filled with your nickname for specific server)'),
                         }
 HOOK            =       { 'timer': '', 'redirect': '' }
@@ -112,7 +118,11 @@ def redirect_isonhandler(data, signal, hashtable):
         if nick.lower() == mynick.lower():
             return weechat.WEECHAT_RC_OK
         elif nick.lower() not in ISON_nicks and nick != '':
-            password = weechat.config_get_plugin('%s.password' % hashtable['server'])   # get password for given server
+            if int(version) >= 0x00040200:
+                password = weechat.string_eval_expression(weechat.config_get_plugin('%s.password' % hashtable['server']),{},{},{})
+            else:
+                password = weechat.config_get_plugin('%s.password' % hashtable['server'])   # get password for given server
+
             grabnick(hashtable['server'], nick)                                         # get your nick back
             if password != '' and OPTIONS['nickserv'] != '':
                 t = Template(OPTIONS['nickserv'])
