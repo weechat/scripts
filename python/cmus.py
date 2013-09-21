@@ -1,4 +1,3 @@
-# cmus v1.01
 # Copyright (C) 2013 - Isaac Ross <foxxysauce@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
@@ -21,7 +20,7 @@ import commands
 import weechat
 import os
 
-weechat.register("cmus", "Isaac Ross", "1.01", "GPL2", "Adds ability to control cmus and post the currently playing song in a channel", "", "")
+weechat.register("cmus", "Isaac Ross", "1.02", "GPL2", "Adds ability to control cmus and post the currently playing song in a channel", "", "")
 
 
 def help():
@@ -36,38 +35,37 @@ def help():
     weechat.prnt('', '-Now Playing:            /cmusnp')
     weechat.prnt('', '-NP (filename):          /cmus file')
     weechat.prnt('', ' ')
-    weechat.prnt('', "-NOTE: If the currently playing file doesn't have at least artist, album, and title set in its tags, the now playing function will spit out something weird. So either tag your files correctly, or just use '/cmus file' to post the filename instead.")
+    weechat.prnt('', "-NOTE: If the currently playing file lacks artist, album, and title tags, use '/cmus file' to post the filename instead.")
     weechat.prnt('', '----------------------------------------------------------------------------------------')
     weechat.prnt('', "If you encounter any problems, feel free to email me at: <foxxysauce@gmail.com>")
     weechat.prnt('', "Keep in mind that most problems will probably be related to cmus-remote, not this script")
 
 def np():
-    def playing(num):
-        cmus = commands.getoutput('cmus-remote -Q')
-        play = cmus.split('\n')
-        return play[num]
+    cmus = commands.getoutput('cmus-remote -Q')
+    lines = cmus.split('\n')
 
-# Since cmus-remote doesn't have any functionality to get information about the currently playing song by sending
-# paramaters to it for the output (something along the lines of "cmus-remote -{unused_flag} '%a - %t'"), I had to
-# sort through the output of 'cmus-remote -Q' in a weird way. Note that this assumes that 1: cmus is/was playing and
-# 2: artist, album, and title are all present tags. If you've amassed a huge amount of files and you're only sorting
-# them by filename/directory structure without tags, this script probably isn't for you.
-    artist = playing(4)
-    artist = artist.replace('tag', '', 1)
-    artist = artist.replace('artist', '', 1)
-    artist = artist.replace(' ', '', 2)
+    #some redundant loops later, but streamline as needed
 
-    album = playing(5)
-    album = album.replace('tag', '', 1)
-    album = album.replace('album', '', 1)
-    album = album.replace(' ', '', 2)
+    #Only store lines marked as tags
+    tags = [line.split(' ')[1:] for line in lines if line[:3] == 'tag']
 
-    title = playing(6)
-    title = title.replace('tag', '', 1)
-    title = title.replace('title', '', 1)
-    title = title.replace(' ', '', 2)
+    title, artist, album = '<unknown>', '<unknown>', '<unknown>'
+    for tag in tags:
+        if tag[0] == 'artist':
+            artist = ' '.join(tag[1:])
+        elif tag[0] == 'title':
+            title = ' '.join(tag[1:])
+        elif tag[0] == 'album':
+            album = ' '.join(tag[1:])
+        else:
+            #Maybe eventually extend the functionality to print other tags?
+            continue
 
-    nowplaying = artist + ' ' + '-' + ' ' + '"' + title + '"' + ' ' + '(album: ' + album + ')'
+    nowplaying = "%(artist)s - %(title)s (album: %(album)s)" % \
+                        {"artist": artist, \
+                        "title": title, \
+                        "album": album}
+
     return nowplaying
 
 def control(data, buffer, args):
@@ -115,7 +113,7 @@ def weechat_np(data, buffer, args):
     weechat.command(buffer, '/me is currently listening to: ' + np())
     return weechat.WEECHAT_RC_OK
 
-weechat.hook_command("cmusnp", "Get/send now playing info.", "[cmusnp]", "", "", "weechat_np", "")
+weechat.hook_command("cmusnp", "Get/send now playing info.", "", "", "", "weechat_np", "")
 weechat.hook_command("cmus", "Control cmus.", "[file] | [next] | [pause] | [play] | [prev] | [shuffle] | [status] | [stop] | [help]",
 """
 file: Get/send name of the currently playing file.
