@@ -20,11 +20,15 @@
 # Add [mail] to your weechat.bar.status.items
 #
 #
+# 2013-09-15: nils_2 (freenode.#weechat)
+#       0.3 : add: option prefix_item
+#
 # 2013-07-29: nils_2 (freenode.#weechat)
 #       0.2 : support of /secure for passwords
 #           : added: %h variable for filename
 #
 # 0.1: initial version
+#
 # Thanks to Trashlord for the hint with hook_process()
 #
 # Development is currently hosted at
@@ -52,21 +56,21 @@ use MIME::Base64;
 use Crypt::Rijndael;
 use Encode;
 
-#"✉"
 my $prgname             = "pop3_mail";
-my $SCRIPT_version      = "0.2";
+my $SCRIPT_version      = "0.3";
 my $description         = "check POP3 server for mails and display mail header";
 my $item_name           = "mail";
 
 
 # -------------------------------[ config ]-------------------------------------
 my $default_pop3list = "%h/pop3list.txt";
-my %default_options = ("refresh"			=> "10",		# interval in minutes to check pop3 accounts
-                       "pop3_timeout"			=> "20",		# timeout for pop3_server (in seconds)
-                       "show_header"			=> "From|Subject",
-                       "passphrase"     	        => "enter passphrase",
-                       "delete_passphrase_on_exit"	=> "on",
-    );
+my %default_options = ("refresh"                        => "10",                # interval in minutes to check pop3 accounts
+                       "pop3_timeout"                   => "20",                # timeout for pop3_server (in seconds)
+                       "show_header"                    => "From|Subject",
+                       "passphrase"                     => "enter passphrase",
+                       "delete_passphrase_on_exit"      => "on",
+                       "prefix_item"                    => "✉:",
+                       );
 
 
 # ------------------------------[ internal ]-----------------------------------
@@ -78,7 +82,7 @@ my $weechat_version     = "";
 
 # -------------------------------[ hook_process() command ]-------------------------------------
 # arguments: user, password, server, port, timeout, (no)header
-if ($#ARGV == 5 ) {		# six arguments given?
+if ($#ARGV == 5 ) {             # six arguments given?
 my $user = $ARGV[0];
 my $password = $ARGV[1];
 my $pop3server = $ARGV[2];
@@ -149,24 +153,19 @@ sub toggled_by_set{
 			weechat::config_set_plugin("refresh", "0") unless hook_timer();		# fall back to '0', if hook fails
 		}
 	}
-	}elsif ($option eq $plugin_name."pop3_timeout"){
-	  $default_options{pop3_timeout} = $value;
-	}elsif ($option eq $plugin_name."show_header"){
-	  $default_options{show_header} = $value;
-	}elsif ($option eq $plugin_name."passphrase"){
-            weechat::print("",$value);
-          if ( ($weechat_version ne "") && ($weechat_version >= 0x00040200) )    # v0.4.2
-          {
-              $default_options{passphrase} = weechat::string_eval_expression($value,{},{});
-          }
-          else
-          {
-              $default_options{passphrase} = $value;
-          }
-          return weechat::WEECHAT_RC_OK if (check_passphrase_length($value) eq 1);
-	}elsif ($option eq $plugin_name."delete_passphrase_on_exit"){
-	  $default_options{delete_passphrase_on_exit} = $value;
-	}
+        }elsif ($option eq $plugin_name."prefix_item"){
+            $default_options{prefix_item} = my_eval_expression($value);
+            weechat::bar_item_update($item_name);
+        }elsif ($option eq $plugin_name."pop3_timeout"){
+            $default_options{pop3_timeout} = $value;
+        }elsif ($option eq $plugin_name."show_header"){
+            $default_options{show_header} = $value;
+        }elsif ($option eq $plugin_name."passphrase"){
+            $default_options{passphrase} = my_eval_expression($value);
+            return weechat::WEECHAT_RC_OK if (check_passphrase_length($default_options{passphrase}) eq 1);
+        }elsif ($option eq $plugin_name."delete_passphrase_on_exit"){
+            $default_options{delete_passphrase_on_exit} = $value;
+        }
 
 return weechat::WEECHAT_RC_OK;
 }
@@ -334,22 +333,27 @@ sub init
     weechat::infolist_free($infolist_pnt);
 
 #set default config
-foreach my $option (keys %default_options) {
-    if ( !weechat::config_is_set_plugin($option) ) {
+foreach my $option (keys %default_options)
+{
+    if ( !weechat::config_is_set_plugin($option) )
+    {
         weechat::config_set_plugin($option, $default_options{$option});
-    }else {
-	  $default_options{$option} = weechat::config_get_plugin($option);
+    }else
+    {
+        $default_options{$option} = weechat::config_get_plugin($option);
     }
 }
-    $default_options{passphrase} = weechat::string_eval_expression($default_options{passphrase},{},{}) if ( ($weechat_version ne "") && ($weechat_version >= 0x00040200) );    # v0.4.2
+    $default_options{passphrase} = my_eval_expression($default_options{passphrase});
+    $default_options{prefix_item} = my_eval_expression($default_options{prefix_item});
+
     return if (check_passphrase_length($default_options{passphrase}) eq 1);
 }
 
 sub show_mail {
     if ( (keys %pop3_accounts) == 1 ){
-      return sprintf ("✉: %d", $mailcount{mails_over_all});
+      return sprintf ("$default_options{prefix_item} %d", $mailcount{mails_over_all});
     }else{
-      return sprintf ("✉: %d (%d)", $mailcount{mails_over_all}, $mailcount{accounts_with_mails});
+      return sprintf ("$default_options{prefix_item} %d (%d)", $mailcount{mails_over_all}, $mailcount{accounts_with_mails});
     }
 }
 
@@ -477,15 +481,29 @@ sub decode_Rijndael{
   return $rencrypted;
 }
 
-sub check_passphrase_length{
-  my ( $passphrase ) = @_;
-	  my $len = length($passphrase);
-	  if (! ($len == 16) or ($len == 24) or ($len == 32) ){
-	  weechat::print("",weechat::prefix("error")."$prgname: wrong key length: passphrase must be 128, 192 or 256 bits long");
-	  return 1; #false
-	  }
+sub check_passphrase_length
+{
+    my ( $passphrase ) = @_;
+    my $len = length($passphrase);
+    if (! ($len == 16) or ($len == 24) or ($len == 32) )
+    {
+        weechat::print("",weechat::prefix("error")."$prgname: wrong key length: passphrase must be 128, 192 or 256 bits long");
+        return 1; #false
+    }
 return 0; #true
 }
+
+sub my_eval_expression
+{
+    my $value = $_[0];
+    if ( ($weechat_version ne "") && ($weechat_version >= 0x00040200) )
+    {
+        my $eval_expression = weechat::string_eval_expression($value,{},{},{});
+        return $eval_expression if ($eval_expression ne "");
+    }
+return $value;
+}
+
 
 # -------------------------------[ load, save, shutdown, debug routine ]-------------------------------------
 sub save_file
@@ -568,35 +586,37 @@ $Hooks{config}  = weechat::hook_config( "plugins.var.perl.$prgname.*", "toggled_
 $Hooks{command} = weechat::hook_command($prgname, $description,
 		"[list <account>] | [add user(\@host) server:port password] | [del number] | check",
 
-		"list         : display account(s)\n".
-		"list <number>: display mail header(s) for specified account\n".
-		"add          : add new account (template: <username> <server:port> <password>)\n".
-		"del <number> : delete an account\n".
-		"check        : check POP3 account(s) manually\n".
-		"\n".
-		"This script is using Rijndael(AES) encryption to protect your pop3 password(s) in config file.\n".
-		"Keep in mind that the passphrase is not encrypted. Use /rmodifier function to hide passphrase.\n".
-		"\n".
-		"Options:\n".
-		"plugins.var.perl.$prgname.passphrase                   : to encrypt pop3 passwords in config file (default: empty)\n".
-		"                                                          Since WeeChat 0.4.2 its possible to encrypt passphrase (see /help secure) eg: \${sec.data.pop3_passphrase}\n".
-		"plugins.var.perl.$prgname.pop3_list                    : file to store account, server and password (default: %h/pop3list.txt)\n".
-		"plugins.var.perl.$prgname.pop3timeout                  : set a timeout value for socket operations (default: 20 seconds)\n".
-		"plugins.var.perl.$prgname.refresh                      : checks pop3 account (default: 10 minutes)\n".
-		"plugins.var.perl.$prgname.show_header                  : displays mail headers (default: From|Subject)\n".
-		"plugins.var.perl.$prgname.delete_passphrase_on_exit    : delete passphrase on exit (default: on)\n".
-		"You have to edit option \"delete_passphrase_on_exit\" manually each time when weechat or script (re)starts. Switching option to \"off\" will keep passphrase in weechat-config.\n".
-		"\n".
-		"Add item [mail] to your \"weechat.bar.status.items\"\n".
-		"\n".
-		"Examples:\n".
-		"Add account with hostname and ssl/tls protocol to monitore:\n".
-		"/$prgname add myuser\@host.de pop3.server.de:995 mypassword\n".
-		"Add account without hostname and without ssl/tls protocol to monitore:\n".
-		"/$prgname add myuser pop3.server.de:110 mypassword\n".
-		"Delete account with number 001 from list:\n".
-		"/$prgname del 1\n",
-		"add|del|list|check", "user_cmd", "");
+                "list         : display account(s)\n".
+                "list <number>: display mail header(s) for specified account\n".
+                "add          : add new account (template: <username> <server:port> <password>)\n".
+                "del <number> : delete an account\n".
+                "check        : check POP3 account(s) manually\n".
+                "\n".
+                "This script is using Rijndael(AES) encryption to protect your pop3 password(s) in config file.\n".
+                "Keep in mind that the passphrase is not encrypted. Use /rmodifier function to hide passphrase.\n".
+                "Using Weechat 0.4.2 or higher its recommended to use /secure to protect passphrase.\n".
+                "\n".
+                "Options:\n".
+                "plugins.var.perl.$prgname.passphrase                   : to encrypt pop3 passwords in config file (default: empty)\n".
+                "                                                          Since WeeChat 0.4.2 its possible to encrypt passphrase (see /help secure) eg: \${sec.data.pop3_passphrase}\n".
+                "plugins.var.perl.$prgname.pop3_list                    : file to store account, server and password (default: %h/pop3list.txt)\n".     "plugins.var.perl.$prgname.pop3timeout                  : set a timeout (in seconds) for socket operations (default: 20)\n".
+                "plugins.var.perl.$prgname.refresh                      : checks pop3 account (in minutes) (default: 10)\n".
+                "plugins.var.perl.$prgname.show_header                  : displays mail headers (default: From|Subject)\n".
+                "plugins.var.perl.$prgname.prefix_item                  : displays a prefix (default: ✉:). Since WeeChat 0.4.2 you can use \${color:xxx}\n".
+                "plugins.var.perl.$prgname.delete_passphrase_on_exit    : delete passphrase on exit (default: on)\n".
+                "\n".
+                "You have to edit option \"delete_passphrase_on_exit\" manually each time when weechat or script (re)starts. Switching option to \"off\" will keep passphrase in weechat-config.\n".
+                "\n".
+                "Add item [mail] to your \"weechat.bar.status.items\"\n".
+                "\n".
+                "Examples:\n".
+                "Add account with hostname and ssl/tls protocol to monitore:\n".
+                "/$prgname add myuser\@host.de pop3.server.de:995 mypassword\n".
+                "Add account without hostname and without ssl/tls protocol to monitore:\n".
+                "/$prgname add myuser pop3.server.de:110 mypassword\n".
+                "Delete account with number 001 from list:\n".
+                "/$prgname del 1\n",
+                "add|del|list|check", "user_cmd", "");
 
 
 hook_timer() if ($default_options{refresh} ne "0");
