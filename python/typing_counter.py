@@ -38,6 +38,8 @@
 #       add support for gtalksms "reply" (suggested by ahuemer@freenode)
 # 0.7 <nils_2@freenode>:
 #       fix bug with root bar (reported by fours_)
+# 0.8 <nils_2@freenode>:
+#       fix regex bug with ":" in sms text (reported by ahuemer)
 #
 # Note: As of version 0.2 this script requires a version of weechat
 #       from git 2010-01-25 or newer, or at least 0.3.2 stable.
@@ -70,7 +72,7 @@
 
 SCRIPT_NAME    = "typing_counter"
 SCRIPT_AUTHOR  = "fauno <fauno@kiwwwi.com.ar>"
-SCRIPT_VERSION = "0.7"
+SCRIPT_VERSION = "0.8"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Bar item showing typing count and cursor position. Add 'tc' to a bar."
 
@@ -156,7 +158,8 @@ def tc_bar_item (data, item, window):
         # check for a sms message
         if channel_type == 'private' and name in tc_options['sms_buffer'].split(","):
             # 160 chars for a sms
-            get_sms_text = re.match(r'(s|sms):(.*):(.*)', input_line)
+            # 'sms:name:text'
+            get_sms_text = re.match(r'(s|sms):(.*?:)(.*)', input_line)
             if get_sms_text:
 #            if get_sms_text.group(2):
                 sms_len = len(get_sms_text.group(3))
