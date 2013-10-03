@@ -1,6 +1,6 @@
 #
-# Copyright (C) 2008-2012 Sebastien Helleu <flashcode@flashtux.org>
-# Copyright (C) 2011-2012 Nils G <weechatter@arcor.de>
+# Copyright (C) 2008-2013 Sebastien Helleu <flashcode@flashtux.org>
+# Copyright (C) 2011-2013 Nils G <weechatter@arcor.de>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,6 +20,9 @@
 #
 # History:
 #
+# 2013-09-27, nils_2@freenode.#weechat:
+#    v3.9: add option "toggle_bar" and option "show_prefix_query" (idea by IvarB)
+#        : fix problem with linefeed at end of list of buffers (reported by grawity)
 # 2012-10-18, nils_2@freenode.#weechat:
 #     v3.8: add option "mark_inactive", to mark buffers you are not in (idea by xrdodrx)
 #         : add wildcard "*" for immune_detach_buffers (idea by StarWeaver)
@@ -134,7 +137,8 @@
 use strict;
 use Encode qw( decode encode );
 # -------------------------------[ internal ]-------------------------------------
-my $version = "3.8";
+my $SCRIPT_NAME = "buffers";
+my $version = "3.9";
 
 my $BUFFERS_CONFIG_FILE_NAME = "buffers";
 my $buffers_config_file;
@@ -152,26 +156,33 @@ my %buffers_timer       = ();
 my %Hooks               = ();
 
 # --------------------------------[ init ]--------------------------------------
-weechat::register("buffers", "Sebastien Helleu <flashcode\@flashtux.org>", $version,
-                  "GPL3", "Sidebar with list of buffers", "", "");
+weechat::register($SCRIPT_NAME, "Sebastien Helleu <flashcode\@flashtux.org>", $version,
+                  "GPL3", "Sidebar with list of buffers", "shutdown_cb", "");
 my $weechat_version = weechat::info_get("version_number", "") || 0;
 
 buffers_config_init();
 buffers_config_read();
 
-weechat::bar_item_new("buffers", "build_buffers", "");
-weechat::bar_new("buffers", "0", "0", "root", "", "left", "horizontal",
+weechat::bar_item_new($SCRIPT_NAME, "build_buffers", "");
+weechat::bar_new($SCRIPT_NAME, "0", "0", "root", "", "left", "horizontal",
                  "vertical", "0", "0", "default", "default", "default", "1",
-                 "buffers");
+                 $SCRIPT_NAME);
+
+if ( check_bar_item() == 0 )
+{
+    weechat::command("","/bar show " . $SCRIPT_NAME) if ( weechat::config_boolean($options{"toggle_bar"}) eq 1 );
+}
+
 weechat::hook_signal("buffer_*", "buffers_signal_buffer", "");
 weechat::hook_signal("window_switch", "buffers_signal_buffer", "");
 weechat::hook_signal("hotlist_*", "buffers_signal_hotlist", "");
-weechat::hook_signal("window_switch", "buffers_signal_buffer", "");
 #weechat::hook_command_run("/input switch_active_*", "buffers_signal_buffer", "");
-weechat::bar_item_update("buffers");
+weechat::bar_item_update($SCRIPT_NAME);
+
+
 if ($weechat_version >= 0x00030600)
 {
-    weechat::hook_focus("buffers", "buffers_focus_buffers", "");
+    weechat::hook_focus($SCRIPT_NAME, "buffers_focus_buffers", "");
     weechat::hook_hsignal("buffers_mouse", "buffers_hsignal_mouse", "");
     weechat::key_bind("mouse", \%mouse_keys);
 }
@@ -287,6 +298,7 @@ my ( $data, $buffer, $args ) = @_;
     }
     return weechat::WEECHAT_RC_OK;
 }
+
 sub create_whitelist
 {
     my @buffers_list = @{$_[0]};
@@ -313,7 +325,7 @@ sub hook_timer_detach
         weechat::unhook($Hooks{timer_detach}) if $Hooks{timer_detach};
         $Hooks{timer_detach} = weechat::hook_timer( weechat::config_integer( $options{"detach"}) * 1000, 60, 0, "buffers_signal_buffer", "");
     }
-    weechat::bar_item_update("buffers");
+    weechat::bar_item_update($SCRIPT_NAME);
     return weechat::WEECHAT_RC_OK;
 }
 
@@ -330,7 +342,7 @@ sub hook_timer_lag
         weechat::unhook($Hooks{timer_lag}) if $Hooks{timer_lag};
         $Hooks{timer_lag} = weechat::hook_timer( weechat::config_integer(weechat::config_get("irc.network.lag_refresh_interval")) * 1000, 0, 0, "buffers_signal_hotlist", "");
     }
-    weechat::bar_item_update("buffers");
+    weechat::bar_item_update($SCRIPT_NAME);
     return weechat::WEECHAT_RC_OK;
 }
 
@@ -399,8 +411,9 @@ my %default_options_look =
  "short_names"          =>      ["short_names", "boolean", "display short names (remove text before first \".\" in buffer name)", "", 0, 0,"on", "on", 0, "", "", "buffers_signal_config", "", "", ""],
  "show_number"          =>      ["show_number", "boolean", "display channel number in front of buffername", "", 0, 0,"on", "on", 0, "", "", "buffers_signal_config", "", "", ""],
  "show_number_char"     =>      ["number_char", "string", "display a char after channel number", "", 0, 0,".", ".", 0, "", "", "buffers_signal_config", "", "", ""],
- "show_prefix"          =>      ["prefix", "boolean", "show your prefix for channel", "", 0, 0,"off", "off", 0, "", "", "buffers_signal_config", "", "", ""],
- "show_prefix_empty"    =>      ["prefix_empty", "boolean", "use a placeholder for channels without prefix", "", 0, 0,"on", "on", 0, "", "", "buffers_signal_config", "", "", ""],
+ "show_prefix"          =>      ["prefix", "boolean", "displays your prefix for channel in front of buffername", "", 0, 0,"off", "off", 0, "", "", "buffers_signal_config", "", "", ""],
+ "show_prefix_empty"    =>      ["prefix_empty", "boolean", "use a placeholder for channels without prefix", "", 0, 0,"on", "on", 0, "", "",  "buffers_signal_config", "", "", ""],
+"show_prefix_query"  =>      ["prefix_for_query", "string", "prefix displayed in front of query buffer", "", 0, 0,"", "", 0, "", "", "buffers_signal_config", "", "", ""],
  "sort"                 =>      ["sort", "integer", "sort buffer-list by \"number\" or \"name\"", "number|name", 0, 0,"number", "number", 0, "", "", "buffers_signal_config", "", "", ""],
  "core_to_front"        =>      ["core_to_front", "boolean", "core buffer and buffers with free content will be listed first. Take only effect if buffer sort is by name", "", 0, 0,"off", "off", 0, "", "", "buffers_signal_config", "", "", ""],
  "jump_prev_next_visited_buffer" => ["jump_prev_next_visited_buffer", "boolean", "jump to previously or next visited buffer if you click with left/right mouse button on currently visiting buffer", "", 0, 0,"off", "off", 0, "", "", "buffers_signal_config", "", "", ""],
@@ -411,6 +424,7 @@ my %default_options_look =
  "detach_query"         =>      ["detach_query", "boolean", "query buffer will be detachted", "", 0, 0,"off", "off", 0, "", "", "buffers_signal_config", "", "", ""],
  "detach_free_content"  =>      ["detach_free_content", "boolean", "buffers with free content will be detached (Ex: iset, chanmon)", "", 0, 0,"off", "off", 0, "", "", "buffers_signal_config", "", "", ""],
  "mark_inactive"        =>      ["mark_inactive", "boolean", "if option is \"on\", inactive buffers (those you are not in) will have parentesis around them. An inactive buffer will not be detached.", "", 0, 0,"off", "off", 0, "", "", "buffers_signal_config", "", "", ""],
+ "toggle_bar"           =>      ["toogle_bar", "boolean", "if option is \"on\", buffers bar will hide/show when script is (un)loaded.", "", 0, 0,"on", "on", 0, "", "", "buffers_signal_config", "", "", ""],
 );
     # section "color"
     my $section_color = weechat::config_new_section($buffers_config_file,"color", 0, 0, "", "", "", "", "", "", "", "", "", "");
@@ -443,7 +457,8 @@ my %default_options_look =
         $default_options_look{$option}[3],$default_options_look{$option}[4],$default_options_look{$option}[5],
         $default_options_look{$option}[6],$default_options_look{$option}[7],$default_options_look{$option}[8],
         $default_options_look{$option}[9],$default_options_look{$option}[10],$default_options_look{$option}[11],
-        $default_options_look{$option}[12],$default_options_look{$option}[13],$default_options_look{$option}[14]);
+        $default_options_look{$option}[12],$default_options_look{$option}[13],$default_options_look{$option}[14],
+        $default_options_look{$option}[15]);
     }
 }
 
@@ -831,6 +846,9 @@ sub build_buffers
                 }
             }
         }
+
+        $str .= weechat::config_string( $options{"show_prefix_query"}) if (weechat::config_string( $options{"show_prefix_query"} ) ne "" and  $buffer->{"type"} eq "private");
+
         if (weechat::config_boolean( $options{"show_prefix"} ) eq 1)
         {
             my $nickname = weechat::buffer_get_string($buffer->{"pointer"}, "localvar_nick");
@@ -928,6 +946,9 @@ sub build_buffers
         $old_number = $buffer->{"number"};
     }
 
+    # remove spaces and/or linefeed at the end
+    $str =~ s/\s+$//;
+    chomp($str);
     return $str;
 }
 
@@ -1051,13 +1072,13 @@ my ($data, $signal, $signal_data) = @_;
         }
     }
 
-    weechat::bar_item_update("buffers");
+    weechat::bar_item_update($SCRIPT_NAME);
     return weechat::WEECHAT_RC_OK;
 }
 
 sub buffers_signal_hotlist
 {
-    weechat::bar_item_update("buffers");
+    weechat::bar_item_update($SCRIPT_NAME);
     return weechat::WEECHAT_RC_OK;
 }
 
@@ -1066,20 +1087,20 @@ sub buffers_signal_config_whitelist
 {
     @whitelist_buffers = ();
     @whitelist_buffers = split( /,/, weechat::config_string( $options{"look_whitelist_buffers"} ) );
-    weechat::bar_item_update("buffers");
+    weechat::bar_item_update($SCRIPT_NAME);
     return weechat::WEECHAT_RC_OK;
 }
 sub buffers_signal_config_immune_detach_buffers
 {
     @immune_detach_buffers = ();
     @immune_detach_buffers = split( /,/, weechat::config_string( $options{"immune_detach_buffers"} ) );
-    weechat::bar_item_update("buffers");
+    weechat::bar_item_update($SCRIPT_NAME);
     return weechat::WEECHAT_RC_OK;
 }
 
 sub buffers_signal_config
 {
-    weechat::bar_item_update("buffers");
+    weechat::bar_item_update($SCRIPT_NAME);
     return weechat::WEECHAT_RC_OK;
 }
 
@@ -1090,7 +1111,7 @@ sub buffers_focus_buffers
     my %info = %{$_[1]};
     my $item_line = int($info{"_bar_item_line"});
     undef my $hash;
-    if (($info{"_bar_item_name"} eq "buffers") && ($item_line >= 0) && ($item_line <= $#buffers_focus))
+    if (($info{"_bar_item_name"} eq $SCRIPT_NAME) && ($item_line >= 0) && ($item_line <= $#buffers_focus))
     {
         $hash = $buffers_focus[$item_line];
     }
@@ -1195,4 +1216,31 @@ sub check_immune_detached_buffers
         }
     }
     return 0;
+}
+
+sub shutdown_cb
+{
+    weechat::command("","/bar hide " . $SCRIPT_NAME) if ( weechat::config_boolean($options{"toggle_bar"}) eq 1 );
+    return weechat::WEECHAT_RC_OK
+}
+
+sub check_bar_item
+{
+    my $item = 0;
+    my $infolist = weechat::infolist_get("bar", "", "");
+    while (weechat::infolist_next($infolist))
+    {
+        my $bar_items = weechat::infolist_string($infolist, "items");
+        if (index($bar_items,$SCRIPT_NAME) != -1)
+        {
+            my $name = weechat::infolist_string($infolist, "name");
+            if ($name ne $SCRIPT_NAME)
+            {
+                $item = 1;
+                last;
+            }
+        }
+    }
+    weechat::infolist_free($infolist);
+    return $item;
 }
