@@ -26,7 +26,9 @@
 # Happy chat, enjoy :)
 #
 # History:
-#
+# 2013-09-30, Nils Görs <freenode.nils_2>:
+#     version 1.6: add support of /secure for passwords and jid
+#                : fix stdout/stderr when no JID was set
 # 2013-05-14, Billiam <billiamthesecond@gmail.com>:
 #     version 1.5: fix unicode encoding error in /jabber buddies
 # 2013-05-03, Sebastien Helleu <flashcode@flashtux.org>:
@@ -85,7 +87,7 @@
 
 SCRIPT_NAME    = "jabber"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "1.5"
+SCRIPT_VERSION = "1.6"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Jabber/XMPP protocol for WeeChat"
 SCRIPT_COMMAND = SCRIPT_NAME
@@ -464,7 +466,16 @@ class Server:
                 weechat.buffer_set(self.buffer, "nicklist_display_groups", "1")
                 weechat.buffer_set(self.buffer, "display", "auto")
         self.disconnect()
-        self.buddy = Buddy(jid=self.option_string("jid"), server=self)
+
+        if not eval_expression(self.option_string("jid")):
+            weechat.prnt(self.buffer, "%sjabber: JID must contain at least domain name"
+                         % weechat.prefix("error"))
+            self.ping_up = False
+            self.client = None
+            return self.is_connected()
+
+        self.buddy = Buddy(jid=eval_expression(self.option_string("jid")), server=self)
+
         server = self.option_string("server")
         port = self.option_integer("port")
         self.client = xmpp.Client(server=self.buddy.domain, debug=[])
@@ -491,9 +502,11 @@ class Server:
             res = self.buddy.resource
             if not res:
                 res = "WeeChat"
+
             auth = self.client.auth(self.buddy.username,
-                                    self.option_string("password"),
+                                    eval_expression(self.option_string("password")),
                                     res)
+
             if auth:
                 weechat.prnt(self.buffer, "jabber: authentication ok (using %s)" % auth)
 
@@ -956,6 +969,13 @@ class Server:
             for name, option in self.options.items():
                 weechat.config_option_free(option)
 
+def eval_expression(option_name):
+    """ Return a evaluated expression """
+    if int(version) >= 0x00040200:
+        return weechat.string_eval_expression(option_name,{},{},{})
+    else:
+        return option_name
+
 def jabber_search_server_by_name(name):
     """ Search a server by name. """
     global jabber_servers
@@ -1268,8 +1288,9 @@ def jabber_list_servers_chats(name):
                 connected = ""
                 if server.sock >= 0:
                     connected = "(connected)"
+
                 weechat.prnt("", "  %s - %s %s %s" % (server.name,
-                    server.option_string("jid"), conn_server, connected))
+                    eval_expression(server.option_string("jid")), conn_server, connected))
                 for chat in server.chats:
                     weechat.prnt("", "    chat with %s" % (chat.buddy))
     else:
@@ -1683,6 +1704,8 @@ if __name__ == "__main__" and import_ok:
     if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION,
                         SCRIPT_LICENSE, SCRIPT_DESC,
                         "jabber_unload_script", ""):
+
+        version = weechat.info_get("version_number", "") or 0
         jabber_hook_commands_and_completions()
         jabber_config_init()
         jabber_config_read()
