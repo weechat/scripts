@@ -17,6 +17,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+#
+# 2013-10-04: nils_2, (freenode.#weechat)
+#       0.6 : add: new option replace_mode
+#           : add: support of /eval (weechat >= 0.4.2)
+#           : fix: typo in help
+#
 # 2013-06-27: nils_2, (freenode.#weechat)
 #       0.5 : fix: bug with root input bar
 #
@@ -33,10 +39,13 @@
 #       0.1 : - initial release -
 #
 # requires: WeeChat version >= 0.4.0
+# better use latest stable or devel version : http://www.weechat.org/download/
+#
 #
 # Development is currently hosted at
 # https://github.com/weechatter/weechat-scripts
 #
+
 try:
     import weechat, re #sys
 
@@ -47,7 +56,7 @@ except Exception:
 
 SCRIPT_NAME     = "spell_correction"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.5"
+SCRIPT_VERSION  = "0.6"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "a simple spell correction for a 'misspelled' word"
 
@@ -55,9 +64,10 @@ OPTIONS         = { 'auto_pop_up_item'       : ('off','automatic pop-up suggesti
                     'auto_replace'           : ('on','replaces misspelled word with selected suggestion, automatically. If you use "off" you will have to bind command "/%s replace" to a key' % SCRIPT_NAME),
                     'catch_input_completion' : ('on','will catch the input_complete commands [TAB-key]'),
                     'eat_input_char'         : ('on','will eat the next char you type, after replacing a misspelled word'),
-                    'suggest_item'           : ('${white}%S${default}', 'item format (%S = suggestion, %D = dict). Colors are allowed with format "${color}")'),
-                    'hide_single_dict'       : ('on','will hide dict in item if you have a sinlge dict for buffer only'),
-                    'complete_near'          : ('0','will show suggestions only if you are n-chars near the misspelled word (0 = off)'),
+                    'suggest_item'           : ('${white}%S${default}', 'item format (%S = suggestion, %D = dict). Colors are allowed with format "${color}". note: since WeeChat 0.4.2 content is evaluated, see /help eval.'),
+                    'hide_single_dict'       : ('on','will hide dict in item if you have a single dict for buffer only'),
+                    'complete_near'          : ('0','show suggestions item only if you are n-chars near the misspelled word (0 = off). Using \'replace_mode\' cursor has to be n-chars near misspelled word to cycle through suggestions.'),
+                    'replace_mode'           : ('off','misspelled word will be replaced directly by suggestions. Use option \'complete_near\' to specify range and item \'spell_suggest\' to show possible suggestions.'),
                   }
 
 Hooks = {'catch_input_completion': '', 'catch_input_return': ''}
@@ -66,14 +76,13 @@ regex_optional_tags=re.compile('%\{[^\{\}]+\}')
 multiline_input = 0
 # ================================[ weechat options & description ]===============================
 def init_options():
-    for option,value in list(OPTIONS.items()):
-#    for option,value in OPTIONS.items():
-        weechat.config_set_desc_plugin(option, '%s (default: "%s")' % (value[1], value[0]))
+    for option,value in OPTIONS.items():
         if not weechat.config_is_set_plugin(option):
             weechat.config_set_plugin(option, value[0])
             OPTIONS[option] = value[0]
         else:
             OPTIONS[option] = weechat.config_get_plugin(option)
+        weechat.config_set_desc_plugin(option, '%s (default: "%s")' % (value[1], value[0]))
 
 def toggle_refresh(pointer, name, value):
     global OPTIONS
@@ -226,11 +235,18 @@ def input_text_changed_cb(data, signal, signal_data):
     if not buffer:
         return weechat.WEECHAT_RC_OK
 
+#    if OPTIONS['replace_mode'].lower() == "on" and weechat.buffer_get_string(buffer,'localvar_inline_replace_mode'):
+#        tab_complete,position,aspell_suggest_items = weechat.buffer_get_string(buffer,'localvar_inline_suggestions').split(':',2)
+#        weechat.buffer_set(buffer, 'localvar_set_inline_suggestions', '%s:%s:%s' % ('0',position,aspell_suggest_items))
+#        return weechat.WEECHAT_RC_OK
+
+        return weechat.WEECHAT_RC_OK
+
     tab_complete,position,aspell_suggest_item = get_position_and_suggest_item(buffer)
     if not position or not aspell_suggest_item:
         return weechat.WEECHAT_RC_OK
 
-    # 1 = cursor etc., 2 = TAB
+    # 1 = cursor etc., 2 = TAB, 3 = replace_mode
     if tab_complete != '0':
         if not aspell_suggest_item:
             aspell_suggest_item = ''
@@ -239,13 +255,14 @@ def input_text_changed_cb(data, signal, signal_data):
         return weechat.WEECHAT_RC_OK
 
     if OPTIONS['auto_replace'].lower() == "on":
-        replace_misspelled_word(buffer) # also remove localvar_suggest_item
+        replace_misspelled_word(buffer)
         return weechat.WEECHAT_RC_OK
 
 #    weechat.buffer_set(buffer, 'localvar_set_spell_correction_suggest_item', '%s:%s:' % ('0','-1'))
     weechat.bar_item_update('spell_correction')
     return weechat.WEECHAT_RC_OK
 
+# also remove localvar_suggest_item
 def replace_misspelled_word(buffer):
     input_line = weechat.buffer_get_string(buffer, 'localvar_spell_correction_suggest_input_line')
     if not input_line:
@@ -297,7 +314,7 @@ def replace_misspelled_word(buffer):
 
     weechat.buffer_set(buffer, 'localvar_del_spell_correction_suggest_item', '')
 
-# diehs:die hs,die-hs,dies/dies,Diebs,Viehs
+# format of localvar aspell_suggest (using two dicts):   diehs:die hs,die-hs,dies/dies,Diebs,Viehs
 def get_localvar_aspell_suggest(buffer):
     return weechat.buffer_get_string(buffer, 'localvar_aspell_suggest')
 
@@ -314,6 +331,8 @@ def get_aspell_dict_for(buffer):
     return weechat.config_string(weechat.config_get('aspell.dict.%s' % weechat.buffer_get_string(buffer,'full_name')))
 
 def substitute_colors(text):
+    if int(version) >= 0x00040200:
+        return weechat.string_eval_expression(text,{},{},{})
     # substitute colors in output
     return re.sub(regex_color, lambda match: weechat.color(match.group(1)), text)
 
@@ -326,6 +345,18 @@ def get_position_and_suggest_item(buffer):
 
 def aspell_suggest_cb(data, signal, signal_data):
     buffer = signal_data
+    if OPTIONS['replace_mode'].lower() == 'on':
+        localvar_aspell_suggest = get_localvar_aspell_suggest(buffer)
+        if localvar_aspell_suggest:
+            # aspell says, suggested word is also misspelled. check out if we already have a suggestion list and don't use the new misspelled word!
+            if weechat.buffer_get_string(buffer,'localvar_inline_suggestions'):
+                return weechat.WEECHAT_RC_OK
+            misspelled_word,aspell_suggestions = localvar_aspell_suggest.split(':')
+            aspell_suggestions = aspell_suggestions.replace('/',',')
+            weechat.buffer_set(buffer, 'localvar_set_inline_suggestions', '%s:%s:%s' % ('2','0',aspell_suggestions))
+            weechat.bar_item_update('spell_suggest')
+            return weechat.WEECHAT_RC_OK
+
     if OPTIONS['auto_pop_up_item'].lower() == 'on':
         auto_suggest_cmd_cb('', buffer, '')
         weechat.buffer_set(buffer, 'localvar_del_spell_correction_suggest_input_line', '')
@@ -359,9 +390,103 @@ def multiline_cb(data, signal, signal_data):
 # ================================[ hook_keys() ]===============================
 # TAB key pressed?
 def input_complete_cb(data, buffer, command):
+
     # check if a misspelled word already exists!
     localvar_aspell_suggest = get_localvar_aspell_suggest(buffer)
-    if not localvar_aspell_suggest:
+    if not localvar_aspell_suggest and not weechat.buffer_get_string(buffer,'localvar_inline_replace_mode'):
+        return weechat.WEECHAT_RC_OK
+
+    # first [TAB] on a misspelled word in "replace mode"
+    if OPTIONS['replace_mode'].lower() == "on" and not weechat.buffer_get_string(buffer,'localvar_inline_replace_mode') and int(OPTIONS['complete_near']) >= 0:
+        weechat.buffer_set(buffer, 'localvar_set_inline_replace_mode', '1')
+
+        misspelled_word,aspell_suggestions = localvar_aspell_suggest.split(':')
+        begin_last_position, end_last_position, input_pos = get_last_position_of_misspelled_word(misspelled_word, buffer)
+
+        # maybe nick completion?
+        if begin_last_position == -1:
+            delete_localvar_replace_mode(buffer)
+            return weechat.WEECHAT_RC_OK
+
+        if input_pos - end_last_position > int(OPTIONS['complete_near']):
+            delete_localvar_replace_mode(buffer)
+            return weechat.WEECHAT_RC_OK
+
+        aspell_suggestions = aspell_suggestions.replace('/',',')
+        weechat.buffer_set(buffer, 'localvar_set_inline_suggestions', '%s:%s:%s' % ('2','0',aspell_suggestions))
+        weechat.buffer_set(buffer, 'localvar_set_save_position_of_word', '%s:%s' % (begin_last_position, end_last_position))
+        inline_suggestions = aspell_suggestions.split(',')
+
+        input_line = weechat.buffer_get_string(buffer, 'input')
+        input_line = input_line[:begin_last_position] + inline_suggestions[0] + input_line[end_last_position:]
+
+#        input_line = input_line.replace(misspelled_word, inline_suggestions[0])
+        word_differ = 0
+        if len(misspelled_word) > len(inline_suggestions[0]):
+            word_differ = len(misspelled_word) - len(inline_suggestions[0])
+        else:
+            word_differ = len(inline_suggestions[0]) - len(misspelled_word)
+        if input_line[-2:] == '  ':
+            input_line = input_line.rstrip()
+            input_line = input_line + ' '
+
+        weechat.buffer_set(buffer,'input',input_line)
+        input_pos = int(input_pos) + word_differ
+        weechat.buffer_set(buffer,'input_pos',str(input_pos))
+        weechat.bar_item_update('spell_suggest')
+        return weechat.WEECHAT_RC_OK
+
+    # after first [TAB] on a misspelled word in "replace mode"
+    if OPTIONS['replace_mode'].lower() == "on" and weechat.buffer_get_string(buffer,'localvar_inline_replace_mode') == "1" and int(OPTIONS['complete_near']) >= 0:
+        tab_complete,position,aspell_suggest_items = weechat.buffer_get_string(buffer,'localvar_inline_suggestions').split(':',2)
+
+        if not position or not aspell_suggest_items:
+            weechat.buffer_set(buffer, 'localvar_del_inline_replace_mode', '')
+            return weechat.WEECHAT_RC_OK
+        inline_suggestions = aspell_suggest_items.split(',')
+
+        position = int(position)
+        previous_position = position
+        # cycle backwards through suggestions
+        if command == '/input complete_previous':
+            # position <= -1? go to last suggestion
+            if position <= -1:
+                position = len(inline_suggestions)-1
+            else:
+                position -= 1
+        # cycle forward through suggestions
+        elif command == '/input complete_next':
+            if position >= len(inline_suggestions)-1:
+                position = 0
+            else:
+                position += 1
+
+        begin_last_position, end_last_position, input_pos = get_last_position_of_misspelled_word(inline_suggestions[previous_position], buffer)
+
+        if input_pos - end_last_position > int(OPTIONS['complete_near']):
+            delete_localvar_replace_mode(buffer)
+            return weechat.WEECHAT_RC_OK
+
+        input_line = weechat.buffer_get_string(buffer, 'input')
+        input_line = input_line[:begin_last_position] + inline_suggestions[position] + input_line[end_last_position:]
+#        input_line = input_line.replace(inline_suggestions[previous_position], inline_suggestions[position])
+
+        word_differ = 0
+        if len(inline_suggestions[previous_position]) > len(inline_suggestions[position]):
+            word_differ = len(inline_suggestions[previous_position]) - len(inline_suggestions[position])
+        else:
+            word_differ = len(inline_suggestions[position]) - len(inline_suggestions[previous_position])
+
+        if input_line[-2:] == '  ':
+            input_line = input_line.rstrip()
+            input_line = input_line + ' '
+
+        weechat.buffer_set(buffer,'input',input_line)
+        input_pos = int(input_pos) + word_differ
+        weechat.buffer_set(buffer,'input_pos',str(input_pos))
+
+        weechat.buffer_set(buffer, 'localvar_set_inline_suggestions', '%s:%s:%s' % ('2',str(position),aspell_suggest_items))
+        weechat.bar_item_update('spell_suggest')
         return weechat.WEECHAT_RC_OK
 
     if int(OPTIONS['complete_near']) > 0:
@@ -376,6 +501,14 @@ def input_complete_cb(data, buffer, command):
     auto_suggest_cmd_cb('', buffer, command)
     weechat.bar_item_update('spell_suggest')
     return weechat.WEECHAT_RC_OK
+
+
+def delete_localvar_replace_mode(buffer):
+    if OPTIONS['replace_mode'].lower() == "on":
+        weechat.buffer_set(buffer, 'localvar_del_inline_replace_mode', '')
+        weechat.buffer_set(buffer, 'localvar_del_inline_suggestions', '')
+        weechat.buffer_set(buffer, 'localvar_del_save_position_of_word', '')
+        weechat.bar_item_update('spell_suggest')
 
 # if a suggestion is selected and you press [RETURN] replace misspelled word!
 def input_return_cb(data, signal, signal_data):
@@ -393,6 +526,7 @@ def input_return_cb(data, signal, signal_data):
 # /input delete_*
 def input_delete_cb(data, signal, signal_data):
     buffer = signal
+    delete_localvar_replace_mode(buffer)
     weechat.buffer_set(buffer, 'localvar_del_spell_correction_suggest_item', '')
     weechat.buffer_set(buffer, 'localvar_del_spell_correction_suggest_input_line', '')
     weechat.bar_item_update('spell_correction')
@@ -401,6 +535,13 @@ def input_delete_cb(data, signal, signal_data):
 # /input move_* (cursor position)
 def input_move_cb(data, signal, signal_data):
     buffer = signal
+
+    if OPTIONS['replace_mode'].lower() == "on" and weechat.buffer_get_string(buffer,'localvar_inline_replace_mode') == "1":
+        delete_localvar_replace_mode(buffer)
+        weechat.buffer_set(buffer, 'localvar_del_spell_correction_suggest_item', '')
+#        tab_complete,position,aspell_suggest_items = weechat.buffer_get_string(buffer,'localvar_inline_suggestions').split(':',2)
+#        weechat.buffer_set(buffer, 'localvar_set_inline_suggestions', '%s:%s:%s' % ('1',position,aspell_suggest_items))
+        return weechat.WEECHAT_RC_OK
 
     tab_complete,position,aspell_suggest_item = get_position_and_suggest_item(buffer)
 
@@ -427,6 +568,12 @@ def show_spell_suggestion_item_cb (data, item, window):
     if buffer == '':
         return ''
 
+    if OPTIONS['replace_mode'].lower() == "on":
+        if not weechat.buffer_get_string(buffer,'localvar_inline_suggestions'):
+            return ''
+        tab_complete,position,aspell_suggest_items = weechat.buffer_get_string(buffer,'localvar_inline_suggestions').split(':',2)
+        return aspell_suggest_items
+
     tab_complete,position,aspell_suggest_item = get_position_and_suggest_item(buffer)
     localvar_aspell_suggest = get_localvar_aspell_suggest(buffer)
 
@@ -443,7 +590,6 @@ def show_spell_suggestion_item_cb (data, item, window):
             reset_color = weechat.color('reset')
             color = weechat.color("red")
             new_word = aspell_suggestion_list[int(position)].replace(aspell_suggestion_list[int(position)],'%s%s%s' % (color, aspell_suggestion_list[int(position)], reset_color))
-#            weechat.prnt("",new_word)
     else:
         return ''
 
@@ -455,6 +601,11 @@ def window_switch_cb(data, signal, signal_data):
 def buffer_switch_cb(data, signal, signal_data):
     weechat.bar_item_update('spell_correction')
     return weechat.WEECHAT_RC_OK
+
+# ================================[ check for nick ]===============================
+def weechat_nicklist_search_nick(buffer, nick):
+    return weechat.nicklist_search_nick(buffer, "", nick)
+
 # ================================[ main ]===============================
 if __name__ == "__main__":
     if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, '', ''):
