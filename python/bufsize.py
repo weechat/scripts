@@ -18,6 +18,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2013-10-15: nils_2 (freenode.#weechat)
+#       0.4 : fix bug with root-bar
+#           : add support of eval_expression (weechat >= 0.4.2)
 # 2013-01-25: nils_2 (freenode.#weechat)
 #       0.3 : make script compatible with Python 3.x
 #           : internal changes
@@ -42,12 +45,12 @@ except Exception:
 
 SCRIPT_NAME     = "bufsize"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.3"
+SCRIPT_VERSION  = "0.4"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "scroll indicator; displaying number of lines below last line, overall lines in buffer, number of current line and percent displayed"
 
 OPTIONS         = { 'format'            : ('${yellow}%P${default}⋅%{${yellow}%A${default}⇵${yellow}%C${default}/}${yellow}%L',
-                                           'format for items to display in bar, possible items: %P = percent indicator, %A = number of lines below last line, %L = lines counter, %C = current line'),                                           # %P = percent, %A = lines_after, %L = lines_count, %C = current
+                                           'format for items to display in bar, possible items: %P = percent indicator, %A = number of lines below last line, %L = lines counter, %C = current line (note: using WeeChat >= 0.4.2, content is evaluated, so you can use colors with format \"${color:xxx}\", see /help eval)'),
                    }
 # ================================[ weechat item ]===============================
 # regexp to match ${color} tags
@@ -57,6 +60,11 @@ regex_color=re.compile('\$\{([^\{\}]+)\}')
 regex_optional_tags=re.compile('%\{[^\{\}]+\}')
 
 def show_item (data, item, window):
+
+    # check for root input bar!
+    if not window:
+       window = weechat.current_window()
+
     bufpointer = weechat.window_get_pointer(window,"buffer")
     if bufpointer == "":
         return ""
@@ -93,6 +101,8 @@ def show_item (data, item, window):
     return bufsize_item
 
 def substitute_colors(text):
+    if int(version) >= 0x00040200:
+        return weechat.string_eval_expression(text,{},{},{})
     # substitute colors in output
     return re.sub(regex_color, lambda match: weechat.color(match.group(1)), text)
 
@@ -124,12 +134,13 @@ def update_cb(data, signal, signal_data):
 
 # ================================[ weechat options and description ]===============================
 def init_options():
-    for option,value in list(OPTIONS.items()):
-        if not weechat.config_get_plugin(option):
-          weechat.config_set_plugin(option, value[0])
-    else:
-        OPTIONS[option] = weechat.config_get_plugin(option)
-    weechat.config_set_desc_plugin(option, '%s (default: "%s")' % (value[1], value[0]))
+    for option,value in OPTIONS.items():
+        if not weechat.config_is_set_plugin(option):
+            weechat.config_set_plugin(option, value[0])
+            OPTIONS[option] = value[0]
+        else:
+            OPTIONS[option] = weechat.config_get_plugin(option)
+        weechat.config_set_desc_plugin(option, '%s (default: "%s")' % (value[1], value[0]))
 
 def toggle_refresh(pointer, name, value):
     global OPTIONS
