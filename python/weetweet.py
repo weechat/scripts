@@ -27,7 +27,6 @@ import socket
 
 # TODO:
 # Add desc for script options
-# Replace the thread call, old api will be blocked soon
 
 # This twitter plugin can be extended even more. Just look at the twitter api
 # doc here: https://dev.twitter.com/docs/api/1.1
@@ -79,14 +78,14 @@ script_options = {
 
 tweet_dict = {'cur_index': "a0"}
 #Mega command dict
-command_dict = dict(thread="th",user="u",replies="r",view_tweet="v",
+command_dict = dict(user="u",replies="r",view_tweet="v",
         retweet="rt",delete="d",tweet="t",reply="re",new_tweets="new",
         follow_user="follow",unfollow_user="unfollow",following="f",
         followers="fo",about="a",block="b",unblock="ub",
         blocked_users="blocks",favorite="fav",unfavorite="unfav",
         favorites="favs", rate_limits="limits",home_timeline="home",
         clear_nicks="cnicks",clear_buffer="clear",create_stream="stream")
-desc_dict = dict(thread="<id>, Shows the conversation of the tweet",
+desc_dict = dict(
         user="<user>[<id><count>|<id>|<count>], Request user timeline, " +
         "if <id> is given it will get tweets older than <id>, " +
         "<count> is how many tweets to get, valid number is 1-200",
@@ -275,10 +274,12 @@ def trim_tweet_data(tweet_data, screen_name, alt_rt_style):
                 message['user']['screen_name'] = "<you>"
             message['text'] = message['retweeted_status']['text'] + " (retweeted by " + message['user']['screen_name'] + ")"
             message['user'] = message['retweeted_status']['user']
-        mes_list =[calendar.timegm(time.strptime(message['created_at'],'%a %b %d %H:%M:%S +0000 %Y')),
+        mes_list = [calendar.timegm(time.strptime(message['created_at'],'%a %b %d %H:%M:%S +0000 %Y')),
             message['user']['screen_name'],
             message['id_str'],
-            h.unescape(message['text'])]
+            #convert text to bytes so python2 can read it correctly
+            #TODO remove the encode when weechat is running python3 as default
+            h.unescape(message['text']).encode('utf-8')]
         if message["in_reply_to_status_id_str"] != None:
             mes_list.append(message["in_reply_to_status_id_str"])
 
@@ -536,170 +537,152 @@ def get_twitter_data(cmd_args):
         else:
             return twitter.oauth.request_token()
     try:
-        if len(cmd_args) == 5 and cmd_args[3] == 'th':
-            # use the old api to get the thread from a tweet
-            # NOTE This is unoffical and might stop working at any moment
-            twitter = Twitter(
-                auth=OAuth(
-                    oauth_token, oauth_secret, CONSUMER_KEY, CONSUMER_SECRET),
-                secure=True,
-                api_version='1',
-                domain='api.twitter.com')
-            tweet_data = twitter.related_results.show._(cmd_args[4])()
-            #convert to new api data type
-            new_data = []
-            for data in tweet_data[0]['results']:
-                new_data.append(data['value'])
-
-            tweet_data = new_data
-            tweet_data.reverse()
-        else:
-            twitter = Twitter(auth=OAuth(
+        twitter = Twitter(auth=OAuth(
             oauth_token, oauth_secret, CONSUMER_KEY, CONSUMER_SECRET))
 
-            if cmd_args[3] == "settings":
-                #this only gets called from within weechat
+        if cmd_args[3] == "settings":
+            #this only gets called from within weechat
                 return twitter.account.settings()['screen_name']
-            elif cmd_args[3] == "u":
-                kwargs = dict(count=20, screen_name=cmd_args[4])
-                if len(cmd_args) == 7:
-                    kwargs['count'] = int(cmd_args[6])
+        elif cmd_args[3] == "u":
+            kwargs = dict(count=20, screen_name=cmd_args[4])
+            if len(cmd_args) == 7:
+                kwargs['count'] = int(cmd_args[6])
+                kwargs['max_id'] = cmd_args[5]
+            elif len(cmd_args) == 6:
+                if int(cmd_args[5]) <= 200:
+                    kwargs['count'] = int(cmd_args[5])
+                else:
                     kwargs['max_id'] = cmd_args[5]
-                elif len(cmd_args) == 6:
-                    if int(cmd_args[5]) <= 200:
-                        kwargs['count'] = int(cmd_args[5])
-                    else:
-                        kwargs['max_id'] = cmd_args[5]
-                tweet_data = twitter.statuses.user_timeline(**kwargs)
-            elif cmd_args[3] == "r":
-                if len(cmd_args) == 6:
-                    kwargs = dict(count=int(cmd_args[5]), max_id=cmd_args[4])
-                    tweet_data = twitter.statuses.mentions_timeline(**kwargs)
-                elif len(cmd_args) == 5:
-                    if int(cmd_args[4]) <= 200:
-                        tweet_data = twitter.statuses.mentions_timeline(count=int(cmd_args[4]))
-                    else:
-                        tweet_data = twitter.statuses.mentions_timeline(max_id=cmd_args[4])
+            tweet_data = twitter.statuses.user_timeline(**kwargs)
+        elif cmd_args[3] == "r":
+            if len(cmd_args) == 6:
+                kwargs = dict(count=int(cmd_args[5]), max_id=cmd_args[4])
+                tweet_data = twitter.statuses.mentions_timeline(**kwargs)
+            elif len(cmd_args) == 5:
+                if int(cmd_args[4]) <= 200:
+                    tweet_data = twitter.statuses.mentions_timeline(count=int(cmd_args[4]))
                 else:
-                    tweet_data = twitter.statuses.mentions_timeline()
-            elif cmd_args[3] == "v":
-                tweet_data = [twitter.statuses.show._(cmd_args[4])()]
-            elif cmd_args[3] == "rt":
-                tweet_data = [twitter.statuses.retweet._(cmd_args[4])()]
-                #The home stream prints you messages as well...
-                tweet_data = []
-            elif cmd_args[3] == "d":
-                #deletes tweet made by the user _(...) converts the id string to a call
-                #returns the tweet that was deleted (not a list(dict) just a dict)
-                #make it into a list so we don't have to write special cases for this
-                tweet_data = [twitter.statuses.destroy._(cmd_args[4])()]
-            elif cmd_args[3] == "t":
-                #returns the tweet that was sent (not a list(dict) just a dict)
-                #make it into a list so we don't have to write special cases for this
-                tweet_data = [twitter.statuses.update(status=h.unescape(cmd_args[4]))]
-                #The home stream prints you messages as well...
-                tweet_data = []
-            elif cmd_args[3] == "re":
-                tweet_data = [twitter.statuses.update(status=h.unescape(cmd_args[5]),
-                    in_reply_to_status_id=cmd_args[4])]
-                #The home stream prints you messages as well...
-                tweet_data = []
-            elif cmd_args[3] == "new":
-                tweet_data = twitter.statuses.home_timeline(since_id = cmd_args[4], count=200, exclude_replies = no_home_replies)
-            elif cmd_args[3] == "follow":
-                tweet_data = []
-                twitter.friendships.create(screen_name = cmd_args[4])
-            elif cmd_args[3] == "unfollow":
-                tweet_data = []
-                twitter.friendships.destroy(screen_name = cmd_args[4])
-            elif cmd_args[3] == "f" or cmd_args[3] == "fo":
-                if len(cmd_args) == 6:
-                    kwargs = dict(screen_name = cmd_args[4], stringify_ids = True, cursor = int(cmd_args[5]), count = 250)
-                else:
-                    kwargs = dict(screen_name = cmd_args[4], stringify_ids = True, cursor = -1, count = 250)
-                if cmd_args[3] == "f":
-                    tweet_data = twitter.friends.ids(**kwargs)
-                else:
-                    tweet_data = twitter.followers.ids(**kwargs)
-                kwargs['cursor'] = tweet_data['next_cursor']
-                friend_ids = tweet_data['ids']
-                friend_list = list()
+                    tweet_data = twitter.statuses.mentions_timeline(max_id=cmd_args[4])
+            else:
+                tweet_data = twitter.statuses.mentions_timeline()
+        elif cmd_args[3] == "v":
+            tweet_data = [twitter.statuses.show._(cmd_args[4])()]
+        elif cmd_args[3] == "rt":
+            tweet_data = [twitter.statuses.retweet._(cmd_args[4])()]
+            #The home stream prints you messages as well...
+            tweet_data = []
+        elif cmd_args[3] == "d":
+            #deletes tweet made by the user _(...) converts the id string to a call
+            #returns the tweet that was deleted (not a list(dict) just a dict)
+            #make it into a list so we don't have to write special cases for this
+            tweet_data = [twitter.statuses.destroy._(cmd_args[4])()]
+        elif cmd_args[3] == "t":
+            #returns the tweet that was sent (not a list(dict) just a dict)
+            #make it into a list so we don't have to write special cases for this
+            tweet_data = [twitter.statuses.update(status=h.unescape(cmd_args[4]))]
+            #The home stream prints you messages as well...
+            tweet_data = []
+        elif cmd_args[3] == "re":
+            tweet_data = [twitter.statuses.update(status=h.unescape(cmd_args[5]),
+                in_reply_to_status_id=cmd_args[4])]
+            #The home stream prints you messages as well...
+            tweet_data = []
+        elif cmd_args[3] == "new":
+            tweet_data = twitter.statuses.home_timeline(since_id = cmd_args[4], count=200, exclude_replies = no_home_replies)
+        elif cmd_args[3] == "follow":
+            tweet_data = []
+            twitter.friendships.create(screen_name = cmd_args[4])
+        elif cmd_args[3] == "unfollow":
+            tweet_data = []
+            twitter.friendships.destroy(screen_name = cmd_args[4])
+        elif cmd_args[3] == "f" or cmd_args[3] == "fo":
+            if len(cmd_args) == 6:
+                kwargs = dict(screen_name = cmd_args[4], stringify_ids = True, cursor = int(cmd_args[5]), count = 250)
+            else:
+                kwargs = dict(screen_name = cmd_args[4], stringify_ids = True, cursor = -1, count = 250)
+            if cmd_args[3] == "f":
+                tweet_data = twitter.friends.ids(**kwargs)
+            else:
+                tweet_data = twitter.followers.ids(**kwargs)
+            kwargs['cursor'] = tweet_data['next_cursor']
+            friend_ids = tweet_data['ids']
+            friend_list = list()
 
-                while len(friend_ids) > 100:
-                    tweet_data = twitter.users.lookup(user_id=",".join(friend_ids[:100]))
-                    friend_ids = friend_ids[100:]
-                    for user in tweet_data:
-                        friend_list.append(user['screen_name'])
-                tweet_data = twitter.users.lookup(user_id=",".join(friend_ids))
+            while len(friend_ids) > 100:
+                tweet_data = twitter.users.lookup(user_id=",".join(friend_ids[:100]))
+                friend_ids = friend_ids[100:]
                 for user in tweet_data:
                     friend_list.append(user['screen_name'])
+            tweet_data = twitter.users.lookup(user_id=",".join(friend_ids))
+            for user in tweet_data:
+                friend_list.append(user['screen_name'])
 
-                if kwargs['cursor'] != 0:
-                    friend_list.append(kwargs['cursor'])
-                return friend_list
-            elif cmd_args[3] == "a":
-                return twitter.users.show(screen_name = cmd_args[4])
-            elif cmd_args[3] == "b":
-                tweet_data = []
-                twitter.blocks.create(screen_name = cmd_args[4])
-            elif cmd_args[3] == "ub":
-                tweet_data = []
-                twitter.blocks.destroy(screen_name = cmd_args[4])
-            elif cmd_args[3] == "blocks":
-                tweet_data = twitter.blocks.list(skip_status = True)
-                block_list = list()
-                for user in tweet_data['users']:
-                    block_list.append(user['screen_name'])
-                return block_list
-            elif cmd_args[3] == "fav":
-                tweet_data = [twitter.favorites.create(_id=cmd_args[4])]
-            elif cmd_args[3] == "unfav":
-                tweet_data = [twitter.favorites.destroy(_id=cmd_args[4])]
-            elif cmd_args[3] == "favs":
-                if len(cmd_args) >= 5:
-                    kwargs = dict()
-                    if not cmd_args[4].isdigit():
-                        kwargs['screen_name'] = cmd_args[4]
-                        cmd_args.pop(4)
-                    if len(cmd_args) == 5:
-                        if int(cmd_args[4]) <= 200:
-                            kwargs['count'] = int(cmd_args[4])
-                        else:
-                            kwargs['max_id'] = cmd_args[4]
-                    elif len(cmd_args) == 6:
-                        kwargs['count'] = int(cmd_args[5])
-                        kwargs['max_id'] = cmd_args[4]
-                    tweet_data = twitter.favorites.list(**kwargs)
-                else:
-                    tweet_data = twitter.favorites.list()
-            elif cmd_args[3] == "limits":
-                output = ""
-                if len(cmd_args) >= 5:
-                    tweet_data = twitter.application.rate_limit_status(resources=",".join(cmd_args[4:]))
-                else:
-                    tweet_data = twitter.application.rate_limit_status()
-                for res in tweet_data['resources']:
-                    output += res + ":\n"
-                    for sub_res in tweet_data['resources'][res]:
-                        output += "  " + sub_res[len(res)+2:] + ":\n"
-                        output += "    " + 'reset' + ": " + time.strftime('%Y-%m-%d %H:%M:%S',
-                                time.localtime(tweet_data['resources'][res][sub_res]['reset'])) + "\n"
-                        output += "    " + 'limit' + ": " + str(tweet_data['resources'][res][sub_res]['limit']) + "\n"
-                        output += "    " + 'remaining' + ": " + str(tweet_data['resources'][res][sub_res]['remaining']) + "\n"
-                return output
-            elif cmd_args[3] == "home":
-                if len(cmd_args) == 6:
-                    kwargs = dict(count=int(cmd_args[5]), max_id=cmd_args[4], exclude_replies = no_home_replies)
-                    tweet_data = twitter.statuses.home_timeline(**kwargs)
-                elif len(cmd_args) == 5:
+            if kwargs['cursor'] != 0:
+                friend_list.append(kwargs['cursor'])
+            return friend_list
+        elif cmd_args[3] == "a":
+            return twitter.users.show(screen_name = cmd_args[4])
+        elif cmd_args[3] == "b":
+            tweet_data = []
+            twitter.blocks.create(screen_name = cmd_args[4])
+        elif cmd_args[3] == "ub":
+            tweet_data = []
+            twitter.blocks.destroy(screen_name = cmd_args[4])
+        elif cmd_args[3] == "blocks":
+            tweet_data = twitter.blocks.list(skip_status = True)
+            block_list = list()
+            for user in tweet_data['users']:
+                block_list.append(user['screen_name'])
+            return block_list
+        elif cmd_args[3] == "fav":
+            tweet_data = [twitter.favorites.create(_id=cmd_args[4])]
+        elif cmd_args[3] == "unfav":
+            tweet_data = [twitter.favorites.destroy(_id=cmd_args[4])]
+        elif cmd_args[3] == "favs":
+            if len(cmd_args) >= 5:
+                kwargs = dict()
+                if not cmd_args[4].isdigit():
+                    kwargs['screen_name'] = cmd_args[4]
+                    cmd_args.pop(4)
+                if len(cmd_args) == 5:
                     if int(cmd_args[4]) <= 200:
-                        tweet_data = twitter.statuses.home_timeline(count=int(cmd_args[4]), exclude_replies = no_home_replies)
+                        kwargs['count'] = int(cmd_args[4])
                     else:
-                        tweet_data = twitter.statuses.home_timeline(max_id=cmd_args[4], exclude_replies = no_home_replies)
-                else:
-                    tweet_data = twitter.statuses.home_timeline(exclude_replies = no_home_replies)
+                        kwargs['max_id'] = cmd_args[4]
+                elif len(cmd_args) == 6:
+                    kwargs['count'] = int(cmd_args[5])
+                    kwargs['max_id'] = cmd_args[4]
+                tweet_data = twitter.favorites.list(**kwargs)
             else:
-                return "Invalid command: " + cmd_args[3]
+                tweet_data = twitter.favorites.list()
+        elif cmd_args[3] == "limits":
+            output = ""
+            if len(cmd_args) >= 5:
+                tweet_data = twitter.application.rate_limit_status(resources=",".join(cmd_args[4:]))
+            else:
+                tweet_data = twitter.application.rate_limit_status()
+            for res in tweet_data['resources']:
+                output += res + ":\n"
+                for sub_res in tweet_data['resources'][res]:
+                    output += "  " + sub_res[len(res)+2:] + ":\n"
+                    output += "    " + 'reset' + ": " + time.strftime('%Y-%m-%d %H:%M:%S',
+                            time.localtime(tweet_data['resources'][res][sub_res]['reset'])) + "\n"
+                    output += "    " + 'limit' + ": " + str(tweet_data['resources'][res][sub_res]['limit']) + "\n"
+                    output += "    " + 'remaining' + ": " + str(tweet_data['resources'][res][sub_res]['remaining']) + "\n"
+            return output
+        elif cmd_args[3] == "home":
+            if len(cmd_args) == 6:
+                kwargs = dict(count=int(cmd_args[5]), max_id=cmd_args[4], exclude_replies = no_home_replies)
+                tweet_data = twitter.statuses.home_timeline(**kwargs)
+            elif len(cmd_args) == 5:
+                if int(cmd_args[4]) <= 200:
+                    tweet_data = twitter.statuses.home_timeline(count=int(cmd_args[4]), exclude_replies = no_home_replies)
+                else:
+                    tweet_data = twitter.statuses.home_timeline(max_id=cmd_args[4], exclude_replies = no_home_replies)
+            else:
+                tweet_data = twitter.statuses.home_timeline(exclude_replies = no_home_replies)
+        else:
+            return "Invalid command: " + cmd_args[3]
     except:
         return "Unexpected error in get_twitter_data:%s\n Call: %s" % (sys.exc_info(), cmd_args[3])
 
@@ -735,10 +718,6 @@ def buffer_input_cb(data, buffer, input_data):
         elif command == 're' and tweet_dict.get(input_args[1]):
             end_message = "id"
             input_data = 're ' + tweet_dict[input_args[1]] + " '" + html_escape(input_data[6:]) + "'"
-        elif command == 'th' and tweet_dict.get(input_args[1]):
-            weechat.prnt(buffer, "%sThread of the following tweet id: %s" % (weechat.prefix("network"), input_args[1]))
-            input_data = 'th ' + tweet_dict[input_args[1]] + input_data[6:]
-            end_message = "End of thread"
         elif command == 'new':
             end_message = "id"
             if script_options['last_id'] != "":
@@ -1049,7 +1028,7 @@ def finish_init():
            "f " + script_options['screen_name'] + " []", 10 * 1000, "oauth_proc_cb", "friends")
 
 if __name__ == "__main__" and weechat_call:
-    weechat.register( SCRIPT_NAME , "DarkDefender", "1.0", "GPL3", "Weechat twitter client", "", "")
+    weechat.register( SCRIPT_NAME , "DarkDefender", "1.1", "GPL3", "Weechat twitter client", "", "")
 
     if not import_ok:
         weechat.prnt("", "Can't load the python twitter lib!")
