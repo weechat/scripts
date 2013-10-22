@@ -20,6 +20,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2013-10-22, yano <michael@yanovich.net>
+#     version 0.2: now works for /me
 # 2009-10-22, xt <xt@bash.no>
 #     version 0.1: initial release
 
@@ -29,7 +31,7 @@ weechat = w
 
 SCRIPT_NAME    = "uppercase"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Transform all your input to uppercase, very useful for INTERNATIONAL CAPSLOCK DAY"
 
@@ -60,9 +62,9 @@ def command_run_input(data, buffer, command):
 
         # Get input contents
         input_s = w.buffer_get_string(buffer, 'input')
-        if input_s.startswith('/') and not input_s.startswith('//'):
+        if input_s.startswith('/') and not input_s.startswith('//') and not input_s.startswith('/me'):
             return w.WEECHAT_RC_OK
-        # Transform it 
+        # Transform it
         input_s = input_s.upper()
         # Spit it out
         w.buffer_set(buffer, 'input', input_s)
