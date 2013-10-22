@@ -22,8 +22,10 @@
 # key bindings and commands, as well as normal/insert modes.
 #
 # Usage:
-# To switch to Normal mode, press Ctrl + Space. The Escape key is reported as
-# a modifier, so it can't be used for now.
+# To switch to Normal mode, press Ctrl + Space. The Escape key can be used as
+# well, though it's still a bit flaky (it's also been reported it's even more
+# flaky on older versions, so update your WeeChat to 0.4.2+).
+#
 # To switch back to Insert mode, you can use i/a/A (or cw/ce/...).
 # To execute a command, simply precede it with a ':' while in normal mode,
 # for example: ":h" or ":s/foo/bar".
@@ -88,6 +90,7 @@
 #     version 0.1: initial release
 #     version 0.2: added esc to switch to normal mode, various key bindings and
 #                  commands.
+#     version 0.2.1: fixes/refactoring
 #
 
 import weechat
@@ -97,7 +100,7 @@ import time
 
 SCRIPT_NAME = "vimode"
 SCRIPT_AUTHOR = "GermainZ <germanosz@gmail.com>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.2.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = ("An attempt to add a vi-like mode to WeeChat, which adds some"
                " common vi key bindings and commands, as well as normal/insert"
@@ -121,7 +124,7 @@ vi_commands = {'h': "/help", 'qall': "/exit", 'q': "/close", 'w': "/save",
                'set': "/set"}
 
 # Common vi key bindings. A dict holds necessary values further down.
-def key_G(repeat):
+def key_G(buf, input_line, cur, repeat):
     """Simulate vi's behavior for the G key."""
     if repeat > 0:
         # This is necessary to prevent weird scroll jumps.
@@ -130,90 +133,71 @@ def key_G(repeat):
     else:
         weechat.command('', "/window scroll_bottom")
 
-def key_dw(repeat, key="dw"):
-    """Simulate vi's behavior for dw or de."""
-    buf = weechat.current_buffer()
-    input_line = weechat.buffer_get_string(buf, 'input')
-    cur = weechat.buffer_get_integer(buf, "input_pos")
+def get_pos(data, regex, cur):
+    matches = [m.start() for m in re.finditer(regex, data[cur:])]
+    if len(matches) > 1 and matches[0] == 0:
+        pos = matches[1]
+    elif len(matches) > 0 and matches[0] != 0:
+        pos = matches[0]
+    else:
+        pos = len(data)
+    return pos
+
+# TODO: separate operators from motions
+def key_dw(buf, input_line, cur, repeat):
+    """Simulate vi's behavior for dw."""
+    pos = get_pos(input_line, r"\b\w", cur)
     input_line = list(input_line)
-    for i in range(max([1, repeat])):
-        done = False
-        found_letter = False
-        delete_word = True
-        one_timer = False
-        while done is False:
-            if cur >= len(input_line):
-                done = True
-            elif input_line[cur] != ' ' and delete_word is True:
-                found_letter = True
-                del input_line[cur]
-            elif input_line[cur] == ' ' and found_letter is False:
-                if key == "dw":
-                    delete_word = False
-                del input_line[cur]
-            elif input_line[cur] == ' ' and found_letter is True:
-                delete_word = False
-                if key == "dw" or (one_timer is False and
-                                   cur < len(input_line) and
-                                   input_line[cur + 1] == ' '
-                                   and i < max([1, repeat]) - 1):
-                    one_timer = True
-                    del input_line[cur]
-                else:
-                    if i == max([1, repeat]) - 1:
-                        cur += 1
-                    else:
-                        del input_line[cur]
-            else:
-                done = True
+    del input_line[cur:cur+pos]
     input_line = ''.join(input_line)
     weechat.buffer_set(buf, "input", input_line)
 
-def key_de(repeat):
-    """Simulate vi's behavior for the de key."""
-    key_dw(repeat, "de")
+def key_de(buf, input_line, cur, repeat):
+    """Simulate vi's behavior for de."""
+    pos = get_pos(input_line, r"\w\b", cur)
+    input_line = list(input_line)
+    del input_line[cur:cur+pos+1]
+    input_line = ''.join(input_line)
+    weechat.buffer_set(buf, "input", input_line)
 
-def key_w(repeat):
+def key_w(buf, input_line, cur, repeat):
     """Simulate vi's behavior for the w key."""
-    buf = weechat.current_buffer()
     for _ in range(max([1, repeat])):
-        input_line = weechat.buffer_get_string(buf, 'input')
-        cur = weechat.buffer_get_integer(buf, "input_pos")
         weechat.command('', ("/input move_next_word\n/input move_next_word\n"
                              "/input move_previous_word"))
         if len(input_line[cur:].split(' ')) == 1:
             weechat.command('', "/input move_end_of_line")
 
-def key_cw(repeat):
+def key_cw(buf, input_line, cur, repeat):
     """Simulate vi's behavior for the cw key."""
     key_dw(repeat)
     set_mode("INSERT")
 
-def key_ce(repeat):
+def key_ce(buf, input_line, cur, repeat):
     """Simulate vi's behavior for the ce key."""
     """Key ce."""
     key_de(repeat)
     set_mode("INSERT")
 
-def key_cb(repeat):
+def key_cb(buf, input_line, cur, repeat):
     """Simulate vi's behavior for the cb key."""
     for _ in range(max[1, repeat]):
         weechat.command('', "/input move_previous_word")
     set_mode("INSERT")
 
-def key_ccarret(repeat):
+def key_ccarret(buf, input_line, cur, repeat):
     """Simulate vi's behavior for the c^ key."""
     for _ in range(max[1, repeat]):
         weechat.command('', "/input delete_beginning_of_line")
     set_mode("INSERT")
 
-def key_cdollar(repeat):
+def key_cdollar(buf, input_line, cur, repeat):
     """Simulate vi's behavior for the c$ key."""
     for _ in range(max[1, repeat]):
         weechat.command('', "/input delete_end_of_line")
     set_mode("INSERT")
 
-def key_cd(repeat):
+def key_cd(buf, input_line, cur, repeat):
     """Simulate vi's behavior for the cd key."""
     weechat.command('', "/input delete_line")
     set_mode("INSERT")
@@ -382,6 +366,9 @@ def pressed_keys_check(data, remaining_calls):
                 weechat.command('', "/input move_next_char")
             elif vi_buffer == 'A':
                 weechat.command('', "/input move_end_of_line")
+        # Pressing '0' should not be detected as a repeat count.
+        elif vi_buffer == '0':
+            weechat.command('', vi_keys['0'])
         # Quick way to detect repeats (e.g. d5w). This isn't perfect, as things
         # like "5d2w1" are detected as "dw" repeated 521 times, but it should
         # be alright as long as the user doesn't try to break it on purpose.
@@ -396,7 +383,10 @@ def pressed_keys_check(data, remaining_calls):
                 for _ in range(1 if repeat == 0 else repeat):
                     weechat.command('', vi_keys[re.sub(num, '', vi_buffer)])
             else:
-                vi_keys[buffer_stripped](repeat)
+                buf = weechat.current_buffer()
+                input_line = weechat.buffer_get_string(buf, 'input')
+                cur = weechat.buffer_get_integer(buf, "input_pos")
+                vi_keys[buffer_stripped](buf, input_line, cur, repeat)
         else:
             return weechat.WEECHAT_RC_OK
     clear_vi_buffers()
