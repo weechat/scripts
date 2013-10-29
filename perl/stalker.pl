@@ -21,6 +21,13 @@
 #
 # History:
 #
+# version 1.0:nils_2@freenode.#weechat
+# 2013-10-28: add: option 'additional_join_info' (idea by: arch_bcn)
+#             add: option 'timeout' time to wait for result of hook_process()
+#             add: localvar 'drop_additional_join_info'
+#             add: hook_process() to prevent blocking weechat on slower machines (like rpi)
+#             add: more DEBUG informations
+#
 # version 0.9: Ratler@freenode.#weechat
 # 2013-08-11: fix: removed trailing whitespaces
 #             fix: only add index if it doesn't exist
@@ -72,7 +79,7 @@
 #
 # How to install DBD::SQLite:
 # with cpan       : install DBD::SQLite
-# with deb-package: sudo apt-get install libdbd-sqlite3-perl libdbd-sqlite3
+# with deb-package: sudo apt-get install libdbd-sqlite3-perl libdbd-sqlite3 sqlite3-pcre
 
 #use strict;
 use warnings;
@@ -80,7 +87,7 @@ use File::Spec;
 use DBI;
 
 my $SCRIPT_NAME         = "stalker";
-my $SCRIPT_VERSION      = "0.9";
+my $SCRIPT_VERSION      = "1.0";
 my $SCRIPT_AUTHOR       = "Nils Görs <weechatter\@arcor.de>";
 my $SCRIPT_LICENCE      = "GPL3";
 my $SCRIPT_DESC         = "Records and correlates nick!user\@host information";
@@ -104,11 +111,13 @@ my %options = ('db_name'                => '%h/nicks.db',
                'ignore_nickchange'      => 'off',
                'ignore_whois'           => 'off',
                'tags'                   => '',
+               'additional_join_info'   => 'off',
+               'timeout'                => '1',
 #               '' => '',
 );
 my %desc_options = ('db_name'           => 'file containing the SQLite database where information is recorded. This database is created on loading of ' . $SCRIPT_NAME . ' if it does not exist. ("%h" will be replaced by WeeChat home, "~/.weechat" by default) (default: %h/nicks.db)',
                     'debug'             => 'Prints debug output to core buffer so you know exactly what is going on. This is far too verbose to be enabled when not actively debugging something. (default: off)',
-                    'max_recursion'     => 'For each correlation between nick <-> host that happens, one point of recursion happens. A corrupt database, general evilness, or misfortune can cause the recursion to skyrocket. This is a ceiling number that says if after this many correlation attempts we have not found all nickname and hostname correlations, stop the process and return the list to this point.',
+                    'max_recursion'     => 'For each correlation between nick <-> host that happens, one point of recursion happens. A corrupt database, general evilness, or misfortune can cause the recursion to skyrocket. This is a ceiling number that says if after this many correlation attempts we have not found all nickname and hostname correlations, stop the process and return the list to this point. Use this option with care on slower machines like raspberry pi.',
                     'recursive_search'  => 'When enabled, recursive search causes stalker to function better than a simple hostname to nickname map. Disabling the recursive search in effect turns stalker into a more standard hostname -> nickname map.',
                     'ignore_guest_hosts'=> 'See option guest_host_regex',
                     'guest_host_regex' => 'regex mask to ignore host masks',
@@ -120,6 +129,8 @@ my %desc_options = ('db_name'           => 'file containing the SQLite database 
                     'ignore_nickchange' => 'When enabled, /NICK changes won\'t be monitored. (default: off)',
                     'ignore_whois'      => 'When enabled, /WHOIS won\'t be monitored. (default: off)',
                     'tags'              => 'comma separated list of tags used for messages printed by stalker. See documentation for possible tags (e.g. \'no_log\', \'no_highlight\'). This option does not effect DEBUG messages.',
+                    'additional_join_info' => 'add a line below the JOIN message that will display alternative nicks (tags: "irc_join", "irc_smart_filter" will be add to additional_join_info). You can use a localvar to drop additional join info for specific buffer(s) "stalker_drop_additional_join_info" (default: off)',
+                    'timeout'           => 'timeout in seconds for hook_process(), used with option "additional_join_info". On slower machines, like raspberry pi, increase time. (default: 1)',
 );
 
 my $count;
@@ -127,7 +138,7 @@ my %data;
 my $str;
 my $DBH;
 my $DBH_child;
-my $hook_process = 0;
+my $DBH_fork;
 my $last_nick = "";
 my $last_host = "";
 
@@ -149,8 +160,166 @@ my %indices = (
         { 'name' => 'index2', 'column' => 'host' },
       ],
   );
+
+# ---------------[ external routines for hook_process() ]---------------------
+if ($#ARGV == 8 ) # (0-8) nine arguments given?
+{
+    my $db_filename = $ARGV[0];
+    my ($db_user, $db_pass);
+    $DBH_fork = DBI->connect(
+        'dbi:SQLite:dbname='.$db_filename, $db_user, $db_pass,
+        {
+            RaiseError => 1,
+#           AutoCommit => 1,
+            sqlite_use_immediate_transaction => 1,
+        }
+    );
+
+    exit if (not defined $DBH_fork);
+
+    if ($ARGV[1] eq 'additional_join_info')
+    {
+        my $nick = $ARGV[2];
+        my $user = $ARGV[3];
+        my $host = $ARGV[4];
+        my $serv = $ARGV[5];
+        my $max_recursion = $ARGV[6];
+        my $ignore_guest_nicks = $ARGV[7];
+        my $guest_nick_regex = $ARGV[8];
+
+        my $nicks_found = join( ", ", (get_nick_records_fork($nick, $serv, $max_recursion, $ignore_guest_nicks, $guest_nick_regex)));
+
+        print "$nicks_found";
+        $DBH_fork->disconnect();
+        exit;
+    }
+    elsif ($ARGV[1] eq 'db_add_record')
+    {
+        my $nick = $ARGV[2];
+        my $user = $ARGV[3];
+        my $host = $ARGV[4];
+        my $serv = $ARGV[5];
+
+#        DEBUG("info", "Adding to DB: nick = $nick, user = $user, host = $host, serv = $serv" );
+
+        # We don't have the record, add it. Test for record is done in add_record()
+        $sth = $DBH_fork->prepare("INSERT INTO records (nick,user,host,serv) VALUES( ?, ?, ?, ? )" );
+        eval { $sth->execute( $nick, $user, $host, $serv ) };
+        $DBH_fork->disconnect();
+        if ($@)
+        {
+            print "error Failed to process record, database said: $@";
+            exit;
+        }
+        print "info Added record for $nick!$user\@$host to $serv";
+    }
+exit;
+}
+
+my $count2;
+my %data_fork;
+sub get_nick_records_fork
+{
+    my ( $nick, $serv, $max_recursion, $ignore_guest_nicks, $guest_nick_regex ) = @_;
+    my $type = 'nick';
+    my @return;
+    $count2 = 0; %data_fork = (  );
+    @return = _r_search_fork( $serv, $type, $max_recursion, $ignore_guest_nicks, $guest_nick_regex, ({ $type => $nick }) );
+
+    # remove original nick
+    @return = grep {$_ ne $nick} @return;
+    # case-insensitive sort
+    return sort {uc($a) cmp uc($b)} @return;
+}
+
+my @nicks_found;
+sub _r_search_fork
+{
+    my ( $serv, $type, $max_recursion, $ignore_guest_nicks, $guest_nick_regex, @input ) = @_;
+    return @nicks_found = &del_double(@nicks_found) if $count2 > $max_recursion;
+
+    if ( $type eq 'nick' )
+    {
+        $count2++;
+        for my $row ( @input )
+        {
+            my $nick = $row->{nick};
+            next if exists $data_fork{$nick};
+
+            $data_fork{$nick} = 'nick';
+            my @hosts = _get_hosts_from_nick_fork( $nick, $serv, $ignore_guest_nicks, $guest_nick_regex );
+            _r_search_fork ( $serv, 'host', $max_recursion, $ignore_guest_nicks, $guest_nick_regex, @hosts );
+        }
+    }
+    elsif ( $type eq 'host' )
+    {
+        $count2++;
+        for my $row ( @input )
+        {
+            my $host = $row->{host};
+            next if exists $data_fork{$host};
+            $data_fork{$host} = 'host';
+
+            my @nicks = _get_nicks_from_host_fork ( $host, $serv, $ignore_guest_nicks, $guest_nick_regex );
+            next if (scalar(@nicks) <= 0);
+            push @nicks_found, map {  $_->{nick} } @nicks;
+            # search only current network
+#            $output_nicks = join( ", ", map { $_->{nick} } @nicks );
+
+            # use regex only for host search!
+            _r_search_fork( $serv, 'nick', $max_recursion, $ignore_guest_nicks, $guest_nick_regex, @nicks );
+        }
+    }
+    return @nicks_found = &del_double(@nicks_found);
+#    return %data_fork;
+}
+
+sub _get_hosts_from_nick_fork
+{
+    my ( $nick, $serv, $ignore_guest_nicks, $guest_nick_regex, @return ) = @_;
+
+    my $sth = $DBH_fork->prepare( "SELECT nick, host FROM records WHERE nick = ? COLLATE NOCASE AND serv = ?" );
+    $sth->execute( $nick, $serv );
+
+    return _ignore_guests_fork( $sth, $ignore_guest_nicks, $guest_nick_regex );
+}
+
+sub _get_nicks_from_host_fork
+{
+    my ( $host, $serv, $ignore_guest_nicks, $guest_nick_regex, @return ) = @_;
+    my $sth = $DBH_fork->prepare( "SELECT nick, host FROM records WHERE host = ? AND serv = ?" );
+    $sth->execute( $host, $serv );
+
+    return _ignore_guests_fork( $sth,$ignore_guest_nicks, $guest_nick_regex );
+}
+
+sub del_double
+{
+    my %all=();
+    @all{@_}=1;
+    return (keys %all);
+}
+
+sub _ignore_guests_fork
+{
+    my ( $sth, $ignore_guest_nicks, $guest_nick_regex ) = @_;
+    my @return;
+
+    while ( my $row = $sth->fetchrow_hashref )
+    {
+        if ( lc($ignore_guest_nicks) eq "on" )
+        {
+            my $regex = $guest_nick_regex;
+            next if( $row->{nick} =~ m/$regex/i );
+        }
+        push @return, $row;
+    }
+    return @return;
+}
+
 # -----------------------------[ Database ]-----------------------------------
-sub open_database {
+sub open_database
+{
     my $db = weechat_dir();
 
     stat_database( $db );
@@ -181,7 +350,6 @@ sub open_database {
     # async data
     my @records_to_add; # Queue of records to add
 }
-
 
 # Automatic Database Creation And Checking
 sub stat_database {
@@ -309,11 +477,13 @@ sub index_db {
     }
 }
 
-sub normalize {
+sub normalize
+{
     my ( @nicks ) = @_;
     my ( %nicks, %ret ) = map { $_, 1 } @nicks;
 
-    for my $nick ( @nicks ) {
+    for my $nick ( @nicks )
+    {
         (my $base = $nick ) =~ s/[\Q-_~^`\E]//g;
         $ret{ exists $nicks{$base} ? $base : $nick }++;
     }
@@ -325,26 +495,8 @@ sub add_record
     my ( $nick, $user, $host, $serv ) = @_;
     return unless ($nick and $user and $host and $serv);
 
-    DEBUG("info", "Start child process, to add record to database");
-
-    my ($command) = db_add_record($nick, $user, $host, $serv);
-
-    if ($hook_process)
-    {
-        $hook_process = weechat::hook_process($command, 1000 * 1, "my_hook_process_cb", "");
-    }else
-    {
-        $hook_process = 0;
-    }
-}
-
-sub db_add_record
-{
-    my ($nick, $user, $host, $serv) = @_;
-
-    # Check if we already have this record.
-    my $q = "SELECT nick FROM records WHERE nick = ? AND user = ? AND host = ? AND serv = ?";
-    my $sth = $DBH_child->prepare( $q );
+    # Check if we already have this record, before using a hook_process()
+    my $sth = $DBH_child->prepare( "SELECT nick FROM records WHERE nick = ? AND user = ? AND host = ? AND serv = ?" );
     $sth->execute( $nick, $user, $host, $serv );
     my $result = $sth->fetchrow_hashref;
 
@@ -352,29 +504,26 @@ sub db_add_record
     {
         if ( $result->{nick} eq $nick ) {
             DEBUG( "info", "Record for $nick skipped - already exists." );
-            return 1;
+            return weechat::WEECHAT_RC_OK;
         }
     }
 
-    DEBUG("info", "Adding to DB: nick = $nick, user = $user, host = $host, serv = $serv" );
+    my $filename = get_script_filename();
+    return weechat::WEECHAT_RC_OK if ($filename eq "");
 
-    # We don't have the record, add it.
-    $sth = $DBH_child->prepare
-        ("INSERT INTO records (nick,user,host,serv) VALUES( ?, ?, ?, ? )" );
-    eval { $sth->execute( $nick, $user, $host, $serv ) };
-    if ($@) {
-        DEBUG("error", "Failed to process record, database said: $@" );
-    }
-
-    DEBUG("info", "Added record for $nick!$user\@$host to $serv" );
-    return 0;
+    my $db_filename = weechat_dir();
+    DEBUG("info", "Start hook_process(), to add $nick $user\@$host on $serv to database");
+    weechat::hook_process("perl $filename $db_filename 'db_add_record' '$nick' '$user' '$host' '$serv' 'dummy' 'dummy' 'dummy'", 1000 * $options{'timeout'},"db_add_record_cb","");
 }
 
 # function called when data from child is available, or when child has ended, arguments and return value
-sub my_hook_process_cb
+sub db_add_record_cb
 {
     my ( $data, $command, $return_code, $out, $err ) = @_;
-    $hook_process = 0;
+    return weechat::WEECHAT_RC_OK if ( $return_code > 0 or $out eq "");                              # something wrong!
+
+    my ($DEBUG_prefix,$message) = split(/ /,$out,2);
+    DEBUG($DEBUG_prefix, $message);
     return weechat::WEECHAT_RC_OK;
 }
 
@@ -410,11 +559,15 @@ sub get_nick_records
         @return = normalize(@return);
     }
 
+    # remove original nick
+    @return = grep {$_ ne $query} @return;
+
     # case-insensitive sort
     return sort {uc($a) cmp uc($b)} @return;
 }
 
-sub _r_search {
+sub _r_search
+{
     my ( $suppress, $serv, $type, $use_regex, @input ) = @_;
 
     return %data if $count > 1000;
@@ -423,9 +576,11 @@ sub _r_search {
 
     DEBUG( "info", "Recursion Level: $count" );
 
-    if ( $type eq 'nick' ) {
+    if ( $type eq 'nick' )
+    {
         $count++;
-        for my $row ( @input ) {
+        for my $row ( @input )
+        {
             my $nick = $row->{nick};
             next if exists $data{$nick};
 
@@ -435,9 +590,11 @@ sub _r_search {
             $use_regex = 0 if ( $use_regex );
             _r_search( $suppress, $serv, 'host', $use_regex, @hosts );
         }
-    } elsif ( $type eq 'host' ) {
+    } elsif ( $type eq 'host' )
+    {
         $count++;
-        for my $row ( @input ) {
+        for my $row ( @input )
+        {
             my $host = $row->{host};
             next if exists $data{$host};
             $data{$host} = 'host';
@@ -453,21 +610,24 @@ sub _r_search {
                 $output_nicks = join( ", ", map { $_->{serv} . "." . $_->{nick} } @nicks );
             }
 
-            my $ptr_buffer = weechat::current_buffer();
+            if ($suppress eq 'no')
+            {
+                my $ptr_buffer = weechat::current_buffer();
 
-            my $output = weechat::color('chat_prefix_network').
-                         weechat::prefix('network').
-                         weechat::color('chat_delimiters').
-                         "[".
-                         weechat::color('chat_nick').
-                         $SCRIPT_NAME.
-                         weechat::color('chat_delimiters').
-                         "] ".
-                         weechat::color('reset').
-                         "Found nicks: $output_nicks".
-                         " from host $host";
+                my $output = weechat::color('chat_prefix_network').
+                            weechat::prefix('network').
+                            weechat::color('chat_delimiters').
+                            "[".
+                            weechat::color('chat_nick').
+                            $SCRIPT_NAME.
+                            weechat::color('chat_delimiters').
+                            "] ".
+                            weechat::color('reset').
+                            "Found nicks: $output_nicks".
+                            " from host $host";
 
-            OUTPUT($ptr_buffer,$output) if ($suppress eq 'no');
+                OUTPUT($ptr_buffer,$output);
+            }
 
             # use regex only for host search!
             $use_regex = 0 if ( $use_regex );
@@ -521,13 +681,13 @@ sub _get_nicks_from_host {
         if ( $use_regex )
         {
             $sth = $DBH->prepare( "SELECT nick, host FROM records WHERE host REGEXP ? AND serv = ?" );
-            $sth->execute( $host, $serv );
+#            $sth->execute( $host, $serv );
         }
         else
         {
             $sth = $DBH->prepare( "SELECT nick, host FROM records WHERE host = ? AND serv = ?" );
-            $sth->execute( $host, $serv );
         }
+        $sth->execute( $host, $serv );
     }
     else
     {
@@ -551,12 +711,15 @@ sub _ignore_guests
     my ( $sth ) = @_;
     my @return;
 
-    while ( my $row = $sth->fetchrow_hashref ) {
-        if ( lc($options{'ignore_guest_nicks'}) eq "on" ) {
+    while ( my $row = $sth->fetchrow_hashref )
+    {
+        if ( lc($options{'ignore_guest_nicks'}) eq "on" )
+        {
             my $regex = $options{'guest_nick_regex'};
             next if( $row->{nick} =~ m/$regex/i );
         }
-        if ( lc($options{'ignore_guest_hosts'}) eq "on" ) {
+        if ( lc($options{'ignore_guest_hosts'}) eq "on" )
+        {
             my $regex = $options{'guest_host_regex'};
             next if( $row->{host} =~ m/$regex/i );
         }
@@ -580,7 +743,7 @@ sub _deassociate_nick_from_host
         {
             $sth = $DBH->prepare( "DELETE FROM records WHERE host = ? AND nick = ? AND serv = ?" );
         }
-        $res = $sth->execute( $host, $nick, $serv );
+        $sth->execute( $host, $nick, $serv );
     }
     else
     {
@@ -617,6 +780,8 @@ sub DEBUG
     my $DEBUG_prefix;
     my $color;
 
+    return if (lc($options{debug}) eq 'off');
+
     if ( $_[0] eq 'info')
     {
         $DEBUG_prefix = 'info';
@@ -632,7 +797,7 @@ sub DEBUG
         $DEBUG_prefix = '***';
         $color = 'default';
     }
-        weechat::print('', _color_str($color, $DEBUG_prefix) . "\t$SCRIPT_NAME: $_[1]") if (lc($options{debug}) eq 'on');
+        weechat::print('', _color_str($color, $DEBUG_prefix) . "\t$SCRIPT_NAME: $_[1]");
 }
 
 sub _color_str
@@ -664,7 +829,7 @@ sub stalker_command_cb
 
     if (lc($args_array[0]) eq 'count')
     {
-        my $ptr_buffer = weechat::current_buffer();
+#        my $ptr_buffer = weechat::current_buffer();
         my ($count) = $DBH->selectrow_array("SELECT count(*) FROM records");
         my $output = weechat::color('chat_prefix_network').
                      weechat::prefix('network').
@@ -678,15 +843,15 @@ sub stalker_command_cb
                      "number of rows: ".
                      $count;
 
-        OUTPUT($ptr_buffer,$output);
+        OUTPUT($buffer,$output);
         return weechat::WEECHAT_RC_OK;
     }
     # get localvar from current buffer
-    my $name = weechat::buffer_get_string(weechat::current_buffer(),'localvar_name');
-    my $server = weechat::buffer_get_string(weechat::current_buffer(),'localvar_server');
-    my $type = weechat::buffer_get_string(weechat::current_buffer(),'localvar_type');
+    my $name = weechat::buffer_get_string($buffer,'localvar_name');
+    my $server = weechat::buffer_get_string($buffer,'localvar_server');
+    my $type = weechat::buffer_get_string($buffer,'localvar_type');
 
-    if ( weechat::buffer_get_string(weechat::current_buffer(),'plugin') ne 'irc' and lc($args_array[0]) eq 'scan' )
+    if ( weechat::buffer_get_string($buffer,'plugin') ne 'irc' and lc($args_array[0]) eq 'scan' )
     {
         command_must_be_executed_on_irc_buffer();
         return weechat::WEECHAT_RC_OK;
@@ -694,7 +859,7 @@ sub stalker_command_cb
 
     if (lc($args_array[0]) eq 'scan' && $type eq 'channel' && $number == 1)
     {
-        channel_scan(weechat::current_buffer());
+        channel_scan($buffer);
 #        channel_scan_41(weechat::current_buffer());
         return weechat::WEECHAT_RC_OK;
     }
@@ -733,13 +898,14 @@ sub stalker_command_cb
             return weechat::WEECHAT_RC_OK;
         }
         # $args_array[0]: 'nick' or 'host', $args_array[1]: nick or host name
+        # list will be print in subroutine!
         my $nicks_found = join( ", ", (get_nick_records('no', $args_array[0], $args_array[1], $server, $use_regex)));
     }
     elsif (lc($args_array[0]) eq 'remove_nick_from_host')
     {
       $use_regex = 1 if ( grep{ $args_array[$_] eq '-regex' }0..$#args_array );
 
-      my $server = weechat::buffer_get_string(weechat::current_buffer(),'localvar_server');
+      my $server = weechat::buffer_get_string($buffer,'localvar_server');
 
       if ( $server eq "" )
       {
@@ -749,7 +915,7 @@ sub stalker_command_cb
       my $affected_rows = _deassociate_nick_from_host( $args_array[1], $args_array[2], $server, $use_regex );
       my $color  = weechat::color(weechat::config_color(weechat::config_get('weechat.color.chat_prefix_error')));
       my $DEBUG_prefix = weechat::config_string(weechat::config_get('weechat.look.prefix_error'));
-      weechat::print('', _color_str($color, $DEBUG_prefix) . "\t$SCRIPT_NAME: $affected_rows deleted");
+      weechat::print($buffer, _color_str($color, $DEBUG_prefix) . "\t$SCRIPT_NAME: $affected_rows deleted");
     }
     return weechat::WEECHAT_RC_OK;
 }
@@ -876,6 +1042,8 @@ sub irc_in2_nick_cb
 
     return weechat::WEECHAT_RC_OK if ( lc($options{'ignore_nickchange'}) eq "on" );
 
+    DEBUG('info', 'weechat_hook_signal(): NICK change');
+
     my $hashtable = weechat::info_get_hashtable("irc_message_parse" => + { "message" => $callback_data });
 
     # $old_nick = $hashtable->{nick}
@@ -900,6 +1068,9 @@ sub irc_in2_whois_cb
 
     my (undef, undef, undef, $nick, $user, $host, undef) = split(' ', $callback_data);
     my $msgbuffer_whois = weechat::config_string(weechat::config_get('irc.msgbuffer.whois'));
+
+
+    DEBUG('info', 'weechat_hook_signal(): WHOIS');
 
     # check for nick_regex
     if ( lc($options{'ignore_guest_nicks'}) eq "on" )
@@ -941,9 +1112,10 @@ sub irc_in2_whois_cb
 
     my $use_regex = 0;
     my $nicks_found = join( ", ", (get_nick_records('yes', 'nick', $nick, $server, $use_regex)));
+#    my $nicks_found = join( ", ", (get_nick_records('no', 'nick', $nick, $server, $use_regex)));
 
     # only the given nick is returned?
-    return weechat::WEECHAT_RC_OK if ($nicks_found eq $nick);
+    return weechat::WEECHAT_RC_OK if ($nicks_found eq $nick or $nicks_found eq "");
 
     # more than one nick was returned from sqlite
     my $prefix_network = weechat::prefix('network');
@@ -972,36 +1144,95 @@ sub irc_in2_whois_cb
 # callback_data:   :nick!~user_2@host JOIN #channel
 sub irc_in2_join_cb
 {
-    my ($signal, $callback, $callback_data) = @_;
-    my ($server,$irc_signal) = split(',',$callback);
-    my ($nick,$host,$channel) = ($callback_data =~ /\:(.*)\!(.*) JOIN (.*)/);
+    my ($data, $buffer, $date, $tags, $displayed, $highlight, $prefix, $message) = @_;
 
-    $host =~ /(.*)\@/;
-    my $user = $1;
 
-    my $ptr_buffer = weechat::info_get('irc_buffer',$server . ',' . $channel);
-    return weechat::WEECHAT_RC_OK unless ($ptr_buffer);
-#    my $ptr_buffer = weechat::buffer_search('irc', $server . '.' . $channel);
+    # get nick, user and host. format: nick (user@host) translated join message
+    my ($nick,$user,$host) = ($message =~ /(.*) \((.*)\@(.*)\)/);
+    return weechat::WEECHAT_RC_OK if (not defined $nick or $nick eq ""
+                                      or not defined $user or $user eq ""
+                                      or not defined $host or $host eq "");
 
-    my $my_nick = weechat::buffer_get_string($ptr_buffer,'localvar_nick');
+    my $my_nick = weechat::buffer_get_string($buffer,'localvar_nick');
+    my $server = weechat::buffer_get_string($buffer,'localvar_server');
+    my $name = weechat::buffer_get_string($buffer,'localvar_name');
+
     # don't stalk yourself
     return weechat::WEECHAT_RC_OK if ($nick eq $my_nick);
 
     return weechat::WEECHAT_RC_OK if check_last_nick_host($nick,$host);
 
+    DEBUG('info', 'weechat_hook_signal(): JOIN');
+
     # check for localvar "stalker"
     if ( lc($options{'use_localvar'}) eq "on" )
     {
-        return weechat::WEECHAT_RC_OK if (not weechat::config_string_to_boolean(weechat::buffer_get_string($ptr_buffer, 'localvar_stalker')) );
+        return weechat::WEECHAT_RC_OK if (not weechat::config_string_to_boolean(weechat::buffer_get_string($buffer, 'localvar_stalker')) );
     }
 
     add_record( $nick, $user, $host, $server);
 
+    return weechat::WEECHAT_RC_OK if (weechat::config_string_to_boolean(weechat::buffer_get_string($buffer, 'localvar_stalker_drop_additional_join_info')) );
+
+    if ( lc($options{'additional_join_info'}) eq "on" )
+    {
+        my $filename = get_script_filename();
+        return weechat::WEECHAT_RC_OK if ($filename eq "");
+
+        # get tags for stalker output
+        my $my_tags = $options{'tags'};
+        # add tag 'irc_smart_filter' or 'irc_join' to list of tags, if tag(s) exists in original JOIN message
+        $my_tags = $my_tags . ',irc_smart_filter' if (index($tags,'irc_smart_filter') >= 0);
+        $my_tags = $my_tags . ',irc_join' if (index($tags,'irc_join') >= 0);
+
+        my $db_filename = weechat_dir();
+        DEBUG("info", "Start hook_process(), get additional info from $nick with $user\@$host on $name");
+        weechat::hook_process("perl $filename $db_filename 'additional_join_info' '$nick' '$user' '$host' '$server' $options{'max_recursion'} $options{'ignore_guest_nicks'} '$options{'guest_nick_regex'}'", 1000 * $options{'timeout'},"hook_process_get_nicks_records_cb","$nick $buffer $my_tags");
+      }
     return weechat::WEECHAT_RC_OK;
 }
 
+# get absolute path of script
+sub get_script_filename
+{
+    my $infolist_ptr = weechat::infolist_get("perl_script","",$SCRIPT_NAME);
+    weechat::infolist_next($infolist_ptr);
+    my $filename = weechat::infolist_string($infolist_ptr,"filename");
+    weechat::infolist_free($infolist_ptr);
+    return $filename;
+}
+
+sub hook_process_get_nicks_records_cb
+{
+    my ($data, $command, $return_code, $out, $err) = @_;
+    DEBUG("info", "hook_process_get_nicks_records_cb: data=$data command=$command, rc=$return_code out=$out err=$err");
+
+    return weechat::WEECHAT_RC_OK if ( $return_code > 0 or $out eq "");                              # something wrong!
+
+    my ($nick,$buffer_ptr,$tags) = split(/ /,$data);
+    my $nicks_found = $out;
+    # don't print output if there is no other nick used
+    return weechat::WEECHAT_RC_OK if ($nick eq $nicks_found or $nicks_found eq '');
+
+    my $string = weechat::color('chat_prefix_network').
+                weechat::prefix('network').
+                weechat::color('chat_delimiters').
+                "[".
+                weechat::color('chat_nick').
+                $SCRIPT_NAME.
+                weechat::color('chat_delimiters').
+                "] ".
+                weechat::color('reset').
+                $nick.
+                " is also known as: ".
+                $nicks_found;
+
+    weechat::print_date_tags($buffer_ptr,0,$tags,$string);
+    return weechat::WEECHAT_RC_OK;
+}
 # -----------------------------[ config ]-----------------------------------
-sub init_config{
+sub init_config
+{
 
     foreach my $option (keys %options){
         if (!weechat::config_is_set_plugin($option)){
@@ -1029,11 +1260,19 @@ sub toggle_config_by_set
 # insert a refresh here
     return weechat::WEECHAT_RC_OK;
 }
+# -----------------------------[ shutdown ]-----------------------------------
+sub shutdown_cb
+{
+    # close database
+    $DBH->disconnect();
+    $DBH_child->disconnect();
+    return weechat::WEECHAT_RC_OK;
+}
 
 # -------------------------------[ init ]-------------------------------------
 # first function called by a WeeChat-script.
 weechat::register($SCRIPT_NAME, $SCRIPT_AUTHOR, $SCRIPT_VERSION,
-                  $SCRIPT_LICENCE, $SCRIPT_DESC, '', '');
+                  $SCRIPT_LICENCE, $SCRIPT_DESC, 'shutdown_cb', '');
 
     $weechat_version = weechat::info_get('version_number', '');
 
@@ -1065,6 +1304,14 @@ weechat::register($SCRIPT_NAME, $SCRIPT_AUTHOR, $SCRIPT_VERSION,
                       "    /buffer set localvar_set_stalker [value]\n".
                       "       values: \"on\", \"true\", \"t\", \"yes\", \"y\", \"1\")\n".
                       "\n".
+                      "Display additional information below join message:\n".
+                      "=================================================\n".
+                      "Example: [stalker] nils_2 is also known as: nils_2_\n".
+                      "    /set plugins.var.perl.".$SCRIPT_NAME.".additional_join_info \"on\"  (default: off)\n".
+                      "If you want to drop informations for specific channels (especially channels with lot of nicks):\n".
+                      "    /buffer set localvar_set_stalker_drop_additional_join_info [value]\n".
+                      "       values: \"on\", \"true\", \"t\", \"yes\", \"y\", \"1\")\n".
+                      "\n".
                       "Regex:\n".
                       "======\n".
                       "$SCRIPT_NAME performs standard perl regular expression matching with option '-regex'.\n".
@@ -1094,7 +1341,8 @@ weechat::register($SCRIPT_NAME, $SCRIPT_AUTHOR, $SCRIPT_VERSION,
                       "scan %(buffers_names) %-", "stalker_command_cb", "");
 
         weechat::hook_config("plugins.var.perl.$SCRIPT_NAME.*", "toggle_config_by_set", "");
-        weechat::hook_signal('*,irc_in2_join', 'irc_in2_join_cb', '');
+#        weechat::hook_signal('*,irc_in2_join', 'irc_in2_join_cb', '');
+        weechat::hook_print('','irc_join','',1,'irc_in2_join_cb','');
         weechat::hook_signal('*,irc_in2_311', 'irc_in2_whois_cb', '');
         weechat::hook_signal('*,irc_in2_NICK', 'irc_in2_nick_cb', '');
     }
