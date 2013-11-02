@@ -21,6 +21,9 @@
 #
 # History:
 #
+# version 1.1:nils_2@freenode.#weechat
+# 2013-10-31: add: flood-protection on JOINs
+#
 # version 1.0:nils_2@freenode.#weechat
 # 2013-10-28: add: option 'additional_join_info' (idea by: arch_bcn)
 #             add: option 'timeout' time to wait for result of hook_process()
@@ -87,7 +90,7 @@ use File::Spec;
 use DBI;
 
 my $SCRIPT_NAME         = "stalker";
-my $SCRIPT_VERSION      = "1.0";
+my $SCRIPT_VERSION      = "1.1";
 my $SCRIPT_AUTHOR       = "Nils Görs <weechatter\@arcor.de>";
 my $SCRIPT_LICENCE      = "GPL3";
 my $SCRIPT_DESC         = "Records and correlates nick!user\@host information";
@@ -95,6 +98,8 @@ my $SCRIPT_DESC         = "Records and correlates nick!user\@host information";
 
 # internal values
 my $weechat_version = "";
+my $ptr_hook_timer = "";
+my $flood_counter = 0;   # counter to take care of JOINs, e.g. after netsplit
 
 # default values
 my %options = ('db_name'                => '%h/nicks.db',
@@ -113,6 +118,8 @@ my %options = ('db_name'                => '%h/nicks.db',
                'tags'                   => '',
                'additional_join_info'   => 'off',
                'timeout'                => '1',
+               'flood_timer'            => '10',
+               'flood_max_nicks'        => '20',
 #               '' => '',
 );
 my %desc_options = ('db_name'           => 'file containing the SQLite database where information is recorded. This database is created on loading of ' . $SCRIPT_NAME . ' if it does not exist. ("%h" will be replaced by WeeChat home, "~/.weechat" by default) (default: %h/nicks.db)',
@@ -131,6 +138,8 @@ my %desc_options = ('db_name'           => 'file containing the SQLite database 
                     'tags'              => 'comma separated list of tags used for messages printed by stalker. See documentation for possible tags (e.g. \'no_log\', \'no_highlight\'). This option does not effect DEBUG messages.',
                     'additional_join_info' => 'add a line below the JOIN message that will display alternative nicks (tags: "irc_join", "irc_smart_filter" will be add to additional_join_info). You can use a localvar to drop additional join info for specific buffer(s) "stalker_drop_additional_join_info" (default: off)',
                     'timeout'           => 'timeout in seconds for hook_process(), used with option "additional_join_info". On slower machines, like raspberry pi, increase time. (default: 1)',
+                    'flood_timer'       => 'Time in seconds for which flood protection is active. Once max_nicks is reached, joins will be ignored for the remaining duration of the timer. (default:10)',
+                    'flood_max_nicks'   => 'Maximum number of joins to allow in flood_timer length of time. Once maximum number of joins is reached, joins will be ignored until the timer ends (default:20)',
 );
 
 my $count;
@@ -1170,6 +1179,35 @@ sub irc_in2_join_cb
         return weechat::WEECHAT_RC_OK if (not weechat::config_string_to_boolean(weechat::buffer_get_string($buffer, 'localvar_stalker')) );
     }
 
+    # check if "flood_timer" is activated
+    if ( $options{'flood_timer'} > 0 )
+    {
+        # reset ptr_hook_timer and flood_counter if hook_timer() does not exists anymore
+        if ( $ptr_hook_timer ne "" and search_hook('hook',$ptr_hook_timer) eq 0 )
+        {
+            $ptr_hook_timer = "";
+            $flood_counter = 0;
+        }
+        # timer still running, add counter
+        else
+        {
+            $flood_counter++;
+        }
+
+        if ($ptr_hook_timer eq "")
+        {
+            # call timer only once
+            $ptr_hook_timer = weechat::hook_timer($options{'flood_timer'} * 1000, 0, 1, 'my_hook_timer_cb', '');
+        }
+
+        if ( $ptr_hook_timer ne "" and $flood_counter > $options{'flood_max_nicks'} )
+        {
+            DEBUG("info", "flood protection activated for: $nick with $user\@$host on $server");
+            return weechat::WEECHAT_RC_OK;
+        }
+    }
+    # end of flood protection
+
     add_record( $nick, $user, $host, $server);
 
     return weechat::WEECHAT_RC_OK if (weechat::config_string_to_boolean(weechat::buffer_get_string($buffer, 'localvar_stalker_drop_additional_join_info')) );
@@ -1230,6 +1268,28 @@ sub hook_process_get_nicks_records_cb
     weechat::print_date_tags($buffer_ptr,0,$tags,$string);
     return weechat::WEECHAT_RC_OK;
 }
+
+sub search_hook
+{
+    my ($hook, $ptr_hook) = @_;
+    my $hook_found = 0;
+    my $infolist = weechat::infolist_get($hook, $ptr_hook, '');
+    while ( weechat::infolist_next($infolist) )
+    {
+        $hook_found = 1 if ( weechat::infolist_pointer($infolist,'pointer') eq $ptr_hook );
+    }
+    weechat::infolist_free($infolist);
+
+    return $hook_found;
+}
+
+sub my_hook_timer_cb
+{
+    # simply add the flood_counter
+    $flood_counter++;
+    return weechat::WEECHAT_RC_OK;
+}
+
 # -----------------------------[ config ]-----------------------------------
 sub init_config
 {
