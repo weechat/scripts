@@ -19,6 +19,8 @@
 # Display sidebar with list of buffers.
 #
 # History:
+# 2013-10-31, nils_2@freenode.#weechat:
+#    v4.1: add option "detach_buffer_immediately" (idea by farn)
 # 2013-10-20, nils_2@freenode.#weechat:
 #    v4.0: add options "detach_displayed_buffers", "detach_display_window_number"
 # 2013-09-27, nils_2@freenode.#weechat:
@@ -139,7 +141,7 @@ use strict;
 use Encode qw( decode encode );
 # -------------------------------[ internal ]-------------------------------------
 my $SCRIPT_NAME = "buffers";
-my $version = "4.0";
+my $version = "4.1";
 
 my $BUFFERS_CONFIG_FILE_NAME = "buffers";
 my $buffers_config_file;
@@ -152,6 +154,7 @@ my %options;
 my %hotlist_level       = (0 => "low", 1 => "message", 2 => "private", 3 => "highlight");
 my @whitelist_buffers   = ();
 my @immune_detach_buffers= ();
+my @detach_buffer_immediately= ();
 my @buffers_focus       = ();
 my %buffers_timer       = ();
 my %Hooks               = ();
@@ -266,10 +269,11 @@ my ( $data, $buffer, $args ) = @_;
 }
 sub buffers_cmd_detach
 {
-my ( $data, $buffer, $args ) = @_;
+    my ( $data, $buffer, $args ) = @_;
     $args = lc($args);
     my $immune_detach_buffers = weechat::config_string( weechat::config_get("buffers.look.immune_detach_buffers") );
     return weechat::WEECHAT_RC_OK if ( $immune_detach_buffers eq "" and $args eq "del" or $immune_detach_buffers eq "" and $args eq "reset" );
+
     my @buffers_list = split( /,/, $immune_detach_buffers );
     # get buffers name
     my $infolist = weechat::infolist_get("buffer", weechat::current_buffer(), "");
@@ -424,8 +428,9 @@ my %default_options_look =
  "name_size_max"        =>      ["name_size_max","integer","maximum size of buffer name. 0 means no limitation","",0,256,0,0,0, "", "", "buffers_signal_config", "", "", ""],
  "name_crop_suffix"     =>      ["name_crop_suffix","string","contains an optional char(s) that is appended when buffer name is shortened","",0,0,"+","+",0,"","","buffers_signal_config", "", "", ""],
  "detach"               =>      ["detach", "integer","detach channel from buffers list after a specific period of time (in seconds) without action (weechat ≥ 0.3.8 required) (0 means \"off\")", "", 0, 31536000,0, "number", 0, "", "", "buffers_signal_config", "", "", ""],
- "immune_detach_buffers"=>      ["immune_detach_buffers", "string", "Comma seperated list of buffers to NOT automatically detatch. Allows \"*\" wildcard. Ex: \"BitlBee,freenode.*\"", "", 0, 0,"", "", 0, "", "", "buffers_signal_config_immune_detach_buffers", "", "", ""],
+ "immune_detach_buffers"=>      ["immune_detach_buffers", "string", "comma separated list of buffers to NOT automatically detatch. Allows \"*\" wildcard. Ex: \"BitlBee,freenode.*\"", "", 0, 0,"", "", 0, "", "", "buffers_signal_config_immune_detach_buffers", "", "", ""],
  "detach_query"         =>      ["detach_query", "boolean", "query buffer will be detachted", "", 0, 0,"off", "off", 0, "", "", "buffers_signal_config", "", "", ""],
+ "detach_buffer_immediately" => ["detach_buffer_immediately", "string", "comma separated list of buffers to detach immediately. A query and highlight message will attach buffer again. Allows \"*\" wildcard. Ex: \"BitlBee,freenode.*\"", "", 0, 0,"", "", 0, "", "", "buffers_signal_config_detach_buffer_immediately", "", "", ""],
  "detach_free_content"  =>      ["detach_free_content", "boolean", "buffers with free content will be detached (Ex: iset, chanmon)", "", 0, 0,"off", "off", 0, "", "", "buffers_signal_config", "", "", ""],
  "detach_displayed_buffers"  => ["detach_displayed_buffers", "boolean", "buffers displayed in a (split) window will be detached", "", 0, 0,"on", "on", 0, "", "", "buffers_signal_config", "", "", ""],
  "detach_display_window_number"  => ["detach_display_window_number", "boolean", "window number will be add, behind buffer name (this option takes only effect with \"detach_displayed_buffers\" option)", "", 0, 0,"off", "off", 0, "", "", "buffers_signal_config", "", "", ""],
@@ -562,6 +567,11 @@ sub build_buffers
         }
 
         my $result = check_immune_detached_buffers($buffer->{"name"});          # checking for wildcard 
+
+        next if ( check_detach_buffer_immediately($buffer->{"name"}) eq 1
+                 and $buffer->{"current_buffer"} eq 0
+                 and ( not exists $hotlist{$buffer->{"pointer"}} or $hotlist{$buffer->{"pointer"}} < 2) );          # checking for buffer to immediately detach
+
         unless ($result)
         {
             my $detach_time = weechat::config_integer( $options{"detach"});
@@ -1111,7 +1121,6 @@ my ($data, $signal, $signal_data) = @_;
             delete $buffers_timer{$signal_data};
         }
     }
-
     weechat::bar_item_update($SCRIPT_NAME);
     return weechat::WEECHAT_RC_OK;
 }
@@ -1130,10 +1139,19 @@ sub buffers_signal_config_whitelist
     weechat::bar_item_update($SCRIPT_NAME);
     return weechat::WEECHAT_RC_OK;
 }
+
 sub buffers_signal_config_immune_detach_buffers
 {
     @immune_detach_buffers = ();
     @immune_detach_buffers = split( /,/, weechat::config_string( $options{"immune_detach_buffers"} ) );
+    weechat::bar_item_update($SCRIPT_NAME);
+    return weechat::WEECHAT_RC_OK;
+}
+
+sub buffers_signal_config_detach_buffer_immediately
+{
+    @detach_buffer_immediately = ();
+    @detach_buffer_immediately = split( /,/, weechat::config_string( $options{"detach_buffer_immediately"} ) );
     weechat::bar_item_update($SCRIPT_NAME);
     return weechat::WEECHAT_RC_OK;
 }
@@ -1251,6 +1269,19 @@ sub check_immune_detached_buffers
     foreach ( @immune_detach_buffers ){
         my $immune_buffer = weechat::string_mask_to_regex($_);
         if ($buffername =~ /^$immune_buffer$/i)
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+sub check_detach_buffer_immediately
+{
+    my ($buffername) = @_;
+    foreach ( @detach_buffer_immediately ){
+        my $detach_buffer = weechat::string_mask_to_regex($_);
+        if ($buffername =~ /^$detach_buffer$/i)
         {
             return 1;
         }
