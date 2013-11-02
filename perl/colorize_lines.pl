@@ -20,6 +20,7 @@
 # for settings see help page
 #
 # history:
+# 2.2; fix: regex with [tab] in message (patch by sqrrl)
 # 2.1: fix: changing highlight color did not apply messages already displayed (reported by rafi_)
 # 2.0: fix: debugging weechat::print() removed (thanks demure)
 # 1.9: fix: display bug with nick_mode
@@ -70,7 +71,7 @@
 
 use strict;
 my $prgname	= "colorize_lines";
-my $version	= "2.1";
+my $version	= "2.2";
 my $description	= "colors text in chat area with according nick color. Highlight messages will be fully highlighted in chat area";
 
 # default values
@@ -156,7 +157,7 @@ if ( grep /^$servername.$channel_name$/, @var_blacklist_channels ) {            
   return $string;
 }
 
-$string =~ m/^(.*)\t(.*)/;                                                                      # get the nick name: nick[tab]string
+$string =~ m/^([^\t]*)\t(.*)/;                                                                  # get the nick name: nick[tab]string
 my $nick = $1;                                                                                  # nick with nick_mode and color codes
 my $line = $2;                                                                                  # get written text
 
