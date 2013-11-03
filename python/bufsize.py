@@ -18,6 +18,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2013-11-02: nils_2 (freenode.#weechat)
+#       0.5 : fix refresh on (un)zoomed buffer
+#           : add option 'count_filtered_lines' and format item "%F"
 # 2013-10-15: nils_2 (freenode.#weechat)
 #       0.4 : fix bug with root-bar
 #           : add support of eval_expression (weechat >= 0.4.2)
@@ -45,12 +48,14 @@ except Exception:
 
 SCRIPT_NAME     = "bufsize"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.4"
+SCRIPT_VERSION  = "0.5"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "scroll indicator; displaying number of lines below last line, overall lines in buffer, number of current line and percent displayed"
 
 OPTIONS         = { 'format'            : ('${yellow}%P${default}⋅%{${yellow}%A${default}⇵${yellow}%C${default}/}${yellow}%L',
-                                           'format for items to display in bar, possible items: %P = percent indicator, %A = number of lines below last line, %L = lines counter, %C = current line (note: using WeeChat >= 0.4.2, content is evaluated, so you can use colors with format \"${color:xxx}\", see /help eval)'),
+                                           'format for items to display in bar, possible items: %P = percent indicator, %A = number of lines below last line, %L = lines counter, %C = current line %F = number of filtered lines (note: using WeeChat >= 0.4.2, content is evaluated, so you can use colors with format \"${color:xxx}\", see /help eval)'),
+                    'count_filtered_lines': ('on',
+                                           'filtered lines will be count in item.'),
                    }
 # ================================[ weechat item ]===============================
 # regexp to match ${color} tags
@@ -59,29 +64,34 @@ regex_color=re.compile('\$\{([^\{\}]+)\}')
 # regexp to match ${optional string} tags
 regex_optional_tags=re.compile('%\{[^\{\}]+\}')
 
-def show_item (data, item, window):
+filter_status = 0
 
+def show_item (data, item, window):
     # check for root input bar!
     if not window:
        window = weechat.current_window()
 
-    bufpointer = weechat.window_get_pointer(window,"buffer")
-    if bufpointer == "":
-        return ""
+    ptr_buffer = weechat.window_get_pointer(window,'buffer')
+    if ptr_buffer == '':
+        return ''
 
-    if weechat.buffer_get_string(bufpointer,'name') != 'weechat':                         # not weechat core buffer
-        if weechat.buffer_get_string(bufpointer,'localvar_type') == '':                   # buffer with free content?
-          return ""
+    if weechat.buffer_get_string(ptr_buffer,'name') != 'weechat':                         # not weechat core buffer
+        if weechat.buffer_get_string(ptr_buffer,'localvar_type') == '':                   # buffer with free content?
+          return ''
 
-    lines_after, lines_count, percent, current_line = count_lines(window,bufpointer)
+    lines_after, lines_count, percent, current_line, filtered, filtered_before, filtered_after = count_lines(window,ptr_buffer)
 
     if lines_count == 0:                                                                  # buffer empty?
-        return ""
+        return ''
+
+    if filtered == 0:
+        filtered = ''
 
     tags = {'%C': str(current_line),
             '%A': str(lines_after),
+            '%F': str(filtered),
             '%L': str(lines_count),
-            '%P': str(percent)+"%"}
+            '%P': str(percent)+'%'}
 
     bufsize_item = substitute_colors(OPTIONS['format'])
 
@@ -106,32 +116,82 @@ def substitute_colors(text):
     # substitute colors in output
     return re.sub(regex_color, lambda match: weechat.color(match.group(1)), text)
 
-def count_lines(winpointer,bufpointer):
+def count_lines(ptr_window,ptr_buffer):
+    global filter_status
 
     hdata_buf = weechat.hdata_get('buffer')
     hdata_lines = weechat.hdata_get('lines')
-    lines = weechat.hdata_pointer(hdata_buf, bufpointer, 'lines') # own_lines, mixed_lines
+    lines = weechat.hdata_pointer(hdata_buf, ptr_buffer, 'lines') # own_lines, mixed_lines
     lines_count = weechat.hdata_integer(hdata_lines, lines, 'lines_count')
 
     hdata_window = weechat.hdata_get('window')
     hdata_winscroll = weechat.hdata_get('window_scroll')
-    window_scroll = weechat.hdata_pointer(hdata_window, winpointer, 'scroll')
+    window_scroll = weechat.hdata_pointer(hdata_window, ptr_window, 'scroll')
     lines_after = weechat.hdata_integer(hdata_winscroll, window_scroll, 'lines_after')
     window_height = weechat.window_get_integer(weechat.current_window(), 'win_chat_height')
+
+    filtered = 0
+    filtered_before = 0
+    filtered_after = 0
+    # count filtered lines if option is 'off' and filter is enabled.
+    if (OPTIONS['count_filtered_lines'].lower() == 'off') and filter_status == 1:
+        filtered, filtered_before,filtered_after = count_filtered_lines(ptr_buffer,lines_count,lines_after)
+        lines_count = lines_count - filtered
+#        lines_after = lines_after - filtered_after
 
     if lines_count > window_height:
         differential = lines_count - window_height
         percent = max(int(round(100. * (differential - lines_after) / differential)), 0)
     else:
         percent = 100
-    #weechat.prnt('', " : lines_count "+str(lines_count)+" window_height "+str(window_height)+" lines after "+str(lines_after))
+
+    # get current position
     current_line = lines_count - lines_after
-    return lines_after,lines_count,percent, current_line
+
+    return lines_after,lines_count,percent,current_line, filtered, filtered_before, filtered_after
+
+def count_filtered_lines(ptr_buffer,lines_count,lines_after):
+    filtered_before = 0
+    filtered_after = 0
+    filtered = 0
+
+    lines = weechat.hdata_pointer(weechat.hdata_get('buffer'), ptr_buffer, 'own_lines')
+    counter = 0
+    current_position = lines_count - lines_after
+
+    if lines:
+        line = weechat.hdata_pointer(weechat.hdata_get('lines'), lines, 'first_line')
+        hdata_line = weechat.hdata_get('line')
+        hdata_line_data = weechat.hdata_get('line_data')
+
+        while line:
+            data = weechat.hdata_pointer(hdata_line, line, 'data')
+            if data:
+#                message = weechat.hdata_string(hdata_line_data, data, 'message')
+                displayed = weechat.hdata_char(hdata_line_data, data, 'displayed')
+                if displayed == 0:
+                    if counter < current_position:
+                        filtered_before += 1
+                    else:
+                        filtered_after += 1
+            counter += 1
+            line = weechat.hdata_move(hdata_line, line, 1)
+
+    filtered = filtered_before + filtered_after
+    return filtered,filtered_before,filtered_after
 
 def update_cb(data, signal, signal_data):
     weechat.bar_item_update(SCRIPT_NAME)
     return weechat.WEECHAT_RC_OK
 
+def filtered_update_cb(data, signal, signal_data):
+    global filter_status
+    if signal == 'filters_disabled':
+        filter_status = 0
+    if signal == 'filters_enabled':
+        filter_status = 1
+    weechat.bar_item_update(SCRIPT_NAME)
+    return weechat.WEECHAT_RC_OK
 # ================================[ weechat options and description ]===============================
 def init_options():
     for option,value in OPTIONS.items():
@@ -140,7 +200,7 @@ def init_options():
             OPTIONS[option] = value[0]
         else:
             OPTIONS[option] = weechat.config_get_plugin(option)
-        weechat.config_set_desc_plugin(option, '%s (default: "%s")' % (value[1], value[0]))
+        weechat.config_set_desc_plugin(option, "%s (default: '%s')" % (value[1], value[0]))
 
 def toggle_refresh(pointer, name, value):
     global OPTIONS
@@ -150,18 +210,22 @@ def toggle_refresh(pointer, name, value):
     return weechat.WEECHAT_RC_OK
 # ================================[ main ]===============================
 if __name__ == "__main__":
+    global filter_status
     if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, '', ''):
         version = weechat.info_get("version_number", "") or 0
 
         if int(version) >= 0x00030600:
+            filter_status = weechat.info_get('filters_enabled','')
             bar_item = weechat.bar_item_new(SCRIPT_NAME, 'show_item','')
             weechat.bar_item_update(SCRIPT_NAME)
-            weechat.hook_signal("buffer_line_added","update_cb","")
-            weechat.hook_signal("window_scrolled","update_cb","")
-            weechat.hook_signal("buffer_switch","update_cb","")
-            weechat.hook_command_run("/buffer clear*","update_cb","")
-            weechat.hook_command_run("/window page*","update_cb","")
+            weechat.hook_signal('buffer_line_added','update_cb','')
+            weechat.hook_signal('window_scrolled','update_cb','')
+            weechat.hook_signal('buffer_switch','update_cb','')
+            weechat.hook_signal('filters_*','filtered_update_cb','')
+            weechat.hook_command_run('/buffer clear*','update_cb','')
+            weechat.hook_command_run('/window page*','update_cb','')
+            weechat.hook_command_run('/input zoom_merged_buffer','update_cb','')
             weechat.hook_config( 'plugins.var.python.' + SCRIPT_NAME + '.*', 'toggle_refresh', '' )
             init_options()
         else:
-            weechat.prnt("","%s%s %s" % (weechat.prefix("error"),SCRIPT_NAME,": needs version 0.3.6 or higher"))
+            weechat.prnt('','%s%s %s' % (weechat.prefix('error'),SCRIPT_NAME,': needs version 0.3.6 or higher'))
