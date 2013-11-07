@@ -19,6 +19,8 @@
 # Display sidebar with list of buffers.
 #
 # History:
+# 2013-11-07, Sebastien Helleu <flashcode@flashtux.org>:
+#    v4.2: use default filling "columns_vertical" when bar position is top/bottom
 # 2013-10-31, nils_2@freenode.#weechat:
 #    v4.1: add option "detach_buffer_immediately" (idea by farn)
 # 2013-10-20, nils_2@freenode.#weechat:
@@ -141,7 +143,7 @@ use strict;
 use Encode qw( decode encode );
 # -------------------------------[ internal ]-------------------------------------
 my $SCRIPT_NAME = "buffers";
-my $version = "4.1";
+my $version = "4.2";
 
 my $BUFFERS_CONFIG_FILE_NAME = "buffers";
 my $buffers_config_file;
@@ -168,7 +170,7 @@ buffers_config_init();
 buffers_config_read();
 
 weechat::bar_item_new($SCRIPT_NAME, "build_buffers", "");
-weechat::bar_new($SCRIPT_NAME, "0", "0", "root", "", "left", "horizontal",
+weechat::bar_new($SCRIPT_NAME, "0", "0", "root", "", "left", "columns_vertical",
                  "vertical", "0", "0", "default", "default", "default", "1",
                  $SCRIPT_NAME);
 
