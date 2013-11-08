@@ -20,25 +20,27 @@
 #
 #
 # If someone posts an URL in a configured channel
-# this script will post back title 
+# this script will post back title
 
 # Explanation about ignores:
 #   * plugins.var.python.announce_url_title.ignore_buffers:
-#   Comma separated list of patterns for define ignores. 
+#   Comma separated list of patterns for define ignores.
 #   URLs from channels where its name matches any of these patterns will be ignored.
 #   Wildcards '*', '?' and char groups [..] can be used.
 #   An ignore exception can be added by prefixing '!' in the pattern.
 #
 #       Example:
 #       *ubuntu*,!#ubuntu-offtopic
-#       any urls from a 'ubuntu' channel will be ignored, 
+#       any urls from a 'ubuntu' channel will be ignored,
 #       except from #ubuntu-offtopic
 #
 #   * plugins.var.python.announce_url_title.url_ignore
 #     simply does partial match, so specifying 'google' will ignore every url with the word google in it
-# 
+#
 #
 # History:
+# 2013-11-07, excalibr
+#   version 17: add more characters to exclude in escaping (this fix problem with youtube urls)
 # 2012-11-15, xt
 #   version 16: improve escaping
 # 2011-09-04, Deltafire
@@ -84,7 +86,7 @@ from urllib import quote
 
 SCRIPT_NAME    = "announce_url_title"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "16"
+SCRIPT_VERSION = "17"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Announce URL titles to channel or locally"
 
@@ -164,7 +166,7 @@ def url_print_cb(data, buffer, time, tags, displayed, highlight, prefix, message
     ignorelist = w.config_get_plugin('url_ignore').split(',')
     for url in urlRe.findall(message):
 
-        url = quote(url, ":/") # Escape URL
+        url = quote(url, "%/:=&?~#+!$,;@()*[]") # Escape URL
         ignore = False
         for ignore_part in ignorelist:
             if ignore_part.strip():
