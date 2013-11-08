@@ -11,6 +11,8 @@
 #
 # ### changelog ###
 #
+#  * version 0.8 (excalibr@freenode)
+#      - respond only to notice message from NickServ
 #  * version 0.7 (Adam Spiers <weechat@adamspiers.org>)
 #      - allow commas in passwords
 #      - fix for FreeNode
@@ -34,7 +36,7 @@
 # =============================================================================
 
 
-VERSION="0.7"
+VERSION="0.8"
 NAME="autoauth"
 AUTHOR="Kolter"
 
@@ -150,7 +152,8 @@ def auth_list():
 
 def auth_notice_check(data, buffer, args):
     server = buffer.split(',')[0]
-    if args.find("If this is your nickname, type /msg NickServ") != -1 or args.find("This nickname is registered") != -1 :
+    if args.startswith(":NickServ!NickServ@services") and \
+      args.find("If this is your nickname, type /msg NickServ") != -1 or args.find("This nickname is registered") != -1 :
         passwd = auth_get(weechat.info_get("irc_nick", server), server)
         if passwd != None:
             weechat.command(server, "/quote nickserv identify %s" % (passwd))
