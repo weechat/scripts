@@ -19,11 +19,15 @@
 #
 # idea by lasers@freenode.#weechat
 #
+# 2013-11-07: nils_2, (freenode.#weechat)
+#       0.2 : fix file not found error (reported by calcifea)
+#           : make script compatible with Python 3.x
+#
 # 2013-07-26: nils_2, (freenode.#weechat)
 #       0.1 : initial release
 #
 # script will create a config file (~./weechat/queryman.txt)
-# with format: "servername nickname" (without "")
+# format: "servername nickname" (without "")
 #
 # Development is currently hosted at
 # https://github.com/weechatter/weechat-scripts
@@ -38,7 +42,7 @@ except Exception:
 
 SCRIPT_NAME     = 'queryman'
 SCRIPT_AUTHOR   = 'nils_2 <weechatter@arcor.de>'
-SCRIPT_VERSION  = '0.1'
+SCRIPT_VERSION  = '0.2'
 SCRIPT_LICENSE  = 'GPL'
 SCRIPT_DESC     = 'save and restore query buffers after /quit'
 
@@ -53,7 +57,6 @@ def quit_signal_cb(data, signal, signal_data):
 # signal_data contains servername
 def irc_server_connected_signal_cb(data, signal, signal_data):
     load_query_buffer_irc_server_opened(signal_data)
-    weechat.prnt("","servername: %s" % signal_data)
     return weechat.WEECHAT_RC_OK
 
 # ================================[ file ]===============================
@@ -67,17 +70,15 @@ def load_query_buffer_irc_server_opened(server_connected):
 
     filename = get_filename_with_path()
 
-    try:
+    if os.path.isfile(filename):
         f = open(filename, 'rb')
-        for line in f.xreadlines():
+        for line in f:
             servername,nick = line.split(' ')
             if servername == server_connected:
                 weechat.command('','/query -server %s %s' % ( servername,nick ))
         f.close()
-    except:
+    else:
         weechat.prnt('','%s%s: Error loading query buffer from "%s"' % (weechat.prefix('error'), SCRIPT_NAME, filename))
-        raise
-    return
 
 def save_query_buffer_to_file():
     global query_buffer_list
@@ -109,8 +110,8 @@ def save_query_buffer_to_file():
             weechat.prnt('','%s%s: Error writing query buffer to "%s"' % (weechat.prefix('error'), SCRIPT_NAME, filename))
             raise
     else:       # no query buffer(s). remove file
-      if os.path.isfile(filename):
-	os.remove(filename)
+        if os.path.isfile(filename):
+            os.remove(filename)
     return
 
 # ================================[ main ]===============================
