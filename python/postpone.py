@@ -20,6 +20,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2013-11-08, Stefan Huber <shuber@sthu.org>
+#   version 0.2.2: add match_prefix setting, recall timestamp of message
 # 2012-12-29, Stefan Huber <shuber@sthu.org>
 #   version 0.2.1: fix channel determination in join_cb
 # 2010-05-20, Alexander Schremmer <alex@alexanderweb.de>
@@ -29,15 +31,20 @@
 
 import weechat as w
 import re
+from datetime import datetime
+from time import strftime
 
 SCRIPT_NAME    = "postpone"
 SCRIPT_AUTHOR  = "Alexander Schremmer <alex@alexanderweb.de>"
-SCRIPT_VERSION = "0.2.1"
+SCRIPT_VERSION = "0.2.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Postpones written messages for later dispatching if target nick is not on channel"
 
-
 postpone_data = {}
+
+settings = {
+        'match_prefix': ('', 'Postpone message if prefix before "nick:" is matched.')
+}
 
 
 def join_cb(data, signal, signal_data):
@@ -48,8 +55,9 @@ def join_cb(data, signal, signal_data):
     if server in postpone_data and channel in postpone_data[server] and\
             nick in postpone_data[server][channel]:
         messages = postpone_data[server][channel][nick]
-        for msg in messages:
-            w.command(buffer, msg + " (This message has been postponed.)")
+        for time, msg in messages:
+            tstr = strftime("%Y-%m-%d %H:%M:%S", time.timetuple())
+            w.command(buffer, msg + " (This message has been postponed on " + tstr + ".)")
         messages[:] = []
     return w.WEECHAT_RC_OK
 
@@ -63,14 +71,16 @@ def command_run_input(data, buffer, command):
         input_s = w.buffer_get_string(buffer, 'input')
         server = w.buffer_get_string(buffer, 'localvar_server')
         channel = w.buffer_get_string(buffer, 'localvar_channel')
+        match_prefix = w.config_get_plugin('match_prefix')
 
-        match = re.match(r'([\w-]+?): (.*)$', input_s)
+        match = re.match(match_prefix + r'([\w-]+?): (.*)$', input_s)
         if match:
             nick, message = match.groups()
             if not channel_has_nick(server, channel, nick):
                 w.prnt(buffer, "| Enqueued message for %s: %s" % (nick, message))
+                save = datetime.now(), nick + ": " + message
                 postpone_data.setdefault(server, {}).setdefault(channel,
-                        {}).setdefault(nick.lower(), []).append(input_s)
+                        {}).setdefault(nick.lower(), []).append(save)
                 w.buffer_set(buffer, 'input', "")
                 # XXX why doesn't this work? i want to have the typed text
                 # in the history
@@ -82,6 +92,14 @@ def command_run_input(data, buffer, command):
 
 if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
                     SCRIPT_DESC, "", ""):
+
+    version = w.info_get('version_number', '') or 0
+    for option, default_desc in settings.iteritems():
+        if not w.config_is_set_plugin(option):
+            w.config_set_plugin(option, default_desc[0])
+        if int(version) >= 0x00030500:
+            w.config_set_desc_plugin(option, default_desc[1])
+
     w.hook_command_run("/input return", "command_run_input", "")
     w.hook_signal('*,irc_in2_join', 'join_cb', '')
 
