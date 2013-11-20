@@ -18,6 +18,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2013-11-19: nils_2 (freenode.#weechat)
+#	0.6 : fix: stdout/stderr warning
+#
 # 2013-11-02: nils_2 (freenode.#weechat)
 #       0.5 : fix refresh on (un)zoomed buffer
 #           : add option 'count_filtered_lines' and format item "%F"
@@ -48,7 +51,7 @@ except Exception:
 
 SCRIPT_NAME     = "bufsize"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.5"
+SCRIPT_VERSION  = "0.6"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "scroll indicator; displaying number of lines below last line, overall lines in buffer, number of current line and percent displayed"
 
@@ -133,7 +136,7 @@ def count_lines(ptr_window,ptr_buffer):
     filtered = 0
     filtered_before = 0
     filtered_after = 0
-    # count filtered lines if option is 'off' and filter is enabled.
+    # if filter is disabled, don't count.
     if (OPTIONS['count_filtered_lines'].lower() == 'off') and filter_status == 1:
         filtered, filtered_before,filtered_after = count_filtered_lines(ptr_buffer,lines_count,lines_after)
         lines_count = lines_count - filtered
@@ -170,6 +173,7 @@ def count_filtered_lines(ptr_buffer,lines_count,lines_after):
 #                message = weechat.hdata_string(hdata_line_data, data, 'message')
                 displayed = weechat.hdata_char(hdata_line_data, data, 'displayed')
                 if displayed == 0:
+#                    weechat.prnt('','%d - %s - %s' % (counter, displayed, message))
                     if counter < current_position:
                         filtered_before += 1
                     else:
@@ -210,7 +214,7 @@ def toggle_refresh(pointer, name, value):
     return weechat.WEECHAT_RC_OK
 # ================================[ main ]===============================
 if __name__ == "__main__":
-    global filter_status
+#    global filter_status
     if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, '', ''):
         version = weechat.info_get("version_number", "") or 0
 
