@@ -23,11 +23,14 @@
 # 2013-07-20, nils_2:
 #     version 0.3: add options for script on hook_signal("buffer_opened")
 #                : fix bug when irc.look.server_buffer was independent
+# 2013-11-24, prurigro:
+#     version 0.4: when sorting by server, duplicate channel names don't
+#                : get placed with the wrong server 50% of the time
 
 use strict;
 
 my $PRGNAME     = "sort_buffers";
-my $VERSION     = "0.3";
+my $VERSION     = "0.4";
 my $DESCR       = "irc-buffers will be sorted alphabetically or in reverse order";
 
 my $weechat_version     = "";
@@ -79,7 +82,8 @@ sub get_buffer_list{
           if ($args_all == 1){
               $buffer_struct{"all_in_one"}{$buffer_full_name}{buffer_short_name} = $server_name;
           }else{
-              $buffer_struct{$buffer_full_name}{$buffer_full_name}{buffer_number}=$buffer_number;         # core.weechat
+            $buffer_struct{$server_name}{$buffer_name}{buffer_short_name}=$buffer_short_name;
+            $buffer_struct{$server_name}{$buffer_name}{$buffer_short_name}{buffer_number}=$buffer_number;
           }
     }
     if ($buffer_plugin_name eq "irc"){                                                                    # irc buffer
@@ -87,23 +91,26 @@ sub get_buffer_list{
           if ($args_all == 1){
               $buffer_struct{"all_in_one"}{$buffer_full_name}{buffer_short_name} = $server_name;
           }else{
-              $buffer_struct{$server_name}{$buffer_name}{buffer_number}=$buffer_number;                  # server.name
+              $buffer_struct{$server_name}{$buffer_name}{buffer_short_name}=$buffer_short_name;
+              $buffer_struct{$server_name}{$buffer_name}{$buffer_short_name}{buffer_number}=$buffer_number;
           }
       }elsif ($localvar_type eq "channel" or $localvar_type eq "private"){
-      if ($args_all == 1){
-        $buffer_struct{"all_in_one"}{$buffer_name}{buffer_short_name}=$buffer_short_name;
-      }else{
-        $buffer_struct{$buffer_name}{$buffer_short_name}{buffer_number}=$buffer_number;
-      }
+          if ($args_all == 1){
+            $buffer_struct{"all_in_one"}{$buffer_name}{buffer_short_name}=$buffer_short_name;
+          }else{
+              $buffer_struct{$server_name}{$buffer_name}{buffer_short_name}=$buffer_short_name;
+              $buffer_struct{$server_name}{$buffer_name}{$buffer_short_name}{buffer_number}=$buffer_number;
+          }
       }
     }elsif ($buffer_plugin_name ne "irc" or $buffer_plugin_name ne "core"){                                             # buffer with free content
-            if ($args_all == 1){
-                $buffer_struct{"all_in_one"}{$buffer_full_name}{buffer_short_name} = $server_name;
-            }else{
-                $buffer_struct{$buffer_full_name}{$buffer_full_name}{buffer_number}=$buffer_number;
-            }
+        if ($args_all == 1){
+            $buffer_struct{"all_in_one"}{$buffer_full_name}{buffer_short_name} = $server_name;
+        }else{
+            $buffer_struct{$server_name}{$buffer_name}{buffer_short_name}=$buffer_short_name;
+            $buffer_struct{$server_name}{$buffer_name}{$buffer_short_name}{buffer_number}=$buffer_number;
+        }
     }
-  }
+}
 weechat::infolist_free($infolist);
 }
 
