@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2009-2012 Sebastien Helleu <flashcode@flashtux.org>
+# Copyright (C) 2009-2013 Sebastien Helleu <flashcode@flashtux.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,6 +22,9 @@
 #
 # History:
 #
+# 2013-11-27, luz <ne.tetewi@gmail.com>:
+#     version 0.7: switch to json version of google translate api, support
+#                  multiple sentences
 # 2012-12-11, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.6: automatically replace old URL (not working any more) by new one
 # 2012-10-13, Sebastien Helleu <flashcode@flashtux.org>:
@@ -40,7 +43,7 @@
 
 SCRIPT_NAME    = 'translate'
 SCRIPT_AUTHOR  = 'Sebastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '0.6'
+SCRIPT_VERSION = '0.7'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC    = 'Translate string using Google translate API'
 
@@ -55,6 +58,7 @@ except:
 
 try:
     import sys
+    import json
     if sys.version_info >= (3,):
         import urllib.parse as urllib
     else:
@@ -84,7 +88,9 @@ def translate_process_cb(data, command, rc, stdout, stderr):
     if stdout != '':
         translate['stdout'] += stdout
     if int(rc) >= 0:
-        translated = translate['stdout'].split('"')[1]
+        translated = ''.join([x['trans'] for x in json.loads(translate['stdout'])['sentences']])
+        if sys.version_info < (3,):
+            translated = translated.encode('utf-8')
         translate['input_before'][0] = weechat.buffer_get_string(weechat.current_buffer(), 'input')
         translate['input_before'][1] = weechat.buffer_get_integer(weechat.current_buffer(), 'input_pos')
         if translate['options']['word']:
@@ -213,7 +219,7 @@ def translate_cmd_cb(data, buffer, args):
         translate['hook_process'] = ''
 
     # translate!
-    url = '%s?%s' % (weechat.config_get_plugin('url'), urllib.urlencode({'client': 't',
+    url = '%s?%s' % (weechat.config_get_plugin('url'), urllib.urlencode({'client': 'a',
                                                                          'sl': translate['options']['lang'][0],
                                                                          'tl': translate['options']['lang'][1],
                                                                          'text': translate['options']['string'] }))
