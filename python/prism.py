@@ -8,6 +8,8 @@
 # TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
 #
 # 0. You just DO WHAT THE FUCK YOU WANT TO.
+# 2013-11-26, Seganku <seganku@zenu.net>
+#    v0.2.7: add -c switch for the option to pass output to a command
 # 2013-07-19, Sebastien Helleu <flashcode@flashtux.org>
 #    v0.2.6: use buffer received in command callback instead of current buffer
 # 2013-05-04, Rylai
@@ -28,7 +30,7 @@ import re
 
 SCRIPT_NAME    = "prism"
 SCRIPT_AUTHOR  = "Alex Barrett <al.barrett@gmail.com>"
-SCRIPT_VERSION = "0.2.6"
+SCRIPT_VERSION = "0.2.7"
 SCRIPT_LICENSE = "WTFPL"
 SCRIPT_DESC    = "Taste the rainbow."
 
@@ -53,14 +55,16 @@ if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION,
               SCRIPT_LICENSE, SCRIPT_DESC, "", ""):
     w.hook_command("prism",
                    SCRIPT_DESC,
-                   "[-rwmbe] text",
+                   "[-rwmbe] text|-c[wbe] <sep> <command> <sep>text",
                    "    -r: randomizes the order of the color sequence\n"
                    "    -w: color entire words instead of individual characters\n"
                    "    -m: append /me to beginning of output\n"
                    "    -b: backwards text (entire string is reversed)\n"
                    "    -e: eye-destroying colors (randomized background colors)\n"
+                   "    -c: specify a separator to turn on colorization\n"
+                   "        eg. -c : /topic :howdy howdy howdy\n"
                    "  text: text to be colored",
-                   "-r|-w|-m|-b|-e", "prism_cmd_cb", "")
+                   "-r|-w|-m|-b|-e|-c", "prism_cmd_cb", "")
 def find_another_color(colorCode):
     otherColor = (unicode(colors[random.randint(1, color_count - 1) % color_count]).rjust(2, "0"))
     while (otherColor == colorCode):
@@ -80,19 +84,21 @@ def prism_cmd_cb(data, buffer, args):
 
     # select a tokenizer and increment mode
     regex = regex_chars
-    inc = 1
-    mepfx = 0
+    inc   = 1
     bs    = 0
-    m = re.match('-[rwmbe]* ', input)
+    cmd   = ""
+    m = re.match(r'(-[rwmbec]+)\s+(?:([^ ]+)\s+(.+?)\s*\2)?(.*)', input)
     if m and input_method == "command":
-        opts = m.group(0)
-        input = input[len(opts):]
+        opts = m.group(1)
+        input = m.group(4)
+        if 'c' in opts:
+            cmd = m.group(3)
         if 'w' in opts:
             regex = regex_words
         if 'r' in opts:
             inc = 0
         if 'm' in opts:
-            mepfx = 1
+            cmd = "/me"
         if 'b' in opts:
             input = input[::-1]
         if 'e' in opts:
@@ -117,10 +123,11 @@ def prism_cmd_cb(data, buffer, args):
 
     # output starting with a / will be executed as a
     # command unless we escape it with a preceding /
+    # Commands should use the -c flag
     if len(output) > 0 and output[0] == "/":
         output = "/" + output
-    if mepfx == 1:
-        output = "/me " + output
+    if len(cmd) > 0:
+        output = cmd + ' ' + output
     if input_method == "keybinding":
         w.buffer_set(buffer, "input", output.encode("UTF-8"))
     else:
