@@ -17,7 +17,7 @@ present.
 =cut
 
 use constant SCRIPT_NAME => 'color_popup';
-weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.2', 'GPL3', 'show mirc color codes', '', '') || return;
+weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.3', 'GPL3', 'show mirc color codes', '', '') || return;
 
 my %ones = map { $_ => 1 } 0, 8, 14, 15;
 my $popup =
@@ -37,7 +37,7 @@ weechat::hook_modifier('input_text_display_with_cursor', 'color_popup', '');
 ## returns modified input string
 sub color_popup {
 	Encode::_utf8_on($_[3]);
-	my $cc = qr/(?:\03(?:\d{1,2}(?:,(?:\d{1,2})?)?)?|\02|\x1d|\x0f|\x12|\x15)/;
+	my $cc = qr/(?:\03(?:\d{1,2}(?:,(?:\d{1,2})?)?)?|\02|\x1d|\x0f|\x12|\x15|\x16|\x1f)/;
 	my ($p1, $x, $p2) = split /((?:$cc)?\x19b#)/, $_[3], 2;
 	for ($p1, $p2) {
 		s/($cc)/$1■/g if weechat::config_string_to_boolean(weechat::config_get_plugin('reveal'));
