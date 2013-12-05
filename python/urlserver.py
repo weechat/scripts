@@ -52,6 +52,8 @@
 # History:
 #
 # 2013-12-05, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 1.5: replace HTTP 301 by 302
+# 2013-12-05, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 1.4: use HTTP 301 instead of meta for the redirection when
 #                  there is no referer in request
 # 2013-11-29, Felix Eckhofer <felix@tribut.de>
@@ -102,7 +104,7 @@
 
 SCRIPT_NAME    = 'urlserver'
 SCRIPT_AUTHOR  = 'Sebastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '1.4'
+SCRIPT_VERSION = '1.5'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC    = 'Shorten URLs with own HTTP server'
 
@@ -416,13 +418,13 @@ def urlserver_server_fd_cb(data, fd):
                         pass
                     if number >= 0 and number in urlserver['urls']:
                         # if we have a referer in request, use meta for redirection (so that referer is not sent)
-                        # otherwise, we can make redirection with HTTP 301
+                        # otherwise, we can make redirection with HTTP 302
                         if referer:
                             urlserver_server_reply(conn, '200 OK', '',
                                                    '<meta name="referrer" content="never">\n' \
                                                        '<meta http-equiv="refresh" content="0; url=%s">' % urlserver['urls'][number][3])
                         else:
-                            conn.sendall('HTTP/1.1 301 Moved permanently\n'
+                            conn.sendall('HTTP/1.1 302\n'
                                          'Location: %s\n' % urlserver['urls'][number][3])
                         replysent = True
                 else:
