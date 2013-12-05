@@ -50,6 +50,9 @@
 # -----------------------------------------------------------------------------
 #
 # Changelog:
+# Version 0.15 2013-12-03, nils_2
+#   * FIX: display error with ${color:nnn} in weechat.look.buffer_time_format
+#
 # Version 0.14 2013-01-13, nils_2
 #   * IMPROVED: new option "most_recent" (idea by swimmer)
 #   * FIX: typo in help text
@@ -162,7 +165,7 @@ use POSIX qw(strftime);
 use strict;
 use warnings;
 
-my $Version = "0.14";
+my $Version = "0.15";
 
 # constants
 #
@@ -472,13 +475,12 @@ sub _bar_date_time {
     my $dt = strftime( weechat::config_string (weechat::config_get('weechat.look.buffer_time_format')), localtime);
     my $dt_bak = $dt;
     my $dt_marker = 0;
-    while ( $dt_bak ~~ /\$\{[^\{\}]+\}/ ){
-        $dt_bak =~ /\$\{(.*?)\}/;
+    while ( $dt_bak ~~ /\$\{(?:color:)?[^\{\}]+\}/ ){
+        $dt_bak =~ /\$\{(?:color:)?(.*?)\}/;
         my $col = weechat::color($1);
-        $dt_bak =~ s/\$\{(.*?)\}/$col/;
+        $dt_bak =~ s/\$\{(?:color:)?(.*?)\}/$col/;
         $dt_marker = 1;
     }
-
     my $dc     = weechat::color(
         weechat::config_string(weechat::config_get('weechat.color.chat_time_delimiters')));
     my $tdelim = $dc . ":" . weechat::color ("reset");
@@ -1056,7 +1058,6 @@ if (weechat::config_string (weechat::config_get('plugins.var.perl.newsbar.colore
 # XXX If you don't check weechat::register() for succsess, %SETTINGS will be set
 # XXX by init_config() into the namespace of other perl scripts.
 if ( weechat::register(  $SCRIPT,  $AUTHOR, $Version, $LICENCE, $DESCRIPTION, "unload", "" ) ) {
-
     weechat::hook_command( $COMMAND,  $DESCRIPTION,  $ARGS_HELP, $CMD_HELP, $COMPLETITION, $CALLBACK, "" );
     weechat::hook_print( "", "", "", 1, "highlights_public", "" );
     weechat::hook_signal( "weechat_pv",    "highlights_private", "" );
@@ -1070,5 +1071,4 @@ if ( weechat::register(  $SCRIPT,  $AUTHOR, $Version, $LICENCE, $DESCRIPTION, "u
     weechat::hook_config( "plugins.var.perl." . $SCRIPT . ".beep_remote", 'beep_remote_config_changed', "" );
     weechat::hook_config( "plugins.var.perl." . $SCRIPT . ".nick_flood*", 'config_changed_nick_flood', "" );
 }
-
 # vim: ai ts=4 sts=4 et sw=4 foldmethod=marker :
