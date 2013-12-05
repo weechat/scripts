@@ -1,6 +1,6 @@
 #
 # chanmon.pl - Channel Monitoring for weechat 0.3.0
-# Version 2.3.3.1
+# Version 2.4
 #
 # Add 'Channel Monitor' buffer/bar that you can position to show IRC channel
 # messages in a single location without constantly switching buffers
@@ -72,6 +72,8 @@
 # Bugs and feature requests at: https://github.com/KenjiE20/chanmon
 
 # History:
+# 2013-12-04, KenjiE20 <longbow@longbowslair.co.uk>:
+#	v2.4:	-add: Support for eval style colour codes in time format used for bar output
 # 2013-10-10, KenjiE20 <longbow@longbowslair.co.uk>:
 #	v2.3.3.1:	-fix: Typo in closed buffer warning
 # 2013-10-07, KenjiE20 <longbow@longbowslair.co.uk>:
@@ -925,13 +927,14 @@ sub chanmon_print
 		use POSIX qw(strftime);
 		$time = strftime(weechat::config_string(weechat::config_get("weechat.look.buffer_time_format")), localtime);
 		# Colourise
-		if ($time =~ /\$\{\w+\}/) # Coloured string
+		if ($time =~ /\$\{(?:color:)?[\w,]+\}/) # Coloured string
 		{
-			while ($time =~ /\$\{(\w+)\}/)
+			while ($time =~ /\$\{(?:color:)?([\w,]+)\}/)
 			{
 				$color = weechat::color($1);
-				$time =~ s/\$\{\w+\}/$color/;
+				$time =~ s/\$\{(?:color:)?[\w,]+\}/$color/;
 			}
+			$time .= weechat::color("reset");
 		}
 		else # Default string
 		{
@@ -1136,7 +1139,7 @@ sub format_buffer_name
 }
 
 # Check result of register, and attempt to behave in a sane manner
-if (!weechat::register("chanmon", "KenjiE20", "2.3.3.1", "GPL3", "Channel Monitor", "", ""))
+if (!weechat::register("chanmon", "KenjiE20", "2.4", "GPL3", "Channel Monitor", "", ""))
 {
 	# Double load
 	weechat::print ("", "\tChanmon is already loaded");
