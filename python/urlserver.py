@@ -5,6 +5,7 @@
 # Copyright (C) 2012 Filip H.F. "FiXato" Slagter <fixato+weechat+urlserver@gmail.com>
 # Copyright (C) 2012 WillyKaze <willykaze@willykaze.org>
 # Copyright (C) 2013 Thomas Kindler <mail_weechat@t-kindler.de>
+# Copyright (C) 2013 Felix Eckhofer <felix@tribut.de>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -50,6 +51,16 @@
 #
 # History:
 #
+# 2013-11-29, Felix Eckhofer <felix@tribut.de>
+#     version 1.3: - make it possible to run reverse proxy in a subdirectory by
+#                    generating relative links and using the <base> tag. to use this, set
+#                    http_hostname_display to 'domain.tld/subdir'.
+#                  - mention favicon explicitly (now works in subdirectories, too).
+#                  - update favicon to new weechat logo.
+#                  - set meta referrer to never in redirect page, so chrome users'
+#                    referrers are hidden, too
+#                  - fix http_auth in chrome and other browsers which send header names
+#                    in lower case
 # 2013-05-04, Thomas Kindler <mail_weechat@t-kindler.de>
 #     version 1.2: added a "http_scheme_display" option. This makes it possible to run
 #                  the server behind a reverse proxy with https:// URLs.
@@ -88,7 +99,7 @@
 
 SCRIPT_NAME    = 'urlserver'
 SCRIPT_AUTHOR  = 'Sebastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '1.2'
+SCRIPT_VERSION = '1.3'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC    = 'Shorten URLs with own HTTP server'
 
@@ -189,8 +200,8 @@ def base64_decode(s):
         # python 2.x
         return base64.b64decode(s)
 
-def urlserver_get_hostname(full=True):
-    """Return hostname with port number if != default port for the protocol."""
+def urlserver_get_base_url():
+    """Return url with port number if != default port for the protocol, including prefix path."""
     global urlserver_settings
 
     scheme = urlserver_settings['http_scheme_display']
@@ -215,14 +226,11 @@ def urlserver_get_hostname(full=True):
     if urlserver_settings['http_url_prefix']:
         prefix = '%s/' % urlserver_settings['http_url_prefix']
 
-    if full:
-        return '%s://%s%s/%s' % (scheme, hostname, prefixed_port, prefix)
-    else:
-        return '/%s' % prefix
+    return '%s://%s%s/%s' % (scheme, hostname, prefixed_port, prefix)
 
 def urlserver_short_url(number, full=True):
     """Return short URL with number."""
-    return '%s%s' % (urlserver_get_hostname(full), base62_encode(number))
+    return '%s%s' % (urlserver_get_base_url() if full else '', base62_encode(number))
 
 def urlserver_server_reply(conn, code, extra_header, message, mimetype='text/html'):
     """Send a HTTP reply to client."""
@@ -251,18 +259,25 @@ def urlserver_server_reply(conn, code, extra_header, message, mimetype='text/htm
 
 def urlserver_server_favicon():
     """Return favicon for HTML page."""
-    s = 'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABmJLR0QA/wD/AP+gvaeTAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAB3RJTUUH1wgcDwo4MOEy+AAAAB10' \
-        'RVh0Q29tbWVudABDcmVhdGVkIHdpdGggVGhlIEdJTVDvZCVuAAADp0lEQVQ4y12TXUxbBRTH/733ttx+XFq+Ci2Ur8AEYSBIosnS+YJhauJY9mQyXfTBh8UEnclm1Gxq' \
-        'YoJGfZkzqAkmQ2IicVOcwY1YyMZwWcfXVq2Ulpax3raX2y9ob29v7+31QViIJzkPJyfn//D7/48G+2r+6jzaO9oHFCjPCTkBM7MzF06eOhng/uHMFE2dUopKExthb3cf' \
-        '6h4DUAAAar+A3WB/b21l7a3pW9NLPW099Vk+axn9aPRDkROvX3FdiRtpo9LX0XeMJMm/FUW5DQDE3vHSN0t9vhXfy+eGz00hjgk6TZfcWXajlq79ePLyZGLog6Gvm7XN' \
-        'nPumO+50HnYAIB8J+P3cMzmL+oVAy1ZdRhdykA4bp6YT5z/79PjaVtDJ+ThxeHCYSOUzWn17eebs2fMvAWgBoCEAIBTiS1cDG81b8azZz/rrT4+f/qWm92D2wUY6H91O' \
-        'VfFhvnFkZiQRKRWnNzfj4fn5RSOA0kcM4nwhHRckQRLFwoBx4Ljd3pD3eoKNNkeDoaDTSzIvM2cqz7zLJKsVylphG//ynd8B8ABUCgC8Xn+oxt5W7V2aS99JuANP9th6' \
-        '9RtsUlbNjNZkk+5tTwRjmXisK1t5gJR1qsfjDu4K/Mdg7PtPuFSKzEWS6Xi6QTdlau9ZD4Y22EgkI7KxVEZqrVgwveC8nJX08vLKQhSAB4CAPZLJZLjY2fnqYCLBV6ga' \
-        'ISuROdP9xRthhnkMeVGtIQijXGo+0JTZEYzXrg8vdB0u8/Yeakj57sWEPRvVCLuzIgg0XdW3fSySdHX4A7N3+a3sH2LOQlNka1ssmmwKP2T1BJkKOJ5ST/hXN50ACAIA' \
-        'Pv+2W0+UT2WFrNFkLsmVRP0PxaefNehl5b5nZ8di0OjUGp3d5eCE0fX+18nauh7u+a4jhVcAmKnvrtnrWTY6bKwcrxILUtHe5CVaWtPKE/3ki8s3Lk1aLIiq8NrrD/os' \
-        'ZfZIvdVBqWSKkoNzSgYAQ5gZ4bXNQNw0cZF/P8r6fq4zJ9ORkDTXXCdrkNZo+49eon8d41apbYGjZTVlJSmfSdKE3a7cVwBYqopWDEecupYTg+TQny53uK6qkPL8Jcw+' \
-        '3sh0LjbL1jZbkbwwEtgmCW2C47X5GhOhXw9oWABhADL12w/qxSIpEz/9mI9JucIsw6hzxaK6tBMyVE9dTWbKrMqb01OoUyXdrQfhAvP2G3S5y1W4CyC5/xF1u63Zy0Z1' \
-        'mZ7ejSv5v50OQMnujH8BbzDFpcdRAIIAAAAASUVORK5CYII='
+    s = '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'
     return base64_decode(s)
 
 def urlserver_server_reply_list(conn, sort='-time'):
@@ -279,15 +294,12 @@ def urlserver_server_reply_list(conn, sort='-time'):
     if sort.startswith('-'):
         urls.reverse()
     sortkey = { '-': ('', '&uarr;'), '+': ('-', '&darr;') }
-    prefix = ''
-    if urlserver_settings['http_url_prefix']:
-        prefix = '%s/' % urlserver_settings['http_url_prefix']
     content += '  <tr>'
     for column, defaultsort in (('time', '-'), ('nick', ''), ('buffer', '')):
         if sort[1:] == column:
-            content += '<th class="sortable sorted_by %s_header"><a href="/%ssort=%s%s">%s</a> %s</th>' % (column, prefix, sortkey[sort[0]][0], column, column.capitalize(), sortkey[sort[0]][1])
+            content += '<th class="sortable sorted_by %s_header"><a href="sort=%s%s">%s</a> %s</th>' % (column, sortkey[sort[0]][0], column, column.capitalize(), sortkey[sort[0]][1])
         else:
-            content += '<th class="sortable %s_header"><a class="sort_link" href="/%ssort=%s%s">%s</a></th>' % (column, prefix, defaultsort, column, column.capitalize())
+            content += '<th class="sortable %s_header"><a class="sort_link" href="sort=%s%s">%s</a></th>' % (column, defaultsort, column, column.capitalize())
     content += '<th class="unsortable message_header">URLs</th>'
     content += '</tr>\n'
     for key, item in urls:
@@ -337,9 +349,11 @@ def urlserver_server_reply_list(conn, sort='-time'):
         '<title>%s</title>\n' \
         '<meta http-equiv="content-type" content="text/html; charset=utf-8" />\n' \
         '%s\n' \
+        '<base href="%s" />\n' \
+        '<link rel="icon" type="image/png" href="favicon.png" />\n' \
         '</head>\n' \
         '<body>\n%s\n</body>\n' \
-        '</html>' % (urlserver_settings['http_title'], css, content)
+        '</html>' % (urlserver_settings['http_title'], css, urlserver_get_base_url(), content)
     urlserver_server_reply(conn, '200 OK', '', html)
 
 def urlserver_server_fd_cb(data, fd):
@@ -400,13 +414,14 @@ def urlserver_server_fd_cb(data, fd):
                         # no redirection with "Location:" because it sends HTTP referer
                         #conn.sendall('HTTP/1.1 302 Found\nLocation: %s\n' % urlserver['urls'][number][2])
                         urlserver_server_reply(conn, '200 OK', '',
+                                               '<meta name="referrer" content="never">\n' \
                                                '<meta http-equiv="refresh" content="0; url=%s">' % urlserver['urls'][number][3])
                         replysent = True
                 else:
                     # page with list of urls
                     authok = True
                     if urlserver_settings['http_auth']:
-                        auth = re.search('^Authorization: Basic (\S+)$', data, re.MULTILINE)
+                        auth = re.search('^Authorization: Basic (\S+)$', data, re.MULTILINE | re.IGNORECASE)
                         if not auth or base64_decode(auth.group(1)).decode('utf-8') != urlserver_settings['http_auth']:
                             authok = False
                     if authok:
@@ -606,7 +621,7 @@ def urlserver_update_urllist(buffer_full_name, buffer_short_name, tags, prefix, 
                 if [key for key, value in urlserver['urls'].items() if value[3] == url]:
                     continue
             number = urlserver['number']
-            if not url.startswith(urlserver_get_hostname()): # don't save urls already shorten
+            if not url.startswith(urlserver_get_base_url()): # don't save urls already shorten
                 urlserver['urls'][number] = (datetime.datetime.now().strftime(urlserver_settings['http_time_format']), nick, buffer_short_name, url, '%s\t%s' % (prefix, message))
                 urls_short.append(urlserver_short_url(number))
                 if urlserver['buffer']:
