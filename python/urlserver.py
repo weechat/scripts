@@ -51,6 +51,9 @@
 #
 # History:
 #
+# 2013-12-05, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 1.4: use HTTP 301 instead of meta for the redirection when
+#                  there is no referer in request
 # 2013-11-29, Felix Eckhofer <felix@tribut.de>
 #     version 1.3: - make it possible to run reverse proxy in a subdirectory by
 #                    generating relative links and using the <base> tag. to use this, set
@@ -99,7 +102,7 @@
 
 SCRIPT_NAME    = 'urlserver'
 SCRIPT_AUTHOR  = 'Sebastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '1.3'
+SCRIPT_VERSION = '1.4'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC    = 'Shorten URLs with own HTTP server'
 
@@ -378,6 +381,7 @@ def urlserver_server_fd_cb(data, fd):
         return weechat.WEECHAT_RC_OK
     replysent = False
     sort = '-time'
+    referer = re.search('^Referer:', data, re.MULTILINE | re.IGNORECASE)
     m = re.search('^GET /(.*) HTTP/.*$', data, re.MULTILINE)
     if m:
         url = m.group(1)
@@ -411,11 +415,15 @@ def urlserver_server_fd_cb(data, fd):
                     except:
                         pass
                     if number >= 0 and number in urlserver['urls']:
-                        # no redirection with "Location:" because it sends HTTP referer
-                        #conn.sendall('HTTP/1.1 302 Found\nLocation: %s\n' % urlserver['urls'][number][2])
-                        urlserver_server_reply(conn, '200 OK', '',
-                                               '<meta name="referrer" content="never">\n' \
-                                               '<meta http-equiv="refresh" content="0; url=%s">' % urlserver['urls'][number][3])
+                        # if we have a referer in request, use meta for redirection (so that referer is not sent)
+                        # otherwise, we can make redirection with HTTP 301
+                        if referer:
+                            urlserver_server_reply(conn, '200 OK', '',
+                                                   '<meta name="referrer" content="never">\n' \
+                                                       '<meta http-equiv="refresh" content="0; url=%s">' % urlserver['urls'][number][3])
+                        else:
+                            conn.sendall('HTTP/1.1 301 Moved permanently\n'
+                                         'Location: %s\n' % urlserver['urls'][number][3])
                         replysent = True
                 else:
                     # page with list of urls
