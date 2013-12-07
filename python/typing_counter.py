@@ -41,6 +41,9 @@
 # 0.8 <nils_2@freenode>:
 #       fix regex bug with ":" in sms text (reported by ahuemer)
 #
+# 0.9 <nils_2@freenode>:
+#       add option 'start_cursor_pos_at_zero' (idea by nesthib)
+#
 # Note: As of version 0.2 this script requires a version of weechat
 #       from git 2010-01-25 or newer, or at least 0.3.2 stable.
 #
@@ -72,7 +75,7 @@
 
 SCRIPT_NAME    = "typing_counter"
 SCRIPT_AUTHOR  = "fauno <fauno@kiwwwi.com.ar>"
-SCRIPT_VERSION = "0.8"
+SCRIPT_VERSION = "0.9"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Bar item showing typing count and cursor position. Add 'tc' to a bar."
 
@@ -103,6 +106,7 @@ tc_default_options = {
     'warn_command'      : ('', 'to activate a display beep use: $beep'),
     'tweet_buffer'      : ('bitlbee.#tweet','name of tweet buffer. This is a comma separated list'),
     'sms_buffer'        : ('bitlbee.sms','name of sms buffer (using gtalksms). This is a comma separated list'),
+    'start_cursor_pos_at_zero': ('off','if option on, cursor position will start counting from zero instead of one'),
 }
 tc_options = {}
 
@@ -111,7 +115,8 @@ def command_run_cb (data, signal, signal_data):
         return w.WEECHAT_RC_OK
     global length, cursor_pos, tc_input_text
     current_buffer = w.current_buffer()
-    cursor_pos = w.buffer_get_integer(current_buffer,'input_pos') + 1
+    start_pos = int(tc_options['start_cursor_pos_at_zero'].lower() == 'off')
+    cursor_pos = w.buffer_get_integer(current_buffer,'input_pos') + start_pos
     if (cursor_pos -1) == 0:
         tc_action_cb()
     return w.WEECHAT_RC_OK
@@ -136,24 +141,25 @@ def tc_bar_item (data, item, window):
     tweet = ''
     reverse_chars = 0
 
-    bufpointer = w.window_get_pointer(window,"buffer")
-    if bufpointer == "":
+    ptr_buffer = w.window_get_pointer(window,"buffer")
+    if ptr_buffer == "":
         return ""
 
-    length = w.buffer_get_integer(bufpointer,'input_length')
-    cursor_pos = w.buffer_get_integer(bufpointer,'input_pos') + 1
+    length = w.buffer_get_integer(ptr_buffer,'input_length')
+    start_pos = int(tc_options['start_cursor_pos_at_zero'].lower() == 'off')
+    cursor_pos = w.buffer_get_integer(ptr_buffer,'input_pos') + start_pos
 
-    plugin = w.buffer_get_string(bufpointer, 'plugin')
+    plugin = w.buffer_get_string(ptr_buffer, 'plugin')
 
     host = ''
     if plugin == 'irc':
-        servername = w.buffer_get_string(bufpointer, 'localvar_server')
-        channelname = w.buffer_get_string(bufpointer, 'localvar_channel')
-        channel_type = w.buffer_get_string(bufpointer, 'localvar_type')
-        name = w.buffer_get_string(bufpointer, 'localvar_name')
-        input_line = w.buffer_get_string(bufpointer, 'input')
+        servername = w.buffer_get_string(ptr_buffer, 'localvar_server')
+        channelname = w.buffer_get_string(ptr_buffer, 'localvar_channel')
+        channel_type = w.buffer_get_string(ptr_buffer, 'localvar_type')
+        name = w.buffer_get_string(ptr_buffer, 'localvar_name')
+        input_line = w.buffer_get_string(ptr_buffer, 'input')
         mynick = w.info_get('irc_nick', servername)
-        nick_ptr = w.nicklist_search_nick(bufpointer, '', mynick)
+        nick_ptr = w.nicklist_search_nick(ptr_buffer, '', mynick)
 
         # check for a sms message
         if channel_type == 'private' and name in tc_options['sms_buffer'].split(","):
