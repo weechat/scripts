@@ -51,6 +51,8 @@
 #
 # History:
 #
+# 2013-12-09, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 1.6: add reason phrase after HTTP code 302 and empty line at the end
 # 2013-12-05, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 1.5: replace HTTP 301 by 302
 # 2013-12-05, Sebastien Helleu <flashcode@flashtux.org>:
@@ -104,7 +106,7 @@
 
 SCRIPT_NAME    = 'urlserver'
 SCRIPT_AUTHOR  = 'Sebastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '1.5'
+SCRIPT_VERSION = '1.6'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC    = 'Shorten URLs with own HTTP server'
 
@@ -424,8 +426,8 @@ def urlserver_server_fd_cb(data, fd):
                                                    '<meta name="referrer" content="never">\n' \
                                                        '<meta http-equiv="refresh" content="0; url=%s">' % urlserver['urls'][number][3])
                         else:
-                            conn.sendall('HTTP/1.1 302\n'
-                                         'Location: %s\n' % urlserver['urls'][number][3])
+                            conn.sendall('HTTP/1.1 302\r\n'
+                                         'Location: %s\r\n\r\n' % urlserver['urls'][number][3])
                         replysent = True
                 else:
                     # page with list of urls
