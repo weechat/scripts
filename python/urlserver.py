@@ -50,7 +50,8 @@
 # - in browser: http://myhost.org:1234/
 #
 # History:
-#
+# 2013-12-09, WakiMiko
+#     version 1.7: use HTTPS for youtube embedding
 # 2013-12-09, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 1.6: add reason phrase after HTTP code 302 and empty line at the end
 # 2013-12-05, Sebastien Helleu <flashcode@flashtux.org>:
@@ -106,7 +107,7 @@
 
 SCRIPT_NAME    = 'urlserver'
 SCRIPT_AUTHOR  = 'Sebastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '1.6'
+SCRIPT_VERSION = '1.7'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC    = 'Shorten URLs with own HTTP server'
 
@@ -333,7 +334,7 @@ def urlserver_server_reply_list(conn, sort='-time'):
                     width = 480
                     height = 350
                 obj = '<div class="obj youtube"><iframe id="%s" type="text/html" width="%d" height="%d" ' \
-                    'src="http://www.youtube.com/embed/%s?enablejsapi=1"></iframe></div>' % (yid, width, height, yid)
+                    'src="https://www.youtube.com/embed/%s?enablejsapi=1"></iframe></div>' % (yid, width, height, yid)
         content += '<td class="timestamp">%s</td><td class="nick">%s</td><td class="buffer">%s</td><td class="message">' % (item[0], item[1], item[2])
         content += '%s%s</td></tr>\n' % (message, obj)
     content += '</table>'
