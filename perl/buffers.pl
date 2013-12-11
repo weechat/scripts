@@ -19,6 +19,10 @@
 # Display sidebar with list of buffers.
 #
 # History:
+#
+# 2013-12-11, Sebastien Helleu <flashcode@flashtux.org>:
+#     v4.4: fix buffer number on drag to the end of list when option
+#           weechat.look.buffer_auto_renumber is off
 # 2013-12-10, nils_2@freenode.#weechat:
 #     v4.3: add options "prefix_bufname" and "suffix_bufname (idea by silverd)
 #         : fix hook_timer() for show_lag wasn't disabled
@@ -147,7 +151,7 @@ use strict;
 use Encode qw( decode encode );
 # -------------------------------[ internal ]-------------------------------------
 my $SCRIPT_NAME = "buffers";
-my $SCRIPT_VERSION = "4.3";
+my $SCRIPT_VERSION = "4.4";
 
 my $BUFFERS_CONFIG_FILE_NAME = "buffers";
 my $buffers_config_file;
@@ -1289,8 +1293,20 @@ sub move_buffer
   {
       # if number 2 is not known (end of gesture outside buffers list), then set it
       # according to mouse gesture
-      $number2 = "999999";
-      $number2 = "1" if (($hash{"_key"} =~ /gesture-left/) || ($hash{"_key"} =~ /gesture-up/));
+      $number2 = "1";
+      if (($hash{"_key"} =~ /gesture-right/) || ($hash{"_key"} =~ /gesture-down/))
+      {
+          $number2 = "999999";
+          if ($weechat_version >= 0x00030600)
+          {
+              my $hdata_buffer = weechat::hdata_get("buffer");
+              my $last_gui_buffer = weechat::hdata_get_list($hdata_buffer, "last_gui_buffer");
+              if ($last_gui_buffer)
+              {
+                  $number2 = weechat::hdata_integer($hdata_buffer, $last_gui_buffer, "number") + 1;
+              }
+          }
+      }
   }
   my $ptrbuf = weechat::current_buffer();
   weechat::command($hash{"pointer"}, "/buffer move ".$number2);
