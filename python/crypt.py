@@ -3,7 +3,7 @@
 # ===============================================================
 SCRIPT_NAME    = "crypt"
 SCRIPT_AUTHOR  = "Nicolai Lissner <nlissne@linux01.org>"
-SCRIPT_VERSION = "1.4.2"
+SCRIPT_VERSION = "1.4.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "encrypt/decrypt PRIVMSGs using a pre-shared key and openssl"
 
@@ -39,17 +39,22 @@ SCRIPT_DESC    = "encrypt/decrypt PRIVMSGs using a pre-shared key and openssl"
 # remote side in another secure way (i.e. sending
 # pgp-encrypted mail)
 
-import weechat, string, os, subprocess
+import weechat, string, os, subprocess, re
 
 script_options = {
     "message_indicator" : "(enc) ",
-    "statusbar_indicator" : " (encrypted) ",
-    "cipher" : "blowfish",
+    "statusbar_indicator" : "(encrypted) ",
+    "cipher" : "aes-256-cbc",
 }
 
 def decrypt(data, msgtype, servername, args):
   hostmask, chanmsg = string.split(args, "PRIVMSG ", 1)
   channelname, message = string.split(chanmsg, " :", 1)
+  if re.match(r'^\[\d{2}:\d{2}:\d{2}]\s', message):
+    timestamp = message[:11]
+    message = message[11:]
+  else:
+    timestamp = ''
   if channelname[0] == "#":
     username=channelname
   else:
@@ -64,7 +69,7 @@ def decrypt(data, msgtype, servername, args):
     if decrypted == "":
       return args
     decrypted = ''.join(c for c in decrypted if ord(c) > 31 or ord(c) == 9 or ord(c) == 2 or ord(c) == 3 or ord(c) == 15)
-    return hostmask + "PRIVMSG " + channelname + " :" + chr(3) + "04" + weechat.config_get_plugin("message_indicator") + chr(15) + decrypted
+    return hostmask + "PRIVMSG " + channelname + " :" + chr(3) + "04" + weechat.config_get_plugin("message_indicator") + chr(15) + timestamp + decrypted
   else:
     return args
 
@@ -104,8 +109,12 @@ def update_encryption_status(data, signal, signal_data):
     weechat.bar_item_update('encryption')
     return weechat.WEECHAT_RC_OK
 
-def encryption_statusbar(*args):
-    if os.path.exists(weechat_dir + "/cryptkey." + weechat.buffer_get_string(weechat.current_buffer(), "short_name")):
+def encryption_statusbar(data, item, window):
+    if window:
+      buf = weechat.window_get_pointer(window, 'buffer')
+    else:
+      buf = weechat.current_buffer()
+    if os.path.exists(weechat_dir + "/cryptkey." + weechat.buffer_get_string(buf, "short_name")):
       return weechat.config_get_plugin("statusbar_indicator")
     else:
       return ""
@@ -129,4 +138,4 @@ if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, 
       # register the modifiers
       weechat.hook_modifier("irc_in_privmsg", "decrypt", "")
       weechat.hook_modifier("irc_out_privmsg", "encrypt", "")
-      weechat.hook_signal("buffer_opened","update_encryption_status","")
+      weechat.hook_signal("buffer_switch","update_encryption_status","")
