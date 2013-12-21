@@ -20,6 +20,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2013-12-21, Sebastien Helleu <flashcode@flashtux.org>
+#   version 0.5: fix parsing of INVITE message
 # 2013-11-28, sakkemo <scajanus@gmail.com>
 #   version 0.4: add whitelist for nicks/channels
 # 2009-11-09, xt <xt@bash.no>
@@ -34,7 +36,7 @@ import re
 
 SCRIPT_NAME    = "autojoin_on_invite"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.4"
+SCRIPT_VERSION = "0.5"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Auto joins channels when invited"
 
@@ -60,7 +62,7 @@ if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
 
 def invite_cb(data, signal, signal_data):
     server = signal.split(',')[0] # EFNet,irc_in_INVITE
-    channel = signal_data.split(':')[-1] # :nick!ident@host.name INVITE yournick :#channel
+    channel = signal_data.split()[-1].lstrip(':') # :nick!ident@host.name INVITE yournick :#channel
     from_nick = re.match(':(?P<nick>.+)!', signal_data).groups()[0]
 
     if len(w.config_get_plugin('whitelist_nicks')) > 0 and len(w.config_get_plugin('whitelist_channels')) > 0: # if there's two whitelists, accept both
