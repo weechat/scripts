@@ -1,12 +1,20 @@
 # Author: Josh Dick <josh@joshdick.net>
 # <https://github.com/joshdick/weeprowl>
 #
-# Requires weechat version 0.3.0 or greater
+# Requires WeeChat version 0.3.7 or greater
 # Released under GNU GPL v2
 #
 # Based on the 'notify' plugin version 0.0.5 by lavaramano <lavaramano AT gmail DOT com>:
 # <http://www.weechat.org/scripts/source/stable/notify.py.html/>
 #
+# 2013-12-22, Josh Dick <josh@joshdick.net>
+#     Version 0.6: Fixed bug that was preventing negative numbers from working with
+#                  the prowl_priority setting
+# 2013-12-20, Josh Dick <josh@joshdick.net>
+#     Version 0.5: Now backgrounds Prowl API requests, added prowl_priority setting,
+#                  now requires WeeChat version 0.3.7 or greater
+# 2013-08-13, Josh Dick <josh@joshdick.net>
+#     Version 0.4: No longer sending notifications for text you send in private messages
 # 2012-09-16, Josh Dick <josh@joshdick.net>
 #     Version 0.3: Removed 'smart_notification' and away_notification' settings
 #                  in favor of more granular notification settings
@@ -15,13 +23,14 @@
 # 2012-03-25, Josh Dick <josh@joshdick.net>
 #     Version 0.1: Initial release
 
-import httplib, urllib, weechat
+import urllib, weechat
 
-weechat.register('weeprowl', 'Josh Dick', '0.3', 'GPL', 'Prowl notifications for weechat', '', '')
+weechat.register('weeprowl', 'Josh Dick', '0.6', 'GPL', 'Prowl notifications for WeeChat', '', '')
 
 # Plugin settings
 settings = {
     'prowl_api_key': '',
+    'prowl_priority': '0', # An integer value ranging [-2, 2] per http://www.prowlapp.com/api.php#add
     'show_hilights': 'on',
     'show_priv_msg': 'on',
     'nick_separator': ': ',
@@ -41,10 +50,14 @@ def show_config_help():
     weechat.prnt('', '%sweeprowl - Once you have a Prowl API key, configure weeprowl to use it by running:' % weechat.prefix('error'))
     weechat.prnt('', '%sweeprowl - /set plugins.var.python.weeprowl.prowl_api_key "your_prowl_api_key_here"' % weechat.prefix('error'))
 
+# Shows an error when there was a problem sending a Prowl notification.
+def show_notification_error():
+    weechat.prnt('', '%sweeprowl - Could not send Prowl notification.' % weechat.prefix('error'))
+
 # Triggered by the weechat hook above
 def notification_callback(data, bufferp, uber_empty, tagsn, isdisplayed, ishilight, prefix, message):
 
-    is_away = weechat.buffer_get_string(bufferp, "localvar_away")
+    is_away = weechat.buffer_get_string(bufferp, 'localvar_away')
     is_focused = bufferp == weechat.current_buffer()
     do_prowl = True # If set to False depending on state and settings, no Prowl notification will be sent
 
@@ -60,7 +73,7 @@ def notification_callback(data, bufferp, uber_empty, tagsn, isdisplayed, ishilig
             do_prowl = False
 
     if (do_prowl):
-        if (weechat.buffer_get_string(bufferp, 'localvar_type') == 'private' and weechat.config_get_plugin('show_priv_msg') == 'on'):
+        if (weechat.buffer_get_string(bufferp, 'localvar_type') == 'private' and weechat.config_get_plugin('show_priv_msg') == 'on' and prefix != weechat.buffer_get_string(bufferp, 'localvar_nick')):
             send_prowl_notification(prefix, message, True)
         elif (ishilight == '1' and weechat.config_get_plugin('show_hilights') == 'on'):
             buffer = (weechat.buffer_get_string(bufferp, 'short_name') or weechat.buffer_get_string(bufferp, 'name'))
@@ -71,36 +84,61 @@ def notification_callback(data, bufferp, uber_empty, tagsn, isdisplayed, ishilig
 # Send a Prowl notification via the Prowl API (API documentation: <http://www.prowlapp.com/api.php>)
 def send_prowl_notification(chan, message, isPrivate):
 
-    # Error checking - we need a valid prowl API key to be set in order to send a Prowl notification
+    # Make sure a Prowl API key has been configured
     prowl_api_key = weechat.config_get_plugin('prowl_api_key')
     if (prowl_api_key == ''):
         show_config_help()
-        weechat.prnt('', '%sweeprowl - Could not send Prowl notification.' % weechat.prefix('error'))
+        show_notification_error()
         return
 
-    # Build the Prowl API request
+    # Make sure a valid Prowl priority has been configured
+    prowl_priority = weechat.config_get_plugin('prowl_priority')
+    valid_prowl_priority = True
+    try:
+        if (int(prowl_priority) > 2 or int(prowl_priority) < -2):
+            valid_prowl_priority = False
+    except ValueError:
+            valid_prowl_priority = False
+    if (not valid_prowl_priority):
+        weechat.prnt('', '%sweeprowl - Current prowl_priority setting "%s" is invalid.' % (weechat.prefix('error'), prowl_priority))
+        weechat.prnt('', '%sweeprowl - Please set prowl_priority to an integer value ranging from [-2, 2].' % weechat.prefix('error'))
+        show_notification_error()
+        return
+
+    # Build the Prowl API request parameters
     params = urllib.urlencode({
         'apikey': prowl_api_key,
         'application': 'weechat',
         'event': 'IRC ' + 'Private Message' if isPrivate else 'Mention/Hilight',
-        'description': 'Channel: ' + chan + '\n' + message
+        'description': 'Channel: ' + chan + '\n' + message,
+        'priority': prowl_priority
     })
 
+    # Build the complete Prowl API request URL
+    prowl_api_url = 'https://api.prowlapp.com/publicapi/add?' + params
+
     # Make the Prowl API request
-    conn = httplib.HTTPSConnection('api.prowlapp.com')
-    conn.request('POST', '/publicapi/add?' + params)
+    weechat.hook_process_hashtable(
+        'url:' + prowl_api_url,
+        { 'post': '1' },
+        30 * 1000,
+        'send_prowl_notification_callback',
+        ''
+    )
 
-    # Error checking - make sure the Prowl API request was successful
-    response = conn.getresponse()
+# Callback that handles the result of the Prowl API request
+def send_prowl_notification_callback(data, command, rc, stdout, stderr):
 
-    if (response.status != 200):
+    # Show an error if the Prowl API request failed
+    if (rc > 0):
         weechat.prnt('', '%sweeprowl - Error: There was a problem communicating with the Prowl API!' % weechat.prefix('error'))
         weechat.prnt('', '%sweeprowl - Prowl API response information:' % weechat.prefix('error'))
-        weechat.prnt('', '%sweeprowl -     Response status code = %s' % (weechat.prefix('error'), response.status))
-        weechat.prnt('', '%sweeprowl -     Response reason phrase = %s' % (weechat.prefix('error'), response.reason))
-        weechat.prnt('', '%sweeprowl - Could not send Prowl notification.' % weechat.prefix('error'))
+        weechat.prnt('', '%sweeprowl -     Response code = %s' % (weechat.prefix('error'), rc))
+        weechat.prnt('', '%sweeprowl -     STDOUT = %s' % (weechat.prefix('error'), stdout))
+        weechat.prnt('', '%sweeprowl -     STDERR = %s' % (weechat.prefix('error'), stderr))
+        show_notification_error()
 
-    conn.close()
+    return weechat.WEECHAT_RC_OK
 
 # Initialization
 for option, default_value in settings.items():
@@ -111,3 +149,4 @@ if (weechat.config_get_plugin('prowl_api_key') == ''):
     show_config_help()
 
 # vim: autoindent expandtab smarttab shiftwidth=4
+
