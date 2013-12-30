@@ -11,6 +11,9 @@
 #
 # ### changelog ###
 #
+#  * version 0.9 (Felix Eckhofer <felix@tribut.de>)
+#      - fix commands execution
+#      - force correct server for /quote
 #  * version 0.8 (excalibr@freenode)
 #      - respond only to notice message from NickServ
 #  * version 0.7 (Adam Spiers <weechat@adamspiers.org>)
@@ -36,7 +39,7 @@
 # =============================================================================
 
 
-VERSION="0.8"
+VERSION="0.9"
 NAME="autoauth"
 AUTHOR="Kolter"
 
@@ -156,11 +159,11 @@ def auth_notice_check(data, buffer, args):
       args.find("If this is your nickname, type /msg NickServ") != -1 or args.find("This nickname is registered") != -1 :
         passwd = auth_get(weechat.info_get("irc_nick", server), server)
         if passwd != None:
-            weechat.command(server, "/quote nickserv identify %s" % (passwd))
+            weechat.command(server, "/quote -server %s nickserv identify %s" % (server, passwd))
             commands = auth_cmdget(server)
             if commands != '':
                 for c in commands.split("|"):
-                    weechat.command(server, c.strip().replace("%n", weechat.get_info('nick')))
+                    weechat.command(server, c.strip().replace("%n", weechat.info_get('irc_nick', server)))
 
     return weechat.WEECHAT_RC_OK
 
