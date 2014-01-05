@@ -33,7 +33,7 @@ from urllib2 import urlopen
 
 SCRIPT_NAME = "shortenurl"
 SCRIPT_AUTHOR = "John Anderson <sontek@gmail.com>"
-SCRIPT_VERSION = "0.5.1"
+SCRIPT_VERSION = "0.5.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Shorten long incoming and outgoing URLs"
 
@@ -107,9 +107,8 @@ def find_and_process_urls(string, use_color=True):
         elif use_color:
             # Highlight the URL, even if we aren't going to shorting it
             new_message = new_message.replace(
-                url, '%(url)s %(color)s[%(short_url)s]%(reset)s' % dict(
+                url, '%(color)s %(url)s %(reset)s' % dict(
                     color=color,
-                    short_url=short_url,
                     reset=reset,
                     url=url
                 )
