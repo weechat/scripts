@@ -156,6 +156,18 @@ my local B<xterm> exhibits a bug where the selection is only copied if
 you I<click> into the xterm window first. still trying to figure this
 one out...
 
+=item *
+
+missing handling of scroll_beyond_end feature in weechat
+
+=item *
+
+broken handling of Day Changed messages in newer weechat
+
+=item *
+
+possibly more...
+
 =back
 
 =head1 SETTINGS
@@ -303,7 +315,7 @@ for full pod documentation, filter this script with
 use MIME::Base64;
 
 use constant SCRIPT_NAME => 'coords';
-weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.7', 'GPL3', 'copy text and urls', 'stop_coords', '') || return;
+weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.7.1', 'GPL3', 'copy text and urls', 'stop_coords', '') || return;
 sub SCRIPT_FILE() {
 	my $infolistptr = weechat::infolist_get('perl_script', '', SCRIPT_NAME);
 	my $filename = weechat::infolist_string($infolistptr, 'filename') if weechat::infolist_next($infolistptr);
@@ -400,6 +412,9 @@ sub hdh {
 		if ($type eq 'pointer') {
 			my $name = weechat::hdata_get_var_hdata($hdata, $var);
 			unshift @_, $name if $name;
+		}
+		if ($type eq 'shared_string') {
+			$type =~ s/shared_//;
 		}
 
 		my $fn = "weechat::hdata_$type";
