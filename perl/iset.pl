@@ -19,6 +19,9 @@
 #
 # History:
 #
+# 2014-01-16, luz <ne.tetewi@gmail.com>:
+#     version 3.3: fix bug with column alignment in iset buffer when option
+#                  name contains unicode characters
 # 2013-08-03, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 3.2: allow "q" as input in iset buffer to close it
 # 2013-07-14, Sebastien Helleu <flashcode@flashtux.org>:
@@ -108,7 +111,7 @@
 use strict;
 
 my $PRGNAME = "iset";
-my $VERSION = "3.2";
+my $VERSION = "3.3";
 my $DESCR   = "Interactive Set for configuration options";
 my $AUTHOR  = "Sebastien Helleu <flashcode\@flashtux.org>";
 my $LICENSE = "GPL3";
@@ -452,7 +455,16 @@ sub iset_refresh_line
         if ($y <= $#options_names)
         {
             return if (! defined($options_types[$y]));
-            my $format = sprintf("%%s%%-%ds %%s %%-7s %%s %%s%%s%%s", $option_max_length);
+            my $format = sprintf("%%s%%s%%s %%s %%-7s %%s %%s%%s%%s");
+            my $padding;
+            if ($wee_version_number >= 0x00040200)
+            {
+                $padding = " " x ($option_max_length - weechat::strlen_screen($options_names[$y]));
+            }
+            else
+            {
+                $padding = " " x ($option_max_length - length($options_names[$y]));
+            }
             my $around = "";
             $around = "\"" if ((!$options_is_null[$y]) && ($options_types[$y] eq "string"));
 
@@ -483,7 +495,7 @@ sub iset_refresh_line
             my $value = $options_values[$y];
             $value = "(undef)" if ($options_is_null[$y]);
             my $strline = sprintf($format,
-                                  $color1, $options_names[$y],
+                                  $color1, $options_names[$y], $padding,
                                   $color2, $options_types[$y],
                                   $color3, $around, $value, $around);
             weechat::print_y($iset_buffer, $y, $strline);
