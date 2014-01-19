@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2013 by nils_2 <weechatter@arcor.de>
+# Copyright (c) 2013-2014 by nils_2 <weechatter@arcor.de>
 #
 # add/del channel(s) to/from autojoin option
 #
@@ -19,6 +19,8 @@
 #
 # idea by azizLIGHTS
 #
+# 2014-01-19: nils_2, (freenode.#weechat)
+#       0.2 : fix: adding keys to already existing keys failed
 # 2013-12-22: nils_2, (freenode.#weechat)
 #       0.1 : initial release
 #
@@ -37,7 +39,7 @@ except Exception:
 
 SCRIPT_NAME     = "autojoinem"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.1"
+SCRIPT_VERSION  = "0.2"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "add/del channel(s) to/from autojoin option"
 
@@ -122,14 +124,19 @@ def add_autojoin_cmd_cb(data, buffer, args):
                 if '-key' in args:
                     j = 0
                     new_keys = []
+                    list_of_new_keys = []
                     for i in list_of_channels:
                         if i not in list_of_current_channels and j <= len(key_words):
-#                            weechat.prnt(buffer,"%s found, channel key is: '%s'" % (i,key_words[j]))
+#                            weechat.prnt(buffer,"channel: %s, channel key is: '%s'" % (i,key_words[j]))
                             list_of_current_channels.insert(j,i)
                             new_keys.insert(j,key_words[j])
                         j += 1
                     missing_channels = list_of_current_channels
-                    list_of_current_keys = ','.join(new_keys)
+                    list_of_new_keys = ','.join(new_keys)
+                    if list_of_current_keys:
+                        list_of_current_keys = list_of_new_keys + ',' + list_of_current_keys
+                    else:
+                        list_of_current_keys = list_of_new_keys
                     # strip leading ','
                     if list_of_current_keys[0] == ',':
                         list_of_current_keys = list_of_current_keys.lstrip(',')
@@ -188,7 +195,7 @@ def add_autojoin_cmd_cb(data, buffer, args):
                         if ptr_config_autojoin:
                             rc = weechat.config_option_unset(ptr_config_autojoin)
                         return weechat.WEECHAT_RC_OK
-
+                    
                     if not set_autojoin_list(server,list_of_channels, list_of_current_keys):
                         weechat.prnt(buffer,"%s%s: set new value for option failed..." % (weechat.prefix('error'),SCRIPT_NAME))
 
