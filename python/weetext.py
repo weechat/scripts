@@ -19,7 +19,7 @@
 
 SCRIPT_NAME    = "weetext"
 SCRIPT_AUTHOR  = "David R. Andersen <k0rx@RXcomm.net>, Tycho Andersen <tycho@tycho.ws>"
-SCRIPT_VERSION = "0.1.1"
+SCRIPT_VERSION = "0.1.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "SMS Text Messaging script for Weechat using Google Voice"
 
@@ -111,7 +111,11 @@ def renderConversations(unused, command, return_code, out, err):
         weechat.prnt("", "stderr: %s" % err)
         return weechat.WEECHAT_RC_OK
 
-    conversations = reversed(cPickle.loads(conv))
+    try:
+        conversations = reversed(cPickle.loads(conv))
+    except EOFError:
+        weechat.prnt('', 'wtrecv returned garbage')
+        return weechat.WEECHAT_RC_OK
 
     for conversation in conversations:
         if not conversation.conv_id in conversation_map:
@@ -143,11 +147,7 @@ def renderConversations(unused, command, return_code, out, err):
             weechat.prnt_date_tags(buf, 0, tags, '\x03' + weechat.info_get('irc_nick_color', nick)
                                    + nick + '\t' + msg['text'])
     conv = ''
-    proc_data = email + '\n' + passwd + '\n' +\
-                weechat.config_get_plugin('poll_interval') + '\n'
-    recv_hook = weechat.hook_process_hashtable(weechat_dir + '/python/wtrecv.py',
-                { 'stdin': '' }, 0, 'renderConversations', '')
-    weechat.hook_set(recv_hook, 'stdin', proc_data)
+    callGV()
     return weechat.WEECHAT_RC_OK
 
 def textOut(data, buf, input_data):
@@ -161,11 +161,7 @@ def textOut(data, buf, input_data):
     if weechat.config_get_plugin('encrypt_sms') == 'True':
         input_data = encrypt(input_data, buf)
     msg_id = ''.join(random.choice(string.lowercase) for x in range(4))
-    send_hook = weechat.hook_process_hashtable(weechat_dir + '/python/wtsend.py',
-                { 'stdin': '' }, 0, 'sentCB', weechat.buffer_get_string(buf, 'name'))
-    proc_data = email + '\n' + passwd + '\n' + number + '\n' +\
-                input_data + '\n' + msg_id + '\n'
-    weechat.hook_set(send_hook, 'stdin', proc_data)
+    callGV(buf=buf, number=number, input_data=input_data, msg_id=msg_id, send=True)
     return weechat.WEECHAT_RC_OK
 
 def multiText(data, buf, input_data):
@@ -175,11 +171,7 @@ def multiText(data, buf, input_data):
         input_data = encrypt(input_data, buf)
     for number in numbers:
         msg_id = ''.join(random.choice(string.lowercase) for x in range(4))
-        send_hook = weechat.hook_process_hashtable(weechat_dir + '/python/wtsend.py',
-                    { 'stdin': '' }, 0, 'sentCB', weechat.buffer_get_string(buf, 'name'))
-        proc_data = email + '\n' + passwd + '\n' + number + '\n' +\
-                    input_data + '\n' + msg_id + '\n'
-        weechat.hook_set(send_hook, 'stdin', proc_data)
+        callGV(buf=buf, number=number, input_data=input_data, msg_id=msg_id, send=True)
     return weechat.WEECHAT_RC_OK
 
 def sentCB(buf_name, command, return_code, out, err):
@@ -261,6 +253,27 @@ def encryption_statusbar(data, item, window):
       return weechat.config_get_plugin("statusbar_indicator")
     else:
       return ""
+
+def checkWTrecv(*args):
+    tmp = os.popen('ps -Af').read()
+    if not tmp.count('wtrecv'):
+        callGV()
+    return weechat.WEECHAT_RC_OK
+
+
+def callGV(buf=None, number=None, input_data=None, msg_id=None, send=False):
+    if send:
+        send_hook = weechat.hook_process_hashtable(weechat_dir + '/python/wtsend.py',
+                    { 'stdin': '' }, 0, 'sentCB', weechat.buffer_get_string(buf, 'name'))
+        proc_data = email + '\n' + passwd + '\n' + number + '\n' +\
+                    input_data + '\n' + msg_id + '\n'
+        weechat.hook_set(send_hook, 'stdin', proc_data)
+    else:
+        proc_data = email + '\n' + passwd + '\n' +\
+                    weechat.config_get_plugin('poll_interval') + '\n'
+        recv_hook = weechat.hook_process_hashtable(weechat_dir + '/python/wtrecv.py',
+                { 'stdin': '' }, 0, 'renderConversations', '')
+        weechat.hook_set(recv_hook, 'stdin', proc_data)
 
 PIPE=-1
 
@@ -403,8 +416,7 @@ os.remove(user_path + '/.weechat/.gvlock.' + msg_id)
 
     # register the hooks
     weechat.hook_signal("buffer_switch","update_encryption_status","")
-    proc_data = email + '\n' + passwd + '\n' +\
-                weechat.config_get_plugin('poll_interval') + '\n'
-    recv_hook = weechat.hook_process_hashtable(weechat_dir + '/python/wtrecv.py',
-                { 'stdin': '' }, 0, 'renderConversations', '')
-    weechat.hook_set(recv_hook, 'stdin', proc_data)
+    callGV()
+
+    # make sure we are receiving data
+    weechat.hook_timer(600000, 0, 0, 'checkWTrecv', '')
