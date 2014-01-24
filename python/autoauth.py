@@ -11,6 +11,8 @@
 #
 # ### changelog ###
 #
+#  * version 0.10 (Felix Eckhofer <felix@tribut.de>)
+#      - fix "/auth cmd" commandline parsing
 #  * version 0.9 (Felix Eckhofer <felix@tribut.de>)
 #      - fix commands execution
 #      - force correct server for /quote
@@ -39,7 +41,7 @@
 # =============================================================================
 
 
-VERSION="0.9"
+VERSION="0.10"
 NAME="autoauth"
 AUTHOR="Kolter"
 
@@ -242,17 +244,20 @@ def auth_command(data, buffer, args):
     while ' ' in list_args:
         list_args.remove(' ')
 
+    h_servers = weechat.hdata_get("irc_server")
+    l_servers = weechat.hdata_get_list(h_servers, "irc_servers")
+
     if len(list_args) ==  0:
-        weechat.command("/help auth")
+        weechat.command(buffer, "/help auth")
     elif list_args[0] not in ["add", "del", "list", "cmd"]:
         weechat.prnt(buffer, "[%s] bad option while using /auth command, try '/help auth' for more info" % (NAME))
     elif list_args[0] == "cmd":
-        if len(list_args[1:]) == 1 and list_args[1] in weechat.get_server_info().keys():
+        if len(list_args[1:]) == 1 and weechat.hdata_search(h_servers, l_servers, "${irc_server.name} == "+list_args[1], 1):
             auth_cmd("", list_args[1])
         elif len(list_args[1:]) == 1:
             auth_cmd(list_args[1], server)
         elif len(list_args[1:]) >= 2:
-            if list_args[-1] in weechat.get_server_info().keys():
+            if weechat.hdata_search(h_servers, l_servers, "${irc_server.name} == "+list_args[-1], 1):
                 auth_cmd(" ".join(list_args[1:-1]), list_args[-1])
             else:
                 auth_cmd(" ".join(list_args[1:]), server)
