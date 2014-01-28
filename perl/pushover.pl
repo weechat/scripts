@@ -1,5 +1,6 @@
 #
-# Copyright (C) 2013 stfn <stfnmd@gmail.com>
+# Copyright (C) 2013-2014  stfn <stfnmd@gmail.com>
+# https://github.com/stfnm/weechat-scripts
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,11 +16,6 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
-#
-# Development is currently hosted at
-# https://github.com/stfnm/weechat-scripts
-#
-
 use strict;
 use warnings;
 use CGI;
@@ -27,13 +23,13 @@ use CGI;
 my %SCRIPT = (
 	name => 'pushover',
 	author => 'stfn <stfnmd@gmail.com>',
-	version => '0.3',
+	version => '0.4',
 	license => 'GPL3',
 	desc => 'Send real-time push notifications to your mobile devices using pushover.net',
 	opt => 'plugins.var.perl',
 );
 my %OPTIONS_DEFAULT = (
-	'token' => ['', 'API Token/Key'],
+	'token' => ['ajEX9RWhxs6NgeXFJxSK2jmpY54C9S', 'API Token/Key'],
 	'user' => ['', "User Key"],
 	'sound' => ['', "Sound (empty for default)"],
 	'enabled' => ['on', "Turn script on or off"],
