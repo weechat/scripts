@@ -1,5 +1,6 @@
 #
-# Copyright (C) 2011-2013  stfn <stfnmd@gmail.com>
+# Copyright (C) 2011-2014  stfn <stfnmd@gmail.com>
+# https://github.com/stfnm/weechat-scripts
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,11 +16,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-#
-# Development is currently hosted at
-# https://github.com/stfnm/weechat-scripts
-#
-
 use strict;
 use warnings;
 use CGI;
@@ -27,7 +23,7 @@ use CGI;
 my %SCRIPT = (
 	name => 'isgd',
 	author => 'stfn <stfnmd@gmail.com>',
-	version => '0.6',
+	version => '0.7',
 	license => 'GPL3',
 	desc => 'Shorten URLs with is.gd on demand or automatically',
 	opt => 'plugins.var.perl',
@@ -35,6 +31,7 @@ my %SCRIPT = (
 my %OPTIONS_DEFAULT = (
 	'color' => ['white', 'Color used for printing shortened URLs'],
 	'auto' => ['off', 'Shorten all incoming URLs automatically'],
+	'auto_min_length' => ['1', 'Only shorten incoming URLs automatically which have this minimum length'],
 );
 my %OPTIONS = ();
 my $SHORTENER_URL = "http://is.gd/create.php?format=simple&url=";
@@ -69,13 +66,14 @@ sub print_cb
 {
 	my ($data, $buffer, $date, $tags, $displayed, $highlight, $prefix, $message) = @_;
 	my @URLs;
+	my $self_nick = weechat::buffer_get_string($buffer, "localvar_nick");
 
-	if ($OPTIONS{auto} ne "on" || $tags =~ /\bno_log\b/) {
+	if ($OPTIONS{auto} ne "on" || $tags =~ /\bno_log\b/ || $tags =~ /\birc_332\b/ || $tags =~ /\bnick_\Q$self_nick\E\b/) {
 		return weechat::WEECHAT_RC_OK;
 	}
 
 	# Find URLs
-	@URLs = grep_urls($message);
+	@URLs = grep_urls($message, $OPTIONS{auto_min_length});
 
 	# Process all found URLs
 	shorten_urls(\@URLs, $buffer);
@@ -99,7 +97,7 @@ sub command_cb
 	}
 
 	# If URLs were provided in command arguments, shorten them
-	@URLs = grep_urls($args);
+	@URLs = grep_urls($args, 0);
 
 	# Otherwise search backwards in lines of current buffer
 	if (@URLs == 0) {
@@ -124,7 +122,7 @@ sub command_cb
 					my $message = weechat::hdata_string($hdata_line_data, $data, "message");
 					my $tags = weechat::hdata_string($hdata_line_data, $data, "tags");
 
-					foreach (grep_urls($message)) {
+					foreach (grep_urls($message, 0)) {
 						my $url = $_;
 						if ($match eq "" || $url =~ /\Q$match\E/i) {
 							push(@URLs, $url) unless ($tags =~ /\bno_log\b/);
@@ -198,12 +196,14 @@ sub url_send_cb
 	return weechat::WEECHAT_RC_OK;
 }
 
-sub grep_urls($)
+sub grep_urls($$)
 {
 	my $str = $_[0];
+	my $url_min_length = $_[1];
 	my @urls;
 	while ($str =~ m{(https?://\S+)}gi) {
-		push(@urls, $1) unless ($1 =~ /^\Q$SHORTENER_BASE\E/);
+		my $url = $1;
+		push(@urls, $url) unless ($url =~ /^\Q$SHORTENER_BASE\E/ || length($url) < $url_min_length);
 	}
 	return @urls;
 }
