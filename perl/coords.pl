@@ -300,6 +300,13 @@ selection or URL. begin with C<|> to pipe into program or use
 parameters C<%s> for text, C<%q> for quoted text or C<%x> for quoted
 escape sequence.
 
+=head2 copywin_custom_keys
+
+You can define custom key bindings to use inside the copywin here. syntax is:
+command-letter:weechat-keycode. available commands: -+>< (up/down/left/right)
+fbae (forward word/backward word/beginning/end) !@ (open/start selection)
+/UNCunc (toggle highlights/urls/nicks/channels) q (close window)
+
 =head1 FUNCTION DESCRIPTION
 
 for full pod documentation, filter this script with
@@ -315,7 +322,7 @@ for full pod documentation, filter this script with
 use MIME::Base64;
 
 use constant SCRIPT_NAME => 'coords';
-weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.7.1', 'GPL3', 'copy text and urls', 'stop_coords', '') || return;
+weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.7.2', 'GPL3', 'copy text and urls', 'stop_coords', '') || return;
 sub SCRIPT_FILE() {
 	my $infolistptr = weechat::infolist_get('perl_script', '', SCRIPT_NAME);
 	my $filename = weechat::infolist_string($infolistptr, 'filename') if weechat::infolist_next($infolistptr);
@@ -2213,65 +2220,72 @@ sub switchmode {
 sub apply_keybindings {
 	my @wee_keys = Nlib::i2h('key');
 	my @keys;
-
+	my $custom_keys = weechat::config_get_plugin('copywin_custom_keys');
+	my %custom_keys;
+	if ($custom_keys) {
+	    %custom_keys = ('' => split /(\S+):/, $custom_keys);
+	    for (keys %custom_keys) {
+		$custom_keys{$_} = [ grep { length } split ' ', $custom_keys{$_} ];
+	    }
+	}
 	@keys = map { $_->{'key'} }
 		grep { $_->{'command'} eq '/input history_previous' ||
 			   $_->{'command'} eq '/input history_global_previous' } @wee_keys;
 	@keys = 'meta2-A' unless @keys;
-	weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **-') for @keys; # up arrow
+	weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **-') for @keys, @{$custom_keys{'-'}//[]}; # up arrow
 
 	@keys = map { $_->{'key'} }
 		grep { $_->{'command'} eq '/input history_next' ||
 			   $_->{'command'} eq '/input history_global_next' } @wee_keys;
 	@keys = 'meta2-B' unless @keys;
-	weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **+') for @keys; # down arrow
+	weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **+') for @keys, @{$custom_keys{'+'}//[]}; # down arrow
 
 	@keys = map { $_->{'key'} }
 		grep { $_->{'command'} eq '/input move_next_char' } @wee_keys;
 	@keys = 'meta2-C' unless @keys;
-	weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **>') for @keys; # right arrow
+	weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **>') for @keys, @{$custom_keys{'>'}//[]}; # right arrow
 
 	@keys = map { $_->{'key'} }
 		grep { $_->{'command'} eq '/input move_previous_char' } @wee_keys;
 	@keys = 'meta2-D' unless @keys;
-	weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **<') for @keys; # left arrow
+	weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **<') for @keys, @{$custom_keys{'<'}//[]}; # left arrow
 
 	@keys = map { $_->{'key'} }
 		grep { $_->{'command'} eq '/input move_next_word' } @wee_keys;
 	@keys = 'meta-f' unless @keys;
-	weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **f') for @keys; # back word
+	weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **f') for @keys, @{$custom_keys{f}//[]}; # back word
 
 	@keys = map { $_->{'key'} }
 		grep { $_->{'command'} eq '/input move_previous_word' } @wee_keys;
 	@keys = 'meta-b' unless @keys;
-	weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **b') for @keys; # forward word
+	weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **b') for @keys, @{$custom_keys{b}//[]}; # forward word
 
 	@keys = map { $_->{'key'} }
 		grep { $_->{'command'} eq '/input move_end_of_line' } @wee_keys;
 	@keys = 'ctrl-E' unless @keys;
-	weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **e') for @keys; # left arrow
+	weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **e') for @keys, @{$custom_keys{e}//[]};
 
 	@keys = map { $_->{'key'} }
 		grep { $_->{'command'} eq '/input move_beginning_of_line' } @wee_keys;
 	@keys = 'ctrl-A' unless @keys;
-	weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **a') for @keys; # left arrow
+	weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **a') for @keys, @{$custom_keys{a}//[]};
 
 	@keys = map { $_->{'key'} }
 		grep { $_->{'command'} eq '/input return' || $_->{'command'} eq '/input magic_enter' } @wee_keys;
 	@keys = 'ctrl-M' unless @keys;
-	weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **!') for @keys; # enter key
+	weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **!') for @keys, @{$custom_keys{'!'}//[]}; # enter key
 
 	@keys = ('ctrl-@', ' ');
-	weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **@') for @keys; # ctrl+space or ctrl+@
+	weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **@') for @keys, @{$custom_keys{'@'}//[]}; # ctrl+space or ctrl+@
 
-	weechat::buffer_set($ACT_STR->[BUFPTR], 'key_bind_/', '/'.CMD_COPYWIN.' **/');
-
-	weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **'.$_) for 'U', 'N', 'C', 'u', 'n', 'c';
+	for my $cmd ('/', 'U', 'N', 'C', 'u', 'n', 'c') {
+	    weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **'.$cmd) for $cmd, @{$custom_keys{$cmd}//[]};
+	}
 
 	@keys = map { $_->{'key'} }
 		grep { $_->{'command'} =~ "^/@{[CMD_COPYWIN]}" } @wee_keys;
-	push @keys, 'q';
-	weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **q') for @keys;
+	push @keys, 'q' unless @{$custom_keys{q}//[]};
+	weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **q') for @keys, @{$custom_keys{q}//[]};
 }
 
 ## binding_mouse_fix -- disable one key bindings on mouse input
@@ -2280,14 +2294,33 @@ sub apply_keybindings {
 sub binding_mouse_fix {
 	my (undef, undef, $data) = @_;
 	return weechat::WEECHAT_RC_OK unless $ACT_STR && $ACT_STR->[BUFPTR] && weechat::current_buffer() eq $ACT_STR->[BUFPTR];
+	my $custom_keys = weechat::config_get_plugin('copywin_custom_keys');
+	my %custom_keys;
+	if ($custom_keys) {
+	    %custom_keys = ('' => split /(\S+):/, $custom_keys);
+	    for (keys %custom_keys) {
+		$custom_keys{$_} = [ grep { length } split ' ', $custom_keys{$_} ];
+	    }
+	}
 	if ($data) {
-		weechat::buffer_set($ACT_STR->[BUFPTR], "key_unbind_$_", '') for ' ', '/', 'q', 'U', 'N', 'C', 'u', 'n', 'c';
+	    weechat::buffer_set($ACT_STR->[BUFPTR], "key_unbind_$_", '') for ' ', '/', 'q', 'U', 'N', 'C', 'u', 'n', 'c',
+		    grep { 1 == length } map { @$_ } values %custom_keys;
 	}
 	else {
 		weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **@') for ' ';
 		weechat::buffer_set($ACT_STR->[BUFPTR], 'key_bind_/', '/'.CMD_COPYWIN.' **/');
-		weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **q') for 'q';
-		weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **'.$_) for 'U', 'N', 'C', 'u', 'n', 'c';
+		for my $cmd ('/', 'U', 'N', 'C', 'u', 'n', 'c') {
+		    weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **'.$cmd) for $cmd, grep { 1 == length } @{$custom_keys{$cmd}//[]};
+		}
+		for my $cmd (split //, '@!aebf<>+-/') {
+		    weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **'.$cmd) for grep { 1 == length } @{$custom_keys{$cmd}//[]};
+		}
+		if (@{$custom_keys{q}//[]}) {
+		    weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **q') for @{$custom_keys{q}//[]};
+		}
+		else {
+		    weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_q", '/'.CMD_COPYWIN.' **q');
+		}
 	}
 	weechat::WEECHAT_RC_OK
 }
