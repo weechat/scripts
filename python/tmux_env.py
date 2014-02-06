@@ -18,6 +18,9 @@ History:
 
     2013-09-30 Aron Griffis <agriffis@n01se.net>
       version 1: initial release
+
+    2014-02-03 Aron Griffis <agriffis@n01se.net>
+      version 2: python 2.6 compatible subprocess.check_output()
 """
 
 from __future__ import absolute_import, unicode_literals
@@ -26,11 +29,25 @@ import fnmatch
 import os
 import subprocess
 
+if not hasattr(subprocess, 'check_output'):
+    def check_output(*popenargs, **kwargs):
+        process = subprocess.Popen(stdout=subprocess.PIPE, *popenargs, **kwargs)
+        output, unused_err = process.communicate()
+        retcode = process.poll()
+        if retcode:
+            cmd = kwargs.get("args")
+            if cmd is None:
+                cmd = popenargs[0]
+            raise subprocess.CalledProcessError(retcode, cmd)
+        return output
+    subprocess.check_output = check_output
+    del check_output
+
 import weechat as w
 
 SCRIPT_NAME    = "tmux_env"
 SCRIPT_AUTHOR  = "Aron Griffis <agriffis@n01se.net>"
-SCRIPT_VERSION = "1"
+SCRIPT_VERSION = "2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Update weechat environment from tmux"
 
@@ -41,7 +58,7 @@ settings = {
     # environment updates, not removals. For removals, include the variable
     # name prefixed by a minus sign. For example, to add/remove exclusively
     # the DISPLAY variable, include="DISPLAY,-DISPLAY"
-    #
+    # 
     # Globs are also accepted, so you can ignore all variable removals with
     # exclude="-*"
 
