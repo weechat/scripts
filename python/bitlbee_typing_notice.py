@@ -21,6 +21,11 @@
 # (this script requires WeeChat 0.3.6 or newer)
 #
 # History:
+# 2014-02-15, Corey Halpin <chalpin@cs.wisc.edu>
+#  version 0.5:
+#    * Improve documentation for the 'server' setting
+#    * Change the default for 'server' to bitlbee, as this is probably
+#      what most people use.
 # 2013-06-24, Priska Herger <policecar@23bit.net>
 #  version 0.4: bug fix: if TYPING 0, don't show typing.
 # 2013-04-27, Corey Halpin <chalpin@cs.wisc.edu>
@@ -42,8 +47,10 @@
 #   command: /set plugins.var.python.bitlbee_typing_notice.channel &bitlbee
 #
 # 'server'
-#   description: Server running your bitlbee instance.
-#   command: /set plugins.var.python.bitlbee_typing_notice.server localhost
+#   description: Name of the server running your bitlbee instance.  This will
+#     be whatever you type after /connect to get to your bitlbee server
+#     (e.g., localhost, bitlbee).
+#   command: /set plugins.var.python.bitlbee_typing_notice.server bitlbee
 #
 # 'timeout'
 #   description: Send "not typing" after this many seconds w/o typing.
@@ -58,7 +65,7 @@ import re
 
 SCRIPT_NAME    = "bitlbee_typing_notice"
 SCRIPT_AUTHOR  = "Alexander Schremmer <alex@alexanderweb.de>"
-SCRIPT_VERSION = "0.4"
+SCRIPT_VERSION = "0.5"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Shows when somebody is typing on bitlbee and sends the notice as well"
 
@@ -178,7 +185,7 @@ if __name__ == "__main__":
         if not w.config_get_plugin('channel'):
             w.config_set_plugin('channel', "&bitlbee")
         if not w.config_get_plugin('server'):
-            w.config_set_plugin('server', "localhost")
+            w.config_set_plugin('server', "bitlbee")
         if not w.config_get_plugin('timeout'):
             w.config_set_plugin('timeout', "4")
 
