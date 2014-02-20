@@ -322,7 +322,7 @@ for full pod documentation, filter this script with
 use MIME::Base64;
 
 use constant SCRIPT_NAME => 'coords';
-weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.7.2', 'GPL3', 'copy text and urls', 'stop_coords', '') || return;
+weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.7.3', 'GPL3', 'copy text and urls', 'stop_coords', '') || return;
 sub SCRIPT_FILE() {
 	my $infolistptr = weechat::infolist_get('perl_script', '', SCRIPT_NAME);
 	my $filename = weechat::infolist_string($infolistptr, 'filename') if weechat::infolist_next($infolistptr);
@@ -951,6 +951,8 @@ our $input_sel;
 
 our $LAYOUT_OK;
 
+my @SIMPLE_MODE_KEYS = ('/', 'U', 'N', 'C', 'P', 'u', 'n', 'c', 'p');
+
 init_coords();
 
 ## hdh_get_lineinfo -- get lineinfo from hdata
@@ -968,10 +970,8 @@ sub hdh_get_lineinfo {
 	   }
 }
 
-use Text::CharWidth;
-
 sub screen_length($) {
-	Text::CharWidth::mbswidth($_[0])
+	weechat::strlen_screen($_[0])
 }
 
 sub fu8on(@) {
@@ -1201,7 +1201,7 @@ sub download_lines {
 																$wininfo, \@base_trace);
 						my ($this_layoutinfo) = calculate_trace($lineinfo,
 																$wininfo, \@base_trace);
-						$prev_lineinfo = undef if $prev_layoutinfo->{'count'} + $this_layoutinfo->{'count'} + $j > $wininfo->{'chat_height'};
+						#$prev_lineinfo = undef if $prev_layoutinfo->{'count'} + $this_layoutinfo->{'count'} + $j > $wininfo->{'chat_height'};
 					}
 					$lineinfo->{'prefix'} = Nlib::hdh(@line_data, 'prefix');
 					$lineinfo->{'tag'} = [
@@ -1212,7 +1212,7 @@ sub download_lines {
 													$wininfo, \@base_trace,
 													$prev_lineinfo);
 				$prev_lineinfo = $lineinfo;
-				$j+=$layout_info->{'count'};
+				$j += $layout_info->{'count'};
 				$not_last_line = 1 if $j;
 				$wininfo->{'start_line_pos'} -= $wininfo->{'chat_height'} - $j
 					if $j > $wininfo->{'chat_height'};
@@ -1744,6 +1744,29 @@ sub hyperlink_function {
 	my @urls;
 	my $i = 0; # line index
 	for my $line (@$lines_ref) {
+		my %prefix_type = (type => 'prefix');
+		my ($pfx_nick) = grep { /^nick_/ } @{ $line->[LINE]{'tag'} };
+
+		if (Nlib::has_true_value(weechat::config_get_plugin('hyper_prefix')) &&
+				$line->[LINE]{'prefix'} &&
+					defined $pfx_nick && $pfx_nick =~ s/^nick_//) {
+			push @urls, [ $line, -1, $pfx_nick, -1, $i, \%prefix_type ];
+
+			if (hyperlink_match_type_filter(\%prefix_type)) {
+				my $ul = join '', map { weechat::color($_) } split '[.]',
+					weechat::config_get_plugin('color.url_highlight');
+
+				my $ul_active = join '', map { weechat::color($_) } split '[.]',
+					weechat::config_get_plugin('color.url_highlight_active');
+				my $UL_active = weechat::color('reset');
+
+				my ($ctrl, $plain_pfx) = capture_color_codes(fu8on $line->[LINE]{'prefix'});
+				my $my_ul = $a_link ? $ul : $ul_active;
+				substr $line->[LINE]{'prefix'}, $ctrl->[POS_E][-2], 0, $my_ul;
+				substr $line->[LINE]{'prefix'}, $ctrl->[POS_E][-1]+length $my_ul, 0, $UL_active;
+				--$a_link;
+			}
+		}
 		my $msg = fu8on $line->[LINE]{'message'};
 		my ($ctrl_codes, $plain_msg) = capture_color_codes($msg);
 		my $bracketing_r = calculate_bracketing(\$plain_msg);
@@ -1770,6 +1793,7 @@ sub hyperlink_function {
 		trace_to_u8($line);
 		hyperlink_replay_codes($line, \(@url_s, $plain_msg, @url_e), $ctrl_codes, \$a_link, $fx);
 		$line->[LINE]{'message'} = $plain_msg;
+
 		++$i;
 	}
 	$ACT_STR->[URLS] = \@urls;
@@ -1923,7 +1947,7 @@ sub hyperlink_dispatch_input {
 	elsif ($args eq '!') {
 		if ($ACT_STR->[A_LINK] >= 0 && $ACT_STR->[A_LINK] < @{ $ACT_STR->[URLS] }) {
 			my $link_type = $ACT_STR->[URLS][$ACT_STR->[A_LINK]][URL_INFO]{'type'};
-			if ($link_type eq 'nick') {
+			if ($link_type eq 'nick' || $link_type eq 'prefix') {
 				my $nick = $ACT_STR->[URLS][$ACT_STR->[A_LINK]][URL];
 				if (Nlib::has_false_value(weechat::config_get_plugin('use_nick_menu'))) {
 					weechat::command($ACT_STR->[WINDOWS]{'buffer'}, "/query $nick");
@@ -2203,7 +2227,7 @@ sub switchmode {
 		($ACT_STR->[MODE] eq 'hyperlink' ?
 		    $r_.' ↑ ↓'.$R_.'move to url'.
 			$I.$r_.'RET' .$I.$R_.'send open'.
-			$I.$r_.'/'   .$I.$R_.'sel. mode'.
+			$I.$r_.'/'   .$I.$R_.'sel.mode'.
 			$I.$r_.$t_flt.$I.$R_.
 			$I.$r_.'q'   .$I.$R_.'close'
 						:
@@ -2278,7 +2302,7 @@ sub apply_keybindings {
 	@keys = ('ctrl-@', ' ');
 	weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **@') for @keys, @{$custom_keys{'@'}//[]}; # ctrl+space or ctrl+@
 
-	for my $cmd ('/', 'U', 'N', 'C', 'u', 'n', 'c') {
+	for my $cmd (@SIMPLE_MODE_KEYS) {
 	    weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **'.$cmd) for $cmd, @{$custom_keys{$cmd}//[]};
 	}
 
@@ -2303,13 +2327,13 @@ sub binding_mouse_fix {
 	    }
 	}
 	if ($data) {
-	    weechat::buffer_set($ACT_STR->[BUFPTR], "key_unbind_$_", '') for ' ', '/', 'q', 'U', 'N', 'C', 'u', 'n', 'c',
+	    weechat::buffer_set($ACT_STR->[BUFPTR], "key_unbind_$_", '') for ' ', @SIMPLE_MODE_KEYS, 'q',
 		    grep { 1 == length } map { @$_ } values %custom_keys;
 	}
 	else {
 		weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **@') for ' ';
 		weechat::buffer_set($ACT_STR->[BUFPTR], 'key_bind_/', '/'.CMD_COPYWIN.' **/');
-		for my $cmd ('/', 'U', 'N', 'C', 'u', 'n', 'c') {
+		for my $cmd (@SIMPLE_MODE_KEYS) {
 		    weechat::buffer_set($ACT_STR->[BUFPTR], "key_bind_$_", '/'.CMD_COPYWIN.' **'.$cmd) for $cmd, grep { 1 == length } @{$custom_keys{$cmd}//[]};
 		}
 		for my $cmd (split //, '@!aebf<>+-/') {
@@ -2335,11 +2359,13 @@ sub hyper_get_valid_keys {
 	my $keys = 'u';
 	$keys .= 'n' if Nlib::has_true_value(weechat::config_get_plugin('hyper_nicks'));
 	$keys .= 'c' if Nlib::has_true_value(weechat::config_get_plugin('hyper_channels'));
+	$keys .= 'p' if Nlib::has_true_value(weechat::config_get_plugin('hyper_prefix'));
 	$keys = uc $keys if $title || $uc;
 	if ($title) {
-		length $keys == 1 ? " $keys " :
-			length $keys == 2 ? (substr $keys, 0, 1).' '.(substr $keys, 1) :
-				$keys;
+		length $keys == 1 ? " $keys  " :
+			length $keys == 2 ? (substr $keys, 0, 1).' '.(substr $keys, 1).' ' :
+				length $keys == 3 ? "$keys " :
+					$keys;
 	}
 	else {
 		$keys = "[$keys]";
@@ -2475,7 +2501,7 @@ sub real_screen {
 	my ($screen_cursor, $text) = @_;
 	my $l = length $text;
 	for (my ($i, $j) = (0, 0); $i < $l; ++$i) {
-		$j += Text::CharWidth::mbwidth(substr $text, $i, 1);
+		$j += screen_length(substr $text, $i, 1);
 		return $i if $j > $screen_cursor;
 	}
 	$l
@@ -2836,23 +2862,45 @@ sub mouse_evt {
 		if (@cursor == 3 && $cursor[2] eq 'prefix' &&
 				$this_last_mouse_seq =~ /^ / && $_[2] =~ /^#/ &&
 					((substr $this_last_mouse_seq, 1) eq (substr $_[2], 1))) { # click
-			my ($nick) = grep { /^nick_/ } @{ $ACT_STR->[LINES][$cursor[LINE]][LINE]{'tag'} };
-			if (defined $nick && $nick =~ s/^nick_//) {
-				if (Nlib::has_false_value(weechat::config_get_plugin('mouse.nick_2nd_click'))) {
-					delayed_nick_menu($nick);
-				}
-				elsif ($mouse_2nd_click && $mouse_2nd_click->[0] eq 'nick' &&
-					 $mouse_2nd_click->[1] == $ACT_STR && $mouse_2nd_click->[2] eq $nick) {
-					weechat::command($ACT_STR->[WINDOWS]{'buffer'}, "/query $nick")
-				}
-				elsif (!$mouse_2nd_click) {
-					$one_click = [ 'nick', $ACT_STR, $nick ];
-					$delayed_nick_menu_timer = weechat::hook_timer(get_nick_2nd_click_delay(), 0, 1, 'delayed_nick_menu', $nick);
-				}
-				else {
-					delayed_nick_menu($nick);
+
+			my @link = grep { $_->[-1][URL_LINE] == $cursor[LINE] &&
+								  $_->[-1][URL_S] == -1 && $_->[-1][URL_E] == -1 }
+				do {
+					my $i = 0;
+					map { [ $i++, $_ ] } @{$ACT_STR->[URLS]}
+				};
+
+			if (@link == 1) {
+				$ACT_STR->[A_LINK] = $link[0][0];
+				my $t = substr $ACT_STR->[URLS][$ACT_STR->[A_LINK]][URL_INFO]{'type'}, 0, 1;
+				unless ($ACT_STR->[URL_TYPE_FILTER] =~ $t) {
+					switchmode();
+					$ACT_STR->[URL_TYPE_FILTER] = $t;
+					switchmode();
 				}
 			}
+			if ($ACT_STR->[MODE] eq 'hyperlink' && @link == 1) {
+				hyperlink_to_clip();
+
+				my ($nick) = grep { /^nick_/ } @{ $ACT_STR->[LINES][$cursor[LINE]][LINE]{'tag'} };
+				if (defined $nick && $nick =~ s/^nick_//) {
+					if (Nlib::has_false_value(weechat::config_get_plugin('mouse.nick_2nd_click'))) {
+						delayed_nick_menu($nick);
+					}
+					elsif ($mouse_2nd_click && $mouse_2nd_click->[0] eq 'nick' &&
+							   $mouse_2nd_click->[1] == $ACT_STR && $mouse_2nd_click->[2] eq $ACT_STR->[A_LINK]) {
+						weechat::command($ACT_STR->[WINDOWS]{'buffer'}, "/query $nick");
+					}
+					elsif (!$mouse_2nd_click) {
+						$one_click = [ 'nick', $ACT_STR, $ACT_STR->[A_LINK] ];
+						$delayed_nick_menu_timer = weechat::hook_timer(get_nick_2nd_click_delay(), 0, 1, 'delayed_nick_menu', $nick);
+					}
+					else {
+						delayed_nick_menu($nick);
+					}
+				}
+			}
+			copywin_cmd(undef, $ACT_STR->[BUFPTR], '**', 1);
 		}
 
 		unless (@cursor == 2) { # no valid text here
@@ -3123,6 +3171,7 @@ sub default_options {
 		url_non_beginnings => '\W',
 		hyper_nicks    => 'off',
 		hyper_channels => 'off',
+		hyper_prefix   => 'on',
 		hyper_show     => 'url',
 		use_nick_menu  => 'off',
 		xterm_compatible => 'rxvt-uni',
