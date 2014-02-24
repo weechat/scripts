@@ -18,9 +18,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2014-02-24: nesthib (freenode.#weechat)
+#     0.6.1 : fix: color tags for default format
 # 2013-11-19: nils_2 (freenode.#weechat)
-#	0.6 : fix: stdout/stderr warning
-#
+#       0.6 : fix: stdout/stderr warning
 # 2013-11-02: nils_2 (freenode.#weechat)
 #       0.5 : fix refresh on (un)zoomed buffer
 #           : add option 'count_filtered_lines' and format item "%F"
@@ -51,11 +52,11 @@ except Exception:
 
 SCRIPT_NAME     = "bufsize"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.6"
+SCRIPT_VERSION  = "0.6.1"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "scroll indicator; displaying number of lines below last line, overall lines in buffer, number of current line and percent displayed"
 
-OPTIONS         = { 'format'            : ('${yellow}%P${default}⋅%{${yellow}%A${default}⇵${yellow}%C${default}/}${yellow}%L',
+OPTIONS         = { 'format'            : ('${color:yellow}%P${color:default}⋅%{${color:yellow}%A${color:default}⇵${color:yellow}%C${color:default}/}${color:yellow}%L',
                                            'format for items to display in bar, possible items: %P = percent indicator, %A = number of lines below last line, %L = lines counter, %C = current line %F = number of filtered lines (note: using WeeChat >= 0.4.2, content is evaluated, so you can use colors with format \"${color:xxx}\", see /help eval)'),
                     'count_filtered_lines': ('on',
                                            'filtered lines will be count in item.'),
