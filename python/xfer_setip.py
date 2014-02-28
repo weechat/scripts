@@ -26,15 +26,23 @@
 #          - some small tweaks in description and (hopefully) and
 #            IP-checking, to make sure that I really got a correct one.
 #          - changed contact Email to one that actually exists :)
+#    v 0.3 - add option to change service from which the IP is gathered
+#          - better recognition of ipv4 addresses and support of ipv6
+#          - add mute option
+
 
 SCR_NAME    = "xfer_setip"
 SCR_AUTHOR  = "Stephan Huebner <shuebnerfun01@gmx.org>"
-SCR_VERSION = "0.2"
+SCR_VERSION = "0.3"
 SCR_LICENSE = "GPL3"
 SCR_DESC    = "Set apropriate xfer-option for external ip"
 SCR_COMMAND = "xfer_setip"
 
 import_ok = True
+
+OPTIONS         = { 'mute'      : ('off','hide output'),
+                    'url'       : ('http://checkip.dyndns.org/','url to fetch'),
+                  }
 
 try:
     import weechat as w
@@ -45,6 +53,7 @@ except:
     print "Script must be run under weechat. http://www.weechat.org"
     import_ok = False
 
+
 def alert(myString):
     w.prnt("", myString)
     return
@@ -52,9 +61,52 @@ def alert(myString):
 # create a subclass and override the handler methods
 class MyHTMLParser(HTMLParser):
     def handle_data(self, data):
+        global OPTIONS
         data=data.strip()
-        if re.match('([\d]{1,3}\.){3}[\d]{1,3}', data) is not None:
-            w.command("", "/set xfer.network.own_ip %s" %data)
+
+        ipv6 = re.compile(r"""
+        \s*                         # Leading whitespace
+        (?!.*::.*::)                # Only a single whildcard allowed
+        (?:(?!:)|:(?=:))            # Colon iff it would be part of a wildcard
+        (?:                         # Repeat 6 times:
+            [0-9a-f]{0,4}           #   A group of at most four hexadecimal digits
+            (?:(?<=::)|(?<!::):)    #   Colon unless preceeded by wildcard
+        ){6}                        #
+        (?:                         # Either
+            [0-9a-f]{0,4}           #   Another group
+            (?:(?<=::)|(?<!::):)    #   Colon unless preceeded by wildcard
+            [0-9a-f]{0,4}           #   Last group
+            (?: (?<=::)             #   Colon iff preceeded by exacly one colon
+             |  (?<!:)              #
+             |  (?<=:) (?<!::) :    #
+             )                      # OR
+         |                          #   A v4 address with NO leading zeros
+            (?:25[0-4]|2[0-4]\d|1\d\d|[1-9]?\d)
+            (?: \.
+                (?:25[0-4]|2[0-4]\d|1\d\d|[1-9]?\d)
+            ){3}
+        )
+        \s*                         # Trailing whitespace
+        $
+    """, re.VERBOSE | re.IGNORECASE | re.DOTALL)
+
+        ipv4 = re.compile('(([2][5][0-5]\.)|([2][0-4][0-9]\.)|([0-1]?[0-9]?[0-9]\.)){3}'
+                +'(([2][5][0-5])|([2][0-4][0-9])|([0-1]?[0-9]?[0-9]))')
+
+        matchipv4 = ipv4.search(data)
+        matchipv6 = ipv6.search(data)
+        set_ip = ""
+
+        if matchipv4:
+            set_ip = "/set xfer.network.own_ip %s" % matchipv4.group()
+
+        if matchipv6:
+            set_ip = "/set xfer.network.own_ip %s" % matchipv6.group()
+
+        if OPTIONS['mute'].lower() == "on":
+            set_ip = "/mute %s" % set_ip
+        if set_ip != "":
+            w.command("", set_ip)
 
 def fn_setip(data, command, return_code, out, err):
     if return_code != w.WEECHAT_HOOK_PROCESS_ERROR:
@@ -62,16 +114,34 @@ def fn_setip(data, command, return_code, out, err):
     return w.WEECHAT_RC_OK
 
 def fn_connected(data, signal, signal_data):
-    w.hook_process('url:http://ip.auk.ca/', 60000, "fn_setip", "")
+    w.hook_process('url:%s' % OPTIONS['url'], 60000, "fn_setip", "")
     return w.WEECHAT_RC_OK
 
 def fn_command(data, buffer, args):
     fn_connected("", "", "")
     return w.WEECHAT_RC_OK
 
+# ================================[ weechat options & description ]===============================
+def init_options():
+    for option,value in OPTIONS.items():
+        if not w.config_is_set_plugin(option):
+            w.config_set_plugin(option, value[0])
+            OPTIONS[option] = value[0]
+        else:
+            OPTIONS[option] = w.config_get_plugin(option)
+        w.config_set_desc_plugin(option, '%s (default: "%s")' % (value[1], value[0]))
+
+def toggle_refresh(pointer, name, value):
+    global OPTIONS
+    option = name[len('plugins.var.python.' + SCR_NAME + '.'):]        # get optionname
+    OPTIONS[option] = value                                               # save new value
+    return w.WEECHAT_RC_OK
+
 if __name__ == "__main__" and import_ok:
     if w.register(SCR_NAME, SCR_AUTHOR, SCR_VERSION, SCR_LICENSE,
                   SCR_DESC, "", ""):
+        init_options()
+        w.hook_config('plugins.var.python.' + SCR_NAME + '.*', 'toggle_refresh', '')
         parser = MyHTMLParser()
         fn_connected("", "", "")
         # hook to "connected to a server"-signal
