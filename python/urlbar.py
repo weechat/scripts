@@ -22,6 +22,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2014-03-01, Lars Kiesow <lkiesow@uos.de>
+#     version 11: Fixed autocompletion of /urlbar arguments
 # 2010-12-20, xt <xt@bash.no>
 #     version 10: use API for nick color, strip nick prefix
 # 2009-12-17, FlashCode <flashcode@flashtux.org>
@@ -46,7 +48,7 @@
 
 SCRIPT_NAME    = "urlbar"
 SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "10"
+SCRIPT_VERSION = "11"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Bar with URLs. For easy clicking or selecting."
 SCRIPT_COMMAND = "urlbar"
@@ -82,7 +84,7 @@ domain = r'%s(?:\.%s)*\.[a-z][-0-9a-z]*[a-z]?' % (label, label)
 urlRe = re.compile(r'(\w+://(?:%s|%s)(?::\d+)?(?:/[^\])>\s]*)?)' % (domain, ipAddr), re.I)
 
 
-# list of URL-objects 
+# list of URL-objects
 urls = []
 
 # Display ALL, a toggle
@@ -165,7 +167,7 @@ def urlbar_print_cb(data, buffer, time, tags, displayed, highlight, prefix, mess
     for ignored_buffer in weechat.config_get_plugin('ignore').split(','):
         if ignored_buffer.lower() == buffer_name.lower():
             return weechat.WEECHAT_RC_OK
-       
+
     # Clean list of URLs
     for i in range(len(urls) - int(weechat.config_get_plugin('remember_amount'))):
         # Delete the oldest
@@ -210,7 +212,7 @@ def urlbar_cmd(data, buffer, args):
         weechat.command("", "/bar toggle urlbar")
     elif args == 'clear':
         urls = []
-    else:
+    elif not args.startswith('url '):
         weechat.command("", "/help %s" % SCRIPT_COMMAND)
 
     return weechat.WEECHAT_RC_OK
@@ -243,12 +245,12 @@ if __name__ == "__main__" and import_ok:
 
         weechat.hook_command(SCRIPT_COMMAND,
                              "URL bar control",
-                             "[list | hide | show | toggle | URL]",
+                             "[list | hide | show | toggle | url URL]",
                              "   list: list all URL and show URL bar\n"
                              "   hide: hide URL bar\n"
                              "   show: show URL bar\n"
                              "   toggle: toggle showing of URL bar\n",
-                             "list %(urlbar_urls)",
+                             "list || hide || show || toggle || url %(urlbar_urls)",
                              "urlbar_cmd", "")
         weechat.hook_completion("urlbar_urls", "list of URLs",
                                 "urlbar_completion_urls_cb", "")
