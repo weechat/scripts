@@ -23,7 +23,7 @@ use CGI;
 my %SCRIPT = (
 	name => 'isgd',
 	author => 'stfn <stfnmd@gmail.com>',
-	version => '0.7',
+	version => '0.8',
 	license => 'GPL3',
 	desc => 'Shorten URLs with is.gd on demand or automatically',
 	opt => 'plugins.var.perl',
@@ -45,6 +45,7 @@ weechat::hook_print("", "", "", 1, "print_cb", "");
 weechat::hook_command($SCRIPT{"name"}, $SCRIPT{"desc"},
 	"[-o] [<URL...>|<number>|<partial expr>]\n",
 	"          -o: send shortened URL to current buffer as input\n" .
+	"          -i: insert shortened URL into input bar of current buffer\n" .
 	"         URL: URL to shorten (multiple URLs may be given)\n" .
 	"      number: shorten up to n last found URLs in current buffer\n" .
 	"partial expr: shorten last found URL in current buffer which matches the given partial expression\n" .
@@ -92,8 +93,11 @@ sub command_cb
 
 	# Check for command switch
 	if ($args =~ /^-o/) {
-		$args =~ s/^-o//;
+		$args =~ s/^-o\s*//;
 		$send = 1;
+	} elsif ($args =~ /^-i/) {
+		$args =~ s/^-i\s*//;
+		$send = 2;
 	}
 
 	# If URLs were provided in command arguments, shorten them
@@ -157,13 +161,23 @@ sub shorten_urls($$$)
 		$LOOKUP{$cmd} = $url;
 
 		if (my $url_short = $CACHE{$cmd}) {
-			if ($send) {
+			if ($send == 1) {
 				weechat::command($buffer, $url_short);
+			} elsif ($send == 2) {
+				append_to_input($buffer, $url_short);
 			} else {
 				print_url($buffer, $url_short, $url);
 			}
 		} else {
-			weechat::hook_process($cmd, $TIMEOUT, $send ? "url_send_cb" : "url_cb", $buffer);
+			my $cb;
+			if ($send == 1) {
+				$cb = "url_send_cb";
+			} elsif ($send == 2) {
+				$cb = "url_input_cb";
+			} else {
+				$cb = "url_cb";
+			}
+			weechat::hook_process($cmd, $TIMEOUT, $cb, $buffer);
 		}
 	}
 }
@@ -196,6 +210,20 @@ sub url_send_cb
 	return weechat::WEECHAT_RC_OK;
 }
 
+sub url_input_cb
+{
+	my ($data, $command, $return_code, $out, $err) = @_;
+	my $buffer = $data;
+	my $url_short = $out;
+
+	if ($return_code == 0 && $url_short) {
+		cache_url($command, $url_short);
+		append_to_input($buffer, $url_short);
+	}
+
+	return weechat::WEECHAT_RC_OK;
+}
+
 sub grep_urls($$)
 {
 	my $str = $_[0];
@@ -221,6 +249,15 @@ sub cache_url($$)
 	my ($command, $url_short) = @_;
 	%CACHE = () if (keys(%CACHE) > $CACHE_MAX_SIZE);
 	$CACHE{$command} = $url_short;
+}
+
+sub append_to_input($$)
+{
+	my ($buffer, $url) = @_;
+	my $input = weechat::buffer_get_string($buffer, "input");
+	$input .= " " if (length($input) > 0 && $input =~ /\S$/); # if len>0 and last char is not a whitespace
+	$input .= $url;
+	weechat::buffer_set($buffer, "input", $input);
 }
 
 #
