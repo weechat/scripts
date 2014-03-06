@@ -1,11 +1,10 @@
-# WeeChat official scripts
+= Add/update a script
+:author: Sébastien Helleu
+:email: flashcode@flashtux.org
+:lang: en
 
-These official scripts can be installed with command `/script install <name>`
-in WeeChat.
 
-They are also displayed on http://weechat.org/scripts/
-
-## Add a script
+== Add a script
 
 To submit a new script in this repository, please use the form at:
 http://weechat.org/scripts/add/
@@ -15,11 +14,12 @@ your script will be rejected.
 
 Pending scripts are visible at: http://weechat.org/scripts/pending/
 
-## Update a script
+== Update a script
 
 There are two ways to send a new release for a script:
 
-* send a pull request
+* send a pull request, the commit message must have the name of script, version,
+  and changes, like that: `script.py 0.3: .....`
 * use the form at: http://weechat.org/scripts/update/
 
 When sending a new version :
