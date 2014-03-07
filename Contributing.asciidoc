@@ -1,4 +1,4 @@
-= Add/update a script
+= Contributing to WeeChat scripts
 :author: Sébastien Helleu
 :email: flashcode@flashtux.org
 :lang: en
@@ -29,3 +29,18 @@ When sending a new version :
 * if the script is tagged `py3k-ok` (script running fine with Python 3.x),
   please ensure that your update is still compatible with both
   Python 2.x *AND* 3.x.
+
+== Report an issue
+
+Before reporting an issue, it's better to contact the author of script directly.
+
+If you have no answer, or if the author has no time to fix the problem, then you
+can report the issue in the tracker (or send an update of script if you are able
+to fix yourself).
+
+When reporting an issue, please give the following info:
+
+* The *version* of WeeChat: output of `/v` in WeeChat, for example:
+  `WeeChat 0.4.4-dev (git: v0.4.3-215-g2d77782)`.
+* If possible, please include a reproducible example: explain the steps which
+  led you to the problem.
