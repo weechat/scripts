@@ -23,26 +23,31 @@ use CGI;
 my %SCRIPT = (
 	name => 'pushover',
 	author => 'stfn <stfnmd@gmail.com>',
-	version => '0.4',
+	version => '0.5',
 	license => 'GPL3',
-	desc => 'Send real-time push notifications to your mobile devices using pushover.net',
+	desc => 'Send push notifications to your mobile devices using Pushover or NMA',
 	opt => 'plugins.var.perl',
 );
 my %OPTIONS_DEFAULT = (
-	'token' => ['ajEX9RWhxs6NgeXFJxSK2jmpY54C9S', 'API Token/Key'],
-	'user' => ['', "User Key"],
-	'sound' => ['', "Sound (empty for default)"],
 	'enabled' => ['on', "Turn script on or off"],
+	'service' => ['pushover', 'Notification service to use (supported services: pushover, nma)'],
+	'token' => ['ajEX9RWhxs6NgeXFJxSK2jmpY54C9S', 'pushover API token/key'],
+	'user' => ['', "pushover user key"],
+	'nma_apikey' => ['', "nma API key"],
+	'sound' => ['', "Sound (empty for default)"],
+	'priority' => ['', "priority (empty for default)"],
 	'show_highlights' => ['on', 'Notify on highlights'],
 	'show_priv_msg' => ['on', 'Notify on private messages'],
 	'only_if_away' => ['off', 'Notify only if away status is active'],
 	'blacklist' => ['', 'Comma separated list of buffers to blacklist for notifications'],
 );
 my %OPTIONS = ();
+my $DEBUG = 0;
+my $TIMEOUT = 30 * 1000;
 
 # Register script and setup hooks
 weechat::register($SCRIPT{"name"}, $SCRIPT{"author"}, $SCRIPT{"version"}, $SCRIPT{"license"}, $SCRIPT{"desc"}, "", "");
-weechat::hook_print("", "irc_privmsg", "", 1, "print_cb", "");
+weechat::hook_print("", "", "", 1, "print_cb", "");
 init_config();
 
 #
@@ -73,36 +78,8 @@ sub config_cb
 }
 
 #
-# Send to pushover.net
+# Case insensitive search for array element
 #
-sub pushover
-{
-	my ($token, $user, $sound, $message) = @_;
-
-	my @post = (
-		"token=$token",
-		"user=$user",
-		"message=" . CGI::escape($message),
-	);
-	push(@post, "sound=$sound") if ($sound && length($sound) > 0);
-
-	# Send POST request
-	my $hash = { "post"  => 1, "postfields" => join(";", @post) };
-	weechat::hook_process_hashtable("url:https://api.pushover.net/1/messages.json", $hash, 20 * 1000, "", "");
-	#weechat::print("", "[$SCRIPT{name}] debug: postfields -> @post, msg -> $message");
-
-	return weechat::WEECHAT_RC_OK;
-}
-
-#
-# Notification wrapper
-#
-sub notify
-{
-	my $msg = $_[0];
-	pushover($OPTIONS{token}, $OPTIONS{user}, $OPTIONS{sound}, $msg);
-}
-
 sub grep_array($$)
 {
 	my ($str, $array_ref) = @_;
@@ -117,25 +94,121 @@ sub print_cb
 {
 	my ($data, $buffer, $date, $tags, $displayed, $highlight, $prefix, $message) = @_;
 
-	if ($OPTIONS{enabled} ne "on") {
+	my $buffer_plugin_name = weechat::buffer_get_string($buffer, "localvar_plugin");
+	my $buffer_type = weechat::buffer_get_string($buffer, "localvar_type");
+	my $buffer_name = weechat::buffer_get_string($buffer, "name");
+	my $buffer_short_name = weechat::buffer_get_string($buffer, "short_name");
+	my $away_msg = weechat::buffer_get_string($buffer, "localvar_away");
+	my $away = ($away_msg && length($away_msg) > 0) ? 1 : 0;
+	my @blacklist = split(/,/, $OPTIONS{blacklist});
+
+	if ($OPTIONS{enabled} ne "on" ||
+	    $displayed == 0 ||
+	    ($OPTIONS{only_if_away} eq "on" && $away == 0) ||
+	    (grep_array($buffer_name, \@blacklist) || grep_array($buffer_short_name, \@blacklist))) {
 		return weechat::WEECHAT_RC_OK;
 	}
 
-	my @blacklist = split(/,/, $OPTIONS{blacklist});
-	my $buffer_type = weechat::buffer_get_string($buffer, "localvar_type");
-	my $buffer_name = weechat::buffer_get_string($buffer, "name");
-	my $buffer_shortname = weechat::buffer_get_string($buffer, "short_name");
-	my $away_msg = weechat::buffer_get_string($buffer, "localvar_away");
-	my $away = ($away_msg && length($away_msg) > 0) ? 1 : 0;
+	my $msg = "[$buffer_plugin_name] [$buffer_name] <$prefix> $message";
 
-	# Away or blacklisted?
-	if (($OPTIONS{only_if_away} eq "off" || $away) && (@blacklist == 0 ||
-		(!grep_array($buffer_name, \@blacklist) && !grep_array($buffer_shortname, \@blacklist)))) {
-		# Private message or highlight?
-		if (($OPTIONS{show_priv_msg} eq "on" && $buffer_type eq "private") ||
-			($OPTIONS{show_highlights} eq "on" && $highlight == 1)) {
-			notify("[$buffer_shortname] <$prefix> $message"); # Send notification
-		}
+	# Notify!
+	if ($OPTIONS{show_highlights} eq "on" && $highlight == 1) {
+		# Message with highlight
+		notify($msg);
+	} elsif ($OPTIONS{show_priv_msg} eq "on" && $buffer_type eq "private") {
+		# Private message
+		notify($msg);
+	}
+
+	return weechat::WEECHAT_RC_OK;
+}
+
+#
+# Catch API responses
+#
+sub url_cb
+{
+	my ($data, $command, $return_code, $out, $err) = @_;
+	my $msg = "[$SCRIPT{name}] Error: @_";
+
+	if ($OPTIONS{service} eq "pushover" && $return_code == 0 && !($out =~ /\"status\":1/)) {
+		weechat::print("", $msg);
+	} elsif ($OPTIONS{service} eq "nma" && $return_code == 0 && !($out =~ /success code=\"200\"/)) {
+		weechat::print("", $msg);
+	}
+
+	return weechat::WEECHAT_RC_OK;
+}
+
+#
+# Notify wrapper (decides which service to use)
+#
+sub notify($)
+{
+	my $message = $_[0];
+
+	# Notify service
+	if ($OPTIONS{service} eq "pushover") {
+		notify_pushover($OPTIONS{token}, $OPTIONS{user}, $message, "weechat", $OPTIONS{priority}, $OPTIONS{sound});
+	} elsif ($OPTIONS{service} eq "nma") {
+		notify_nma($OPTIONS{nma_apikey}, "weechat", "notification", $message, $OPTIONS{priority});
+	}
+}
+
+#
+# https://pushover.net/api
+#
+sub notify_pushover($$$$$$)
+{
+	my ($token, $user, $message, $title, $priority, $sound) = @_;
+
+	# Required API arguments
+	my @post = (
+		"token=" . CGI::escape($token),
+		"user=" . CGI::escape($user),
+		"message=" . CGI::escape($message),
+	);
+
+	# Optional API arguments
+	push(@post, "title=" . CGI::escape($title)) if ($title && length($title) > 0);
+	push(@post, "priority=" . CGI::escape($priority)) if ($priority && length($priority) > 0);
+	push(@post, "sound=" . CGI::escape($sound)) if ($sound && length($sound) > 0);
+
+	# Send HTTP POST
+	my $hash = { "post"  => 1, "postfields" => join(";", @post) };
+	if ($DEBUG) {
+		weechat::print("", "[$SCRIPT{name}] Debug: msg -> `$message' HTTP POST -> @post");
+	} else {
+		weechat::hook_process_hashtable("url:https://api.pushover.net/1/messages.json", $hash, $TIMEOUT, "url_cb", "");
+	}
+
+	return weechat::WEECHAT_RC_OK;
+}
+
+#
+# https://www.notifymyandroid.com/api.jsp
+#
+sub notify_nma($$$$$)
+{
+	my ($apikey, $application, $event, $description, $priority) = @_;
+
+	# Required API arguments
+	my @post = (
+		"apikey=" . CGI::escape($apikey),
+		"application=" . CGI::escape($application),
+		"event=" . CGI::escape($event),
+		"description=" . CGI::escape($description),
+	);
+
+	# Optional API arguments
+	push(@post, "priority=" . CGI::escape($priority)) if ($priority && length($priority) > 0);
+
+	# Send HTTP POST
+	my $hash = { "post"  => 1, "postfields" => join("&", @post) };
+	if ($DEBUG) {
+		weechat::print("", "[$SCRIPT{name}] Debug: msg -> `$description' HTTP POST -> @post");
+	} else {
+		weechat::hook_process_hashtable("url:https://www.notifymyandroid.com/publicapi/notify", $hash, $TIMEOUT, "url_cb", "");
 	}
 
 	return weechat::WEECHAT_RC_OK;
