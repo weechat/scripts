@@ -322,7 +322,7 @@ for full pod documentation, filter this script with
 use MIME::Base64;
 
 use constant SCRIPT_NAME => 'coords';
-weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.7.3', 'GPL3', 'copy text and urls', 'stop_coords', '') || return;
+weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.7.3.1', 'GPL3', 'copy text and urls', 'stop_coords', '') || return;
 sub SCRIPT_FILE() {
 	my $infolistptr = weechat::infolist_get('perl_script', '', SCRIPT_NAME);
 	my $filename = weechat::infolist_string($infolistptr, 'filename') if weechat::infolist_next($infolistptr);
@@ -524,10 +524,8 @@ sub fu8on(@) {
 	Encode::_utf8_on($_) for @_; wantarray ? @_ : shift
 }
 
-use Text::CharWidth;
-
 sub screen_length($) {
-	Text::CharWidth::mbswidth($_[0])
+	weechat::strlen_screen($_[0])
 }
 
 ## bar_column_max_length -- get max item length for column based filling
