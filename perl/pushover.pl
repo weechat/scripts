@@ -23,14 +23,14 @@ use CGI;
 my %SCRIPT = (
 	name => 'pushover',
 	author => 'stfn <stfnmd@gmail.com>',
-	version => '0.5',
+	version => '0.6',
 	license => 'GPL3',
 	desc => 'Send push notifications to your mobile devices using Pushover or NMA',
 	opt => 'plugins.var.perl',
 );
 my %OPTIONS_DEFAULT = (
 	'enabled' => ['on', "Turn script on or off"],
-	'service' => ['pushover', 'Notification service to use (supported services: pushover, nma)'],
+	'service' => ['pushover', 'Notification service to use. Multiple services may be supplied as comma separated list. (supported services: pushover, nma)'],
 	'token' => ['ajEX9RWhxs6NgeXFJxSK2jmpY54C9S', 'pushover API token/key'],
 	'user' => ['', "pushover user key"],
 	'nma_apikey' => ['', "nma API key"],
@@ -39,7 +39,8 @@ my %OPTIONS_DEFAULT = (
 	'show_highlights' => ['on', 'Notify on highlights'],
 	'show_priv_msg' => ['on', 'Notify on private messages'],
 	'only_if_away' => ['off', 'Notify only if away status is active'],
-	'blacklist' => ['', 'Comma separated list of buffers to blacklist for notifications'],
+	'only_if_inactive' => ['off', 'Notify only if buffer is not the active (current) buffer'],
+	'blacklist' => ['', 'Comma separated list of buffers (full name or short name) to blacklist for notifications'],
 );
 my %OPTIONS = ();
 my $DEBUG = 0;
@@ -47,7 +48,7 @@ my $TIMEOUT = 30 * 1000;
 
 # Register script and setup hooks
 weechat::register($SCRIPT{"name"}, $SCRIPT{"author"}, $SCRIPT{"version"}, $SCRIPT{"license"}, $SCRIPT{"desc"}, "", "");
-weechat::hook_print("", "", "", 1, "print_cb", "");
+weechat::hook_print("", "notify_message,notify_private,notify_highlight", "", 1, "print_cb", "");
 init_config();
 
 #
@@ -78,13 +79,13 @@ sub config_cb
 }
 
 #
-# Case insensitive search for array element
+# Case insensitive search for element in comma separated list
 #
-sub grep_array($$)
+sub grep_list($$)
 {
-	my ($str, $array_ref) = @_;
-	my @array = @{$array_ref};
-	return (grep {$_ =~ /^\Q$str\E$/i} @array) ? 1 : 0;
+	my ($str, $list) = @_;
+	my @array = split(/,/, $list);
+	return grep(/^\Q$str\E$/i, @array) ? 1 : 0;
 }
 
 #
@@ -94,22 +95,21 @@ sub print_cb
 {
 	my ($data, $buffer, $date, $tags, $displayed, $highlight, $prefix, $message) = @_;
 
-	my $buffer_plugin_name = weechat::buffer_get_string($buffer, "localvar_plugin");
 	my $buffer_type = weechat::buffer_get_string($buffer, "localvar_type");
-	my $buffer_name = weechat::buffer_get_string($buffer, "name");
 	my $buffer_short_name = weechat::buffer_get_string($buffer, "short_name");
+	my $buffer_full_name = weechat::buffer_get_string($buffer, "full_name");
 	my $away_msg = weechat::buffer_get_string($buffer, "localvar_away");
 	my $away = ($away_msg && length($away_msg) > 0) ? 1 : 0;
-	my @blacklist = split(/,/, $OPTIONS{blacklist});
 
 	if ($OPTIONS{enabled} ne "on" ||
 	    $displayed == 0 ||
 	    ($OPTIONS{only_if_away} eq "on" && $away == 0) ||
-	    (grep_array($buffer_name, \@blacklist) || grep_array($buffer_short_name, \@blacklist))) {
+	    ($OPTIONS{only_if_inactive} eq "on" && $buffer eq weechat::current_buffer()) ||
+	    (grep_list($buffer_full_name, $OPTIONS{blacklist}) || grep_list($buffer_short_name, $OPTIONS{blacklist}))) {
 		return weechat::WEECHAT_RC_OK;
 	}
 
-	my $msg = "[$buffer_plugin_name] [$buffer_name] <$prefix> $message";
+	my $msg = "[$buffer_full_name] <$prefix> $message";
 
 	# Notify!
 	if ($OPTIONS{show_highlights} eq "on" && $highlight == 1) {
@@ -131,9 +131,9 @@ sub url_cb
 	my ($data, $command, $return_code, $out, $err) = @_;
 	my $msg = "[$SCRIPT{name}] Error: @_";
 
-	if ($OPTIONS{service} eq "pushover" && $return_code == 0 && !($out =~ /\"status\":1/)) {
+	if ($command =~ /pushover/ && $return_code == 0 && !($out =~ /\"status\":1/)) {
 		weechat::print("", $msg);
-	} elsif ($OPTIONS{service} eq "nma" && $return_code == 0 && !($out =~ /success code=\"200\"/)) {
+	} elsif ($command =~ /notifymyandroid/ && $return_code == 0 && !($out =~ /success code=\"200\"/)) {
 		weechat::print("", $msg);
 	}
 
@@ -147,11 +147,12 @@ sub notify($)
 {
 	my $message = $_[0];
 
-	# Notify service
-	if ($OPTIONS{service} eq "pushover") {
+	# Notify services
+	if (grep_list("pushover", $OPTIONS{service})) {
 		notify_pushover($OPTIONS{token}, $OPTIONS{user}, $message, "weechat", $OPTIONS{priority}, $OPTIONS{sound});
-	} elsif ($OPTIONS{service} eq "nma") {
-		notify_nma($OPTIONS{nma_apikey}, "weechat", "notification", $message, $OPTIONS{priority});
+	}
+	if (grep_list("nma", $OPTIONS{service})) {
+		notify_nma($OPTIONS{nma_apikey}, "weechat", "$SCRIPT{name}.pl", $message, $OPTIONS{priority});
 	}
 }
 
