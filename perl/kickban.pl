@@ -1,4 +1,4 @@
-# kickban.pl by ArZa <arza@arza.us>: A new, customizable kickban command
+# kickban.pl by arza <arza@arza.us>: A new, customizable kickban command
 
 # This program is free software: you can modify/redistribute it under the terms of
 # GNU General Public License by Free Software Foundation, either version 3 or later
@@ -8,10 +8,11 @@
 # This script provides command /kickban2. You probably want to alias it to /kb: /alias kb kickban2
 
 # Changelog:
+# 24.03.2014 0.3 fix bug with uninitialized variable
 # 15.10.2011 0.2 fix bug with ban when host isn't found in memory
 # 08.07.2011 0.1 initial release
 
-weechat::register("kickban", "ArZa <arza\@arza.us>", "0.2", "GPL3", "A new, customizable kickban command", "", "");
+weechat::register("kickban", "arza <arza\@arza.us>", "0.3", "GPL3", "A new, customizable kickban command", "", "");
 weechat::hook_command(
   "kickban2",
   "A new, customizable kickban command", "[-nuhsd#] nick[,nick2...] [reason]",
@@ -97,29 +98,30 @@ sub kickban {
   
   $reason=weechat::config_get_plugin("kick_reason") unless $reason; # get the reason from the setting if it's not given as an argument
   
-  my $infolist = weechat::infolist_get( # get the irc_nick infolist of current channel or return
-                                       "irc_nick",
-                                       "",
-                                       weechat::buffer_get_string($buffer, "localvar_server").
-                                        ','.
-                                        weechat::buffer_get_string($buffer, "localvar_channel")
-                                      ) || return weechat::WEECHAT_RC_ERROR;
-  
-  while(weechat::infolist_next($infolist)){ # go through the infolist
-    foreach my $nick (@nicks) { # go through nicks to be kicked
-      if(lc(weechat::infolist_string($infolist, "name")) eq lc($nick)){ # if match (case insensitive)
-        my $host=weechat::infolist_string($infolist, "host") || next;
-        my $ban=gen_mask($nick, split(/@/, $host)); # split variable host from infolist to user and host, get banmask
-        weechat::command($buffer, "/kick $nick $reason") if weechat::config_get_plugin("kick_first") ne "off"; # kick before ban
-        weechat::command($buffer, "/ban $ban"); # ban
-        weechat::command($buffer, "/kick $nick $reason") if weechat::config_get_plugin("kick_first") eq "off"; # kick after ban
-        weechat::command($buffer, "/wait ".60*$time." /unban $ban") if $time;
-        undef $nick;
-      }
+  foreach my $nick (@nicks) { # go through nicks to be kicked
+    
+    my $infolist = weechat::infolist_get( # get the irc_nick infolist
+                                         "irc_nick",
+                                         "",
+                                         weechat::buffer_get_string($buffer, "localvar_server").
+                                          ",".
+                                          weechat::buffer_get_string($buffer, "localvar_channel").
+                                          ",".
+                                          $nick
+                                        );
+    next unless $infolist;
+    
+    if(weechat::infolist_next($infolist) && lc(weechat::infolist_string($infolist, "name")) eq lc($nick)){
+      my $host=weechat::infolist_string($infolist, "host") || next;
+      my $ban=gen_mask($nick, split(/@/, $host)); # split variable host from infolist to user and host, get banmask
+      weechat::command($buffer, "/kick $nick $reason") if weechat::config_get_plugin("kick_first") ne "off"; # kick before ban
+      weechat::command($buffer, "/ban $ban"); # ban
+      weechat::command($buffer, "/kick $nick $reason") if weechat::config_get_plugin("kick_first") eq "off"; # kick after ban
+      weechat::command($buffer, "/wait ".60*$time." /unban $ban") if $time;
+      $nick='';
     }
+    weechat::infolist_free($infolist);
   }
-  
-  weechat::infolist_free($infolist);
   
   if($version>=0x00030400){ # hook_hsignal reguires v>=0.3.4
     my $server=weechat::buffer_get_string($buffer, "localvar_server"); # current server
@@ -139,7 +141,7 @@ sub get_whois { my %hashtable=%{$_[2]}; # get the answer for whois
     weechat::command($buffer, "/ban $ban"); # ban
     weechat::command($buffer, "/wait ".60*$time." /unban $ban") if $time; # unban
     return weechat::WEECHAT_RC_OK;
-  }elsif($hashtable{"output"}=~/^:\S+ 401 \S+ (\S+)/){
+  }elsif($hashtable{"output"}=~/^:\S+ 40[12] \S+ (\S+)/){
     weechat::print("", weechat::prefix("error")."Kickban: Didn't find nick $1");
     return weechat::WEECHAT_RC_OK;
   }
