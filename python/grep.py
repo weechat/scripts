@@ -65,6 +65,9 @@
 #
 #
 #   History:
+#   2014-03-29, Felix Eckhofer <felix@tribut.de>
+#   version 0.7.3: fix typo
+#
 #   2011-01-09
 #   version 0.7.2: bug fixes
 #
@@ -188,7 +191,7 @@ except ImportError:
 
 SCRIPT_NAME    = "grep"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.7.2"
+SCRIPT_VERSION = "0.7.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Search in buffers and logs"
 SCRIPT_COMMAND = "grep"
@@ -1636,7 +1639,7 @@ if __name__ == '__main__' and import_ok and \
   <expression>: Expression to search.
 
 Grep buffer:
-  Input line accepts most arguemnts of /grep, it'll repeat last search using the new
+  Input line accepts most arguments of /grep, it'll repeat last search using the new
   arguments provided. You can't search in different logs from the buffer's input.
   Boolean arguments like --count, --tail, --head, --hilight, ... are toggleable
 
