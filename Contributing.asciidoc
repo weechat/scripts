@@ -18,17 +18,18 @@ Pending scripts are visible at: http://weechat.org/scripts/pending/
 
 There are two ways to send a new release for a script:
 
-* send a pull request, the commit message must have the name of script, version,
-  and changes, like that: `script.py 0.3: .....`
-* use the form at: http://weechat.org/scripts/update/
+* Send a pull request, the commit message must have the name of script, version,
+  and changes, like that: `script.py 0.3: .....`.
+* Use the form at: <http://weechat.org/scripts/update/>.
 
 When sending a new version :
 
-* don't forget to update the version number in the script (used in `register`
-  function)
-* if the script is tagged `py3k-ok` (script running fine with Python 3.x),
+* Don't forget to update the version number in the script (used in `register`
+  function).
+* If the script is tagged `py3k-ok` (script running fine with Python 3.x),
   please ensure that your update is still compatible with both
   Python 2.x *AND* 3.x.
+* Use this message format for your commit: `grep.py 0.7.2: fix bugs`.
 
 == Report an issue
 
