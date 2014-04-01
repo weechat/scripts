@@ -38,7 +38,13 @@
 # /unset plugins.desc.perl.colorize_lines*
 # /script load colorize_lines.pl
 
+
+# you can colorize lines with a channel color instead of nick color:
+# /buffer set localvar_set_colorize_lines yellow
+# /buffer set localvar_set_colorize_lines *yellow
+
 # history:
+# 3.3: use localvar "colorize_lines" for buffer related color (idea by tomoe-mami)
 # 3.2: minor logic fix
 # 3.1: fix: line wasn't colored with nick color, when highlight option was "off" (reported by rivarun)
 # 3.0: large part of script rewritten
@@ -98,9 +104,11 @@
 #$Data::Dumper::Useqq=1;
 
 use strict;
-my $prgname     = "colorize_lines";
-my $version     = "3.2";
-my $description = "colors text in chat area with according nick color, including highlights";
+my $PRGNAME     = "colorize_lines";
+my $VERSION     = "3.3";
+my $AUTHOR      = "Nils Görs <weechatter\@arcor.de>";
+my $LICENCE     = "GPL3";
+my $DESCR       = "colors text in chat area with according nick color, including highlights";
 
 my %config = ("buffers"             => "all",       # all, channel, query
               "blacklist_buffers"   => "",          # "a,b,c"
@@ -121,7 +129,8 @@ my %help_desc = ("buffers"             => "buffer type affected by the script (a
 #################################################################################################### config
 
 # program starts here
-sub colorize_cb {
+sub colorize_cb
+{
     my ( $data, $modifier, $modifier_data, $string ) = @_;
 
     # quit if it's not a privmsg or ctcp
@@ -133,14 +142,14 @@ sub colorize_cb {
 
     # find buffer pointer
     $modifier_data =~ m/([^;]*);([^;]*);/;
-    my $buffer = weechat::buffer_search($1, $2);
-    return $string if ($buffer eq "");
+    my $buf_ptr = weechat::buffer_search($1, $2);
+    return $string if ($buf_ptr eq "");
 
     # find buffer name, server name
     # return if buffer is in a blacklist
-    my $buffername = weechat::buffer_get_string($buffer, "name");
+    my $buffername = weechat::buffer_get_string($buf_ptr, "name");
     return $string if weechat::string_has_highlight($buffername, $config{blacklist_buffers});
-    my $servername = weechat::buffer_get_string($buffer, "localvar_server");
+    my $servername = weechat::buffer_get_string($buf_ptr, "localvar_server");
 
     # find stuff between \t
     $string =~ m/^([^\t]*)\t(.*)/;
@@ -155,12 +164,18 @@ sub colorize_cb {
     ######################################## get color
 
     my $color = "";
-    my $my_nick = weechat::buffer_get_string($buffer, "localvar_nick");
-    if ($my_nick eq $nick) {
+    my $my_nick = weechat::buffer_get_string($buf_ptr, "localvar_nick");
+    my $channel_color = weechat::color( get_localvar_colorize_lines($buf_ptr) );
+
+    if ($my_nick eq $nick)
+    {
         # it's our own line
         # process only if own_lines is "on" or "only" (i.e. not "off")
-        return $string if ($config{own_lines} eq "off");
+        return $string if ($config{own_lines} eq "off") && not ($channel_color);
+
         $color = weechat::color("chat_nick_self");
+        $color = $channel_color if ($channel_color) && ($config{own_lines} eq "off");
+
     } else {
         # it's someone else's line
         # don't process is own_lines are "only"
@@ -173,10 +188,10 @@ sub colorize_cb {
             ($config{highlight} eq "nicks" && weechat::string_has_highlight("$servername.$nick", $config{nicks}))
            ) && (
             # ..and if we have anything to highlight
-            weechat::string_has_highlight($right_nocolor, weechat::buffer_string_replace_local_var($buffer, weechat::buffer_get_string($buffer, "highlight_words"))) ||
+            weechat::string_has_highlight($right_nocolor, weechat::buffer_string_replace_local_var($buf_ptr, weechat::buffer_get_string($buf_ptr, "highlight_words"))) ||
             weechat::string_has_highlight($right_nocolor, weechat::config_string(weechat::config_get("weechat.look.highlight"))) ||
             weechat::string_has_highlight_regex($right_nocolor, weechat::config_string(weechat::config_get("weechat.look.highlight_regex"))) ||
-            weechat::string_has_highlight_regex($right_nocolor, weechat::buffer_get_string($buffer, "highlight_regex"))
+            weechat::string_has_highlight_regex($right_nocolor, weechat::buffer_get_string($buf_ptr, "highlight_regex"))
            )) {
             # that's definitely a highlight! get a hilight color
             # and replace the first occurance of coloring, that'd be nick color
@@ -189,6 +204,7 @@ sub colorize_cb {
             ($config{lines} eq "nicks" && weechat::string_has_highlight("$servername.$nick", $config{nicks}))
            ) {
             $color = weechat::info_get('irc_nick_color', $nick);
+            $color = $channel_color if ($channel_color); 
         } else {
             # oh well
             return $string;
@@ -213,18 +229,27 @@ sub colorize_cb {
     return $out;
 }
 
+
+sub get_localvar_colorize_lines
+{
+    my ( $buf_ptr ) = @_;
+
+    return weechat::buffer_get_string($buf_ptr, "localvar_colorize_lines");
+}
 #################################################################################################### config
 
 # read nicknames if $conf{nisks} starts with /
 # after this, $conf{nisks} is of form a,b,c,d
 # if it doesnt start with /, assume it's already a,b,c,d
-sub nicklist_read {
+sub nicklist_read
+{
     return if (substr($config{nicks}, 0, 1) ne "/");
     my $file = weechat::info_get("weechat_dir", "") . $config{nicks};
     return unless -e $file;
     my $nili = "";
     open (WL, "<", $file) || DEBUG("$file: $!");
-    while (<WL>) {
+    while (<WL>)
+    {
         chomp;                                                         # kill LF
         $nili .= $_ . ",";
     }
@@ -235,9 +260,10 @@ sub nicklist_read {
 
 # called when a config option ha been changed
 # $name = plugins.var.perl.$prgname.nicks etc
-sub toggle_config_by_set {
+sub toggle_config_by_set
+{
     my ($pointer, $name, $value) = @_;
-    $name = substr($name,length("plugins.var.perl.$prgname."),length($name));
+    $name = substr($name,length("plugins.var.perl.$PRGNAME."),length($name));
     $config{$name} = lc($value);
     nicklist_read() if ($name eq "nicks");
 }
@@ -246,7 +272,8 @@ sub toggle_config_by_set {
 #   set default options and
 #   set dectription if weechat >= 0.3.5
 # after done, read nicklist from file if needed
-sub init_config {
+sub init_config
+{
     my $weechat_version = weechat::info_get('version_number', '') || 0;
     foreach my $option (keys %config){
         if (!weechat::config_is_set_plugin($option)) {
@@ -261,7 +288,8 @@ sub init_config {
 
 #################################################################################################### start
 
-weechat::register($prgname, "Nils Görs <weechatter\@arcor.de>", $version, "GPL3", $description, "", "");
+weechat::register($PRGNAME, "Nils Görs <weechatter\@arcor.de>", $VERSION, $LICENCE, $DESCR, "", "") || return;
+
 weechat::hook_modifier("500|weechat_print","colorize_cb", "");
 init_config();
-weechat::hook_config("plugins.var.perl.$prgname.*", "toggle_config_by_set", "");
+weechat::hook_config("plugins.var.perl.$PRGNAME.*", "toggle_config_by_set", "");
