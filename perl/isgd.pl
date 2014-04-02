@@ -23,7 +23,7 @@ use CGI;
 my %SCRIPT = (
 	name => 'isgd',
 	author => 'stfn <stfnmd@gmail.com>',
-	version => '0.8',
+	version => '0.9',
 	license => 'GPL3',
 	desc => 'Shorten URLs with is.gd on demand or automatically',
 	opt => 'plugins.var.perl',
@@ -77,7 +77,7 @@ sub print_cb
 	@URLs = grep_urls($message, $OPTIONS{auto_min_length});
 
 	# Process all found URLs
-	shorten_urls(\@URLs, $buffer);
+	shorten_urls(\@URLs, $buffer, 0);
 
 	return weechat::WEECHAT_RC_OK;
 }
@@ -229,7 +229,7 @@ sub grep_urls($$)
 	my $str = $_[0];
 	my $url_min_length = $_[1];
 	my @urls;
-	while ($str =~ m{(https?://\S+)}gi) {
+	while ($str =~ m{(https?://.+?)(\s|"|>|$)}gi) {
 		my $url = $1;
 		push(@urls, $url) unless ($url =~ /^\Q$SHORTENER_BASE\E/ || length($url) < $url_min_length);
 	}
