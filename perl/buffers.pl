@@ -20,6 +20,8 @@
 #
 # History:
 #
+# 2014-04-05, Sebastien Helleu <flashcode@flashtux.org>:
+#     v4.6: add support of hidden buffers (WeeChat >= 0.4.4)
 # 2014-01-01, Sebastien Helleu <flashcode@flashtux.org>:
 #     v4.5: add option "mouse_move_buffer"
 # 2013-12-11, Sebastien Helleu <flashcode@flashtux.org>:
@@ -151,29 +153,30 @@
 
 use strict;
 use Encode qw( decode encode );
-# -------------------------------[ internal ]-------------------------------------
+# -----------------------------[ internal ]-------------------------------------
 my $SCRIPT_NAME = "buffers";
-my $SCRIPT_VERSION = "4.5";
+my $SCRIPT_VERSION = "4.6";
 
 my $BUFFERS_CONFIG_FILE_NAME = "buffers";
 my $buffers_config_file;
 my $cmd_buffers_whitelist= "buffers_whitelist";
 my $cmd_buffers_detach   = "buffers_detach";
 
-my %mouse_keys          = ("\@item(buffers):button1*"    => "hsignal:buffers_mouse",     # catch all left mouse button gestures
-                           "\@item(buffers):button2*"     => "hsignal:buffers_mouse");    # catch all right mouse button gestures
+my %mouse_keys = ("\@item(buffers):button1*" => "hsignal:buffers_mouse",
+                  "\@item(buffers):button2*" => "hsignal:buffers_mouse");
 my %options;
-my %hotlist_level       = (0 => "low", 1 => "message", 2 => "private", 3 => "highlight");
-my @whitelist_buffers   = ();
+my %hotlist_level = (0 => "low", 1 => "message", 2 => "private", 3 => "highlight");
+my @whitelist_buffers = ();
 my @immune_detach_buffers= ();
 my @detach_buffer_immediately= ();
-my @buffers_focus       = ();
-my %buffers_timer       = ();
-my %Hooks               = ();
+my @buffers_focus = ();
+my %buffers_timer = ();
+my %Hooks = ();
 
 # --------------------------------[ init ]--------------------------------------
-weechat::register($SCRIPT_NAME, "Sebastien Helleu <flashcode\@flashtux.org>", $SCRIPT_VERSION,
-                  "GPL3", "Sidebar with list of buffers", "shutdown_cb", "");
+weechat::register($SCRIPT_NAME, "Sebastien Helleu <flashcode\@flashtux.org>",
+                  $SCRIPT_VERSION, "GPL3",
+                  "Sidebar with list of buffers", "shutdown_cb", "");
 my $weechat_version = weechat::info_get("version_number", "") || 0;
 
 buffers_config_init();
@@ -186,7 +189,7 @@ weechat::bar_new($SCRIPT_NAME, "0", "0", "root", "", "left", "columns_vertical",
 
 if ( check_bar_item() == 0 )
 {
-    weechat::command("","/bar show " . $SCRIPT_NAME) if ( weechat::config_boolean($options{"toggle_bar"}) eq 1 );
+    weechat::command("", "/bar show " . $SCRIPT_NAME) if ( weechat::config_boolean($options{"toggle_bar"}) eq 1 );
 }
 
 weechat::hook_signal("buffer_opened", "buffers_signal_buffer", "");
@@ -196,6 +199,8 @@ weechat::hook_signal("buffer_unmerged", "buffers_signal_buffer", "");
 weechat::hook_signal("buffer_moved", "buffers_signal_buffer", "");
 weechat::hook_signal("buffer_renamed", "buffers_signal_buffer", "");
 weechat::hook_signal("buffer_switch", "buffers_signal_buffer", "");
+weechat::hook_signal("buffer_hidden", "buffers_signal_buffer", "");  # WeeChat >= 0.4.4
+weechat::hook_signal("buffer_unhidden", "buffers_signal_buffer", "");  # WeeChat >= 0.4.4
 
 weechat::hook_signal("window_switch", "buffers_signal_buffer", "");
 weechat::hook_signal("hotlist_changed", "buffers_signal_hotlist", "");
@@ -210,42 +215,51 @@ if ($weechat_version >= 0x00030600)
     weechat::key_bind("mouse", \%mouse_keys);
 }
 
-weechat::hook_command(  $cmd_buffers_whitelist,
-                        "add/del current buffer to/from buffers whitelist",
-                        "[add] || [del] || [reset]",
-
-                        "  add: add current buffer in configuration file\n".
-                        "  del: delete current buffer from configuration file\n".
-                        "reset: reset all buffers from configuration file (no confirmation!)\n\n".
-                        "Examples:\n".
-                        "/$cmd_buffers_whitelist add\n",
-                        "add %-||".
-                        "del %-||".
-                        "reset %-",
-                        "buffers_cmd_whitelist", "");
-weechat::hook_command(  $cmd_buffers_detach,
-                        "add/del current buffer to/from buffers detach",
-                        "[add] || [del] || [reset]",
-
-                        "  add: add current buffer in configuration file\n".
-                        "  del: delete current buffer from configuration file\n".
-                        "reset: reset all buffers from configuration file (no confirmation!)\n\n".
-                        "Examples:\n".
-                        "/$cmd_buffers_detach add\n",
-                        "add %-||".
-                        "del %-||".
-                        "reset %-",
-                        "buffers_cmd_detach", "");
+weechat::hook_command($cmd_buffers_whitelist,
+                      "add/del current buffer to/from buffers whitelist",
+                      "[add] || [del] || [reset]",
+                      "  add: add current buffer in configuration file\n".
+                      "  del: delete current buffer from configuration file\n".
+                      "reset: reset all buffers from configuration file ".
+                      "(no confirmation!)\n\n".
+                      "Examples:\n".
+                      "/$cmd_buffers_whitelist add\n",
+                      "add %-||".
+                      "del %-||".
+                      "reset %-",
+                      "buffers_cmd_whitelist", "");
+weechat::hook_command($cmd_buffers_detach,
+                      "add/del current buffer to/from buffers detach",
+                      "[add] || [del] || [reset]",
+                      "  add: add current buffer in configuration file\n".
+                      "  del: delete current buffer from configuration file\n".
+                      "reset: reset all buffers from configuration file ".
+                      "(no confirmation!)\n\n".
+                      "Examples:\n".
+                      "/$cmd_buffers_detach add\n",
+                      "add %-||".
+                      "del %-||".
+                      "reset %-",
+                      "buffers_cmd_detach", "");
 
 if ($weechat_version >= 0x00030800)
 {
     weechat::hook_config("buffers.look.detach", "hook_timer_detach", "");
-    $Hooks{timer_detach} = weechat::hook_timer( weechat::config_integer( $options{"detach"}) * 1000, 60, 0, "buffers_signal_hotlist", "") if ( weechat::config_integer( $options{"detach"}) > 0 );
+    if (weechat::config_integer($options{"detach"}) > 0)
+    {
+        $Hooks{timer_detach} = weechat::hook_timer(weechat::config_integer($options{"detach"}) * 1000,
+                                                   60, 0, "buffers_signal_hotlist", "");
+    }
 }
 
-    weechat::hook_config("buffers.look.show_lag", "hook_timer_lag", "");
+weechat::hook_config("buffers.look.show_lag", "hook_timer_lag", "");
 
-    $Hooks{timer_lag} = weechat::hook_timer( weechat::config_integer(weechat::config_get("irc.network.lag_refresh_interval")) * 1000, 0, 0, "buffers_signal_hotlist", "") if ( weechat::config_boolean($options{"show_lag"}) );
+if (weechat::config_boolean($options{"show_lag"}))
+{
+    $Hooks{timer_lag} = weechat::hook_timer(
+        weechat::config_integer(weechat::config_get("irc.network.lag_refresh_interval")) * 1000,
+        0, 0, "buffers_signal_hotlist", "");
+}
 
 # -------------------------------- [ command ] --------------------------------
 sub buffers_cmd_whitelist
@@ -265,9 +279,9 @@ my ( $data, $buffer, $args ) = @_;
     if ( $args eq "add" )
     {
         return weechat::WEECHAT_RC_OK if ( grep /^$buffers_name$/, @buffers_list );     # check if buffer already in list
-        push @buffers_list,( $buffers_name );
+        push @buffers_list, ( $buffers_name );
         my $buffers_list = &create_whitelist(\@buffers_list);
-        weechat::config_option_set( weechat::config_get("buffers.look.whitelist_buffers"), $buffers_list,1 );
+        weechat::config_option_set( weechat::config_get("buffers.look.whitelist_buffers"), $buffers_list, 1);
         weechat::print(weechat::current_buffer(), "buffer \"$buffers_name\" added to buffers whitelist");
     }
     elsif ( $args eq "del" )
@@ -275,13 +289,13 @@ my ( $data, $buffer, $args ) = @_;
         return weechat::WEECHAT_RC_OK unless ( grep /^$buffers_name$/, @buffers_list );     # check if buffer is in list
         @buffers_list = grep {$_ ne $buffers_name} @buffers_list;                           # delete entry
         my $buffers_list = &create_whitelist(\@buffers_list);
-        weechat::config_option_set( weechat::config_get("buffers.look.whitelist_buffers"), $buffers_list,1 );
+        weechat::config_option_set( weechat::config_get("buffers.look.whitelist_buffers"), $buffers_list, 1);
         weechat::print(weechat::current_buffer(), "buffer \"$buffers_name\" deleted from buffers whitelist");
     }
     elsif ( $args eq "reset" )
     {
         return weechat::WEECHAT_RC_OK if ( $buffers_whitelist eq "" );
-        weechat::config_option_set( weechat::config_get("buffers.look.whitelist_buffers"), "",1 );
+        weechat::config_option_set( weechat::config_get("buffers.look.whitelist_buffers"), "", 1);
         weechat::print(weechat::current_buffer(), "buffers whitelist is empty, now...");
     }
     return weechat::WEECHAT_RC_OK;
@@ -304,9 +318,9 @@ sub buffers_cmd_detach
     if ( $args eq "add" )
     {
         return weechat::WEECHAT_RC_OK if ( grep /^$buffers_name$/, @buffers_list );     # check if buffer already in list
-        push @buffers_list,( $buffers_name );
+        push @buffers_list, ( $buffers_name );
         my $buffers_list = &create_whitelist(\@buffers_list);
-        weechat::config_option_set( weechat::config_get("buffers.look.immune_detach_buffers"), $buffers_list,1 );
+        weechat::config_option_set( weechat::config_get("buffers.look.immune_detach_buffers"), $buffers_list, 1);
         weechat::print(weechat::current_buffer(), "buffer \"$buffers_name\" added to immune detach buffers");
     }
     elsif ( $args eq "del" )
@@ -314,13 +328,13 @@ sub buffers_cmd_detach
         return weechat::WEECHAT_RC_OK unless ( grep /^$buffers_name$/, @buffers_list );     # check if buffer is in list
         @buffers_list = grep {$_ ne $buffers_name} @buffers_list;                           # delete entry
         my $buffers_list = &create_whitelist(\@buffers_list);
-        weechat::config_option_set( weechat::config_get("buffers.look.immune_detach_buffers"), $buffers_list,1 );
+        weechat::config_option_set( weechat::config_get("buffers.look.immune_detach_buffers"), $buffers_list, 1);
         weechat::print(weechat::current_buffer(), "buffer \"$buffers_name\" deleted from immune detach buffers");
     }
     elsif ( $args eq "reset" )
     {
         return weechat::WEECHAT_RC_OK if ( $immune_detach_buffers eq "" );
-        weechat::config_option_set( weechat::config_get("buffers.look.immune_detach_buffers"), "",1 );
+        weechat::config_option_set( weechat::config_get("buffers.look.immune_detach_buffers"), "", 1);
         weechat::print(weechat::current_buffer(), "immune detach buffers is empty, now...");
     }
     return weechat::WEECHAT_RC_OK;
@@ -334,7 +348,8 @@ sub create_whitelist
         {
             $buffers_list .= $_ .",";
         }
-        chop $buffers_list;                                                               # remove last ","
+        # remove last ","
+        chop $buffers_list;
     return $buffers_list;
 }
 
@@ -383,86 +398,423 @@ sub buffers_config_write
 }
 sub buffers_config_reload_cb
 {
-    my ($data,$config_file) = ($_[0], $_[1]);
+    my ($data, $config_file) = ($_[0], $_[1]);
     return weechat::config_reload($config_file)
 }
 sub buffers_config_init
 {
-    $buffers_config_file = weechat::config_new($BUFFERS_CONFIG_FILE_NAME,"buffers_config_reload_cb","");
+    $buffers_config_file = weechat::config_new($BUFFERS_CONFIG_FILE_NAME,
+                                               "buffers_config_reload_cb", "");
     return if ($buffers_config_file eq "");
 
 my %default_options_color =
-("color_current_fg" => ["current_fg", "color", "foreground color for current buffer", "", 0, 0, "lightcyan", "lightcyan", 0, "", "", "buffers_signal_config", "", "", ""],
- "color_current_bg" => ["current_bg", "color", "background color for current buffer", "", 0, 0, "red", "red", 0, "", "", "buffers_signal_config", "", "", ""],
- "color_default_fg" => ["default_fg", "color", "default foreground color for buffer name", "", 0, 0, "default", "default", 0, "", "", "buffers_signal_config", "", "", ""],
- "color_default_bg" => ["default_bg", "color", "default background color for buffer name", "", 0, 0, "default", "default", 0, "", "", "buffers_signal_config", "", "", ""],
- "color_hotlist_highlight_fg" => ["hotlist_highlight_fg", "color", "change foreground color of buffer name if a highlight messaged received", "", 0, 0, "magenta", "magenta", 0, "", "", "buffers_signal_config", "", "", ""],
- "color_hotlist_highlight_bg" => ["hotlist_highlight_bg", "color", "change background color of buffer name if a highlight messaged received", "", 0, 0, "default", "default", 0, "", "", "buffers_signal_config", "", "", ""],
- "color_hotlist_low_fg" => ["hotlist_low_fg", "color", "change foreground color of buffer name if a low message received", "", 0, 0, "white", "white", 0, "", "", "buffers_signal_config", "", "", ""],
- "color_hotlist_low_bg" => ["hotlist_low_bg", "color", "change background color of buffer name if a low message received", "", 0, 0,
-        "default", "default", 0, "", "", "buffers_signal_config", "", "", ""],
- "color_hotlist_message_fg" => ["hotlist_message_fg", "color", "change foreground color of buffer name if a normal message received", "", 0, 0, "yellow", "yellow", 0, "", "", "buffers_signal_config", "", "", ""],
- "color_hotlist_message_bg" => ["hotlist_message_bg", "color", "change background color of buffer name if a normal message received", "", 0, 0, "default", "default", 0, "", "", "buffers_signal_config", "", "", ""],
- "color_hotlist_private_fg" => ["hotlist_private_fg", "color", "change foreground color of buffer name if a private message received", "", 0, 0, "lightgreen", "lightgreen", 0, "", "", "buffers_signal_config", "", "", ""],
- "color_hotlist_private_bg" => ["hotlist_private_bg", "color", "change background color of buffer name if a private message received", "", 0, 0, "default", "default", 0, "", "", "buffers_signal_config", "", "", ""],
- "color_number" => ["number", "color", "color for buffer number", "", 0, 0, "lightgreen", "lightgreen", 0, "", "", "buffers_signal_config", "", "", ""],
- "color_number_char" => ["number_char", "color", "color for buffer number char", "", 0, 0, "lightgreen", "lightgreen", 0, "", "", "buffers_signal_config", "", "", ""],
- "color_whitelist_default_fg" => ["whitelist_default_fg", "color", "default foreground color for whitelist buffer name", "", 0, 0, "", "", 0, "", "", "buffers_signal_config", "", "", ""],
- "color_whitelist_default_bg" => ["whitelist_default_bg", "color", "default background color for whitelist buffer name", "", 0, 0, "", "", 0, "", "", "buffers_signal_config", "", "", ""],
- "color_whitelist_low_fg" => ["whitelist_low_fg", "color", "low color of whitelist buffer name", "", 0, 0, "", "", 0, "", "", "buffers_signal_config", "", "", ""],
- "color_whitelist_low_bg" => ["whitelist_low_bg", "color", "low color of whitelist buffer name", "", 0, 0, "", "", 0, "", "", "buffers_signal_config", "", "", ""],
- "color_whitelist_message_fg" => ["whitelist_message_fg", "color", "message color of whitelist buffer name", "", 0, 0, "", "", 0, "", "", "buffers_signal_config", "", "", ""],
- "color_whitelist_message_bg" => ["whitelist_message_bg", "color", "message color of whitelist buffer name", "", 0, 0, "", "", 0, "", "", "buffers_signal_config", "", "", ""],
- "color_whitelist_private_fg" => ["whitelist_private_fg", "color", "private color of whitelist buffer name", "", 0, 0, "", "", 0, "", "", "buffers_signal_config", "", "", ""],
- "color_whitelist_private_bg" => ["whitelist_private_bg", "color", "private color of whitelist buffer name", "", 0, 0, "", "", 0, "", "", "buffers_signal_config", "", "", ""],
- "color_whitelist_highlight_fg" => ["whitelist_highlight_fg", "color", "highlight color of whitelist buffer name", "", 0, 0, "", "", 0, "", "", "buffers_signal_config", "", "", ""],
- "color_whitelist_highlight_bg" => ["whitelist_highlight_bg", "color", "highlight color of whitelist buffer name", "", 0, 0, "", "", 0, "", "", "buffers_signal_config", "", "", ""],
- "color_none_channel_fg" => ["none_channel_fg", "color", "foreground color for none channel buffer (e.g.: core/server/plugin buffer)", "", 0, 0, "default", "default", 0, "", "", "buffers_signal_config", "", "", ""],
- "color_none_channel_bg" => ["none_channel_bg", "color", "background color for none channel buffer (e.g.: core/server/plugin buffer)", "", 0, 0, "default", "default", 0, "", "", "buffers_signal_config", "", "", ""],
- "queries_default_fg" => ["queries_default_fg", "color", "foreground color for query buffer without message", "", 0, 0, "default", "default", 0, "", "", "buffers_signal_config", "", "", ""],
- "queries_default_bg" => ["queries_default_bg", "color", "background color for query buffer without message", "", 0, 0, "default", "default", 0, "", "", "buffers_signal_config", "", "", ""],
- "queries_message_fg" => ["queries_message_fg", "color", "foreground color for query buffer with unread message", "", 0, 0, "default", "default", 0, "", "", "buffers_signal_config", "", "", ""],
- "queries_message_bg" => ["queries_message_bg", "color", "background color for query buffer with unread message", "", 0, 0, "default", "default", 0, "", "", "buffers_signal_config", "", "", ""],
- "queries_highlight_fg" => ["queries_highlight_fg", "color", "foreground color for query buffer with unread highlight", "", 0, 0, "default", "default", 0, "", "", "buffers_signal_config", "", "", ""],
- "queries_highlight_bg" => ["queries_highlight_bg", "color", "background color for query buffer with unread highlight", "", 0, 0, "default", "default", 0, "", "", "buffers_signal_config", "", "", ""],
- "color_prefix_bufname" => ["prefix_bufname", "color", "color for prefix of buffer name", "", 0, 0, "default", "default", 0, "", "", "buffers_signal_config", "", "", ""],
- "color_suffix_bufname" => ["suffix_bufname", "color", "color for suffix of buffer name", "", 0, 0, "default", "default", 0, "", "", "buffers_signal_config", "", "", ""],
+("color_current_fg" => [
+     "current_fg", "color",
+     "foreground color for current buffer",
+     "", 0, 0, "lightcyan", "lightcyan", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "color_current_bg" => [
+     "current_bg", "color",
+     "background color for current buffer",
+     "", 0, 0, "red", "red", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "color_default_fg" => [
+     "default_fg", "color",
+     "default foreground color for buffer name",
+     "", 0, 0, "default", "default", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "color_default_bg" => [
+     "default_bg", "color",
+     "default background color for buffer name",
+     "", 0, 0, "default", "default", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "color_hotlist_highlight_fg" => [
+     "hotlist_highlight_fg", "color",
+     "change foreground color of buffer name if a highlight messaged received",
+     "", 0, 0, "magenta", "magenta", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "color_hotlist_highlight_bg" => [
+     "hotlist_highlight_bg", "color",
+     "change background color of buffer name if a highlight messaged received",
+     "", 0, 0, "default", "default", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "color_hotlist_low_fg" => [
+     "hotlist_low_fg", "color",
+     "change foreground color of buffer name if a low message received",
+     "", 0, 0, "white", "white", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "color_hotlist_low_bg" => [
+     "hotlist_low_bg", "color",
+     "change background color of buffer name if a low message received",
+     "", 0, 0, "default", "default", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "color_hotlist_message_fg" => [
+     "hotlist_message_fg", "color",
+     "change foreground color of buffer name if a normal message received",
+     "", 0, 0, "yellow", "yellow", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "color_hotlist_message_bg" => [
+     "hotlist_message_bg", "color",
+     "change background color of buffer name if a normal message received",
+     "", 0, 0, "default", "default", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "color_hotlist_private_fg" => [
+     "hotlist_private_fg", "color",
+     "change foreground color of buffer name if a private message received",
+     "", 0, 0, "lightgreen", "lightgreen", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "color_hotlist_private_bg" => [
+     "hotlist_private_bg", "color",
+     "change background color of buffer name if a private message received",
+     "", 0, 0, "default", "default", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "color_number" => [
+     "number", "color",
+     "color for buffer number",
+     "", 0, 0, "lightgreen", "lightgreen", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "color_number_char" => [
+     "number_char", "color",
+     "color for buffer number char",
+     "", 0, 0, "lightgreen", "lightgreen", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "color_whitelist_default_fg" => [
+     "whitelist_default_fg", "color",
+     "default foreground color for whitelist buffer name",
+     "", 0, 0, "", "", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "color_whitelist_default_bg" => [
+     "whitelist_default_bg", "color",
+     "default background color for whitelist buffer name",
+     "", 0, 0, "", "", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "color_whitelist_low_fg" => [
+     "whitelist_low_fg", "color",
+     "low color of whitelist buffer name",
+     "", 0, 0, "", "", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "color_whitelist_low_bg" => [
+     "whitelist_low_bg", "color",
+     "low color of whitelist buffer name",
+     "", 0, 0, "", "", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "color_whitelist_message_fg" => [
+     "whitelist_message_fg", "color",
+     "message color of whitelist buffer name",
+     "", 0, 0, "", "", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "color_whitelist_message_bg" => [
+     "whitelist_message_bg", "color",
+     "message color of whitelist buffer name",
+     "", 0, 0, "", "", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "color_whitelist_private_fg" => [
+     "whitelist_private_fg", "color",
+     "private color of whitelist buffer name",
+     "", 0, 0, "", "", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "color_whitelist_private_bg" => [
+     "whitelist_private_bg", "color",
+     "private color of whitelist buffer name",
+     "", 0, 0, "", "", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "color_whitelist_highlight_fg" => [
+     "whitelist_highlight_fg", "color",
+     "highlight color of whitelist buffer name",
+     "", 0, 0, "", "", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "color_whitelist_highlight_bg" => [
+     "whitelist_highlight_bg", "color",
+     "highlight color of whitelist buffer name",
+     "", 0, 0, "", "", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "color_none_channel_fg" => [
+     "none_channel_fg", "color",
+     "foreground color for none channel buffer (e.g.: core/server/plugin ".
+     "buffer)",
+     "", 0, 0, "default", "default", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "color_none_channel_bg" => [
+     "none_channel_bg", "color",
+     "background color for none channel buffer (e.g.: core/server/plugin ".
+     "buffer)",
+     "", 0, 0, "default", "default", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "queries_default_fg" => [
+     "queries_default_fg", "color",
+     "foreground color for query buffer without message",
+     "", 0, 0, "default", "default", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "queries_default_bg" => [
+     "queries_default_bg", "color",
+     "background color for query buffer without message",
+     "", 0, 0, "default", "default", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "queries_message_fg" => [
+     "queries_message_fg", "color",
+     "foreground color for query buffer with unread message",
+     "", 0, 0, "default", "default", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "queries_message_bg" => [
+     "queries_message_bg", "color",
+     "background color for query buffer with unread message",
+     "", 0, 0, "default", "default", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "queries_highlight_fg" => [
+     "queries_highlight_fg", "color",
+     "foreground color for query buffer with unread highlight",
+     "", 0, 0, "default", "default", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "queries_highlight_bg" => [
+     "queries_highlight_bg", "color",
+     "background color for query buffer with unread highlight",
+     "", 0, 0, "default", "default", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "color_prefix_bufname" => [
+     "prefix_bufname", "color",
+     "color for prefix of buffer name",
+     "", 0, 0, "default", "default", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "color_suffix_bufname" => [
+     "suffix_bufname", "color",
+     "color for suffix of buffer name",
+     "", 0, 0, "default", "default", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
 );
 
 my %default_options_look =
 (
- "hotlist_counter" => ["hotlist_counter", "boolean", "show number of message for the buffer (this option needs WeeChat >= 0.3.5). The relevant option for notification is \"weechat.look.buffer_notify_default\"", "", 0, 0, "off", "off", 0, "", "", "buffers_signal_config", "", "", ""],
- "show_lag" => ["show_lag", "boolean", "show lag behind servername. This option is using \"irc.color.item_lag_finished\", \"irc.network.lag_min_show\" and \"irc.network.lag_refresh_interval\"", "", 0, 0, "off", "off", 0, "", "", "buffers_signal_config", "", "", ""],
- "look_whitelist_buffers" => ["whitelist_buffers", "string", "comma separated list of buffers for using a differnt color scheme (for example: freenode.#weechat,freenode.#weechat-fr)", "", 0, 0, "", "", 0, "", "", "buffers_signal_config_whitelist", "", "", ""],
- "hide_merged_buffers" => ["hide_merged_buffers", "integer", "hide merged buffers. The value determines which merged buffers should be hidden, keepserver meaning 'all except server buffers'. Other values correspondent to the buffer type.", "server|channel|private|keepserver|all|none", 0, 0, "none", "none", 0, "", "", "buffers_signal_config", "", "", ""],
- "indenting" => ["indenting", "integer", "use indenting for channel and query buffers. This option only takes effect if bar is left/right positioned", "off|on|under_name", 0, 0, "off", "off", 0, "", "", "buffers_signal_config", "", "", ""],
- "indenting_number" => ["indenting_number", "boolean", "use indenting for numbers. This option only takes effect if bar is left/right positioned", "", 0, 0, "on", "on", 0, "", "", "buffers_signal_config", "", "", ""],
- "short_names" => ["short_names", "boolean", "display short names (remove text before first \".\" in buffer name)", "", 0, 0, "on", "on", 0, "", "", "buffers_signal_config", "", "", ""],
- "show_number" => ["show_number", "boolean", "display channel number in front of buffername", "", 0, 0, "on", "on", 0, "", "", "buffers_signal_config", "", "", ""],
- "show_number_char" => ["number_char", "string", "display a char behind channel number", "", 0, 0, ".", ".", 0, "", "", "buffers_signal_config", "", "", ""],
- "show_prefix_bufname" => ["prefix_bufname", "string", "prefix displayed in front of buffername", "", 0, 0, "", "", 0, "", "", "buffers_signal_config", "", "", ""],
- "show_suffix_bufname" => ["suffix_bufname", "string", "suffix displayed at end of buffername", "", 0, 0, "", "", 0, "", "", "buffers_signal_config", "", "", ""],
- "show_prefix" => ["prefix", "boolean", "displays your prefix for channel in front of buffername", "", 0, 0, "off", "off", 0, "", "", "buffers_signal_config", "", "", ""],
- "show_prefix_empty" => ["prefix_empty", "boolean", "use a placeholder for channels without prefix", "", 0, 0, "on", "on", 0, "", "",  "buffers_signal_config", "", "", ""],
- "show_prefix_query" => ["prefix_for_query", "string", "prefix displayed in front of query buffer", "", 0, 0, "", "", 0, "", "", "buffers_signal_config", "", "", ""],
- "sort" => ["sort", "integer", "sort buffer-list by \"number\" or \"name\"", "number|name", 0, 0, "number", "number", 0, "", "", "buffers_signal_config", "", "", ""],
- "core_to_front" => ["core_to_front", "boolean", "core buffer and buffers with free content will be listed first. Take only effect if buffer sort is by name", "", 0, 0, "off", "off", 0, "", "", "buffers_signal_config", "", "", ""],
- "jump_prev_next_visited_buffer" => ["jump_prev_next_visited_buffer", "boolean", "jump to previously or next visited buffer if you click with left/right mouse button on currently visiting buffer", "", 0, 0, "off", "off", 0, "", "", "buffers_signal_config", "", "", ""],
- "name_size_max" => ["name_size_max", "integer", "maximum size of buffer name. 0 means no limitation", "", 0, 256, 0, 0, 0, "", "", "buffers_signal_config", "", "", ""],
- "name_crop_suffix" => ["name_crop_suffix", "string", "contains an optional char(s) that is appended when buffer name is shortened", "", 0, 0, "+", "+", 0, "", "", "buffers_signal_config", "", "", ""],
- "detach" => ["detach", "integer", "detach channel from buffers list after a specific period of time (in seconds) without action (weechat ≥ 0.3.8 required) (0 means \"off\")", "", 0, 31536000, 0, "number", 0, "", "", "buffers_signal_config", "", "", ""],
- "immune_detach_buffers" => ["immune_detach_buffers", "string", "comma separated list of buffers to NOT automatically detatch. Allows \"*\" wildcard. Ex: \"BitlBee,freenode.*\"", "", 0, 0, "", "", 0, "", "", "buffers_signal_config_immune_detach_buffers", "", "", ""],
- "detach_query" => ["detach_query", "boolean", "query buffer will be detachted", "", 0, 0, "off", "off", 0, "", "", "buffers_signal_config", "", "", ""],
- "detach_buffer_immediately" => ["detach_buffer_immediately", "string", "comma separated list of buffers to detach immediately. A query and highlight message will attach buffer again. Allows \"*\" wildcard. Ex: \"BitlBee,freenode.*\"", "", 0, 0, "", "", 0, "", "", "buffers_signal_config_detach_buffer_immediately", "", "", ""],
- "detach_free_content" => ["detach_free_content", "boolean", "buffers with free content will be detached (Ex: iset, chanmon)", "", 0, 0, "off", "off", 0, "", "", "buffers_signal_config", "", "", ""],
- "detach_displayed_buffers" => ["detach_displayed_buffers", "boolean", "buffers displayed in a (split) window will be detached", "", 0, 0, "on", "on", 0, "", "", "buffers_signal_config", "", "", ""],
- "detach_display_window_number" => ["detach_display_window_number", "boolean", "window number will be add, behind buffer name (this option takes only effect with \"detach_displayed_buffers\" option)", "", 0, 0, "off", "off", 0, "", "", "buffers_signal_config", "", "", ""],
- "mark_inactive" => ["mark_inactive", "boolean", "if option is \"on\", inactive buffers (those you are not in) will have parentesis around them. An inactive buffer will not be detached.", "", 0, 0, "off", "off", 0, "", "", "buffers_signal_config", "", "", ""],
- "toggle_bar" => ["toogle_bar", "boolean", "if option is \"on\", buffers bar will hide/show when script is (un)loaded.", "", 0, 0, "on", "on", 0, "", "", "buffers_signal_config", "", "", ""],
- "mouse_move_buffer" => ["mouse_move_buffer", "boolean", "if option is \"on\", mouse gestures (drag & drop) can move buffers in list.", "", 0, 0, "on", "on", 0, "", "", "buffers_signal_config", "", "", ""],
+ "hotlist_counter" => [
+     "hotlist_counter", "boolean",
+     "show number of message for the buffer (this option needs WeeChat >= ".
+     "0.3.5). The relevant option for notification is \"weechat.look.".
+     "buffer_notify_default\"",
+     "", 0, 0, "off", "off", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "show_lag" => [
+     "show_lag", "boolean",
+     "show lag behind servername. This option is using \"irc.color.".
+     "item_lag_finished\", ".
+     "\"irc.network.lag_min_show\" and \"irc.network.lag_refresh_interval\"",
+     "", 0, 0, "off", "off", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "look_whitelist_buffers" => [
+     "whitelist_buffers", "string",
+     "comma separated list of buffers for using a different color scheme ".
+     "(for example: freenode.#weechat,freenode.#weechat-fr)",
+     "", 0, 0, "", "", 0,
+     "", "", "buffers_signal_config_whitelist", "", "", ""
+ ],
+ "hide_merged_buffers" => [
+     "hide_merged_buffers", "integer",
+     "hide merged buffers. The value determines which merged buffers should ".
+     "be hidden, keepserver meaning 'all except server buffers'. Other values ".
+     "correspondent to the buffer type.",
+     "server|channel|private|keepserver|all|none", 0, 0, "none", "none", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "indenting" => [
+     "indenting", "integer", "use indenting for channel and query buffers. ".
+     "This option only takes effect if bar is left/right positioned",
+     "off|on|under_name", 0, 0, "off", "off", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "indenting_number" => [
+     "indenting_number", "boolean",
+     "use indenting for numbers. This option only takes effect if bar is ".
+     "left/right positioned",
+     "", 0, 0, "on", "on", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "short_names" => [
+     "short_names", "boolean",
+     "display short names (remove text before first \".\" in buffer name)",
+     "", 0, 0, "on", "on", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "show_number" => [
+     "show_number", "boolean",
+     "display channel number in front of buffername",
+     "", 0, 0, "on", "on", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "show_number_char" => [
+     "number_char", "string",
+     "display a char behind channel number",
+     "", 0, 0, ".", ".", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "show_prefix_bufname" => [
+     "prefix_bufname", "string",
+     "prefix displayed in front of buffername",
+     "", 0, 0, "", "", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "show_suffix_bufname" => [
+     "suffix_bufname", "string",
+     "suffix displayed at end of buffername",
+     "", 0, 0, "", "", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "show_prefix" => [
+     "prefix", "boolean",
+     "displays your prefix for channel in front of buffername",
+     "", 0, 0, "off", "off", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "show_prefix_empty" => [
+     "prefix_empty", "boolean",
+     "use a placeholder for channels without prefix",
+     "", 0, 0, "on", "on", 0,
+     "", "",  "buffers_signal_config", "", "", ""
+ ],
+ "show_prefix_query" => [
+     "prefix_for_query", "string",
+     "prefix displayed in front of query buffer",
+     "", 0, 0, "", "", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "sort" => [
+     "sort", "integer",
+     "sort buffer-list by \"number\" or \"name\"",
+     "number|name", 0, 0, "number", "number", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "core_to_front" => [
+     "core_to_front", "boolean",
+     "core buffer and buffers with free content will be listed first. ".
+     "Take only effect if buffer sort is by name",
+     "", 0, 0, "off", "off", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "jump_prev_next_visited_buffer" => [
+     "jump_prev_next_visited_buffer", "boolean",
+     "jump to previously or next visited buffer if you click with ".
+     "left/right mouse button on currently visiting buffer",
+     "", 0, 0, "off", "off", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "name_size_max" => [
+     "name_size_max", "integer",
+     "maximum size of buffer name. 0 means no limitation",
+     "", 0, 256, 0, 0, 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "name_crop_suffix" => [
+     "name_crop_suffix", "string",
+     "contains an optional char(s) that is appended when buffer name is ".
+     "shortened",
+     "", 0, 0, "+", "+", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "detach" => [
+     "detach", "integer",
+     "detach channel from buffers list after a specific period of time ".
+     "(in seconds) without action (weechat ≥ 0.3.8 required) (0 means \"off\")",
+     "", 0, 31536000, 0, "number", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "immune_detach_buffers" => [
+     "immune_detach_buffers", "string",
+     "comma separated list of buffers to NOT automatically detatch. ".
+     "Allows \"*\" wildcard. Ex: \"BitlBee,freenode.*\"",
+     "", 0, 0, "", "", 0,
+     "", "", "buffers_signal_config_immune_detach_buffers", "", "", ""
+ ],
+ "detach_query" => [
+     "detach_query", "boolean",
+     "query buffer will be detachted",
+     "", 0, 0, "off", "off", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "detach_buffer_immediately" => [
+     "detach_buffer_immediately", "string",
+     "comma separated list of buffers to detach immediately. A query and ".
+     "highlight message will attach buffer again. Allows \"*\" wildcard. ".
+     "Ex: \"BitlBee,freenode.*\"",
+     "", 0, 0, "", "", 0,
+     "", "", "buffers_signal_config_detach_buffer_immediately", "", "", ""
+ ],
+ "detach_free_content" => [
+     "detach_free_content", "boolean",
+     "buffers with free content will be detached (Ex: iset, chanmon)",
+     "", 0, 0, "off", "off", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "detach_displayed_buffers" => [
+     "detach_displayed_buffers", "boolean",
+     "buffers displayed in a (split) window will be detached",
+     "", 0, 0, "on", "on", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "detach_display_window_number" => [
+     "detach_display_window_number", "boolean",
+     "window number will be add, behind buffer name (this option takes only ".
+     "effect with \"detach_displayed_buffers\" option)",
+     "", 0, 0, "off", "off", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "mark_inactive" => [
+     "mark_inactive", "boolean",
+     "if option is \"on\", inactive buffers (those you are not in) will have ".
+     "parentheses around them. An inactive buffer will not be detached.",
+     "", 0, 0, "off", "off", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "toggle_bar" => [
+     "toogle_bar", "boolean",
+     "if option is \"on\", buffers bar will hide/show when script is ".
+     "(un)loaded.",
+     "", 0, 0, "on", "on", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "mouse_move_buffer" => [
+     "mouse_move_buffer", "boolean",
+     "if option is \"on\", mouse gestures (drag & drop) can move buffers in list.",
+     "", 0, 0, "on", "on", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
 );
     # section "color"
-    my $section_color = weechat::config_new_section($buffers_config_file,"color", 0, 0, "", "", "", "", "", "", "", "", "", "");
+    my $section_color = weechat::config_new_section(
+        $buffers_config_file,
+        "color", 0, 0, "", "", "", "", "", "", "", "", "", "");
     if ($section_color eq "")
     {
         weechat::config_free($buffers_config_file);
@@ -470,16 +822,30 @@ my %default_options_look =
     }
     foreach my $option (keys %default_options_color)
     {
-        $options{$option} = weechat::config_new_option($buffers_config_file, $section_color,
-        $default_options_color{$option}[0],$default_options_color{$option}[1],$default_options_color{$option}[2],
-        $default_options_color{$option}[3],$default_options_color{$option}[4],$default_options_color{$option}[5],
-        $default_options_color{$option}[6],$default_options_color{$option}[7],$default_options_color{$option}[8],
-        $default_options_color{$option}[9],$default_options_color{$option}[10],$default_options_color{$option}[11],
-        $default_options_color{$option}[12],$default_options_color{$option}[13],$default_options_color{$option}[14]);
+        $options{$option} = weechat::config_new_option(
+            $buffers_config_file,
+            $section_color,
+            $default_options_color{$option}[0],
+            $default_options_color{$option}[1],
+            $default_options_color{$option}[2],
+            $default_options_color{$option}[3],
+            $default_options_color{$option}[4],
+            $default_options_color{$option}[5],
+            $default_options_color{$option}[6],
+            $default_options_color{$option}[7],
+            $default_options_color{$option}[8],
+            $default_options_color{$option}[9],
+            $default_options_color{$option}[10],
+            $default_options_color{$option}[11],
+            $default_options_color{$option}[12],
+            $default_options_color{$option}[13],
+            $default_options_color{$option}[14]);
     }
 
     # section "look"
-    my $section_look = weechat::config_new_section($buffers_config_file,"look", 0, 0, "", "", "", "", "", "", "", "", "", "");
+    my $section_look = weechat::config_new_section(
+        $buffers_config_file,
+        "look", 0, 0, "", "", "", "", "", "", "", "", "", "");
     if ($section_look eq "")
     {
         weechat::config_free($buffers_config_file);
@@ -487,13 +853,25 @@ my %default_options_look =
     }
     foreach my $option (keys %default_options_look)
     {
-        $options{$option} = weechat::config_new_option($buffers_config_file, $section_look,
-        $default_options_look{$option}[0],$default_options_look{$option}[1],$default_options_look{$option}[2],
-        $default_options_look{$option}[3],$default_options_look{$option}[4],$default_options_look{$option}[5],
-        $default_options_look{$option}[6],$default_options_look{$option}[7],$default_options_look{$option}[8],
-        $default_options_look{$option}[9],$default_options_look{$option}[10],$default_options_look{$option}[11],
-        $default_options_look{$option}[12],$default_options_look{$option}[13],$default_options_look{$option}[14],
-        $default_options_look{$option}[15]);
+        $options{$option} = weechat::config_new_option(
+            $buffers_config_file,
+            $section_look,
+            $default_options_look{$option}[0],
+            $default_options_look{$option}[1],
+            $default_options_look{$option}[2],
+            $default_options_look{$option}[3],
+            $default_options_look{$option}[4],
+            $default_options_look{$option}[5],
+            $default_options_look{$option}[6],
+            $default_options_look{$option}[7],
+            $default_options_look{$option}[8],
+            $default_options_look{$option}[9],
+            $default_options_look{$option}[10],
+            $default_options_look{$option}[11],
+            $default_options_look{$option}[12],
+            $default_options_look{$option}[13],
+            $default_options_look{$option}[14],
+            $default_options_look{$option}[15]);
     }
 }
 
@@ -542,6 +920,11 @@ sub build_buffers
     $infolist = weechat::infolist_get("buffer", "", "");
     while (weechat::infolist_next($infolist))
     {
+        # ignore hidden buffers (WeeChat >= 0.4.4)
+        if ($weechat_version >= 0x00040400)
+        {
+            next if (weechat::infolist_integer($infolist, "hidden"));
+        }
         my $buffer;
         my $number = weechat::infolist_integer($infolist, "number");
         if ($number ne $old_number)
@@ -570,19 +953,19 @@ sub build_buffers
         $buffer->{"name"} = weechat::infolist_string($infolist, "name");
         $buffer->{"short_name"} = weechat::infolist_string($infolist, "short_name");
         $buffer->{"full_name"} = $buffer->{"plugin_name"}.".".$buffer->{"name"};
-        $buffer->{"type"} = weechat::buffer_get_string($buffer->{"pointer"},"localvar_type");
-#        weechat::print("",$buffer->{"type"});
+        $buffer->{"type"} = weechat::buffer_get_string($buffer->{"pointer"}, "localvar_type");
+        #weechat::print("", $buffer->{"type"});
 
         # check if buffer is active (or maybe a /part, /kick channel)
         if ($buffer->{"type"} eq "channel" and weechat::config_boolean( $options{"mark_inactive"} ) eq 1)
         {
-            my $server = weechat::buffer_get_string($buffer->{"pointer"},"localvar_server");
-            my $channel = weechat::buffer_get_string($buffer->{"pointer"},"localvar_channel");
-            my $infolist_channel = weechat::infolist_get("irc_channel","",$server.",".$channel);
+            my $server = weechat::buffer_get_string($buffer->{"pointer"}, "localvar_server");
+            my $channel = weechat::buffer_get_string($buffer->{"pointer"}, "localvar_channel");
+            my $infolist_channel = weechat::infolist_get("irc_channel", "", $server.",".$channel);
             if ($infolist_channel)
             {
                 weechat::infolist_next($infolist_channel);
-                $buffer->{"nicks_count"} = weechat::infolist_integer($infolist_channel,"nicks_count");
+                $buffer->{"nicks_count"} = weechat::infolist_integer($infolist_channel, "nicks_count");
             }else
             {
                 $buffer->{"nicks_count"} = 0;
@@ -660,7 +1043,7 @@ sub build_buffers
                 if ( $buffer->{"num_displayed"} eq 1
                     and weechat::config_boolean($options{"detach_displayed_buffers"}) eq 0 )
                 {
-                    my $infolist_window = weechat::infolist_get("window","","");
+                    my $infolist_window = weechat::infolist_get("window", "", "");
                     while (weechat::infolist_next($infolist_window))
                     {
                         my $buffer_ptr = weechat::infolist_pointer($infolist_window, "buffer");
@@ -974,14 +1357,14 @@ sub build_buffers
             {
                 $str .= encode("UTF-8", substr(decode("UTF-8", $buffer->{"short_name"}), 0, weechat::config_integer($options{"name_size_max"})));
                 $str .= weechat::color(weechat::config_color( $options{"color_number_char"})).weechat::config_string($options{"name_crop_suffix"}) if (length($buffer->{"short_name"}) > weechat::config_integer($options{"name_size_max"}));
-                $str .= add_inactive_parentless($buffer->{"type"},$buffer->{"nicks_count"});
-                $str .= add_hotlist_count($buffer->{"pointer"},%hotlist);
+                $str .= add_inactive_parentless($buffer->{"type"}, $buffer->{"nicks_count"});
+                $str .= add_hotlist_count($buffer->{"pointer"}, %hotlist);
             }
             else
             {
                 $str .= $buffer->{"short_name"};
-                $str .= add_inactive_parentless($buffer->{"type"},$buffer->{"nicks_count"});
-                $str .= add_hotlist_count($buffer->{"pointer"},%hotlist);
+                $str .= add_inactive_parentless($buffer->{"type"}, $buffer->{"nicks_count"});
+                $str .= add_hotlist_count($buffer->{"pointer"}, %hotlist);
             }
         }
         else
@@ -990,21 +1373,21 @@ sub build_buffers
             {
                 $str .= encode("UTF-8", substr(decode("UTF-8", $buffer->{"name"},), 0, weechat::config_integer($options{"name_size_max"})));
                 $str .= weechat::color(weechat::config_color( $options{"color_number_char"})).weechat::config_string($options{"name_crop_suffix"}) if (length($buffer->{"name"}) > weechat::config_integer($options{"name_size_max"}));
-                $str .= add_inactive_parentless($buffer->{"type"},$buffer->{"nicks_count"});
-                $str .= add_hotlist_count($buffer->{"pointer"},%hotlist);
+                $str .= add_inactive_parentless($buffer->{"type"}, $buffer->{"nicks_count"});
+                $str .= add_hotlist_count($buffer->{"pointer"}, %hotlist);
             }
             else
             {
                 $str .= $buffer->{"name"};
-                $str .= add_inactive_parentless($buffer->{"type"},$buffer->{"nicks_count"});
-                $str .= add_hotlist_count($buffer->{"pointer"},%hotlist);
+                $str .= add_inactive_parentless($buffer->{"type"}, $buffer->{"nicks_count"});
+                $str .= add_hotlist_count($buffer->{"pointer"}, %hotlist);
             }
         }
         if ( weechat::buffer_get_string($buffer->{"pointer"}, "localvar_type") eq "server" and weechat::config_boolean($options{"show_lag"}) eq 1)
         {
             my $color_lag = weechat::config_color(weechat::config_get("irc.color.item_lag_finished"));
             my $min_lag = weechat::config_integer(weechat::config_get("irc.network.lag_min_show"));
-            my $infolist_server = weechat::infolist_get("irc_server","",$buffer->{"short_name"});
+            my $infolist_server = weechat::infolist_get("irc_server", "", $buffer->{"short_name"});
             weechat::infolist_next($infolist_server);
             my $lag = (weechat::infolist_integer($infolist_server, "lag"));
             weechat::infolist_free($infolist_server);
@@ -1055,7 +1438,7 @@ return $str;
 
 sub add_hotlist_count
 {
-my ($bufpointer,%hotlist) = @_;
+my ($bufpointer, %hotlist) = @_;
 
 return "" if ( weechat::config_boolean( $options{"hotlist_counter"} ) eq 0 or ($weechat_version < 0x00030500));   # off
 my $col_number_char = weechat::color(weechat::config_color( $options{"color_number_char"}) );
@@ -1240,7 +1623,7 @@ sub buffers_hsignal_mouse
             {
                 if ( $current_buffer eq $hash{"number"} )
                 {
-                    weechat::command("","/input jump_previously_visited_buffer");
+                    weechat::command("", "/input jump_previously_visited_buffer");
                 }
                 else
                 {
@@ -1261,7 +1644,7 @@ sub buffers_hsignal_mouse
     {
         if ( $current_buffer eq $hash{"number2"} )
         {
-            weechat::command("","/input jump_next_visited_buffer");
+            weechat::command("", "/input jump_next_visited_buffer");
         }
     }
     else
@@ -1343,7 +1726,7 @@ sub check_detach_buffer_immediately
 
 sub shutdown_cb
 {
-    weechat::command("","/bar hide " . $SCRIPT_NAME) if ( weechat::config_boolean($options{"toggle_bar"}) eq 1 );
+    weechat::command("", "/bar hide " . $SCRIPT_NAME) if ( weechat::config_boolean($options{"toggle_bar"}) eq 1 );
     return weechat::WEECHAT_RC_OK
 }
 
@@ -1354,7 +1737,7 @@ sub check_bar_item
     while (weechat::infolist_next($infolist))
     {
         my $bar_items = weechat::infolist_string($infolist, "items");
-        if (index($bar_items,$SCRIPT_NAME) != -1)
+        if (index($bar_items, $SCRIPT_NAME) != -1)
         {
             my $name = weechat::infolist_string($infolist, "name");
             if ($name ne $SCRIPT_NAME)
