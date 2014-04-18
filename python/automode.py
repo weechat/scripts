@@ -37,7 +37,7 @@
 
 SCRIPT_NAME    = "automode"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.1.1"
+SCRIPT_VERSION = "0.1.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Script for auto op/voice users when they join."
 
@@ -160,14 +160,14 @@ def join_cb(data, signal, signal_data):
     if channel[0] == ':':
         channel = channel[1:]
     server = signal[:signal.find(',')]
-    for type in ('op', 'halfop', 'voice'):
-        list = get_config_list('.'.join((server.lower(), channel.lower(), type)))
-        for pattern in list:
+    for mode_type, shorthand in {'op':'o', 'halfop':'h', 'voice':'v'}.iteritems():
+        l = get_config_list('.'.join((server.lower(), channel.lower(), mode_type)))
+        for pattern in l:
             #debug('checking: %r - %r', prefix, pattern)
             if fnmatch(prefix, pattern):
-                buffer = weechat.buffer_search('irc', '%s.%s' %(server, channel))
-                if buffer:
-                    weechat.command(buffer, '/%s %s' %(type, prefix[:prefix.find('!')]))
+                buf = weechat.buffer_search('irc', '%s.%s' %(server, channel))
+                if buf:
+                    weechat.command(buf, '/mode {} +{} {}'.format(channel, shorthand, prefix[:prefix.find('!')]))
                 return WEECHAT_RC_OK
     return WEECHAT_RC_OK
 
@@ -176,10 +176,10 @@ def command(data, buffer, args):
     global join_hook
     if not args:
         args = 'list'
-            
+
     channel = weechat.buffer_get_string(buffer, 'localvar_channel')
     server = weechat.buffer_get_string(buffer, 'localvar_server')
-    
+
     args = args.split()
     cmd = args[0]
     try:
@@ -222,7 +222,7 @@ def command(data, buffer, args):
                     else:
                         say("'%s' removed." %match, buffer)
                         del L[L.index(match)]
-            
+
             if L:
                 weechat.config_set_plugin(config, ','.join(L))
             else:
@@ -296,7 +296,7 @@ def completer(data, completion_item, buffer, completion):
 if __name__ == '__main__' and import_ok and \
         weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
         SCRIPT_DESC, '', ''):
-    
+
     # colors
     color_chat_delimiters = weechat.color('chat_delimiters')
     color_chat_nick       = weechat.color('chat_nick')
@@ -316,7 +316,7 @@ if __name__ == '__main__' and import_ok and \
 
     global join_hook
     if get_config_boolean('enabled'):
-        join_hook = weechat.hook_signal('*,irc_in_join', 'join_cb', '') 
+        join_hook = weechat.hook_signal('*,irc_in_join', 'join_cb', '')
     else:
         join_hook = ''
 
