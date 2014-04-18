@@ -33,6 +33,9 @@
 #   2011-09-20
 #   version 0.1.1: fix bug with channels with uppercase letters.
 #
+#   2014-04-15
+#   version 0.1.2: fix bug where mode commands weren't sent properly
+#
 ###
 
 SCRIPT_NAME    = "automode"
