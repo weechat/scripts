@@ -39,7 +39,7 @@ except Exception:
 
 SCRIPT_NAME     = "shutup"
 SCRIPT_AUTHOR   = 'Filip H.F. "FiXato" Slagter <FiXato+weechat@gmail.com>'
-SCRIPT_VERSION  = "0.1"
+SCRIPT_VERSION  = "0.2"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "Replace text from specified IRC users with random or preset text as a way to hide their actual text. Unlike /filter it won't hide the line (and thus can't be toggled either), and has access to the entire hostmask for comparison. Can be useful to mute users while still seeing that they are active."
 
@@ -47,7 +47,7 @@ OPTIONS         = {
                     'replacement_text'        : ('','Replacement text for everything the muted user says. Leave empty to use random lines from the Jabberwocky poem.'),
                     'muted_masks'             : ('','Space-separated regular expressions that will be matched against the nick!ident@host.mask. Any user matching will get their message muted. Can also include a comma-separated list of channels for every regular expression separated from the regexp by a colon. Prefix regexp with (?i) if you want it to be case insensitive. Example: "@\S+\.aol\.com$:#comcast,#AT&T (?i)!root@\S+" would mute messages in channels #comcast and #AT&T from users whose hosts end in *.aol.com, as well as all users who have any case variation of root as ident regardless of channel.'),
                   }
-
+DEBUG = False
 jabberwocky = """
 'Twas brillig, and the slithy toves
 Did gyre and gimble in the wabe;
@@ -115,6 +115,10 @@ def init_options():
       toggle_refresh(None, 'plugins.var.python.' + SCRIPT_NAME + '.' + option, weechat.config_get_plugin(option))
     weechat.config_set_desc_plugin(option, '%s (default: "%s")' % (value[1], value[0]))
 
+def debug(str):
+  if DEBUG:
+    weechat.prnt("", str)
+
 def update_muted_masks(masks):
   global muted_masks
   muted_masks = {}
@@ -125,7 +129,7 @@ def update_muted_masks(masks):
     else:
       channels = []
     muted_masks[mask] = [re.compile(mask), channels]
-  weechat.prnt("", 'muted masks: %s' % muted_masks)
+  debug('muted masks: %s' % muted_masks)
 
 def toggle_refresh(pointer, name, value):
   global OPTIONS
@@ -138,7 +142,6 @@ def toggle_refresh(pointer, name, value):
 def shutup_cb(data, modifier, modifier_data, string):
   dict_in = { "message": string }
   message_ht = weechat.info_get_hashtable("irc_message_parse", dict_in)
-  # weechat.prnt("", "message parsed: %s" % message_ht)
 
   hostmask = message_ht['host']
   arguments = message_ht['arguments']
@@ -147,22 +150,16 @@ def shutup_cb(data, modifier, modifier_data, string):
   new_arguments = re.sub(r'^%s :.+' % channel, lambda x: '%s :%s' % (channel, replacement_line()), arguments)
   new_string = re.sub(r'%s$' % re.escape(arguments), lambda x: new_arguments, string)
 
-  # weechat.prnt("", "string: %s" % string)
-  #   weechat.prnt("", "hostmask: %s" % hostmask)
-  #   weechat.prnt("", "arguments: %s" % arguments)
-  #   weechat.prnt("", "new arguments: %s" % new_arguments)
-  #   weechat.prnt("", "new string: %s" % new_string)
-
   for key, [mask_regexp, channels] in muted_masks.iteritems():
     # If there is one or more channels listed for this mask regexp, and none of them match the current channel, continue to the next mute mask
     if len(channels) > 0 and channel.lower() not in channels:
-      # weechat.prnt("", "%s doesn't match any of the listed channels: %s" % (channel, channels))
+      debug("%s doesn't match any of the listed channels: %s" % (channel, channels))
       continue
 
     # If the hostmask matches the mask regular expression, return the new, manipulated, string.
-    weechat.prnt("", "comparing %s to %s" % (mask_regexp.pattern, hostmask))
+    debug("comparing %s to %s" % (mask_regexp.pattern, hostmask))
     if mask_regexp.search(hostmask):
-      weechat.prnt("", "  %s matches %s" % (mask_regexp.pattern, hostmask))
+      debug("  %s matches %s" % (mask_regexp.pattern, hostmask))
       return new_string
   # Nothing matches, so return the original, unmodified, string
   return string
