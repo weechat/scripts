@@ -5,9 +5,10 @@
 # messaging in WeeChat, but I offer no guarantee. Please report any security
 # holes you find.
 #
-# Copyright (c) 2012-2013 Matthew M. Boedicker <matthewm@boedicker.org>
-#                    Nils Görs <weechatter@arcor.de>
-#                    Daniel "koolfy" Faucon <koolfy@koolfy.be>
+# Copyright (c) 2012-2014 Matthew M. Boedicker <matthewm@boedicker.org>
+#                         Nils Görs <weechatter@arcor.de>
+#                         Daniel "koolfy" Faucon <koolfy@koolfy.be>
+#                         Felix Eckhofer <felix@tribut.de>
 #
 # Report issues at https://github.com/mmb/weechat-otr
 #
@@ -27,11 +28,89 @@
 from __future__ import unicode_literals
 
 import collections
-import cStringIO
+import io
 import os
 import re
 import traceback
 import shlex
+import sys
+
+class PythonVersion2(object):
+    """Python 2 version of code that must differ between Python 2 and 3."""
+
+    def __init__(self):
+        import cgi
+        self.cgi = cgi
+
+        import HTMLParser
+        self.html_parser = HTMLParser
+
+        import htmlentitydefs
+        self.html_entities = htmlentitydefs
+
+    def html_escape(self, strng):
+        """Escape HTML characters in a string."""
+        return self.cgi.escape(strng)
+
+    def unicode(self, *args, **kwargs):
+        """Return the Unicode version of a string."""
+        return unicode(*args, **kwargs)
+
+    def unichr(self, *args, **kwargs):
+        """Return the one character string of a Unicode character number."""
+        return unichr(*args, **kwargs)
+
+    def to_unicode(self, strng):
+        """Convert a utf-8 encoded string to a Unicode."""
+        if isinstance(strng, unicode):
+            return strng
+        else:
+            return strng.decode('utf-8', 'replace')
+
+    def to_str(self, strng):
+        """Convert a Unicode to a utf-8 encoded string."""
+        return strng.encode('utf-8', 'replace')
+
+class PythonVersion3(object):
+    """Python 3 version of code that must differ between Python 2 and 3."""
+
+    def __init__(self):
+        import html
+        self.html = html
+
+        import html.parser
+        self.html_parser = html.parser
+
+        import html.entities
+        self.html_entities = html.entities
+
+    def html_escape(self, strng):
+        """Escape HTML characters in a string."""
+        return self.html.escape(strng, quote=False)
+
+    def unicode(self, *args, **kwargs):
+        """Return the Unicode version of a string."""
+        return str(*args, **kwargs)
+
+    def unichr(self, *args, **kwargs):
+        """Return the one character string of a Unicode character number."""
+        return chr(*args, **kwargs)
+
+    def to_unicode(self, strng):
+        """Convert a utf-8 encoded string to unicode."""
+        if isinstance(strng, bytes):
+            return strng.decode('utf-8', 'replace')
+        else:
+            return strng
+
+    def to_str(self, strng):
+        """Convert a Unicode to a utf-8 encoded string."""
+        return strng
+
+if sys.version_info.major >= 3:
+    PYVER = PythonVersion3()
+else:
+    PYVER = PythonVersion2()
 
 import weechat
 
@@ -66,11 +145,11 @@ Start/Stop log recording for the current OTR session: /otr log [start|stop]
 This will be reverted back to the previous log setting at the end of the session.
 
 To end your private conversation: /otr finish
-""".format(description = SCRIPT_DESC)
+""".format(description=SCRIPT_DESC)
 
 SCRIPT_AUTHOR = 'Matthew M. Boedicker'
 SCRIPT_LICENCE = 'GPL3'
-SCRIPT_VERSION = '1.3.0'
+SCRIPT_VERSION = '1.4.0'
 
 OTR_DIR_NAME = 'otr'
 
@@ -81,34 +160,19 @@ POLICIES = {
     'require_encryption' : 'refuse to send unencrypted messages',
     'log' : 'enable logging of OTR conversations',
     'send_tag' : 'advertise your OTR capability using the whitespace tag',
+    'html_escape' : 'escape HTML special characters in outbound messages',
+    'html_filter' : 'filter HTML in incoming messages',
     }
 
 READ_ONLY_POLICIES = {
     'allow_v1' : False,
     }
 
-IRC_PRIVMSG_RE = re.compile(r"""
-(
-    :
-    (?P<from>
-        (?P<from_nick>.+?)
-        !
-        (?P<from_user>.+?)
-        @
-        (?P<from_host>.+?)
-    )
-\ )?
-PRIVMSG
-\ (?P<to>.+?)
-\ :?
-(?P<text>.+)
-""", re.VERBOSE)
-
 ACTION_PREFIX = '/me '
-IRC_ACTION_RE   = re.compile('^\x01ACTION (?P<text>.*)\x01$')
+IRC_ACTION_RE = re.compile('^\x01ACTION (?P<text>.*)\x01$')
 PLAIN_ACTION_RE = re.compile('^'+ACTION_PREFIX+'(?P<text>.*)$')
 
-IRC_SANITIZE_TABLE = dict((ord(char), None) for char in u'\n\r\x00')
+IRC_SANITIZE_TABLE = dict((ord(char), None) for char in '\n\r\x00')
 
 global otr_debug_buffer
 otr_debug_buffer = None
@@ -125,66 +189,61 @@ def patched__bytes__(self):
     data = self.msg + potr.proto.MESSAGE_TAG_BASE
     for v in self.versions:
         data += potr.proto.MESSAGE_TAGS[v]
-    if data.endswith(utf8_encode(' ')):
-        data += utf8_encode('\t')
+    if data.endswith(b' '):
+        data += b'\t'
     return data
 
 potr.proto.TaggedPlaintext.__bytes__ = patched__bytes__
 
-def utf8_encode(s):
-    """Encode a Unicode string into utf-8 bytes, replacing characters that
-    can't be encoded."""
-    return s.encode('utf-8', 'replace')
-
-def utf8_decode(s):
-    """Interpret a string of bytes as utf-8, replacing characters that can't
-    be interpreted."""
-    return s.decode('utf-8', 'replace')
-
 def command(buf, command_str):
     """Wrap weechat.command() with utf-8 encode."""
     debug(command_str)
-    weechat.command(buf, utf8_encode(command_str))
+    weechat.command(buf, PYVER.to_str(command_str))
 
 def privmsg(server, nick, message):
     """Send a private message to a nick."""
     for line in message.splitlines():
         command('', '/quote -server {server} PRIVMSG {nick} :{line}'.format(
-            server = irc_sanitize(server),
-            nick   = irc_sanitize(nick),
-            line   = irc_sanitize(line)))
+            server=irc_sanitize(server),
+            nick=irc_sanitize(nick),
+            line=irc_sanitize(line)))
 
-def build_privmsg_in(fromm, to, msg):
-    """Build inbound IRC PRIVMSG command(s)."""
+def build_privmsg_in(fromm, target, msg):
+    """Build inbound IRC PRIVMSG command."""
+    return ':{user} PRIVMSG {target} :{msg}'.format(
+        user=irc_sanitize(fromm),
+        target=irc_sanitize(target),
+        msg=irc_sanitize(msg))
+
+def build_privmsgs_in(fromm, target, msg, prefix=''):
+    """Build an inbound IRC PRIVMSG command for each line in msg.
+    If prefix is supplied, prefix each line of msg with it."""
     cmd = []
     for line in msg.splitlines():
-        cmd.append(':{user} PRIVMSG {to} :{line}'.format(
-            user = irc_sanitize(fromm),
-            to   = irc_sanitize(to),
-            line = irc_sanitize(line)))
+        cmd.append(build_privmsg_in(fromm, target, prefix+line))
     return '\r\n'.join(cmd)
 
-def build_privmsg_out(to, msg):
+def build_privmsg_out(target, msg):
     """Build outbound IRC PRIVMSG command(s)."""
     cmd = []
     for line in msg.splitlines():
-        cmd.append('PRIVMSG {to} :{line}'.format(
-            to   = irc_sanitize(to),
-            line = irc_sanitize(line)))
+        cmd.append('PRIVMSG {target} :{line}'.format(
+            target=irc_sanitize(target),
+            line=irc_sanitize(line)))
     return '\r\n'.join(cmd)
 
 def irc_sanitize(msg):
     """Remove NUL, CR and LF characters from msg.
     The (utf-8 encoded version of a) string returned from this function
     should be safe to use as an argument in an irc command."""
-    return unicode(msg).translate(IRC_SANITIZE_TABLE)
+    return PYVER.unicode(msg).translate(IRC_SANITIZE_TABLE)
 
 def prnt(buf, message):
     """Wrap weechat.prnt() with utf-8 encode."""
-    weechat.prnt(buf, utf8_encode(message))
+    weechat.prnt(buf, PYVER.to_str(message))
 
 def debug(msg):
-    """Send a debug message to the WeeChat core buffer."""
+    """Send a debug message to the OTR debug buffer."""
     debug_option = weechat.config_get(config_prefix('general.debug'))
     global otr_debug_buffer
 
@@ -195,11 +254,12 @@ def debug(msg):
             weechat.buffer_set(otr_debug_buffer, 'title', 'OTR Debug')
             weechat.buffer_set(otr_debug_buffer, 'localvar_set_no_log', '1')
         prnt(otr_debug_buffer, ('{script} debug\t{text}'.format(
-            script = SCRIPT_NAME,
-            text   = unicode(msg)
+            script=SCRIPT_NAME,
+            text=PYVER.unicode(msg)
             )))
 
 def debug_buffer_close_cb(data, buf):
+    """Set the OTR debug buffer to None."""
     global otr_debug_buffer
     otr_debug_buffer = None
     return weechat.WEECHAT_RC_OK
@@ -211,8 +271,12 @@ def current_user(server_name):
 def irc_user(nick, server):
     """Build an IRC user string from a nick and server."""
     return '{nick}@{server}'.format(
-            nick   = nick,
-            server = server)
+            nick=nick,
+            server=server)
+
+def is_a_channel(channel):
+    """Return true if a string has an IRC channel prefix."""
+    return channel.startswith(('#', '&', '+', '!'))
 
 def parse_irc_privmsg(message):
     """Parse an IRC PRIVMSG command and return a dictionary.
@@ -228,24 +292,32 @@ def parse_irc_privmsg(message):
 
     {'from': 'nick!user@host',
     'from_nick': 'nick',
-    'from_user': 'user',
-    'from_host': 'host',
     'to': '#weechat',
     'to_channel': '#weechat',
     'to_nick': None,
     'text': 'message here'}
     """
 
-    match = IRC_PRIVMSG_RE.match(message)
-    if match:
-        result = match.groupdict()
+    weechat_result = weechat.info_get_hashtable(
+        'irc_message_parse', dict(message=message))
 
-        if result['to'].startswith(('#','&')):
-            result['to_channel'] = result['to']
+    if weechat_result['command'] == 'PRIVMSG':
+        target, text = PYVER.to_unicode(
+            weechat_result['arguments']).split(' :', 1)
+
+        result = {
+            'from': PYVER.to_unicode(weechat_result['host']),
+            'from_nick': PYVER.to_unicode(weechat_result['nick']),
+            'to' : target,
+            'text': text,
+            }
+
+        if is_a_channel(target):
+            result['to_channel'] = target
             result['to_nick'] = None
         else:
             result['to_channel'] = None
-            result['to_nick'] = result['to']
+            result['to_nick'] = target
 
         return result
 
@@ -262,8 +334,8 @@ def first_instance(objs, klass):
 def config_prefix(option):
     """Add the config prefix to an option and return the full option name."""
     return '{script}.{option}'.format(
-            script = SCRIPT_NAME,
-            option = option)
+            script=SCRIPT_NAME,
+            option=option)
 
 def config_color(option):
     """Get the color of a color config option."""
@@ -272,12 +344,18 @@ def config_color(option):
 
 def config_string(option):
     """Get the string value of a config option with utf-8 decode."""
-    return utf8_decode(weechat.config_string(
+    return PYVER.to_unicode(weechat.config_string(
         weechat.config_get(config_prefix(option))))
 
 def buffer_get_string(buf, prop):
     """Wrap weechat.buffer_get_string() with utf-8 encode/decode."""
-    return utf8_decode(weechat.buffer_get_string(buf, utf8_encode(prop)))
+    if buf is not None:
+        encoded_buf = PYVER.to_str(buf)
+    else:
+        encoded_buf = None
+
+    return PYVER.to_unicode(weechat.buffer_get_string(
+        encoded_buf, PYVER.to_str(prop)))
 
 def buffer_is_private(buf):
     """Return True if a buffer is private."""
@@ -285,7 +363,8 @@ def buffer_is_private(buf):
 
 def info_get(info_name, arguments):
     """Wrap weechat.info_get() with utf-8 encode/decode."""
-    return utf8_decode(weechat.info_get(info_name, utf8_encode(arguments)))
+    return PYVER.to_unicode(weechat.info_get(
+        PYVER.to_str(info_name), PYVER.to_str(arguments)))
 
 def msg_irc_from_plain(msg):
     """Transform a plain-text message to irc format.
@@ -320,14 +399,18 @@ def default_peer_args(args, buf):
 def print_default_policies():
     """Print default policies values to the core buffer."""
     prnt('', 'Current default OTR policies:')
-    for policy, desc in sorted(POLICIES.iteritems()):
+    for policy, desc in sorted(POLICIES.items()):
         prnt('', '  {policy} ({desc}) is {value}'.format(
-            policy = policy,
-            desc   = desc,
-            value  = config_string('policy.default.{}'.format(policy))
+            policy=policy,
+            desc=desc,
+            value=config_string('policy.default.{}'.format(policy))
             ))
     prnt('', 'Change default policies with /otr policy default NAME on/off')
     return True
+
+def to_bytes(strng):
+    """Convert a python str or unicode to bytes."""
+    return strng.encode('utf-8', 'replace')
 
 class AccountDict(collections.defaultdict):
     """Dictionary that adds missing keys as IrcOtrAccount instances."""
@@ -338,7 +421,7 @@ class AccountDict(collections.defaultdict):
 
         return self[key]
 
-class Assembler:
+class Assembler(object):
     """Reassemble fragmented OTR messages.
 
     This does not deal with OTR fragmentation, which is handled by potr, but
@@ -358,12 +441,12 @@ class Assembler:
     def is_done(self):
         """Return True if the buffer is a complete message."""
         return self.is_query() or \
-            not self.value.startswith(potr.proto.OTRTAG) or \
+            not to_bytes(self.value).startswith(potr.proto.OTRTAG) or \
             has_otr_end(self.value)
 
     def get(self):
         """Return the current value of the buffer and empty it."""
-        result = bytes(utf8_encode(self.value))
+        result = self.value
         self.clear()
 
         return result
@@ -412,9 +495,9 @@ class IrcContext(potr.context.Context):
     def inject(self, msg, appdata=None):
         """Send a message to the remote peer."""
         if isinstance(msg, potr.proto.OTRMessage):
-            msg = unicode(msg)
+            msg = PYVER.unicode(msg)
         else:
-            msg = utf8_decode(msg)
+            msg = PYVER.to_unicode(msg)
 
         debug(('inject', msg, 'len {}'.format(len(msg)), appdata))
 
@@ -431,7 +514,7 @@ class IrcContext(potr.context.Context):
             elif newstate == potr.context.STATE_FINISHED:
                 self.print_buffer(
                     """{peer} has ended the private conversation. You should do the same:
-/otr finish""".format(peer = self.peer_nick))
+/otr finish""".format(peer=self.peer_nick))
         elif newstate == potr.context.STATE_ENCRYPTED:
             # unencrypted => encrypted
             trust = self.getCurrentTrust()
@@ -481,8 +564,8 @@ class IrcContext(potr.context.Context):
         """Get the buffer for this context."""
         return info_get(
             'irc_buffer', '{server},{nick}'.format(
-                server = self.peer_server,
-                nick   = self.peer_nick
+                server=self.peer_server,
+                nick=self.peer_nick
                 ))
 
     def print_buffer(self, msg):
@@ -492,12 +575,12 @@ class IrcContext(potr.context.Context):
         # add [nick] prefix if we have only a server buffer for the query
         if self.peer_nick and not buffer_is_private(buf):
             msg = '[{nick}] {msg}'.format(
-                    nick = self.peer_nick,
-                    msg  = msg)
+                    nick=self.peer_nick,
+                    msg=msg)
 
-        prnt(buf, '{script}\t{msg}'.format(
-            script = SCRIPT_NAME,
-            msg    = msg))
+        prnt(buf, '{script}: {msg}'.format(
+            script=SCRIPT_NAME,
+            msg=msg))
 
     def hint(self, msg):
         """Print a message to the buffer but only when hints are enabled."""
@@ -506,7 +589,7 @@ class IrcContext(potr.context.Context):
         if weechat.config_boolean(hints_option):
             self.print_buffer(msg)
 
-    def smp_finish(self, message = False):
+    def smp_finish(self, message=False):
         """Reset SMP state and send a message to the user."""
         self.in_smp = False
         self.smp_question = False
@@ -543,7 +626,7 @@ Respond with: /otr smp respond <secret>""")
                 self.print_buffer(
                     """Peer has requested SMP verification: {msg}
 Respond with: /otr smp respond <answer>""".format(
-                        msg = utf8_decode(smp1q.msg)))
+                        msg=PYVER.to_unicode(smp1q.msg)))
             elif first_instance(tlvs, potr.proto.SMP2TLV):
                 if not self.in_smp:
                     debug('Reveived unexpected SMP2')
@@ -564,7 +647,7 @@ Respond with: /otr smp respond <answer>""".format(
                         if not self.is_verified:
                             self.print_buffer(
                             """You may want to authenticate your peer by asking your own question:
-/otr smp ask <question> <secret>""")
+/otr smp ask <'question'> 'secret'""")
 
                     else:
                         self.smp_finish('SMP verification succeeded.')
@@ -582,20 +665,20 @@ Respond with: /otr smp respond <answer>""".format(
   then use the command: /otr trust {peer_nick} {peer_server}
 
 2) SMP pre-shared secret that you both know:
-  /otr smp ask {peer_nick} {peer_server} <secret>
+  /otr smp ask {peer_nick} {peer_server} 'secret'
 
 3) SMP pre-shared secret that you both know with a question:
-  /otr smp ask {peer_nick} {peer_server} <question> <secret>
+  /otr smp ask {peer_nick} {peer_server} <'question'> 'secret'
 
 Note: You can safely omit specifying the peer and server when
       executing these commands from the appropriate conversation
       buffer
 """.format(
-        your_fp     = self.user.getPrivkey(),
-        peer        = self.peer,
-        peer_nick   = self.peer_nick,
-        peer_server = self.peer_server,
-        peer_fp     = potr.human_hash(
+        your_fp=self.user.getPrivkey(),
+        peer=self.peer,
+        peer_nick=self.peer_nick,
+        peer_server=self.peer_server,
+        peer_fp=potr.human_hash(
             self.crypto.theirPubkey.cfingerprint()),
         )
 
@@ -611,32 +694,33 @@ Note: You can safely omit specifying the peer and server when
     def format_policies(self):
         """Return current policies for this context formatted as a string for
         the user."""
-        buf = cStringIO.StringIO()
+        buf = io.StringIO()
 
         buf.write('Current OTR policies for {peer}:\n'.format(
-            peer = self.peer))
+            peer=self.peer))
 
-        for policy, desc in sorted(POLICIES.iteritems()):
+        for policy, desc in sorted(POLICIES.items()):
             buf.write('  {policy} ({desc}) : {value}\n'.format(
-                    policy = policy,
-                    desc   = desc,
-                    value  = 'on' if self.getPolicy(policy) else 'off'))
+                    policy=policy,
+                    desc=desc,
+                    value='on' if self.getPolicy(policy) else 'off'))
 
         buf.write('Change policies with: /otr policy NAME on|off')
 
         return buf.getvalue()
 
     def format_default_policies(self):
-        """Return current default policies formatted as a string for the user."""
-        buf = cStringIO.StringIO()
+        """Return current default policies formatted as a string for the
+        user."""
+        buf = io.StringIO()
 
         buf.write('Current default OTR policies:\n')
 
-        for policy, desc in sorted(POLICIES.iteritems()):
+        for policy, desc in sorted(POLICIES.items()):
             buf.write('  {policy} ({desc}) : {value}\n'.format(
-                    policy = policy,
-                    desc   = desc,
-                    value  = config_string('policy.default.' + policy)))
+                    policy=policy,
+                    desc=desc,
+                    value=config_string('policy.default.' + policy)))
 
         buf.write('Change default policies with: /otr policy default NAME on|off')
 
@@ -723,6 +807,37 @@ Note: You can safely omit specifying the peer and server when
 
         del self.previous_log_level
 
+    def msg_convert_in(self, msg):
+        """Transform incoming OTR message to IRC format.
+        This includes stripping html, converting plain-text ACTIONs
+        and character encoding conversion."""
+        msg = PYVER.to_unicode(msg)
+
+        if self.getPolicy('html_filter'):
+            try:
+                msg = IrcHTMLParser.parse(msg)
+            except PYVER.html_parser.HTMLParseError:
+                pass
+
+        return msg_irc_from_plain(msg)
+
+    def msg_convert_out(self, msg):
+        """Convert an outgoing IRC message to be sent over OTR.
+        This includes escaping html, converting ACTIONs to plain-text
+        and character encoding conversion."""
+        msg = msg_plain_from_irc(msg)
+
+        if self.getPolicy('html_escape'):
+            msg = PYVER.html_escape(msg)
+
+        # potr expects bytes to be returned
+        return to_bytes(msg)
+
+    def __repr__(self):
+        return PYVER.to_str(('<{} {:x} peer_nick={c.peer_nick} '
+            'peer_server={c.peer_server}>').format(
+            self.__class__.__name__, id(self), c=self))
+
 class IrcOtrAccount(potr.context.Account):
     """Account class for OTR over IRC."""
 
@@ -779,33 +894,93 @@ class IrcOtrAccount(potr.context.Account):
     def saveTrusts(self):
         """Save trusts."""
         with open(self.fpr_file_path, 'w') as fpr_file:
-            for uid, trusts in self.trusts.iteritems():
-                for fpr, trust in trusts.iteritems():
+            for uid, trusts in self.trusts.items():
+                for fpr, trust in trusts.items():
                     debug(('trust write', uid, self.name,
                            IrcOtrAccount.PROTOCOL, fpr, trust))
-                    fpr_file.write('\t'.join(
+                    fpr_file.write(PYVER.to_str('\t'.join(
                             (uid, self.name, IrcOtrAccount.PROTOCOL, fpr,
-                             trust)))
+                             trust))))
                     fpr_file.write('\n')
 
     def end_all_private(self):
         """End all currently encrypted conversations."""
-        for context in self.ctxs.itervalues():
+        for context in self.ctxs.values():
             if context.is_encrypted():
                 context.disconnect()
+
+class IrcHTMLParser(PYVER.html_parser.HTMLParser):
+    """A simple HTML parser that throws away anything but newlines and links"""
+
+    @staticmethod
+    def parse(data):
+        """Create a temporary IrcHTMLParser and parse a single string"""
+        parser = IrcHTMLParser()
+        parser.feed(data)
+        parser.close()
+        return parser.result
+
+    def reset(self):
+        """Forget all state, called from __init__"""
+        PYVER.html_parser.HTMLParser.reset(self)
+        self.result = ''
+        self.linktarget = ''
+        self.linkstart = 0
+
+    def handle_starttag(self, tag, attrs):
+        """Called when a start tag is encountered"""
+        if tag == 'br':
+            self.result += '\n'
+        elif tag == 'a':
+            attrs = dict(attrs)
+            if 'href' in attrs:
+                self.result += '['
+                self.linktarget = attrs['href']
+                self.linkstart = len(self.result)
+
+    def handle_endtag(self, tag):
+        """Called when an end tag is encountered"""
+        if tag == 'a':
+            if self.linktarget:
+                if self.result[self.linkstart:] == self.linktarget:
+                    self.result += ']'
+                else:
+                    self.result += ']({})'.format(self.linktarget)
+                self.linktarget = ''
+
+    def handle_data(self, data):
+        """Called for character data (i.e. text)"""
+        self.result += data
+
+    def handle_entityref(self, name):
+        """Called for entity references, such as &amp;"""
+        try:
+            self.result += PYVER.unichr(PYVER.html_entities.name2codepoint[name])
+        except KeyError:
+            self.result += '&{};'.format(name)
+
+    def handle_charref(self, name):
+        """Called for character references, such as &#39;"""
+        try:
+            if name.startswith('x'):
+                self.result += PYVER.unichr(int(name[1:], 16))
+            else:
+                self.result += PYVER.unichr(int(name))
+        except ValueError:
+            self.result += '&#{};'.format(name)
 
 def message_in_cb(data, modifier, modifier_data, string):
     """Incoming message callback"""
     debug(('message_in_cb', data, modifier, modifier_data, string))
 
-    parsed = parse_irc_privmsg(utf8_decode(string))
+    parsed = parse_irc_privmsg(PYVER.to_unicode(string))
     debug(('parsed message', parsed))
 
     # skip processing messages to public channels
     if parsed['to_channel']:
         return string
 
-    server = utf8_decode(modifier_data)
+    server = PYVER.to_unicode(modifier_data)
 
     from_user = irc_user(parsed['from_nick'], server)
     local_user = current_user(server)
@@ -818,29 +993,30 @@ def message_in_cb(data, modifier, modifier_data, string):
 
     if context.in_assembler.is_done():
         try:
-            msg, tlvs = context.receiveMessage(context.in_assembler.get())
+            msg, tlvs = context.receiveMessage(
+                # potr expects bytes
+                to_bytes(context.in_assembler.get()))
 
             debug(('receive', msg, tlvs))
 
             if msg:
-                msg = msg_irc_from_plain(msg)
-                result = utf8_encode(build_privmsg_in(
-                    parsed['from'], parsed['to'], utf8_decode(msg)))
+                result = PYVER.to_str(build_privmsgs_in(
+                    parsed['from'], parsed['to'],
+                    context.msg_convert_in(msg)))
 
             context.handle_tlvs(tlvs)
-        except potr.context.ErrorReceived, e:
+        except potr.context.ErrorReceived as err:
             context.print_buffer('Received OTR error: {}'.format(
-                utf8_decode(e.args[0].error)))
+                PYVER.to_unicode(err.args[0].error)))
         except potr.context.NotEncryptedError:
             context.print_buffer(
                 'Received encrypted data but no private session established.')
         except potr.context.NotOTRMessage:
             result = string
-        except potr.context.UnencryptedMessage, err:
-            result = utf8_encode(build_privmsg_in(
-                parsed['from'], parsed['to'],
-                'Unencrypted message received: {}'.format(
-                    utf8_decode(err.args[0]))))
+        except potr.context.UnencryptedMessage as err:
+            result = PYVER.to_str(build_privmsgs_in(
+                parsed['from'], parsed['to'], PYVER.to_unicode(err.args[0]),
+                'Unencrypted message received: '))
 
     weechat.bar_item_update(SCRIPT_NAME)
 
@@ -857,14 +1033,14 @@ def message_out_cb(data, modifier, modifier_data, string):
     try:
         debug(('message_out_cb', data, modifier, modifier_data, string))
 
-        parsed = parse_irc_privmsg(utf8_decode(string))
+        parsed = parse_irc_privmsg(PYVER.to_unicode(string))
         debug(('parsed message', parsed))
 
         # skip processing messages to public channels
         if parsed['to_channel']:
             return string
 
-        server = utf8_decode(modifier_data)
+        server = PYVER.to_unicode(modifier_data)
 
         to_user = irc_user(parsed['to_nick'], server)
         local_user = current_user(server)
@@ -872,8 +1048,12 @@ def message_out_cb(data, modifier, modifier_data, string):
         context = ACCOUNTS[local_user].getContext(to_user)
         is_query = OTR_QUERY_RE.search(parsed['text'])
 
-        if parsed['text'].startswith(potr.proto.OTRTAG) and \
-                not is_query:
+        parsed_text_bytes = to_bytes(parsed['text'])
+
+        is_otr_message = \
+            parsed_text_bytes[:len(potr.proto.OTRTAG)] == potr.proto.OTRTAG
+
+        if is_otr_message and not is_query:
             if not has_otr_end(parsed['text']):
                 debug('in OTR message')
                 context.in_otr_message = True
@@ -889,8 +1069,6 @@ def message_out_cb(data, modifier, modifier_data, string):
             debug(('context send message', parsed['text'], parsed['to_nick'],
                    server))
 
-            parsed['text'] = msg_plain_from_irc(parsed['text'])
-
             if not context.is_encrypted() and not is_query and \
                     context.getPolicy('require_encryption'):
                 context.print_buffer(
@@ -904,16 +1082,16 @@ def message_out_cb(data, modifier, modifier_data, string):
             try:
                 ret = context.sendMessage(
                     potr.context.FRAGMENT_SEND_ALL,
-                    utf8_encode(parsed['text']))
+                    context.msg_convert_out(parsed['text']))
 
                 if ret:
                     debug(('sendMessage returned', ret))
-                    result = utf8_encode(
+                    result = PYVER.to_str(
                         build_privmsg_out(
-                            parsed['to_nick'], utf8_decode(ret)
+                            parsed['to_nick'], PYVER.to_unicode(ret)
                             ))
 
-            except potr.context.NotEncryptedError, err:
+            except potr.context.NotEncryptedError as err:
                 if err.args[0] == potr.context.EXC_FINISHED:
                     context.print_buffer(
                         """Your message was not sent. End your private conversation:\n/otr finish""")
@@ -937,7 +1115,7 @@ def shutdown():
 
     weechat.config_write(CONFIG_FILE)
 
-    for account in ACCOUNTS.itervalues():
+    for account in ACCOUNTS.values():
         account.end_all_private()
 
     free_all_config()
@@ -951,7 +1129,7 @@ def command_cb(data, buf, args):
     result = weechat.WEECHAT_RC_ERROR
 
     try:
-        arg_parts = [ utf8_decode(arg) for arg in shlex.split(args) ]
+        arg_parts = [PYVER.to_unicode(arg) for arg in shlex.split(args)]
     except:
         debug("Command parsing error.")
         return result
@@ -976,7 +1154,7 @@ def command_cb(data, buf, args):
             if not context.getPolicy('send_tag'):
                 context.hint(
                     'To try OTR on all conversations with {peer}: /otr policy send_tag on'.format(
-                    peer = context.peer))
+                    peer=context.peer))
 
             privmsg(server, nick, '?OTR?')
 
@@ -1004,11 +1182,14 @@ def command_cb(data, buf, args):
                 context.print_buffer("Your peer's fingerprint is: {}".format(
                     potr.human_hash(context.crypto.theirPubkey.cfingerprint())))
                 if context.is_verified():
-                    context.print_buffer("The peer's identity has been verified.")
+                    context.print_buffer(
+                        "The peer's identity has been verified.")
                 else:
-                    context.print_buffer("You have not verified the peer's identity yet.")
+                    context.print_buffer(
+                        "You have not verified the peer's identity yet.")
             else:
-                context.print_buffer("This current conversation is not encrypted.")
+                context.print_buffer(
+                    "This current conversation is not encrypted.")
 
             result = weechat.WEECHAT_RC_OK
 
@@ -1025,7 +1206,7 @@ def command_cb(data, buf, args):
                 secret = arg_parts[4]
 
             if secret:
-                secret = utf8_encode(secret)
+                secret = PYVER.to_str(secret)
 
             context = ACCOUNTS[current_user(server)].getContext(
                 irc_user(nick, server))
@@ -1051,7 +1232,7 @@ def command_cb(data, buf, args):
             # Check whether it's a simple challenge or a question/answer request
             elif len(arg_parts) == 5:
                 nick, server = default_peer_args(arg_parts[2:4], buf)
-                question = arg_parts[4]
+                secret = arg_parts[4]
             elif len(arg_parts) == 6:
                 nick, server = default_peer_args(arg_parts[2:4], buf)
                 secret = arg_parts[5]
@@ -1062,9 +1243,9 @@ def command_cb(data, buf, args):
                 irc_user(nick, server))
 
             if secret:
-                secret = utf8_encode(secret)
+                secret = PYVER.to_str(secret)
             if question:
-                question = utf8_encode(question)
+                question = PYVER.to_str(question)
 
             try:
                 context.smpInit(secret, question)
@@ -1112,13 +1293,13 @@ def command_cb(data, buf, args):
             if context.crypto.theirPubkey is not None:
                 context.setCurrentTrust('verified')
                 context.print_buffer('{peer} is now authenticated.'.format(
-                    peer = context.peer))
+                    peer=context.peer))
 
                 weechat.bar_item_update(SCRIPT_NAME)
             else:
                 context.print_buffer(
                     'No fingerprint for {peer}. Start an OTR conversation first: /otr start'.format(
-                        peer = context.peer))
+                        peer=context.peer))
 
             result = weechat.WEECHAT_RC_OK
     elif len(arg_parts) in (1, 3) and arg_parts[0] == 'distrust':
@@ -1132,13 +1313,13 @@ def command_cb(data, buf, args):
                 context.setCurrentTrust('')
                 context.print_buffer(
                     '{peer} is now de-authenticated.'.format(
-                        peer = context.peer))
+                        peer=context.peer))
 
                 weechat.bar_item_update(SCRIPT_NAME)
             else:
                 context.print_buffer(
                     'No fingerprint for {peer}. Start an OTR conversation first: /otr start'.format(
-                        peer = context.peer))
+                        peer=context.peer))
 
             result = weechat.WEECHAT_RC_OK
 
@@ -1244,8 +1425,8 @@ def command_cb(data, buf, args):
                 policy_var = context.policy_config_option(arg_parts[1].lower())
 
                 command('', '/set {policy} {value}'.format(
-                    policy = policy_var,
-                    value  = arg_parts[2]))
+                    policy=policy_var,
+                    value=arg_parts[2]))
 
                 context.print_buffer(context.format_policies())
 
@@ -1259,12 +1440,12 @@ def command_cb(data, buf, args):
             policy_var = "otr.policy.default." + arg_parts[2].lower()
 
             command('', '/set {policy} {value}'.format(
-                policy = policy_var,
-                value  = arg_parts[3]))
+                policy=policy_var,
+                value=arg_parts[3]))
 
             if nick is not None and server is not None:
                 context = ACCOUNTS[current_user(server)].getContext(
-                    irc_user(nick,server))
+                    irc_user(nick, server))
 
                 context.print_buffer(context.format_default_policies())
 
@@ -1348,9 +1529,9 @@ def otr_statusbar_cb(data, item, window):
 
         if result:
             result = '{color}{prefix}{result}'.format(
-                color  = config_color('status.default'),
-                prefix = config_string('look.bar.prefix'),
-                result = result)
+                color=config_color('status.default'),
+                prefix=config_string('look.bar.prefix'),
+                result=result)
 
     return result
 
@@ -1477,6 +1658,8 @@ def init_config():
          'off'),
         ('default.log', 'default enable logging to disk', 'off'),
         ('default.send_tag', 'default send tag policy', 'off'),
+        ('default.html_escape', 'default HTML escape policy', 'off'),
+        ('default.html_filter', 'default HTML filter policy', 'on'),
         ]:
         weechat.config_new_option(
             CONFIG_FILE, CONFIG_SECTIONS['policy'], option, 'boolean', desc, '',
@@ -1493,7 +1676,7 @@ def config_reload_cb(data, config_file):
 
 def free_all_config():
     """Free all config options, sections and config file."""
-    for section in CONFIG_SECTIONS.itervalues():
+    for section in CONFIG_SECTIONS.values():
         weechat.config_section_free_options(section)
         weechat.config_section_free(section)
 
@@ -1503,7 +1686,28 @@ def create_dir():
     """Create the OTR subdirectory in the WeeChat config directory if it does
     not exist."""
     if not os.path.exists(OTR_DIR):
-        weechat.mkdir_home(OTR_DIR_NAME, 0700)
+        weechat.mkdir_home(OTR_DIR_NAME, 0o700)
+
+def git_info():
+    """If this script is part of a git repository return the repo state."""
+    result = None
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    git_dir = os.path.join(script_dir, '.git')
+    if os.path.isdir(git_dir):
+        import subprocess
+        try:
+            result = PYVER.to_unicode(subprocess.check_output([
+                'git',
+                '--git-dir', git_dir,
+                '--work-tree', script_dir,
+                'describe', '--dirty', '--always',
+                ])).lstrip('v').rstrip()
+        except (OSError, subprocess.CalledProcessError):
+            pass
+
+    return result
+
+SCRIPT_VERSION = git_info() or SCRIPT_VERSION
 
 if weechat.register(
     SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENCE, SCRIPT_DESC,
