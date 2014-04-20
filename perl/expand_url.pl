@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011-2012 by Nils Görs <weechatter@arcor.de>
+# Copyright (c) 2011-2014 by Nils Görs <weechatter@arcor.de>
 #
 # Get information on a short URL. Find out where it goes.
 #
@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 0.6  : fix regex for tag "nick_xxx"
 # 0.5  : fix expand_own() tag "prefix_nick_ccc" (thanks roughnecks)
 #      : add item "%nick" for prefix (idea by roughnecks)
 #      : improved option "expander". Now more than one expander can be used (Thanks FiXato for some information about URLs)
@@ -33,6 +34,7 @@
 #
 # requirements:
 # - URI::Find
+# - apt-get install liburi-find-perl
 #
 # Development is currently hosted at
 # https://github.com/weechatter/weechat-scripts
@@ -46,7 +48,7 @@ use strict;
 use URI::Find;
 
 my $PRGNAME	= "expand_url";
-my $version	= "0.5";
+my $version	= "0.6";
 my $AUTHOR      = "Nils Görs <weechatter\@arcor.de>";
 my $LICENSE     = "GPL3";
 my $DESC	= "Get information on a short URL. Find out where it goes.";
@@ -72,28 +74,35 @@ my @url_expander;                       # used expander
 my $url_expander_number = 0;            # store number of expander
 my $weechat_version;
 
-sub hook_print_cb{
-my ( $data, $buffer, $date, $tags, $displayed, $highlight, $prefix, $message ) = @_;
-my $tags2 = ",$tags,";
-#return weechat::WEECHAT_RC_OK if ( not $tags2 =~ /,notify_[^,]+,/ ); # return if message is not from a nick.
-#weechat::print("",$tags);
+sub hook_print_cb
+{
+    my ( $data, $buffer, $date, $tags, $displayed, $highlight, $prefix, $message ) = @_;
+    my $tags2 = ",$tags,";
+    #return weechat::WEECHAT_RC_OK if ( not $tags2 =~ /,notify_[^,]+,/ ); # return if message is not from a nick.
+    #weechat::print("",$tags);
 
-if ( $options{expand_own} eq "off" ){
-  # get servername from buffer
-  my $infolist = weechat::infolist_get("buffer",$buffer,"");
-  weechat::infolist_next($infolist);
-  my ($servername, undef) = split( /\./, weechat::infolist_string($infolist,"name") );
-  weechat::infolist_free($infolist);
+    if ( lc($options{expand_own}) eq "off" )
+    {
+        # get servername from buffer
+        my $infolist = weechat::infolist_get("buffer",$buffer,"");
+        weechat::infolist_next($infolist);
+        my ($servername, undef) = split( /\./, weechat::infolist_string($infolist,"name") );
+        weechat::infolist_free($infolist);
 
-  my $my_nick = weechat::info_get( "irc_nick", $servername );   # get own nick
+        my $my_nick = weechat::info_get( "irc_nick", $servername );   # get own nick
+    }
+
 #  if ( $tags2 =~ /,nick_[$my_nick,]+,/ ){
-  if ( $tags2 =~ m/(^|,)nick_[$my_nick,]+,/ ){
-      return weechat::WEECHAT_RC_OK;
-  }
-}
+#  if ( $tags2 =~ m/(^|,)nick_[$my_nick,]+,/ ){
+#      return weechat::WEECHAT_RC_OK;
+#  }
+#}
 
-    $tags =~ m/(^|,)nick_(.*),/;
-    my $nick_wo_suffix = $2;                                                                        # nickname without nick_suffix
+    my $nick_wo_suffix = ($tags2 =~ m/(^|,)nick_([^,]*)/) ? $2 : "";
+    return weechat::WEECHAT_RC_OK if ($nick_wo_suffix eq "");
+
+#    $tags =~ m/(^|,)nick_(.*),/;
+#    my $nick_wo_suffix = $2;                                                                        # nickname without nick_suffix
   # search uri in message. result in %uris
   %uris = ();
   my $finder = URI::Find->new( \&uri_find_cb );
