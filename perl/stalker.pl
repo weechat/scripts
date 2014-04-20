@@ -1,6 +1,6 @@
 #
-# Copyright (c) 2013 by Nils Görs <weechatter@arcor.de>
-# Copyright (c) 2013 by Stefan Wold <ratler@stderr.eu>
+# Copyright (c) 2013-2014 by Nils Görs <weechatter@arcor.de>
+# Copyright (c) 2013-2014 by Stefan Wold <ratler@stderr.eu>
 # based on irssi script stalker.pl from Kaitlyn Parkhurst (SymKat) <symkat@symkat.com>
 # https://github.com/symkat/Stalker
 #
@@ -20,6 +20,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # History:
+#
+# version 1.2:nils_2@freenode.#weechat
+# 2014-04-13: add: support of customise irc_join messages (weechat >= 0.4.4)
 #
 # version 1.1:nils_2@freenode.#weechat
 # 2013-10-31: add: flood-protection on JOINs
@@ -70,7 +73,7 @@
 # thanks to firebird and mave_ for testing...
 #
 # Development is currently hosted at
-# https://github.com/weechatter/weechat-scripts
+# https://github.com/weechat/scripts
 #
 # Requires:
 #   DBI
@@ -90,7 +93,7 @@ use File::Spec;
 use DBI;
 
 my $SCRIPT_NAME         = "stalker";
-my $SCRIPT_VERSION      = "1.1";
+my $SCRIPT_VERSION      = "1.2";
 my $SCRIPT_AUTHOR       = "Nils Görs <weechatter\@arcor.de>";
 my $SCRIPT_LICENCE      = "GPL3";
 my $SCRIPT_DESC         = "Records and correlates nick!user\@host information";
@@ -1150,14 +1153,24 @@ sub irc_in2_whois_cb
     return weechat::WEECHAT_RC_OK;
 }
 
-# callback_data:   :nick!~user_2@host JOIN #channel
 sub irc_in2_join_cb
 {
     my ($data, $buffer, $date, $tags, $displayed, $highlight, $prefix, $message) = @_;
 
+    my ($nick,$user,$host);
+    # get nick, user and host.
+    if ($weechat_version >= 0x00040400)
+    {
+        # use tags to avoid problems with customised JOIN messages (v0.4.4)
+        $nick = ($tags =~ m/(^|,)nick_([^,]*)/) ? $2 : "";
+        ($user,$host) = ($tags =~ m/(^|,)host_(.*)\@([^,]*)/) ? ($2,$3) : ("","");
+    }
+    else
+    {
+        # message:   :nick!~user_2@host JOIN #channel
+        ($nick,$user,$host) = ($message =~ /(.*) \((.*)\@(.*)\)/);
+    }
 
-    # get nick, user and host. format: nick (user@host) translated join message
-    my ($nick,$user,$host) = ($message =~ /(.*) \((.*)\@(.*)\)/);
     return weechat::WEECHAT_RC_OK if (not defined $nick or $nick eq ""
                                       or not defined $user or $user eq ""
                                       or not defined $host or $host eq "");
