@@ -3,7 +3,7 @@
 # TONS OF THANKS TO FlashCode FOR HIS IRC CLIENT AND HIS SUPPORT ON #weechat
 #
 # -----------------------------------------------------------------------------
-# Copyright (c) 2009-2013 by rettub <rettub@gmx.net>
+# Copyright (c) 2009-2014 by rettub <rettub@gmx.net>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -50,6 +50,10 @@
 # -----------------------------------------------------------------------------
 #
 # Changelog:
+# Version 0.16 2014-04-10, nils_2
+#   * ADD: own color settings
+#   * FIX: update bar when script options changed
+#
 # Version 0.15 2013-12-03, nils_2
 #   * FIX: display error with ${color:nnn} in weechat.look.buffer_time_format
 #
@@ -165,7 +169,7 @@ use POSIX qw(strftime);
 use strict;
 use warnings;
 
-my $Version = "0.15";
+my $Version = "0.16";
 
 # constants
 #
@@ -199,6 +203,11 @@ my %SETTINGS = (
     "nick_flood_max_nicks"   => '4',
     "most_recent"            => "first",
     "debug"                  => "on",
+    "color_status_name"      => 'white',
+    "color_status_number"    => 'yellow',
+    "color_server_msg_tag"   => 'magenta',
+    "color_privmsg_tag"      => 'red',
+    "color_info_msg_tag"     => 'cyan',
 );
 
 my $SCRIPT      = "newsbar";
@@ -347,7 +356,7 @@ Config settings:
     nick_flood_max_nicks:   If messages starts with #nick_flood_max_nicks or
                             more nicks, then it's assumed as nick_flood
                             default: '$SETTINGS{nick_flood_max_nicks}'
-    most_recent             display a new message in bar ('first'/'last')
+    most_recent:            display a new message in bar ('first'/'last')
                             default: '$SETTINGS{most_recent}'
 
     debug:                  Show some debug/warning messages on failure. ('on'/'off').
@@ -419,6 +428,16 @@ sub _colored {
     return irc_nick_find_color($b) . $a . weechat::color('reset')
 }
 
+sub _get_prefix_mode_with_color
+{
+    my $test = weechat::config_string( weechat::config_get('irc.color.nick_prefixes') );
+    weechat::print("",$test);
+#       irc.color.nick_prefixes
+#       modes    = 'qaohv'
+#       prefixes = '~&@%+'
+
+}
+
 sub _color_str {
     my ($color_name, $str) = @_;
     weechat::color($color_name) . $str  . weechat::color('reset');
@@ -461,11 +480,16 @@ sub _bar_hide {
     }
 }
 
-sub _bar_clear {
+sub _bar_clear
+{
     my $arg = shift;
 
     return unless @Bstr;
 
+    if (defined $arg)
+    {
+        $arg = ".*" if ($arg eq "*");
+    }
     @Bstr = $arg ? grep { not $_->[1] =~ /$arg/} @Bstr : ();
 
     _bar_hide();
@@ -539,8 +563,11 @@ sub _print_formatted {
     my @f = qw(N C S);
     my $t;
     my $i = 0;
-    foreach (@f) {
-        if ( $fmt =~ /%($_)/i ) {
+    foreach (@f)
+    {
+        if ( $fmt =~ /%($_)/i )
+        {
+            # $1 = "nN cC sS" from option format_private, format_public
             $t = $1 eq $_ ? _colored( $id[$i] ) : $id[$i];
             $fmt =~ s/%$1/$t/;
         }
@@ -614,7 +641,7 @@ sub highlights_public {
                 #TODO check for #channel == $server FIXME needed?
                 $fmt     = '%N%c';
                 $nick    = $server;
-                $channel = weechat::color('magenta') . "[SERVER-MSG]";
+                $channel = weechat::color( weechat::config_get_plugin('color_server_msg_tag') ) . "[SERVER-MSG]";
                 _beep($Beep_freq_msg, weechat::config_get_plugin('beep_duration') );
             }
         }
@@ -642,8 +669,9 @@ sub highlights_private {
 
         unless ( $buffer_name and $buffer_name eq $nick) {
             _beep( $Beep_freq_msg, weechat::config_get_plugin('beep_duration') );
-            _print_formatted( $fmt, $message, $nick,
-                weechat::color('red') . "[privmsg]", undef );
+            my $channel = weechat::color( weechat::config_get_plugin('color_privmsg_tag') ) . "[privmsg]";
+            my $server = undef;
+            _print_formatted( $fmt, $message, $nick, $channel, $server );
         }
     }
 
@@ -711,14 +739,14 @@ sub newsbar {
                     $arg = $color_code . $arg;
                 } else {
                     $arg =~ s/^\s+//;
-                    $arg = weechat::color("cyan") . "[INFO]\t" . $arg;
+                    $arg = weechat::color( weechat::config_get_plugin('color_info_msg_tag') ) . "[INFO]\t" . $arg;
                 }
             } else {
                 if ( $arg =~ /\t/ ) {
                     $arg =~ s/\s*\t\s*(.*)/\t$1/;
                 } else {
                     $arg =~ s/^\s+//;
-                    $arg = weechat::color("cyan") . "[INFO]\t" . $arg unless $arg =~ /\t/;
+                    $arg = weechat::color( weechat::config_get_plugin('color_info_msg_tag') ) . "[INFO]\t" . $arg unless $arg =~ /\t/;
                }
             }
 
@@ -843,7 +871,11 @@ sub highlights_config_changed {
     return weechat::WEECHAT_RC_OK;
 }
 
-sub _bar_exists {
+sub _bar_item_update
+{
+    weechat::bar_item_update($Bar_title_name);
+    weechat::bar_item_update(weechat::config_get_plugin('bar_name'));
+   return weechat::WEECHAT_RC_OK;
 }
 
 sub _bar_get {
@@ -937,28 +969,26 @@ sub unload {
 }
 # }}}
 
-# FIXME call if config var 'title' changed
 sub build_bar_title {
 
     my $most_recent = lc(weechat::config_get_plugin('most_recent'));
     $most_recent = "first" if (($most_recent ne "last") and ($most_recent ne "first"));
 
-    # FIXME hook into user config (colors) changed, rebuild title
     my $cfg =
-    weechat::color(weechat::config_string(weechat::config_get('weechat.bar.title.color_fg')));
+    weechat::color(weechat::config_string(weechat::config_get('weechat.bar.newsbar_title.color_fg')));
     my $cdelm =
-    weechat::color(weechat::config_string(weechat::config_get('weechat.bar.status.color_delim')));
+    weechat::color(weechat::config_string(weechat::config_get('weechat.bar.newsbar_title.color_delim')));
     my $cst_num = 
-    weechat::color("status_number");
+    weechat::color( weechat::config_get_plugin('color_status_number') );
     my $cst_name = 
-    weechat::color("status_name");
+    weechat::color( weechat::config_get_plugin('color_status_name') );
     my $title =
         $cfg . weechat::config_get_plugin('bar_title') . ": "
       . $cdelm . "[" . $cst_num . "%I"
-      . $cdelm . "] [active:" . $cst_name . " %A"
-      . $cdelm . "] [beep: "
+      . $cdelm . "] [" . $cfg . "active:" . $cst_name . "%A"
+      . $cdelm . "] [" . $cfg . "beep: "
       . $cst_name . "%B" . $cdelm . "(" . $cst_name . "%R" . $cdelm . ")"
-      . $cdelm . "] [most recent: " . $most_recent . "]";
+      . $cdelm . "] [" . $cfg. "most recent: " . $cst_name . $most_recent . $cdelm . "]";
 
     my $i = @Bstr;
     $i ||= 0;
@@ -1032,10 +1062,14 @@ sub build_bar {
 }
 
 # color/uncolor help {{{
-sub color_help {
-if (weechat::config_string (weechat::config_get('plugins.var.perl.newsbar.colored_help')) eq 'off' ) {
+sub color_help
+{
+  if (weechat::config_string (weechat::config_get('plugins.var.perl.newsbar.colored_help')) eq 'off' )
+  {
     $CMD_HELP =~ s/<c>|<\/c>//g;
-} else {
+  }
+  else
+  {
     my $cc_cyan    = weechat::color('cyan');
     my $cc_white   = weechat::color('white');
     my $cc_brown   = weechat::color('brown');
@@ -1043,13 +1077,14 @@ if (weechat::config_string (weechat::config_get('plugins.var.perl.newsbar.colore
     $CMD_HELP =~ s/default: '(.*)?'/default: '$cc_cyan$1$cc_default'/g;
     $CMD_HELP =~ s/'(on|off|0|1)?'/'$cc_cyan$1$cc_default'/g;
     $CMD_HELP =~ s/(\/newsbar)/$cc_white$1$cc_default/g;
-    foreach ( split( /\|/, $COMPLETITION ), keys %SETTINGS ) {
+    foreach ( split( /\|/, $COMPLETITION ), keys %SETTINGS )
+    {
         $CMD_HELP =~
           s/(?|^(\s+)($_)([:,])|(\s+)($_)([:,])$)/$1$cc_brown$2$cc_default$3/gm;
     }
     $CMD_HELP =~ s/<c>(.*)?<\/c>/$cc_brown$1$cc_default/g;
     $CMD_HELP =~ s/(%[nNcCs])/$cc_cyan$1$cc_default/g;
-} # }}}
+  } # }}}
 }
 
 # ------------------------------------------------------------------------------
@@ -1057,12 +1092,13 @@ if (weechat::config_string (weechat::config_get('plugins.var.perl.newsbar.colore
 # init script
 # XXX If you don't check weechat::register() for succsess, %SETTINGS will be set
 # XXX by init_config() into the namespace of other perl scripts.
-if ( weechat::register(  $SCRIPT,  $AUTHOR, $Version, $LICENCE, $DESCRIPTION, "unload", "" ) ) {
+if ( weechat::register(  $SCRIPT,  $AUTHOR, $Version, $LICENCE, $DESCRIPTION, "unload", "" ) )
+{
+    color_help();
     weechat::hook_command( $COMMAND,  $DESCRIPTION,  $ARGS_HELP, $CMD_HELP, $COMPLETITION, $CALLBACK, "" );
     weechat::hook_print( "", "", "", 1, "highlights_public", "" );
     weechat::hook_signal( "weechat_pv",    "highlights_private", "" );
 
-    color_help();
     init_config();
     init_bar();
     weechat::hook_config( "plugins.var.perl." . $SCRIPT . ".away_only", 'highlights_config_changed', "" );
@@ -1070,5 +1106,8 @@ if ( weechat::register(  $SCRIPT,  $AUTHOR, $Version, $LICENCE, $DESCRIPTION, "u
     weechat::hook_config( "plugins.var.perl." . $SCRIPT . ".beeps", 'beeps_config_changed', "" );
     weechat::hook_config( "plugins.var.perl." . $SCRIPT . ".beep_remote", 'beep_remote_config_changed', "" );
     weechat::hook_config( "plugins.var.perl." . $SCRIPT . ".nick_flood*", 'config_changed_nick_flood', "" );
+
+    weechat::hook_config( "plugins.var.perl." . $SCRIPT . "*", '_bar_item_update', "" );
+
 }
 # vim: ai ts=4 sts=4 et sw=4 foldmethod=marker :
