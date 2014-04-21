@@ -21,6 +21,25 @@
 -- Requires: Weechat 0.4.3+
 -- URL: https://github.com/tomoe-mami/weechat-scripts/tree/master/pastebuf
 --
+-- History:
+--
+-- 2014-04-21 Gussi <gussi@gussi.is>
+--    v0.3: * Added support for paste.is.
+--            It's using sticky notes. API support added.
+--
+-- 2014-04-04 tomoe-mami <rumia.youkai.of.dusk@gmail.com>
+--          * added `run` command inside paste buffer
+--          * added option to enable opening url from unsupported service
+--          * support url of "hidden paste" from paste.debian.net
+--          * added support for paste.ee
+--
+-- 2014-01-24 tomoe-mami <rumia.youkai.of.dusk@gmail.com>
+--    v0.2: * more supported services
+--          * fixed csi sgr parsing
+--
+-- 2014-01-15 tomoe-mami <rumia.youkai.of.dusk@gmail.com>
+--    v0.1: * initial release
+--
 --]]
 
 local w = weechat
@@ -28,7 +47,7 @@ local g = {
    script = {
       name = "pastebuf",
       author = "tomoe-mami <rumia.youkai.of.dusk@gmail.com>",
-      version = "0.2",
+      version = "0.3",
       license = "WTFPL",
       description = "View text from various pastebin sites inside a buffer.",
       url = "https://github.com/tomoe-mami/weechat-scripts/tree/master/pastebuf"
@@ -50,6 +69,11 @@ local g = {
          type = "boolean",
          description = "Show line number"
       },
+      open_unsupported_url = {
+         value = false,
+         type = "boolean",
+         description = "Force open raw text of unsupported URL format"
+      },
       color_line_number = {
          value = "default,darkgray",
          type = "string",
@@ -67,6 +91,12 @@ local g = {
             "External command that will be used as syntax highlighter. " ..
             "$lang will be replaced by the name of syntax language"
       },
+      shell = {
+         value = "/bin/sh",
+         type = "string",
+         description =
+            "Location of your shell or just the shell name if it's already in $PATH"
+      },
       sticky_notes_retardness_level = {
          value = 1,
          type = "number",
@@ -79,60 +109,91 @@ local g = {
       }
    },
    sites = {
+      __generic__ = {
+         pattern = "^([^:/]+://[^/]+)(.*)$",
+         id = "%2",
+         raw = "%1%2"
+      },
       ["bpaste.net"] = {
-         pattern = "^http://bpaste%.net/show/(%w+)",
-         raw = "http://bpaste.net/raw/%s/"
+         pattern = "^([^:/]+://[^/]+)/show/(%w+)",
+         id = "%s",
+         raw = "%1/raw/%2"
       },
       ["codepad.org"] = {
-         pattern = "^http://codepad%.org/(%w+)",
-         raw = "http://codepad.org/%s/raw.php"
+         pattern = "^([^:/]+://[^/]+)/(%w+)",
+         id = "%2",
+         raw = "%1/%2/raw.php"
       },
       ["dpaste.com"] = {
-         pattern = "^http://dpaste%.com/(%w+)",
-         raw = "http://dpaste.com/%s/plain/"
+         pattern = "^([^:/]+://[^/]+)/(%w+)",
+         id = "%2",
+         raw = "%1/%2/plain/"
       },
       ["dpaste.de"] = {
-         pattern = "^https://dpaste%.de/(%w+)",
-         raw = "https://dpaste.de/%s/raw"
+         pattern = "^([^:/]+://[^/]+)/(%w+)",
+         id = "%2",
+         raw = "%1/%2/raw"
       },
       ["fpaste.org"] = {
-         pattern = "^http://fpaste%.org/(%w+/?%w*)",
-         raw = "http://fpaste.org/%s/raw"
+         pattern = "^([^:/]+://[^/]+)/(%w+/?%w*)",
+         id = "%2",
+         raw = "%1/%2/raw"
       },
       ["gist.github.com"] = {
-         pattern = "^https://gist%.github%.com/([^/]+/[^/]+)",
-         raw = "https://gist.github.com/%s/raw"
+         pattern = "^([^:/]+://[^/]+)/([^/]+/[^/]+)",
+         id = "%2",
+         raw = "https://gist.githubusercontent.com/%2/raw"
       },
       ["ideone.com"] = {
-         pattern = "^http://ideone%.com/(%w+)",
-         raw = "http://ideone.com/plain/%s"
+         pattern = "^([^:/]+://[^/]+)/(%w+)",
+         id = "%2",
+         raw = "%1/plain/%2"
       },
       ["paste.debian.net"] = {
-         pattern = "^http://paste%.debian%.net/(%w+)",
-         raw = "http://paste.debian.net/plain/%s"
+         pattern = "^([^:/]+://[^/]+)/(%w+)",
+         id = "%2",
+         raw = "%1/plain/%2"
+      },
+      ["paste.ee"] = {
+         pattern = "^([^:/]+://[^/]+)/p/(%w+)",
+         id = "%2",
+         raw = "%1/r/%2"
       },
       ["pastebin.ca"] = {
-         pattern = "^http://pastebin%.ca/(%w+)",
-         raw = "http://pastebin.ca/raw/%s"
+         pattern = "^([^:/]+://[^/]+)/(%w+)",
+         id = "%2",
+         raw = "%1/raw/%2"
       },
       ["pastebin.com"] = {
-         pattern = "^http://pastebin%.com/(%w+)",
-         raw = "http://pastebin.com/raw.php?i=%s"
+         pattern = "^([^:/]+://[^/]+)/(%w+)",
+         id = "%2",
+         raw = "%1/raw.php?i=%2"
       },
       ["pastebin.osuosl.org"] = {
-         pattern = "^http://pastebin%.osuosl%.org/(%w+)",
-         raw = "http://pastebin.osuosl.org/%s/raw/"
+         pattern = "^([^:/]+://[^/]+)/(%w+)",
+         id = "%2",
+         raw = "%1/%2/raw/"
       },
-      ["pastie.org"] = {
-         raw = "http://pastie.org/pastes/%s/download"
+      ["paste.opensuse.org"] = {
+         pattern = "^([^:/]+://[^/]+)/(%w+)",
+         id = "%2",
+         raw = "%1/view/raw/%2"
       },
+      ["pastie.org"] = {},
       ["sprunge.us"] = {
-         pattern = "^http://sprunge%.us/(%w+)",
-         raw = "http://sprunge.us/%s"
+         pattern = "^([^:/]+://[^/]+)/(%w+)",
+         id = "%2",
+         raw = "%1/%2"
       },
       ["vpaste.net"] = {
-         pattern = "http://vpaste%.net/(%w+)",
-         raw = "http://vpaste.net/%s?raw"
+         pattern = "^([^:/]+://[^/]+)/(%w+)",
+         id = "%2",
+         raw = "%1/%2?raw"
+      },
+      ["paste.is"] = {
+         pattern = "^([^:/]+://[^/]+)/(%w+)",
+         id = "%2",
+         raw = "%1/%2/raw/"
       }
    },
    keys = {
@@ -150,8 +211,6 @@ local g = {
          ["meta-c"]     = "/buffer close",               -- alt+c
       }
    },
-   -- NOTE: keep this true until it is clear what caused the stderr output of one process
-   -- is included in other process
    hide_stderr = true,
    buffers = {},
    actions = {},
@@ -226,6 +285,10 @@ function convert_plugin_option_value(opt_type, opt_value)
 end
 
 function load_config()
+   local shell = os.getenv("SHELL")
+   if shell and shell ~= "" then
+      g.defaults.shell.value = shell
+   end
    for opt_name, info in pairs(g.defaults) do
       if w.config_is_set_plugin(opt_name) == 0 then
          local val
@@ -275,6 +338,10 @@ function convert_csi_sgr(text)
          chunk = tonumber(chunk)
          if chunk == 0 then
             attr = ""
+            local c2 = shift_param(code)
+            if not c2 or c2 == "" then
+               fg, bg = "", ""
+            end
          elseif g.sgr.attributes[chunk] then
             attr = g.sgr.attributes[chunk]
          elseif chunk >= 30 and chunk <= 37 then
@@ -467,27 +534,38 @@ function request_head(short_name, url, options, callbacks)
    exec_generic(short_name, "url:" .. url, options, callbacks)
 end
 
+function copy_table(t)
+   local r = {}
+   for k,v in pairs(t) do
+      r[k] = v
+   end
+   return r
+end
+
 function get_site_config(u)
    local host = u:match("^https?://([^/]+)")
    if host then
       if host:match("^www%.") then
          host = host:sub(5)
       end
-      if g.sites[host] then
-         local site = g.sites[host]
-         site.host = host
-         if site.handler then
-            site.url = u
-            return site
+      local site
+      if not g.sites[host] then
+         if not g.config.open_unsupported_url then
+            return
          else
-            local id = u:match(site.pattern)
-            if id then
-               site.id = id
-               site.url = u
-               return site
-            end
+            site = copy_table(g.sites.__generic__)
          end
+      else
+         site = copy_table(g.sites[host])
       end
+
+      site.host = host
+      site.url = u
+      if not site.handler then
+         site.id = string.gsub(u, site.pattern, site.id)
+         site.raw = string.gsub(u, site.pattern, site.raw)
+      end
+      return site
    end
 end
 
@@ -510,6 +588,46 @@ function action_scroll(buffer, short_name, param)
       w.command(buffer.pointer, "/window scroll_bottom")
       w.command(buffer.pointer, "/window scroll_horiz -100%")
    end
+end
+
+function action_run(buffer, short_name, param)
+   if not g.config.shell or g.config.shell == "" then
+      message(
+         "Can not run command because the shell is empty. " ..
+         "Please specify your shell in plugins.var.lua.pastebuf.shell")
+      return
+   end
+   local cmd, opt = param, param:sub(1, 3)
+   local exec_options, exec_cb = {}, { ok = display_colors }
+   if opt== "-n " then
+      cmd = param:sub(4)
+   else
+      exec_options.stdin = 1
+   end
+   if cmd == "" then
+      message("Please specify an external command")
+      return
+   end
+
+   localvar(buffer.pointer, "temp", buffer.temp_name)
+   cmd = w.buffer_string_replace_local_var(buffer.pointer, cmd)
+   localvar(buffer.pointer, "temp", false)
+
+   if exec_options.stdin then
+      exec_cb.input = function (_, _, hook)
+         local fp = open_file(buffer.temp_name)
+         for line in fp:lines() do
+            w.hook_set(hook, "stdin", line .. "\n")
+         end
+         w.hook_set(hook, "stdin_close", "")
+         fp:close()
+      end
+   end
+   exec_generic(
+      short_name,
+      string.format("%s -c %q", g.config.shell, cmd),
+      exec_options,
+      exec_cb)
 end
 
 function action_save(buffer, short_name, filename)
@@ -666,6 +784,20 @@ function display_plain(short_name, fp)
    end
 end
 
+function display_colors(buffer, short_name, data)
+   local y, num_col_width = 0
+   data = convert_csi_sgr(data)
+   if g.config.show_line_number then
+      local _, total_lines = string.gsub(data .. "\n", ".-\n[^\n]*", "")
+      num_col_width = #tostring(total_lines)
+   end
+   w.buffer_clear(buffer.pointer)
+   for line in data:gmatch("(.-)\n") do
+      print_line(buffer.pointer, y, num_col_width, line)
+      y = y + 1
+   end
+end
+
 function run_syntax_highlighter(short_name, fp)
    local buffer = g.buffers[short_name]
    local cmd = w.buffer_string_replace_local_var(
@@ -679,26 +811,12 @@ function run_syntax_highlighter(short_name, fp)
       w.hook_set(hook, "stdin_close", "")
    end
 
-   local complete_cb = function (_, _, data)
-      local y, num_col_width = 0
-      data = convert_csi_sgr(data)
-      if g.config.show_line_number then
-         local _, total_lines = string.gsub(data .. "\n", ".-\n[^\n]*", "")
-         num_col_width = #tostring(total_lines)
-      end
-      w.buffer_clear(buffer.pointer)
-      for line in data:gmatch("(.-)\n") do
-         print_line(buffer.pointer, y, num_col_width, line)
-         y = y + 1
-      end
-   end
-
    exec_generic(
       short_name,
       cmd,
       { stdin = 1 },
       {
-         ok = complete_cb,
+         ok = display_colors,
          input = input_cb
       });
 end
@@ -1002,7 +1120,7 @@ function handler_normal(site, url, lang)
    else
       local buffer, short_name = create_buffer(site)
       if not buffer.hook then
-         local raw_url = string.format(site.raw, site.id)
+         --local raw_url = string.format(site.raw, site.id)
          local title = string.format("%s: Fetching %s", g.script.name, site.url)
 
          w.buffer_set(buffer.pointer, "title", title)
@@ -1028,7 +1146,7 @@ function handler_normal(site, url, lang)
             buffer.temp_name = os.tmpname()
             exec_generic(
                short_name,
-               "url:" .. raw_url,
+               "url:" .. site.raw,
                { file_out = buffer.temp_name },
                receive_paste)
          end
@@ -1046,7 +1164,7 @@ function handler_normal(site, url, lang)
                      w.color("chat_prefix_error"),
                      response.status_code,
                      response.status_message,
-                     raw_url)
+                     site.raw)
 
                   w.buffer_set(buffer.pointer, "title", title)
                   w.buffer_set(buffer.pointer, "hotlist", w.WEECHAT_HOTLIST_LOW)
@@ -1058,7 +1176,7 @@ function handler_normal(site, url, lang)
             -- sprunge doesn't allow HEAD method
             send_request(buffer, short_name)
          else
-            request_head(short_name, raw_url, nil, prepare_request)
+            request_head(short_name, site.raw, nil, prepare_request)
          end
       end
    end
@@ -1073,18 +1191,36 @@ function handler_pastie(site, url, lang)
    else
       pastie_id = first
    end
-
    site = {
       url = url,
-      raw = site.raw,
+      raw = string.format("http://pastie.org/pastes/%s/download", pastie_id),
       host = "pastie.org",
       id = pastie_id
    }
+   return handler_normal(site, url, lang)
+end
 
+function handler_debian_paste(site, url, lang)
+   local first, second = url:match("^http://paste%.debian%.net/(%w+)/?(%w*)")
+   local id, plain
+   if first == "hidden" and second and second ~= "" then
+      id = second
+      plain = "plainh"
+   else
+      id = first
+      plain = "plain"
+   end
+   site = {
+      url = url,
+      raw = string.format("http://paste.debian.net/%s/%s", plain, id),
+      host = "paste.debian.net",
+      id = id
+   }
    return handler_normal(site, url, lang)
 end
 
 function open_paste(url, lang)
+   url = url:gsub("#.*$", "")
    local site = get_site_config(url)
    if not site then
       message("Unsupported site: " .. url)
@@ -1117,14 +1253,14 @@ function run_action(buf_ptr, action, param)
 end
 
 function command_cb(_, current_buffer, param)
-   local first, second = param:match("^%s*(%S+)%s*(%S*)")
+   local first, second = param:match("^%s*(%S+)%s*(.*)")
    if not first then
       w.command(current_buffer, "/help " .. g.script.name)
    else
       if first:sub(1, 2) == "**" then
          run_action(current_buffer, first:sub(3), second)
       else
-         open_paste(first, second)
+         open_paste(first, second:match("^(%S+)"))
       end
    end
    return w.WEECHAT_RC_OK
@@ -1138,9 +1274,11 @@ function config_cb(_, opt_name, opt_value)
          if g.config[name] < 2 then
             g.sites["fpaste.org"].handler = handler_sticky_notes
             g.sites["pastebin.osuosl.org"].handler = handler_sticky_notes
+            g.sites["paste.is"].handler = handler_sticky_notes
          else
             g.sites["fpaste.org"].handler = nil
             g.sites["pastebin.osuosl.org"].handler = nil
+            g.sites["paste.is"].handler = nil
          end
       elseif name == "syntax_highlighter" then
          if g.config[name] == "" then
@@ -1213,6 +1351,9 @@ function setup()
       message("This script requires Weechat v0.4.3 or newer")
       return
    end
+   if weechat_version >= 0x00040400 then
+      g.hide_stderr = false
+   end
 
    prepare_modules({ json = "cjson" })
    load_config()
@@ -1222,9 +1363,11 @@ function setup()
       if g.config.sticky_notes_retardness_level < 2 then
          g.sites["fpaste.org"].handler = handler_sticky_notes
          g.sites["pastebin.osuosl.org"].handler = handler_sticky_notes
+         g.sites["paste.is"].handler = handler_sticky_notes
       end
    end
    g.sites["pastie.org"].handler = handler_pastie
+   g.sites["paste.debian.net"].handler = handler_debian_paste
    g.useragent = string.format(
       "%s v%s (%s)",
       g.script.name,
@@ -1235,7 +1378,8 @@ function setup()
       lang = action_change_language,
       save = action_save,
       ["open-recent-url"] = action_open_recent_url,
-      scroll = action_scroll
+      scroll = action_scroll,
+      run = action_run
    }
 
    local sites = {}
@@ -1243,6 +1387,7 @@ function setup()
       local entry = name
       if name == "gist.github.com" or
          name == "fpaste.org" or
+         name == "paste.is" or
          name == "pastebin.osuosl.org" then
          local flag = (info.handler and "with" or "no")
          entry = string.format("%s (%s API)", entry, flag)
@@ -1257,6 +1402,8 @@ function setup()
 
    w.hook_config("plugins.var.lua." .. g.script.name .. ".*", "config_cb", "")
    w.hook_command_run("9001|/buffer set *", "buffer_mod_cb", "")
+
+   local bold, nobold = w.color("bold"), w.color("-bold")
    w.hook_command(
       g.script.name,
       "View the content of a paste inside a buffer" .. supported_sites,
@@ -1279,6 +1426,16 @@ Inside a paste buffer you can use the following commands:
 
    Save the content of current buffer into a file.
 
+%srun%s [-n] <command>
+
+   Run a shell command and pipe the paste content to it.
+   Use %s-n%s if you don't want to pipe the paste.
+
+   Command might use special variable $lang for current syntax language
+   and $temp for location of temporary file for current buffer.
+
+   This will not modify the content of a paste, only what is displayed
+   on current buffer. Calling %slang%s will display the paste content again.
 
 Keyboard shortcuts for navigating inside paste buffer:
 
@@ -1288,14 +1445,13 @@ Ctrl+(Up/Down/Left/Right)     Scroll buffer 10 lines/chars
 Home                          Scroll to the start of buffer
 End                           Scroll to the end of buffer
 ]],
-   w.color("bold"),
-   w.color("-bold"),
-   w.color("bold"),
-   w.color("-bold"),
-   w.color("bold"),
-   w.color("-bold"),
-   w.color("bold"),
-   w.color("-bold")),
+      bold, nobold,
+      bold, nobold,
+      bold, nobold,
+      bold, nobold,
+      bold, nobold,
+      bold, nobold,
+      bold, nobold),
 
       "**open-recent-url",
       "command_cb",
