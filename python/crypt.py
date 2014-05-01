@@ -3,7 +3,7 @@
 # ===============================================================
 SCRIPT_NAME    = "crypt"
 SCRIPT_AUTHOR  = "Nicolai Lissner <nlissne@linux01.org>"
-SCRIPT_VERSION = "1.4.3"
+SCRIPT_VERSION = "1.4.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "encrypt/decrypt PRIVMSGs using a pre-shared key and openssl"
 
@@ -44,7 +44,7 @@ import weechat, string, os, subprocess, re
 script_options = {
     "message_indicator" : "(enc) ",
     "statusbar_indicator" : "(encrypted) ",
-    "cipher" : "aes-256-cbc",
+    "cipher" : "blowfish",
 }
 
 def decrypt(data, msgtype, servername, args):
