@@ -30,10 +30,12 @@ my %SCRIPT = (
 );
 my %OPTIONS_DEFAULT = (
 	'enabled' => ['on', "Turn script on or off"],
-	'service' => ['pushover', 'Notification service to use. Multiple services may be supplied as comma separated list. (supported services: pushover, nma)'],
+	'service' => ['pushover', 'Notification service to use. Multiple services may be supplied as comma separated list. (supported services: pushover, nma, pushbullet)'],
 	'token' => ['ajEX9RWhxs6NgeXFJxSK2jmpY54C9S', 'pushover API token/key'],
 	'user' => ['', "pushover user key"],
 	'nma_apikey' => ['', "nma API key"],
+	'pb_apikey' => ['', "Pushbullet API key"],
+	'pb_device_iden' => ['', "Device Iden of pushbullet device"],
 	'sound' => ['', "Sound (empty for default)"],
 	'priority' => ['', "priority (empty for default)"],
 	'show_highlights' => ['on', 'Notify on highlights'],
@@ -135,6 +137,8 @@ sub url_cb
 		weechat::print("", $msg);
 	} elsif ($command =~ /notifymyandroid/ && $return_code == 0 && !($out =~ /success code=\"200\"/)) {
 		weechat::print("", $msg);
+	} elsif ($command =~ /pushbullet/ && $return_code == 0 && !($out =~ /notification_id/)) {
+		weechat::print("", $msg);
 	}
 
 	return weechat::WEECHAT_RC_OK;
@@ -153,6 +157,9 @@ sub notify($)
 	}
 	if (grep_list("nma", $OPTIONS{service})) {
 		notify_nma($OPTIONS{nma_apikey}, "weechat", "$SCRIPT{name}.pl", $message, $OPTIONS{priority});
+	}
+	if (grep_list("pushbullet", $OPTIONS{service})) {
+		notify_pushbullet($OPTIONS{pb_apikey}, $OPTIONS{pb_device_iden}, "weechat", $message);
 	}
 }
 
@@ -210,6 +217,32 @@ sub notify_nma($$$$$)
 		weechat::print("", "[$SCRIPT{name}] Debug: msg -> `$description' HTTP POST -> @post");
 	} else {
 		weechat::hook_process_hashtable("url:https://www.notifymyandroid.com/publicapi/notify", $hash, $TIMEOUT, "url_cb", "");
+	}
+
+	return weechat::WEECHAT_RC_OK;
+}
+
+sub notify_pushbullet($$$$)
+{
+	my ($apikey, $device_iden, $title, $body) = @_;
+
+	# Required API arguments
+        my $apiurl = "https://$apikey:\@api.pushbullet.com/api/pushes";
+	my @post = (
+		"device_iden=" . CGI::escape($device_iden),
+                "type=note",
+	);
+
+	# Optional API arguments
+	push(@post, "title=" . CGI::escape($title)) if ($title && length($title) > 0);
+	push(@post, "body=" . CGI::escape($body)) if ($body && length($body) > 0);
+
+	# Send HTTP POST
+	my $hash = { "post"  => 1, "postfields" => join("&", @post) };
+	if ($DEBUG) {
+		weechat::print("", "$apiurl [$SCRIPT{name}] Debug: msg -> `$body' HTTP POST -> @post");
+	} else {
+		weechat::hook_process_hashtable("url:$apiurl", $hash, $TIMEOUT, "url_cb", "");
 	}
 
 	return weechat::WEECHAT_RC_OK;
