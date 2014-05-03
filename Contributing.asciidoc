@@ -16,9 +16,18 @@ Pending scripts are visible at: http://weechat.org/scripts/pending/
 
 == Update a script
 
+=== Contact the author
+
 Before updating a script, you *must* contact the author of script directly,
 and discuss about your changes (to check if it's OK), especially if you are
 adding new features or if you are changing the behavior of the script.
+
+For example, if the author uses a GitHub repository for the script, you can
+send a pull request to the author (instead of sending directly to this
+repository). +
+Then the author will send a pull request on this repository.
+
+=== Send new release
 
 There are two ways to send a new release for a script:
 
