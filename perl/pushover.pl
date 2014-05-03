@@ -23,15 +23,15 @@ use CGI;
 my %SCRIPT = (
 	name => 'pushover',
 	author => 'stfn <stfnmd@gmail.com>',
-	version => '0.7',
+	version => '0.8',
 	license => 'GPL3',
-	desc => 'Send push notifications to your mobile devices using Pushover or NMA',
+	desc => 'Send push notifications to your mobile devices using Pushover, NMA or Pushbullet',
 	opt => 'plugins.var.perl',
 );
 my %OPTIONS_DEFAULT = (
 	'enabled' => ['on', "Turn script on or off"],
 	'service' => ['pushover', 'Notification service to use. Multiple services may be supplied as comma separated list. (supported services: pushover, nma, pushbullet)'],
-	'token' => ['ajEX9RWhxs6NgeXFJxSK2jmpY54C9S', 'pushover API token/key'],
+	'token' => ['ajEX9RWhxs6NgeXFJxSK2jmpY54C9S', 'pushover API token/key (You may feel free to use your own token, so you get your own monthly quota of messages without being affected by other users. See also: https://pushover.net/faq#overview-distribution )'],
 	'user' => ['', "pushover user key"],
 	'nma_apikey' => ['', "nma API key"],
 	'pb_apikey' => ['', "Pushbullet API key"],
@@ -43,6 +43,7 @@ my %OPTIONS_DEFAULT = (
 	'only_if_away' => ['off', 'Notify only if away status is active'],
 	'only_if_inactive' => ['off', 'Notify only if buffer is not the active (current) buffer'],
 	'blacklist' => ['', 'Comma separated list of buffers (full name or short name) to blacklist for notifications'],
+	'verbose' => ['2', 'Verbosity level (0 = silently ignore any errors, 1 = display brief error, 2 = display full server response)'],
 );
 my %OPTIONS = ();
 my $DEBUG = 0;
@@ -131,8 +132,19 @@ sub print_cb
 sub url_cb
 {
 	my ($data, $command, $return_code, $out, $err) = @_;
-	my $msg = "[$SCRIPT{name}] Error: @_";
+	my $msg = "[$SCRIPT{name}] Error: ";
 
+	# Check verbosity level
+	if ($OPTIONS{verbose} == 0) {
+		return weechat::WEECHAT_RC_OK; # Don't display anything
+	} elsif ($OPTIONS{verbose} == 1) {
+		$msg .= "API call failed. (Most likely the service is having trouble.)";
+
+	} elsif ($OPTIONS{verbose} == 2) {
+		$msg .= "@_";
+	}
+
+	# Check server response and display error message if NOT successful
 	if ($command =~ /pushover/ && $return_code == 0 && !($out =~ /\"status\":1/)) {
 		weechat::print("", $msg);
 	} elsif ($command =~ /notifymyandroid/ && $return_code == 0 && !($out =~ /success code=\"200\"/)) {
@@ -222,15 +234,18 @@ sub notify_nma($$$$$)
 	return weechat::WEECHAT_RC_OK;
 }
 
+#
+# https://www.pushbullet.com/api
+#
 sub notify_pushbullet($$$$)
 {
 	my ($apikey, $device_iden, $title, $body) = @_;
 
 	# Required API arguments
-        my $apiurl = "https://$apikey:\@api.pushbullet.com/api/pushes";
+	my $apiurl = "https://$apikey:\@api.pushbullet.com/api/pushes";
 	my @post = (
 		"device_iden=" . CGI::escape($device_iden),
-                "type=note",
+		"type=note",
 	);
 
 	# Optional API arguments
