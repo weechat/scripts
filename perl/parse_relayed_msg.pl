@@ -8,6 +8,7 @@
 #
 # thanks to darrob for hard beta-testing
 #
+# 1.8: fix: regex on tags
 # 1.7: add support of colors with format "${color:xxx}" (>= WeeChat 0.4.2)
 # 1.6: add wildcard "*" for supported_bot_names.
 # 1.5: cleaned up code and make it more readable
@@ -60,7 +61,7 @@
 
 use strict;
 my $SCRIPT_NAME         = "parse_relayed_msg";
-my $SCRIPT_VERSION      = "1.7";
+my $SCRIPT_VERSION      = "1.8";
 my $SCRIPT_DESCR        = "proper integration of remote users' nicknames in channel and nicklist";
 my $SCRIPT_AUTHOR       = "w8rabbit";
 my $SCRIPT_LICENCE      = "GPL3";
@@ -109,35 +110,26 @@ sub parse_relayed_msg_cb
 {
     my ( $data, $modifier, $modifier_data, $string ) = @_;
 
-    if ( index( $modifier_data,"irc_privmsg" ) == -1 )                  # its neither a channel nor a query buffer
-    {
-        return $string;
-    }
-    if ( $modifier_data eq "" )
-    {
-        return $string;
-    }
+    # its neither a channel nor a query buffer
+    return $string if ( index( $modifier_data,"irc_privmsg" ) == -1 or $modifier_data eq "" );
 
     $modifier_data =~ (m/irc;(.+?)\.(.+?)\;/);                              # irc;servername.channelname;
-    my ($t0, $t1 , $t2) = split(/;/,$modifier_data);
-    #$t1 =~ m/^(.+)\.(.+)$/;
     my $servername = $1;
     my $channelname = $2;
 
-    return $string if (not defined $servername);
+    return $string if (not defined $servername or not defined $channelname);
 
-    #return $string if ($servername ne $option{servername});
     return $string  if ( !grep /^$servername$/, @list_of_server );          # does server exists?
 
     my $buf_ptr = weechat::buffer_search("irc",$servername . "." . $channelname);
 
     $string =~ m/^(.*)\t(.*)/;                                              # nick[tab]string
-    my $nick = $1;                                                          # get the nick name
+    my $nick = $1;                                                          # get the nick name (with prefix!)
     my $line = $2;                                                          # get written text
-    $nick = weechat::string_remove_color($nick,"");                         # remove color-codes from nick
+#    $nick = weechat::string_remove_color($nick,"");                         # remove color-codes from nick
     $line = weechat::string_remove_color($line,"");                         # remove color-codes from line
 
-    $modifier_data =~ m/(^|,)nick_(.*),/;                                   # get the nick name from modifier_data (without nick_mode and color codes!)
+    $modifier_data =~ m/(^|,)nick_([^,]*)(,|$)/;                            # get the nick name from modifier_data (without nick_mode and color codes!)
     $nick = $2;
 
     # display_mode : 0 = /, 1 = @
@@ -833,7 +825,7 @@ sub debug_cb
 }
 # ========= main =========
     weechat::register($SCRIPT_NAME, $SCRIPT_AUTHOR, $SCRIPT_VERSION,
-                  $SCRIPT_LICENCE, $SCRIPT_DESCR, "shutdown", "");
+                  $SCRIPT_LICENCE, $SCRIPT_DESCR, "shutdown", "") || return;
     $weechat_version = weechat::info_get("version_number", "");
 
     init_config();
