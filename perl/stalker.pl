@@ -21,6 +21,9 @@
 #
 # History:
 #
+# version 1.3:nils_2@freenode.#weechat
+# 2014-04-28: fix: output when loading script twice
+#
 # version 1.2:nils_2@freenode.#weechat
 # 2014-04-13: add: support of customise irc_join messages (weechat >= 0.4.4)
 #
@@ -93,7 +96,7 @@ use File::Spec;
 use DBI;
 
 my $SCRIPT_NAME         = "stalker";
-my $SCRIPT_VERSION      = "1.2";
+my $SCRIPT_VERSION      = "1.3";
 my $SCRIPT_AUTHOR       = "Nils Görs <weechatter\@arcor.de>";
 my $SCRIPT_LICENCE      = "GPL3";
 my $SCRIPT_DESC         = "Records and correlates nick!user\@host information";
@@ -1345,7 +1348,7 @@ sub shutdown_cb
 # -------------------------------[ init ]-------------------------------------
 # first function called by a WeeChat-script.
 weechat::register($SCRIPT_NAME, $SCRIPT_AUTHOR, $SCRIPT_VERSION,
-                  $SCRIPT_LICENCE, $SCRIPT_DESC, 'shutdown_cb', '');
+                  $SCRIPT_LICENCE, $SCRIPT_DESC, 'shutdown_cb', '')  || return;
 
     $weechat_version = weechat::info_get('version_number', '');
 
