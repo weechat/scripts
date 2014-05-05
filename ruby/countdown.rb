@@ -20,12 +20,12 @@
 
 
 def weechat_init
-  Weechat.register 'countdown', 'Rylee', '0.0.1', 'MIT',
+  Weechat.register 'countdown', 'Rylee', '0.0.2', 'MIT',
     'Countdown script for personal use', '', ''
 
   Weechat.hook_command 'countdown', 'Make a new countdown with the given time in the current buffer',
-    'countdown [time]',
-    'countdown [time] - time in seconds to count down from -- don\'t overdo it!',
+    'countdown [time] [say_after]',
+    'countdown [time] [say_after] - default for say_after is "Play!" - duration is time in seconds to count down from -- don\'t overdo it!',
     'countdown ',
     'countdown_cmd_callback',
     ''
@@ -36,17 +36,20 @@ end
 def countdown_cmd_callback data, buf, args
   return Weechat::WEECHAT_RC_ERROR if args.empty?
   return Weechat::WEECHAT_RC_ERROR if args.to_i.zero?
-  Weechat.command buf, args
-  Weechat.hook_timer 1000, 0, args.to_i, 'timer_cb', Weechat.buffer_get_string(buf, 'full_name')
+  duration, aftersay = args.split /\s+/, 2
+  aftersay ||= 'Play!'
+  Weechat.command buf, duration
+  Weechat.hook_timer 1000, 0, duration.to_i, 'timer_cb', [aftersay, Weechat.buffer_get_string(buf, 'full_name')].pack('mm')
   Weechat::WEECHAT_RC_OK
 end
 
 def timer_cb data, remaining_calls
-  plugin, name = data.split '.', 2
+  aftersay, destination = data.unpack('mm')
+  plugin, name = destination.split '.', 2
   buf = Weechat.buffer_search plugin, name
   return Weechat::WEECHAT_RC_ERROR if buf.empty?
   if remaining_calls.to_i.zero?
-    out = 'Play!'
+    out = aftersay
   else
     out = remaining_calls.to_s
   end
