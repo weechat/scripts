@@ -21,6 +21,8 @@
 #
 #
 # History:
+# 2014-05-05, holomorph
+#   version 15: fix python2-specific re.search check
 # 2013-01-29, nils_2
 #   version 14: make script compatible with Python 3.x
 # 2012-10-19, ldvx
@@ -60,7 +62,7 @@ w = weechat
 
 SCRIPT_NAME    = "colorize_nicks"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "14"
+SCRIPT_VERSION = "15"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Use the weechat nick colors in the chat area"
 
@@ -161,7 +163,7 @@ def colorize_cb(data, modifier, modifier_data, line):
                     # to address somebody
                     regex = r"(\A|\s).?(%s).?(\Z|\s)" % re.escape(nick)
                     match = re.search(regex, line)
-                    if str(type(match)) == "<type '_sre.SRE_Match'>":
+                    if match is not None:
                         new_line = line[:match.start(2)] + nick_color+nick+reset + line[match.end(2):]
                         line = new_line
     return line
