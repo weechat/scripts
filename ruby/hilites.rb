@@ -45,7 +45,7 @@
 SCRIPT_NAME = 'hilites'
 SCRIPT_AUTHOR = 'Christian Brassat <christian@crshd.cc>'
 SCRIPT_DESC = 'Send highlights in channels to a named pipe'
-SCRIPT_VERSION = '0.1'
+SCRIPT_VERSION = '0.2'
 SCRIPT_LICENSE = 'MIT'
 
 DEFAULTS = {
@@ -81,7 +81,7 @@ end
 
 def hilite( data, buffer, date, tags, visible, highlight, prefix, message )
 
-	if highlight == "1"
+	if ! highlight.to_i.zero?
 
 		data = {}
 		%w[ away type channel server ].each do |meta|
