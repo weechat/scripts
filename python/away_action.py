@@ -40,6 +40,9 @@
 #
 #
 #   History:
+#   2014-05-10:
+#   version 0.5: change hook_print callback argument type of
+#                displayed/highlight (WeeChat >= 1.0)
 #   2013-05-18:
 #   version 0.4: add include_channel option - contributed by Atluxity
 #   2010-11-04:
@@ -53,7 +56,7 @@
 
 SCRIPT_NAME    = "away_action"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.4"
+SCRIPT_VERSION = "0.5"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Run command on highlight and privmsg when away"
 
@@ -129,7 +132,7 @@ def away_cb(data, buffer, time, tags, display, hilight, prefix, msg):
        not w.config_get_plugin('force_enabled') == 'on':
         return WEECHAT_RC_OK
 
-    if (hilight == '1' or 'notify_private' in tags) and display == '1':
+    if (int(hilight) or 'notify_private' in tags) and int(display):
         channel = weechat.buffer_get_string(buffer, 'short_name')
         prefix = get_nick(prefix)
         if prefix not in ignore_nick \
