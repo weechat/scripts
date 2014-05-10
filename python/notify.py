@@ -6,6 +6,9 @@
 # To make it work, you may need to download: python-notify2 (and libnotify - libgtk)
 # Requires Weechat 0.3.0
 # Released under GNU GPL v2
+# 2014-05-10, Sébastien Helleu <flashcode@flashtux.org>
+#     version 0.0.8: change hook_print callback argument type of
+#                    displayed/highlight (WeeChat >= 1.0)
 # 2013-11-17, spline <http://github.com/reticulatingspline>
 #     version 0.0.7: Fix up prnt statement in previous edition.
 #     add in option to not notify on messages starting with prefix like *
@@ -35,7 +38,7 @@
 # script variables
 SCRIPT_NAME = "notify"
 SCRIPT_AUTHOR = "lavaramano"
-SCRIPT_VERSION = "0.0.7"
+SCRIPT_VERSION = "0.0.8"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC = "notify: A real time notification system for weechat"
 
@@ -92,7 +95,7 @@ def notify_show(data, bufferp, uber_empty, tagsn, isdisplayed, ishilight, prefix
         # if im sending a message to someone, don't pop up a notification.
         elif weechat.buffer_get_string(bufferp, "localvar_nick") != prefix:
             snreturn = show_notification(prefix, message)
-    elif (ishilight == "1" and weechat.config_get_plugin('show_hilights') == "on"):
+    elif (int(ishilight) and weechat.config_get_plugin('show_hilights') == "on"):
         buffer = (weechat.buffer_get_string(bufferp, "short_name") or weechat.buffer_get_string(bufferp, "name"))
         snreturn = show_notification(buffer, prefix + weechat.config_get_plugin('nick_separator') + message)
     # check to see if we had an error showing notification and return to user
