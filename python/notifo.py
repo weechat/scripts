@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Author: ochameau <poirot.alex AT gmail DOT com>
 # Homepage: https://github.com/ochameau/weechat-notifo
 # Derived from: notify
@@ -12,6 +13,10 @@
 # Requires Weechat 0.3.0
 # Released under GNU GPL v2
 #
+# 2014-05-10, Sébastien Helleu <flashcode@flashtux.org>
+#     version 0.2: change hook_print callback argument type of
+#                  displayed/highlight (WeeChat >= 1.0)
+#
 # 2011-08-27, ochameau <poirot.alex@gmail.com>:
 #     version 0.1: merge notify.py and notifo_notify.py in order to avoid
 #                  sending notifications when channel or private buffer is
@@ -19,7 +24,7 @@
 
 import weechat, string, urllib, urllib2
 
-weechat.register("notifo", "ochameau", "0.1", "GPL", "notifo: Send push notifications to your iPhone/Android about your private messages and highlights.", "", "")
+weechat.register("notifo", "ochameau", "0.2", "GPL", "notifo: Send push notifications to your iPhone/Android about your private messages and highlights.", "", "")
 
 credentials = {
     "username": "",
@@ -44,7 +49,7 @@ def notify_show(data, bufferp, uber_empty, tagsn, isdisplayed,
     elif weechat.buffer_get_string(bufferp, "localvar_type") == "private":
         show_notification(prefix, message)
 
-    elif ishilight == "1":
+    elif int(ishilight):
         buffer = (weechat.buffer_get_string(bufferp, "short_name") or
                 weechat.buffer_get_string(bufferp, "name"))
         show_notification(buffer, prefix + ": " + message)
