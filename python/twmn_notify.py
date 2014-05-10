@@ -62,7 +62,10 @@
 #
 #
 #   History:
-#     2012-11-16, Sebastien Helleu <flashcode@flashtux.org>:
+#     2014-05-10, Sébastien Helleu <flashcode@flashtux.org>
+#       version 0.1.3: change hook_print callback argument type of
+#                      displayed/highlight (WeeChat >= 1.0)
+#     2012-11-16, Sébastien Helleu <flashcode@flashtux.org>:
 #       version 0.1.2: remove invalid calls to config functions,
 #                      escape message in command for hook_process (fix security issue)
 #     2012-01-25
@@ -72,7 +75,7 @@
 
 SCRIPT_NAME    = "twmn_notify"
 SCRIPT_AUTHOR  = "epegzz <epegzz@gmail.com>"
-SCRIPT_VERSION = "0.1.2"
+SCRIPT_VERSION = "0.1.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Use twmn to display notifications"
 
@@ -146,7 +149,7 @@ def receive(data, buf, date, tags, disp, hilite, prefix, message):
     ## this means we lump irc_join under this notification level
     if notify in [2, 3]:
         display = True
-    elif notify == 1 and (hilite == 1 or 'notify_private' in tags):
+    elif notify == 1 and (int(hilite) or 'notify_private' in tags):
         display = True
 
     if display:
@@ -168,7 +171,7 @@ def receive(data, buf, date, tags, disp, hilite, prefix, message):
             background = config('private_bg')
             timeout = config('private_timeout')
 
-        if hilite == "1":
+        if int(hilite):
             color = config('hilite_fg')
             background = config('hilite_bg')
             timeout = config('hilite_timeout')
