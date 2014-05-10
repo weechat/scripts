@@ -39,6 +39,10 @@
 #
 #
 # History:
+#
+# 2014-05-10, Sébastien Helleu <flashcode@flashtux.org>
+#   version 18: change hook_print callback argument type of displayed/highlight
+#               (WeeChat >= 1.0)
 # 2013-11-07, excalibr
 #   version 17: add more characters to exclude in escaping (this fix problem with youtube urls)
 # 2012-11-15, xt
@@ -48,7 +52,7 @@
 #               small bug fix for version 14 changes
 # 2011-08-23, Deltafire
 #   version 14: ignore filtered lines
-# 2011-03-11, Sebastien Helleu <flashcode@flashtux.org>
+# 2011-03-11, Sébastien Helleu <flashcode@flashtux.org>
 #   version 13: get python 2.x binary for hook_process (fix problem when python 3.x is default python version)
 # 2010-12-10, xt
 #   version 12: add better ignores (code based on m4v inotify.py)
@@ -86,7 +90,7 @@ from urllib import quote
 
 SCRIPT_NAME    = "announce_url_title"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "17"
+SCRIPT_VERSION = "18"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Announce URL titles to channel or locally"
 
@@ -132,7 +136,7 @@ def url_print_cb(data, buffer, time, tags, displayed, highlight, prefix, message
     global buffer_name, urls, ignore_buffers
 
     # Do not trigger on filtered lines and notices
-    if displayed == '0' or prefix == '--':
+    if not int(displayed) or prefix == '--':
         return w.WEECHAT_RC_OK
 
     msg_buffer_name = w.buffer_get_string(buffer, "name")
