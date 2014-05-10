@@ -12,7 +12,7 @@
 import weechat, time, urllib, xml.etree.ElementTree as ET
 
 ## registration
-weechat.register("prowl_notify", "kidchunks", "3.0", "GPL3", "prowl_notify: Push notifications to iPod Touch, iPhone or iPad with Prowl", "", "")
+weechat.register("prowl_notify", "kidchunks", "3.1", "GPL3", "prowl_notify: Push notifications to iPod Touch, iPhone or iPad with Prowl", "", "")
 
 ## settings
 API_KEY = '' # API key(s) from Prowl (seperated by commas)
@@ -58,7 +58,7 @@ def hook_callback(data, bufferp, uber_empty, tagsn, isdisplayed,
         pass
 
     ## highlight
-    elif ishighlight == "1" and (weechat.buffer_get_string(bufferp, 'localvar_away') or FORCE_ENABLED):
+    elif int(ishighlight) and (weechat.buffer_get_string(bufferp, 'localvar_away') or FORCE_ENABLED):
         if flood_check():
             buffer = (weechat.buffer_get_string(bufferp, "short_name") or weechat.buffer_get_string(bufferp, "name"))
             if prefix == buffer: # treat as pm if user mentions your nick in a pm
