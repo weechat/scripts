@@ -90,6 +90,9 @@
 #
 #
 #   History:
+#   2014-05-10, Sébastien Helleu <flashcode@flashtux.org>
+#   version 0.1.4: change hook_print callback argument type of
+#                  displayed/highlight (WeeChat >= 1.0)
 #   2011-11-02, Sebastien Helleu <flashcode@flashtux.org>:
 #   version 0.1.3: use local variable "channel" in buffer instead of reading "short_name",
 #                  fix command for hook_process (remove line break before "-c")
@@ -109,7 +112,7 @@
 
 SCRIPT_NAME    = "inotify"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.1.3"
+SCRIPT_VERSION = "0.1.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Notifications for WeeChat."
 SCRIPT_COMMAND = "inotify"
@@ -492,7 +495,7 @@ def notify_msg(workaround, buffer, time, tags, display, hilight, prefix, msg):
     #debug('  '.join((buffer, time, tags, display, hilight, prefix, 'msg_len:%s' %len(msg))),
     #        prefix='MESSAGE')
     private = 'notify_private' in tags
-    if (hilight == '1' or private) and display == '1':
+    if (int(hilight) or private) and int(display):
         if 'irc_action' in tags:
             prefix, _, msg = msg.partition(' ')
             msg = '%s %s' %(config_string('weechat.look.prefix_action'), msg)
