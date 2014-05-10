@@ -28,12 +28,14 @@
 
 SCRIPT_NAME = 'anotify'
 SCRIPT_AUTHOR = 'magnific0'
-SCRIPT_VERSION = '1.0.0'
+SCRIPT_VERSION = '1.0.1'
 SCRIPT_LICENSE = 'MIT'
 SCRIPT_DESC = 'Sends libnotify notifications upon events.'
 
 
 # Changelog
+# 2014-05-10: v1.0.1 Change hook_print callback argument type of
+#                    displayed/highlight (WeeChat >= 1.0)
 # 2012-09-20: v1.0.0 Forked from original and adapted for libnotify.
 
 # -----------------------------------------------------------------------------
@@ -381,7 +383,7 @@ def cb_process_message(
     dcc_buffer_regex = re.compile(r'^irc_dcc\.', re.UNICODE)
     dcc_buffer_match = dcc_buffer_regex.match(buffer_name)
     highlighted = False
-    if highlight == "1":
+    if int(highlight):
         highlighted = True
     # Private DCC message identifies itself as public.
     if is_public_message and dcc_buffer_match:
