@@ -9,7 +9,7 @@ from pync import Notifier
 
 SCRIPT_NAME = 'notification_center'
 SCRIPT_AUTHOR = 'Sindre Sorhus <sindresorhus@gmail.com>'
-SCRIPT_VERSION = '0.2.0'
+SCRIPT_VERSION = '0.2.1'
 SCRIPT_LICENSE = 'MIT'
 SCRIPT_DESC = 'Pass highlights and private messages to the OS X 10.8+ Notification Center'
 
@@ -28,7 +28,7 @@ for key, val in DEFAULT_OPTIONS.items():
 weechat.hook_print('', 'irc_privmsg', '', 1, 'notify', '')
 
 def notify(data, buffer, date, tags, displayed, highlight, prefix, message):
-	if weechat.config_get_plugin('show_highlights') == 'on' and highlight == '1':
+	if weechat.config_get_plugin('show_highlights') == 'on' and int(highlight):
 		channel = weechat.buffer_get_string(buffer, 'localvar_channel')
 		if weechat.config_get_plugin('show_message_text') == 'on':
 			Notifier.notify(message, title='%s %s' % (prefix, channel))
