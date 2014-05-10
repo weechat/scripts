@@ -18,6 +18,9 @@
 # This script generates a file containing a formatted list of highlights to be
 # used by an external program like conky.
 #
+# 2014-05-10, Sébastien Helleu <flashcode@flashtux.org>
+#        0.2: change hook_print callback argument type of displayed/highlight
+#             (WeeChat >= 1.0)
 # 2012-03-07: nesthib <nesthib@gmail.com>
 #        0.1: initial release
 
@@ -33,7 +36,7 @@ from collections import Counter
 
 name = "hl2file"
 author = "nesthib <nesthib@gmail.com>"
-version = "0.1"
+version = "0.2"
 license = "GPL"
 description = "Generates a file with highlights for external programs like conky"
 shutdown_function = "shutdown"
@@ -81,7 +84,7 @@ def my_print_cb(data, buffer, date, tags, displayed, highlight, prefix, message)
     if w.config_get_plugin('clear_visited_buffers') == 'on':
         if buffer == w.window_get_pointer(w.current_window(), 'buffer'):
             return w.WEECHAT_RC_OK
-    if highlight == "1":
+    if int(highlight):
         infos = {'buffer'   : buffer,
                  'date'     : date,
                  'tags'     : str.split(tags, ','),
