@@ -32,7 +32,7 @@ import time
 
 SCRIPT_NAME     = "irssi_awaylog"
 SCRIPT_AUTHOR   = "henrik"
-SCRIPT_VERSION  = "0.2"
+SCRIPT_VERSION  = "0.3"
 SCRIPT_LICENSE  = "GPL3"
 SCRIPT_DESC     = "Emulates irssis awaylog behaviour"
 
@@ -64,10 +64,10 @@ def msg_cb(data, bufferp, date, tagsn, isdisplayed, ishilight, prefix, message):
 	isprivate = wc.buffer_get_string(bufferp, "localvar_type") == "private"
 
 	# catch private messages or highlights when away
-	if isaway and (isprivate or ishilight == "1"):
+	if isaway and (isprivate or int(ishilight)):
 		logentry = "awaylog\t"
 
-		if ishilight == "1" and not isprivate:
+		if int(ishilight) and not isprivate:
 			buffer = (wc.buffer_get_string(bufferp, "short_name") or
 					wc.buffer_get_string(bufferp, "name"))
 		else:
