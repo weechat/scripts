@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Author: Leon Bogaert <leon AT tim-online DOT nl>
 # Author: Stacey Sheldon <stac AT solidgoldbomb DOT org>
 # This Plugin Calls the libindicate bindings via python when somebody says your
@@ -15,6 +16,9 @@
 #     version 0.0.2 Added two-way sync between indications and weechat
 # 2013-05-01, Stacey Sheldon <stac@solidgoldbomb.org>
 #     version 0.0.3 More graceful handling of missing dependencies
+# 2014-05-10, Sébastien Helleu <flashcode@flashtux.org>
+#     version 0.0.4 Change hook_print callback argument type of
+#                   displayed/highlight (WeeChat >= 1.0)
 #
 # @TODO: decide what to do if a user clicks an indicator an then start typing:
 #        * leave indicators alone
@@ -26,7 +30,7 @@ import os
 
 SCRIPT_NAME    = "windicate"
 SCRIPT_AUTHOR  = "Leon Bogaert"
-SCRIPT_VERSION = "0.0.3"
+SCRIPT_VERSION = "0.0.4"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "fills the indicate applet"
 
@@ -220,7 +224,7 @@ def notify_msg(data, bufferp, time, tags, display, is_hilight, prefix, msg):
 
     if ('notify_private' in tags and
         weechat.config_get_plugin('show_priv_msg') == "on") \
-        or (is_hilight == "1" and \
+        or (int(is_hilight) and \
         weechat.config_get_plugin('show_hilights') == "on"):
 
         # grab the fully qualified buffer name so we can jump to it later
