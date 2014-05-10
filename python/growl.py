@@ -24,12 +24,14 @@
 
 SCRIPT_NAME = 'growl'
 SCRIPT_AUTHOR = 'Sorin Ionescu <sorin.ionescu@gmail.com>'
-SCRIPT_VERSION = '1.0.5'
+SCRIPT_VERSION = '1.0.6'
 SCRIPT_LICENSE = 'MIT'
 SCRIPT_DESC = 'Sends Growl notifications upon events.'
 
 
 # Changelog
+# 2014-05-10: v1.0.6 Change hook_print callback argument type of
+#                    displayed/highlight (WeeChat >= 1.0)
 # 2011-12-30: v1.0.5 Fixed a NoneType error.
 # 2011-10-11: v1.0.4 Handle import errors better.
 # 2011-10-10: v1.0.3 Handle Growl exceptions.
@@ -390,7 +392,7 @@ def cb_process_message(
     dcc_buffer_regex = re.compile(r'^irc_dcc\.', re.UNICODE)
     dcc_buffer_match = dcc_buffer_regex.match(buffer_name)
     highlighted = False
-    if highlight == "1":
+    if int(highlight):
         highlighted = True
     # Private DCC message identifies itself as public.
     if is_public_message and dcc_buffer_match:
