@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2009-2012 Sebastien Helleu <flashcode@flashtux.org>
+# Copyright (C) 2009-2014 Sébastien Helleu <flashcode@flashtux.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,7 +26,10 @@
 #
 # History:
 #
-# 2012-01-03, Sebastien Helleu <flashcode@flashtux.org>:
+# 2014-05-10, Sébastien Helleu <flashcode@flashtux.org>
+#     version 0.3: change hook_print callback argument type of
+#                  displayed/highlight (WeeChat >= 1.0)
+# 2012-01-03, Sébastien Helleu <flashcode@flashtux.org>:
 #     version 0.2: make script compatible with Python 3.x
 # 2009-10-02, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.1: initial release
@@ -34,7 +37,7 @@
 
 SCRIPT_NAME    = "hlpvitem"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Item with highlight/private messages"
 
@@ -87,7 +90,7 @@ def hlpv_item_add(buffer, highlight, prefix, message):
     """ Add message to list of messages (will be displayed by item). """
     global hlpv_messages
 
-    if highlight == "1":
+    if highlight:
         color_type = weechat.config_string(weechat.config_get("weechat.color.status_data_highlight"))
         color_string_highlight = weechat.config_get_plugin("color_string_highlight")
         if color_string_highlight == "":
@@ -137,8 +140,8 @@ def hlpv_print_cb(data, buffer, date, tags, displayed, highlight, prefix, messag
     if num_displayed == 0 or show_all_buffers == "on":
         highlight_enabled = weechat.config_get_plugin("highlight")
         private_enabled = weechat.config_get_plugin("private")
-        if ((highlight == "1") and (highlight_enabled == "on")) or (("notify_private" in tagslist) and (private_enabled == "on")):
-            hlpv_item_add(buffer, highlight, prefix, message)
+        if (int(highlight) and (highlight_enabled == "on")) or (("notify_private" in tagslist) and (private_enabled == "on")):
+            hlpv_item_add(buffer, int(highlight), prefix, message)
     return weechat.WEECHAT_RC_OK
 
 def hlpv_item_cb(data, buffer, args):
