@@ -2,7 +2,7 @@
 """
 Author: Gosuke Miyashita <gosukenator@gmail.com>
 Homepage: https://github.com/mizzy/weechat-plugins/
-Version: 1.2
+Version: 1.3
 License: MIT License
 
 This plugin is for pushing notifications to im.kayac.com.
@@ -28,7 +28,7 @@ import hashlib
 
 ## registration
 
-weechat.register("im_kayac_com_notify", "Gosuke Miyashita", "1.2", "MIT License",
+weechat.register("im_kayac_com_notify", "Gosuke Miyashita", "1.3", "MIT License",
     "im_kayac_com_notify: Push notification to iPod touch/iPhone with im.kayac.com", "", "")
 
 ## settings
@@ -76,7 +76,7 @@ def hook_process_cb(data, command, rc, stdout, stderr):
 
 def print_callback(data, buffer, date, tags, displayed, highlight, prefix, message):
     buffer_name = weechat.buffer_get_string(buffer, "name")
-    if highlight == "1":
+    if int(highlight):
         postIm(message, label="weechat", title="Highlight", buffer_name=buffer_name, prefix=prefix)
     elif "notify_private" in tags.split(','):
         postIm(message, label="weechat", title="Private Message", buffer_name=buffer_name, prefix=prefix)
