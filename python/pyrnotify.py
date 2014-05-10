@@ -43,6 +43,8 @@
 
 # ChangeLog:
 #
+# 2014-05-10: Change hook_print callback argument type of displayed/highlight
+#             (WeeChat >= 1.0)
 # 2012-06-19: Added simple escaping to the title and body strings for
 #             the script to handle trailing backslashes.
 
@@ -59,7 +61,7 @@ import shlex
 
 SCRIPT_NAME    = "pyrnotify"
 SCRIPT_AUTHOR  = "Krister Svanlund <krister.svanlund@gmail.com>"
-SCRIPT_VERSION = "0.9"
+SCRIPT_VERSION = "1.0"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Send remote notifications over SSH"
 
@@ -79,7 +81,7 @@ def run_notify(icon, nick,chan,message):
 def on_msg(*a):
     if len(a) == 8:
         data, buffer, timestamp, tags, displayed, highlight, sender, message = a
-        if data == "private" or highlight == "1":
+        if data == "private" or int(highlight):
             if data == "private" and w.config_get_plugin('pm-icon'):
                 icon = w.config_get_plugin('pm-icon')
             else:
