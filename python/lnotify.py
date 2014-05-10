@@ -16,10 +16,14 @@
 # it is now, all WeeChat notifications are in a group (that have the
 # WeeChat icon and have WeeChat name).
 # Got report that it has better look for KDE users too.
+#
+# 0.1.4
+# change hook_print callback argument type of displayed/highlight
+# (WeeChat >= 1.0)
 
 import weechat, string, pynotify
 
-weechat.register("lnotify", "kevr", "0.1.3", "GPL3", "lnotify - A libnotify script for weechat", "", "")
+weechat.register("lnotify", "kevr", "0.1.4", "GPL3", "lnotify - A libnotify script for weechat", "", "")
 
 # Set up here, go no further!
 settings = {
@@ -53,7 +57,7 @@ def get_notified(data, bufferp, uber_empty, tagsn, isdisplayed,
             if not n.show():
                 print "Failed to send notification"
 
-    elif (ishilight == "1" and
+    elif (int(ishilight) and
             weechat.config_get_plugin('show_highlight') == "on"):
         buffer = (weechat.buffer_get_string(bufferp, "short_name") or
                 weechat.buffer_get_string(bufferp, "name"))
