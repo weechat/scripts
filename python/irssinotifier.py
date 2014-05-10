@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Author: Caspar Clemens Mierau <ccm@screenage.de>
 # Homepage: https://github.com/leitmedium/weechat-irssinotifier
 # Derived from: notifo
@@ -17,6 +18,9 @@
 # Requires Weechat >= 0.3.7, openssl
 # Released under GNU GPL v3
 #
+# 2014-05-10, Sébastien Helleu <flashcode@flashtux.org>
+#     version 0.6: - change hook_print callback argument type of
+#                    displayed/highlight (WeeChat >= 1.0)
 # 2013-01-18, ccm <ccm@screenage.de>:
 #     version 0.5: - removed version check and legacy curl usage
 # 2012-12-27, ccm <ccm@screenage.de>:
@@ -40,7 +44,7 @@
 import weechat, string, os, urllib, urllib2, shlex
 from subprocess import Popen, PIPE
 
-weechat.register("irssinotifier", "Caspar Clemens Mierau <ccm@screenage.de>", "0.5", "GPL3", "irssinotifier: Send push notifications to Android's IrssiNotifier about your private message and highligts.", "", "")
+weechat.register("irssinotifier", "Caspar Clemens Mierau <ccm@screenage.de>", "0.6", "GPL3", "irssinotifier: Send push notifications to Android's IrssiNotifier about your private message and highligts.", "", "")
 
 settings = {
     "api_token": "",
@@ -66,7 +70,7 @@ def notify_show(data, bufferp, uber_empty, tagsn, isdisplayed,
     if (weechat.buffer_get_string(bufferp, "localvar_type") == "private") and (prefix!=mynick):
             show_notification(prefix, prefix, message)
 
-    elif ishilight == "1":
+    elif int(ishilight):
         buffer = (weechat.buffer_get_string(bufferp, "short_name") or
                 weechat.buffer_get_string(bufferp, "name"))
         show_notification(buffer, prefix, message)
