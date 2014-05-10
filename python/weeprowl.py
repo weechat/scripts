@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Author: Josh Dick <josh@joshdick.net>
 # <https://github.com/joshdick/weeprowl>
 #
@@ -7,6 +8,9 @@
 # Based on the 'notify' plugin version 0.0.5 by lavaramano <lavaramano AT gmail DOT com>:
 # <http://www.weechat.org/scripts/source/stable/notify.py.html/>
 #
+# 2014-05-10, Sébastien Helleu <flashcode@flashtux.org>
+#     Version 0.7: Change hook_print callback argument type of
+#                  displayed/highlight (WeeChat >= 1.0)
 # 2013-12-22, Josh Dick <josh@joshdick.net>
 #     Version 0.6: Fixed bug that was preventing negative numbers from working with
 #                  the prowl_priority setting
@@ -25,7 +29,7 @@
 
 import urllib, weechat
 
-weechat.register('weeprowl', 'Josh Dick', '0.6', 'GPL', 'Prowl notifications for WeeChat', '', '')
+weechat.register('weeprowl', 'Josh Dick', '0.7', 'GPL', 'Prowl notifications for WeeChat', '', '')
 
 # Plugin settings
 settings = {
@@ -75,7 +79,7 @@ def notification_callback(data, bufferp, uber_empty, tagsn, isdisplayed, ishilig
     if (do_prowl):
         if (weechat.buffer_get_string(bufferp, 'localvar_type') == 'private' and weechat.config_get_plugin('show_priv_msg') == 'on' and prefix != weechat.buffer_get_string(bufferp, 'localvar_nick')):
             send_prowl_notification(prefix, message, True)
-        elif (ishilight == '1' and weechat.config_get_plugin('show_hilights') == 'on'):
+        elif (int(ishilight) and weechat.config_get_plugin('show_hilights') == 'on'):
             buffer = (weechat.buffer_get_string(bufferp, 'short_name') or weechat.buffer_get_string(bufferp, 'name'))
             send_prowl_notification(buffer, prefix + weechat.config_get_plugin('nick_separator') + message, False)
 
