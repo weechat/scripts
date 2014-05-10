@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Author: sitaktif <romainchossart AT gmail DOT com>
 # This plugin calls the pynma bindings via python when somebody says your
 # nickname, sends you a query, etc.
@@ -16,6 +17,9 @@
 #
 # Acknowledgements: Based on lavaramano's script "notify.py" v. 0.0.5 (thanks!)
 #
+# 2014-05-10, Sébastien Helleu <flashcode@flashtux.org>
+#     version 1.0.7: change hook_print callback argument type of
+#                    displayed/highlight (WeeChat >= 1.0)
 # 2013-10-06, sitaktif
 #     version 1.0.6: Add a "test" action. Take API key config changes dynamically.
 # 2012-09-24, sitaktif
@@ -37,7 +41,7 @@
 import re
 import weechat as w
 
-w.register("nma", "sitaktif", "1.0.6", "GPL2",
+w.register("nma", "sitaktif", "1.0.7", "GPL2",
     "nma: Receive notifications on NotifyMyAndroid app.", "", "")
 
 # script options
@@ -180,7 +184,7 @@ def priv_msg_cb(data, bufferp, uber_empty, tagsn, isdisplayed,
 
 
     # Highlight (your nick is quoted)
-    elif (ishilight == "1" and
+    elif (int(ishilight) and
             w.config_string_to_boolean(w.config_get_plugin('notify_hilights'))):
         bufname = (w.buffer_get_string(bufferp, "short_name") or
                 w.buffer_get_string(bufferp, "name"))
