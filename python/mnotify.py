@@ -25,7 +25,7 @@ import weechat
 
 SCRIPT_NAME = 'mnotify'
 SCRIPT_AUTHOR = 'maker'
-SCRIPT_VERSION = '0.1'
+SCRIPT_VERSION = '0.2'
 SCRIPT_LICENSE = 'Beerware License'
 SCRIPT_DESC = 'Sends mail notifications upon events.'
 
@@ -359,7 +359,7 @@ def cb_process_message(
     dcc_buffer_regex = re.compile(r'^irc_dcc\.', re.UNICODE)
     dcc_buffer_match = dcc_buffer_regex.match(buffer_name)
     highlighted = False
-    if highlight == "1":
+    if int(highlight):
         highlighted = True
     # Private DCC message identifies itself as public.
     if is_public_message and dcc_buffer_match:
