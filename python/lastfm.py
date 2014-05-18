@@ -9,7 +9,8 @@
    license: GPLv3
 
    history:
-
+	   0.5   2014-05-07, Kromonos <weechat@kromonos.net>
+			 fixed some simple bugs
        0.4 - 2011-11-21, Jimmy Zelinskie <jimmyzelinskie@gmail.com>:
              changed default encoding to utf-8
 
@@ -27,10 +28,10 @@
 import weechat
 import feedparser
 
-weechat.register("lastfm", "Adam Saponara", "0.4", "GPL3", "Sends your latest Last.fm track to the current buffer", "", "")
+weechat.register("lastfm", "Adam Saponara", "0.5", "GPL3", "Sends your latest Last.fm track to the current buffer", "", "")
 
 defaults = {
-        "lastfm_username" : "nobody",
+        "lastfm_username" : "yourusername",
         "command" : "/me is listening to %s"
 }
 
@@ -75,7 +76,7 @@ def lastfm_cb(data, command, rc, stdout, stderr):
                 if cmd_stderr != "":
                         weechat.prnt(cmd_buffer, "%s" % cmd_stderr)
                 if cmd_stdout != "":
-                        weechat.command(cmd_buffer, weechat.config_get_plugin("command") % cmd_stdout)
+                        weechat.command(cmd_buffer, weechat.config_get_plugin("command") % cmd_stdout.replace('\n',''))
                 cmd_hook_process = ""
         return weechat.WEECHAT_RC_OK
 
