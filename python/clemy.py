@@ -2,7 +2,7 @@
 __Author__ = "Darth-O-Ring"
 __Email__ = "darthoring@gmail.com"
 __License__ = """
-Copyright (C) 2013-2014  Darth-O-Ring   <darthoring@gmail.com>
+Copyright (C) 2014-2016  Darth-O-Ring   <darthoring@gmail.com>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -33,7 +33,7 @@ except ImportError:
 import dbus
 
 
-weechat.register('clemy', "Your mommy's boyfriend", '0.1', 'GPLv3', 'Control yo Clementine like boom-blaka!', '', '')
+weechat.register('clemy', "Your mommy's boyfriend", '0.1.1', 'GPLv3', 'Control yo Clementine like boom-blaka!', '', '')
 
 err_message     =       '\nSomething silly just happend.  Make sure Clementine is running mah dude.'
 
@@ -73,9 +73,9 @@ def np():
     try:
         bus_object  =       bus.get_object('org.mpris.clementine', '/Player')
         artist_info =       bus_object.GetMetadata()
-        artist      =       artist_info['performer'].split(',').pop(-1)
-        album       =       artist_info['album'].split(',').pop(-1)
-        song        =       artist_info['title'].split(',').pop(-1)
+        artist      =       artist_info['performer'][:]
+        album       =       artist_info['album'][:]
+        song        =       artist_info['title'][:]
         now_playing =       '{0} - {1} (album: {2})'.format(artist, song, album)
 
     except (dbus.DBusException, Exception):
