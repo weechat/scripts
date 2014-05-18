@@ -20,6 +20,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # History:
+# version 1.4:nils_2@freenode.#weechat
+# 2014-05-14: fix: perl error under some circumstances (thanks Piotrek)
 #
 # version 1.3:nils_2@freenode.#weechat
 # 2014-04-28: fix: output when loading script twice
@@ -96,7 +98,7 @@ use File::Spec;
 use DBI;
 
 my $SCRIPT_NAME         = "stalker";
-my $SCRIPT_VERSION      = "1.3";
+my $SCRIPT_VERSION      = "1.4";
 my $SCRIPT_AUTHOR       = "Nils Görs <weechatter\@arcor.de>";
 my $SCRIPT_LICENCE      = "GPL3";
 my $SCRIPT_DESC         = "Records and correlates nick!user\@host information";
@@ -1340,8 +1342,8 @@ sub toggle_config_by_set
 sub shutdown_cb
 {
     # close database
-    $DBH->disconnect();
-    $DBH_child->disconnect();
+    $DBH->disconnect() if ($DBH);
+    $DBH_child->disconnect() if ($DBH_child);
     return weechat::WEECHAT_RC_OK;
 }
 
