@@ -40,6 +40,9 @@
 #                    Now using 'name' from irc_channel infolist.
 #     version 0.2.4: Added support for key-protected channels
 #
+# 2014-05-22, Nathaniel Wesley Filardo <PADEBR2M2JIQN02N9OO5JM0CTN8K689P@cmx.ietfng.org>
+#     version 0.2.5: Fix keyed channel support
+#
 # @TODO: add options to ignore certain buffers
 # @TODO: maybe add an option to enable autosaving on part/join messages
 
@@ -48,7 +51,7 @@ import re
 
 SCRIPT_NAME    = "autojoin"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.2.4"
+SCRIPT_VERSION = "0.2.5"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Configure autojoin for all servers according to currently joined channels"
 SCRIPT_COMMAND = "autojoin"
@@ -150,7 +153,8 @@ def find_channels():
     # populate channels per server
     for server in items.keys():
         keys = []
-        channels = []
+        keyed_channels = []
+        unkeyed_channels = []
         items[server] = '' #init if connected but no channels
         infolist = w.infolist_get('irc_channel', '',  server)
         while w.infolist_next(infolist):
@@ -158,11 +162,13 @@ def find_channels():
                 #parted but still open in a buffer: bit hackish
                 continue
             if w.infolist_integer(infolist, 'type') == 0:
-                channels.append(w.infolist_string(infolist, "name"))
                 key = w.infolist_string(infolist, "key")
                 if len(key) > 0:
                     keys.append(key)
-        items[server] = ','.join(channels)
+                    keyed_channels.append(w.infolist_string(infolist, "name"))
+                else :
+                    unkeyed_channels.append(w.infolist_string(infolist, "name"))
+        items[server] = ','.join(keyed_channels + unkeyed_channels)
         if len(keys) > 0:
             items[server] += ' %s' % ','.join(keys)
         w.infolist_free(infolist)
