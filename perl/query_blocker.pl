@@ -3,8 +3,8 @@
 # query_blocker.pl - Simple blocker for private messages (i.e. spam).
 #
 # -----------------------------------------------------------------------------
-# Copyright (c) 2009-2013 by rettub <rettub@gmx.net>
-# Copyright (c) 2011-2013 by nils_2 <weechatter@arcor.de>
+# Copyright (c) 2009-2014 by rettub <rettub@gmx.net>
+# Copyright (c) 2011-2014 by nils_2 <weechatter@arcor.de>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -38,6 +38,10 @@
 #
 # -----------------------------------------------------------------------------
 # History:
+# 2014-05-22, nils_2:
+#     version 0.9:
+#     IMPROVED: use NOTICE instead of PRIVMSG for auto-response (suggested by Mkaysi)
+#
 # 2013-05-01, nils_2:
 #     version 0.8:
 #     ADD: option ignore_auto_message (suggested by bpeak)
@@ -94,7 +98,7 @@ use strict;
 
 my $SCRIPT      = 'query_blocker';
 my $AUTHOR      = 'rettub <rettub@gmx.net>';
-my $VERSION     = '0.8';
+my $VERSION     = '0.9';
 my $LICENSE     = 'GPL3';
 my $DESCRIPTION = 'Simple blocker for private message (i.e. spam)';
 my $COMMAND     = "query_blocker";             # new command name
@@ -419,11 +423,14 @@ sub modifier_irc_in_privmsg {
             $msg =~ s/%N/$query_nick/g;
             if (lc(weechat::config_get_plugin('show_deny_message')) eq 'off' or lc(weechat::config_get_plugin('quiet') eq 'on'))
             {
-                weechat::command( '', "/mute -all /msg -server $server $query_nick $msg " );
+                # According to the RFC 1459, automatic messages must not be sent as response to NOTICEs and currently it might be possible to get in loop of automatic away messages or something similar.
+#                weechat::command( '', "/mute -all /msg -server $server $query_nick $msg " );
+                weechat::command( '', "/mute -all /notice -server $server $query_nick $msg " );
             }
             else
             {
-                weechat::command( '', "/mute -all /msg -server $server $query_nick $msg " );
+#                weechat::command( '', "/mute -all /msg -server $server $query_nick $msg " );
+                weechat::command( '', "/mute -all /notice -server $server $query_nick $msg " );
                 weechat::print($buf_pointer,"$SCRIPT\t"."$query_nick"."@"."$server: $msg");
             }
             # counter for how many blocked messages
