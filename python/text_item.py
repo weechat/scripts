@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2012-2013 by nils_2 <weechatter@arcor.de>
+# Copyright (c) 2012-2014 by nils_2 <weechatter@arcor.de>
 #
-# add a plain text to item bar
+# add a plain text or evaluated content to item bar
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,6 +16,9 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# 2014-05-19: nils_2, (freenode.#weechat)
+#       0.4 : evaluate content of item (suggested by FlashCode)
 #
 # 2013-06-27: nils_2, (freenode.#weechat)
 #       0.3 : fix: bug with root bar
@@ -32,19 +35,29 @@
 # ===========
 #
 # Template:
-#  /set plugins.var.python.text_item.<item_name> <type> <${color}><text>
+#  /set plugins.var.python.text_item.<item_name> <type>|<signal> <${color}><text>
+#
 #  type : all, channel, server, private
 #  (use /buffer localvar)
 #
+# signal (eg.): buffer_switch
+# (for a list of all possible signals, see API doc weechat_hook_signal())
+#
+#
 # Example:
 # =======
-# creates an option for a text item (nick_text), to use in all channel buffers:
-#  /set plugins.var.python.text_item.nick_text channel ${yellow}Nicks:
+# creates an option for a text item (nick_text), to use in all "channel" buffers:
+# /set plugins.var.python.text_item.nick_text "channel ${yellow}Nicks:"
 #
 # add the item "nick_text" to the bar.items (use auto-completion or iset.pl!)
 # /set weechat.bar.status.items nick_text
 #
 # The text "Nicks:" will be displayed in the status bar (yellow colored!).
+#
+#
+# will display the terminal width and height in an item bar. item will be updated on signal "signal_sigwinch"
+# /set plugins.var.python.text_item.dimension "all|signal_sigwinch width: ${info:term_width} height: ${info:term_height}"
+#
 #
 # Development is currently hosted at
 # https://github.com/weechatter/weechat-scripts
@@ -59,14 +72,51 @@ except Exception:
 
 SCRIPT_NAME     = "text_item"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.3"
+SCRIPT_VERSION  = "0.4"
 SCRIPT_LICENSE  = "GPL"
-SCRIPT_DESC     = "add a plain text to item bar"
+SCRIPT_DESC     = "add a plain text or evaluated content to item bar"
 
 # regexp to match ${color} tags
 regex_color=re.compile('\$\{([^\{\}]+)\}')
 
-# ================================[ options refresh ]===============================
+hooks = {}
+
+# ================================[ hooks ]===============================
+def add_hook(signal, item):
+    global hooks
+    # signal already exists?
+    if signal in hooks:
+        return
+    hooks[item] = weechat.hook_signal(signal, "bar_item_update", "")
+
+def unhook(hook):
+    global hooks
+    if hook in hooks:
+        weechat.unhook(hooks[hook])
+        del hooks[hook]
+
+def toggle_refresh(pointer, name, value):
+    option_name = name[len('plugins.var.python.' + SCRIPT_NAME + '.'):]      # get optionname
+
+    # option was removed? remove bar_item from struct!
+    if not weechat.config_get_plugin(option_name):
+        ptr_bar = weechat.bar_item_search(option_name)
+        if ptr_bar:
+            weechat.bar_item_remove(ptr_bar)
+            return weechat.WEECHAT_RC_OK
+        else:
+            return weechat.WEECHAT_RC_OK
+
+    # check if option is new or simply changed
+    if weechat.bar_item_search(option_name):
+        weechat.bar_item_update(option_name)
+    else:
+        weechat.bar_item_new(option_name,'update_item',option_name)
+
+    weechat.bar_item_update(option_name)
+    return weechat.WEECHAT_RC_OK
+
+# ================================[ items ]===============================
 def create_bar_items():
     ptr_infolist_option = weechat.infolist_get('option','','plugins.var.python.' + SCRIPT_NAME + '.*')
 
@@ -96,39 +146,42 @@ def update_item (data, item, window):
     value = weechat.config_get_plugin(data)
 
     if value:
-        value = check_buffer_type(window,value)
+        value = check_buffer_type(window, data, value)
     else:
         return ""
 
     if not value:
         return ""
 
-    # substitute colors in output
-    return re.sub(regex_color, lambda match: weechat.color(match.group(1)), value)
+    return substitute_colors(value)
 
-def toggle_refresh(pointer, name, value):
-    option_name = name[len('plugins.var.python.' + SCRIPT_NAME + '.'):]      # get optionname
+# update item
+def bar_item_update(signal, callback, callback_data):
+    ptr_infolist_option = weechat.infolist_get('option','','plugins.var.python.' + SCRIPT_NAME + '.*')
 
-    # option was removed? remove bar_item from struct!
-    if not weechat.config_get_plugin(option_name):
-        ptr_bar = weechat.bar_item_search(option_name)
-        if ptr_bar:
-            weechat.bar_item_remove(ptr_bar)
-            return weechat.WEECHAT_RC_OK
-        else:
-            return weechat.WEECHAT_RC_OK
+    if not ptr_infolist_option:
+        return
 
-    # check if option is new or simply changed
-    if weechat.bar_item_search(option_name):
-        weechat.bar_item_update(option_name)
-    else:
-        weechat.bar_item_new(option_name,'update_item',option_name)
+    while weechat.infolist_next(ptr_infolist_option):
+        option_full_name = weechat.infolist_string(ptr_infolist_option, 'full_name')
+        option_name = option_full_name[len('plugins.var.python.' + SCRIPT_NAME + '.'):]      # get optionname
 
-    weechat.bar_item_update(option_name)
+        # check if item exists in a bar and if we have a hook for it
+        if weechat.bar_item_search(option_name) and option_name in hooks:
+            weechat.bar_item_update(option_name)
+
+    weechat.infolist_free(ptr_infolist_option)
     return weechat.WEECHAT_RC_OK
 
-def check_buffer_type(window, value):
 
+# ================================[ subroutines ]===============================
+def substitute_colors(text):
+    if int(version) >= 0x00040200:
+        return weechat.string_eval_expression(text,{},{},{})
+    # substitute colors in output
+    return re.sub(regex_color, lambda match: weechat.color(match.group(1)), text)
+
+def check_buffer_type(window, data, value):
     bufpointer = weechat.window_get_pointer(window,"buffer")
     if bufpointer == "":
         return ""
@@ -137,13 +190,22 @@ def check_buffer_type(window, value):
     if len(value) <= 1:
         return ""
 
-    channel_type = value[0]
+    # format is : buffer_type (channel,server,private,all) | signal (e.g: buffer_switch)
+    channel_type_and_signal = value[0]
+    if channel_type_and_signal.find('|') >= 0:
+        channel_type = channel_type_and_signal[0:channel_type_and_signal.find("|")]
+        signal_type = channel_type_and_signal[channel_type_and_signal.find("|")+1:]
+        unhook(data)
+        add_hook(signal_type, data)
+    else:
+        channel_type = value[0]
+
     value = value[1]
 
     if channel_type == 'all' or weechat.buffer_get_string(bufpointer,'localvar_type') == channel_type:
         return value
-
     return ""
+
 # ================================[ main ]===============================
 if __name__ == "__main__":
     if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, '', ''):
