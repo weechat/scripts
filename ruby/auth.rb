@@ -18,7 +18,7 @@ def weechat_init
 	# Register our plugin with WeeChat
 	Weechat.register("auth",
 		"Shawn Smith",
-		"0.2",
+		"0.3",
 		"GPL3",
 		"Automatically authenticate with NickServ using your sasl_username and sasl_password.",
 		"",
@@ -52,8 +52,8 @@ def auth_command_cb(data, buffer, args)
 		sasl_password = Weechat.config_get("irc.server.#{server}.sasl_password")
 
 		# Print the usernames/passwords
-		Weechat.print("", "[Auth]: sasl_username: #{wee_string(sasl_username)}")
-		Weechat.print("", "[Auth]: sasl_password: #{wee_string(sasl_password)}")
+		Weechat.print("", "[Auth]: sasl_username: #{Weechat.string_eval_expression("#{wee_string(sasl_username)}", {}, {}, {})}")
+		Weechat.print("", "[Auth]: sasl_password: #{Weechat.string_eval_expression("#{wee_string(sasl_password)}", {}, {}, {})}")
 	else
 		Weechat.command("", "/help auth")
 	end
@@ -74,11 +74,10 @@ def auth_notice_cb(data, buffer, args)
 
 		# Prevents us from sending empty passwords.
 		if sasl_password != nil
-			Weechat.command("", "/quote -server #{server} PRIVMSG NickServ IDENTIFY #{wee_string(sasl_username)} #{wee_string(sasl_password)}")
+			Weechat.command("", "/quote -server #{server} PRIVMSG NickServ IDENTIFY #{Weechat.string_eval_expression("#{wee_string(sasl_username)}", {}, {}, {})} #{Weechat.string_eval_expression("#{wee_string(sasl_password)}", {}, {}, {})}")
 
 			# Backwards compatibility hack for shitty servers that don't let you use [nick pass]
-			Weechat.command("", "/quote -server #{server} PRIVMSG NickServ IDENTIFY #{wee_string(sasl_password)}")
-		end
+			Weechat.command("", "/quote -server #{server} PRIVMSG NickServ IDENTIFY #{Weechat.string_eval_expression("#{wee_string(sasl_password)}", {}, {}, {})}")
 	end
 
 	return Weechat::WEECHAT_RC_OK
