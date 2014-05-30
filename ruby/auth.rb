@@ -78,6 +78,7 @@ def auth_notice_cb(data, buffer, args)
 
 			# Backwards compatibility hack for shitty servers that don't let you use [nick pass]
 			Weechat.command("", "/quote -server #{server} PRIVMSG NickServ IDENTIFY #{Weechat.string_eval_expression("#{wee_string(sasl_password)}", {}, {}, {})}")
+                end
 	end
 
 	return Weechat::WEECHAT_RC_OK
