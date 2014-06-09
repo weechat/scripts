@@ -50,6 +50,10 @@
 # -----------------------------------------------------------------------------
 #
 # Changelog:
+# Version 0.17 2014-06-08, nils_2
+#   * FIX: update bar when option weechat.bar.newsbar_title.color_fg changed (reported by: bpeak)
+#   * IMPROVED: use weechat_string_eval_expression() for weechat.look.buffer_time_format
+#
 # Version 0.16 2014-04-10, nils_2
 #   * ADD: own color settings
 #   * FIX: update bar when script options changed
@@ -169,8 +173,6 @@ use POSIX qw(strftime);
 use strict;
 use warnings;
 
-my $Version = "0.16";
-
 # constants
 #
 # script default options
@@ -210,10 +212,12 @@ my %SETTINGS = (
     "color_info_msg_tag"     => 'cyan',
 );
 
-my $SCRIPT      = "newsbar";
-my $AUTHOR      = "rettub";
-my $LICENCE     = "GPL3";
-my $DESCRIPTION = "Print highlights or text given by commands into bar 'NewsBar'. Auto popup on top of weechat if needed. 'beeps' can be executed local or remote";
+my $weechat_version;
+my $SCRIPT              = "newsbar";
+my $SCRIPT_VERSION      = "0.17";
+my $SCRIPT_AUTHOR       = "rettub";
+my $SCRIPT_LICENCE      = "GPL3";
+my $SCRIPT_DESCRIPTION  = "Print highlights or text given by commands into bar 'NewsBar'. Auto popup on top of weechat if needed. 'beeps' can be executed local or remote";
 my $COMMAND     = "newsbar";             # new command name
 my $ARGS_HELP   = "<always> | <away_only> | <beep> | <nobeep> | <beep_local> | <beep_remote> | <clear [regexp]>"
                  ."| <memo [text]> | <add [--color color] text>"
@@ -495,11 +499,16 @@ sub _bar_clear
     _bar_hide();
 }
 
-sub _bar_date_time {
+sub _bar_date_time
+{
     my $dt = strftime( weechat::config_string (weechat::config_get('weechat.look.buffer_time_format')), localtime);
+    return weechat::string_eval_expression($dt, {}, {},{}) if ($weechat_version >= 0x00040200);
+
     my $dt_bak = $dt;
     my $dt_marker = 0;
-    while ( $dt_bak ~~ /\$\{(?:color:)?[^\{\}]+\}/ ){
+#    while ( $dt_bak ~~ /\$\{(?:color:)?[^\{\}]+\}/ )
+    while ( $dt_bak =~ /\$\{(?:color:)?[^\{\}]+\}/ )
+    {
         $dt_bak =~ /\$\{(?:color:)?(.*?)\}/;
         my $col = weechat::color($1);
         $dt_bak =~ s/\$\{(?:color:)?(.*?)\}/$col/;
@@ -1092,10 +1101,12 @@ sub color_help
 # init script
 # XXX If you don't check weechat::register() for succsess, %SETTINGS will be set
 # XXX by init_config() into the namespace of other perl scripts.
-if ( weechat::register(  $SCRIPT,  $AUTHOR, $Version, $LICENCE, $DESCRIPTION, "unload", "" ) )
+if ( weechat::register(  $SCRIPT,  $SCRIPT_AUTHOR, $SCRIPT_VERSION, $SCRIPT_LICENCE, $SCRIPT_DESCRIPTION, "unload", "" ) )
 {
+    $weechat_version = weechat::info_get('version_number', '');
+
     color_help();
-    weechat::hook_command( $COMMAND,  $DESCRIPTION,  $ARGS_HELP, $CMD_HELP, $COMPLETITION, $CALLBACK, "" );
+    weechat::hook_command( $COMMAND,  $SCRIPT_DESCRIPTION,  $ARGS_HELP, $CMD_HELP, $COMPLETITION, $CALLBACK, "" );
     weechat::hook_print( "", "", "", 1, "highlights_public", "" );
     weechat::hook_signal( "weechat_pv",    "highlights_private", "" );
 
@@ -1108,6 +1119,7 @@ if ( weechat::register(  $SCRIPT,  $AUTHOR, $Version, $LICENCE, $DESCRIPTION, "u
     weechat::hook_config( "plugins.var.perl." . $SCRIPT . ".nick_flood*", 'config_changed_nick_flood', "" );
 
     weechat::hook_config( "plugins.var.perl." . $SCRIPT . "*", '_bar_item_update', "" );
+    weechat::hook_config( "weechat.bar.newsbar_title.color_*", '_bar_item_update', "" );
 
 }
 # vim: ai ts=4 sts=4 et sw=4 foldmethod=marker :
