@@ -24,6 +24,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2014-06-19, Anders Bergh <anders1@gmail.com>
+#  version 0.13: Fix a simple typo in an option description.
 # 2014-01-12, Phyks (Lucas Verney) <phyks@phyks.me>
 #  version 0.12: Added an option to check status of relays to set unaway in
 #                   case of a connected relay.
@@ -61,12 +63,12 @@ import os
 
 SCRIPT_NAME    = "screen_away"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.12"
+SCRIPT_VERSION = "0.13"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Set away status on screen detach"
 
 settings = {
-        'message': ('Detached from screen', 'Away mesage'),
+        'message': ('Detached from screen', 'Away message'),
         'interval': ('5', 'How often in seconds to check screen status'),
         'away_suffix': ('', 'What to append to your nick when you\'re away.'),
         'command_on_attach': ('', 'Commands to execute on attach, separated by semicolon'),
