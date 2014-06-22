@@ -20,6 +20,8 @@
 #
 # History:
 #
+# 2014-06-22, Sebastien Helleu <flashcode@flashtux.org>:
+#     v4.7: fix typos in options
 # 2014-04-05, Sebastien Helleu <flashcode@flashtux.org>:
 #     v4.6: add support of hidden buffers (WeeChat >= 0.4.4)
 # 2014-01-01, Sebastien Helleu <flashcode@flashtux.org>:
@@ -155,7 +157,7 @@ use strict;
 use Encode qw( decode encode );
 # -----------------------------[ internal ]-------------------------------------
 my $SCRIPT_NAME = "buffers";
-my $SCRIPT_VERSION = "4.6";
+my $SCRIPT_VERSION = "4.7";
 
 my $BUFFERS_CONFIG_FILE_NAME = "buffers";
 my $buffers_config_file;
@@ -628,7 +630,7 @@ my %default_options_look =
  ],
  "show_lag" => [
      "show_lag", "boolean",
-     "show lag behind servername. This option is using \"irc.color.".
+     "show lag behind server name. This option is using \"irc.color.".
      "item_lag_finished\", ".
      "\"irc.network.lag_min_show\" and \"irc.network.lag_refresh_interval\"",
      "", 0, 0, "off", "off", 0,
@@ -670,31 +672,31 @@ my %default_options_look =
  ],
  "show_number" => [
      "show_number", "boolean",
-     "display channel number in front of buffername",
+     "display buffer number in front of buffer name",
      "", 0, 0, "on", "on", 0,
      "", "", "buffers_signal_config", "", "", ""
  ],
  "show_number_char" => [
      "number_char", "string",
-     "display a char behind channel number",
+     "display a char behind buffer number",
      "", 0, 0, ".", ".", 0,
      "", "", "buffers_signal_config", "", "", ""
  ],
  "show_prefix_bufname" => [
      "prefix_bufname", "string",
-     "prefix displayed in front of buffername",
+     "prefix displayed in front of buffer name",
      "", 0, 0, "", "", 0,
      "", "", "buffers_signal_config", "", "", ""
  ],
  "show_suffix_bufname" => [
      "suffix_bufname", "string",
-     "suffix displayed at end of buffername",
+     "suffix displayed at end of buffer name",
      "", 0, 0, "", "", 0,
      "", "", "buffers_signal_config", "", "", ""
  ],
  "show_prefix" => [
      "prefix", "boolean",
-     "displays your prefix for channel in front of buffername",
+     "displays your prefix for channel in front of buffer name",
      "", 0, 0, "off", "off", 0,
      "", "", "buffers_signal_config", "", "", ""
  ],
@@ -745,21 +747,21 @@ my %default_options_look =
  ],
  "detach" => [
      "detach", "integer",
-     "detach channel from buffers list after a specific period of time ".
+     "detach buffer from buffers list after a specific period of time ".
      "(in seconds) without action (weechat ≥ 0.3.8 required) (0 means \"off\")",
      "", 0, 31536000, 0, "number", 0,
      "", "", "buffers_signal_config", "", "", ""
  ],
  "immune_detach_buffers" => [
      "immune_detach_buffers", "string",
-     "comma separated list of buffers to NOT automatically detatch. ".
+     "comma separated list of buffers to NOT automatically detach. ".
      "Allows \"*\" wildcard. Ex: \"BitlBee,freenode.*\"",
      "", 0, 0, "", "", 0,
      "", "", "buffers_signal_config_immune_detach_buffers", "", "", ""
  ],
  "detach_query" => [
      "detach_query", "boolean",
-     "query buffer will be detachted",
+     "query buffer will be detached",
      "", 0, 0, "off", "off", 0,
      "", "", "buffers_signal_config", "", "", ""
  ],
@@ -798,7 +800,7 @@ my %default_options_look =
      "", "", "buffers_signal_config", "", "", ""
  ],
  "toggle_bar" => [
-     "toogle_bar", "boolean",
+     "toggle_bar", "boolean",
      "if option is \"on\", buffers bar will hide/show when script is ".
      "(un)loaded.",
      "", 0, 0, "on", "on", 0,
