@@ -23,7 +23,7 @@ use CGI;
 my %SCRIPT = (
 	name => 'pushover',
 	author => 'stfn <stfnmd@gmail.com>',
-	version => '0.8',
+	version => '0.9',
 	license => 'GPL3',
 	desc => 'Send push notifications to your mobile devices using Pushover, NMA or Pushbullet',
 	opt => 'plugins.var.perl',
@@ -42,7 +42,7 @@ my %OPTIONS_DEFAULT = (
 	'show_priv_msg' => ['on', 'Notify on private messages'],
 	'only_if_away' => ['off', 'Notify only if away status is active'],
 	'only_if_inactive' => ['off', 'Notify only if buffer is not the active (current) buffer'],
-	'blacklist' => ['', 'Comma separated list of buffers (full name or short name) to blacklist for notifications'],
+	'blacklist' => ['', 'Comma separated list of buffers (full name) to blacklist for notifications (wildcard "*" is allowed, name beginning with "!" is excluded)'],
 	'verbose' => ['2', 'Verbosity level (0 = silently ignore any errors, 1 = display brief error, 2 = display full server response)'],
 );
 my %OPTIONS = ();
@@ -99,7 +99,6 @@ sub print_cb
 	my ($data, $buffer, $date, $tags, $displayed, $highlight, $prefix, $message) = @_;
 
 	my $buffer_type = weechat::buffer_get_string($buffer, "localvar_type");
-	my $buffer_short_name = weechat::buffer_get_string($buffer, "short_name");
 	my $buffer_full_name = weechat::buffer_get_string($buffer, "full_name");
 	my $away_msg = weechat::buffer_get_string($buffer, "localvar_away");
 	my $away = ($away_msg && length($away_msg) > 0) ? 1 : 0;
@@ -108,7 +107,7 @@ sub print_cb
 	    $displayed == 0 ||
 	    ($OPTIONS{only_if_away} eq "on" && $away == 0) ||
 	    ($OPTIONS{only_if_inactive} eq "on" && $buffer eq weechat::current_buffer()) ||
-	    (grep_list($buffer_full_name, $OPTIONS{blacklist}) || grep_list($buffer_short_name, $OPTIONS{blacklist}))) {
+	    weechat::buffer_match_list($buffer, $OPTIONS{blacklist})) {
 		return weechat::WEECHAT_RC_OK;
 	}
 
