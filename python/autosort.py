@@ -23,6 +23,20 @@
 # http://github.com/de-vri.es/weechat-autosort
 #
 
+#
+# Changelog:
+# 2.3:
+#   * Fix sorting items without score last (regressed in 2.2).
+# 2.2:
+#   * Add configuration option for signals that trigger a sort.
+#   * Add command to manually trigger a sort (/autosort sort).
+#   * Add replacement patterns to apply before sorting.
+# 2.1:
+#   * Fix some minor style issues.
+# 2.0:
+#   * Allow for custom sort rules.
+#
+
 
 import weechat
 import re
@@ -30,13 +44,13 @@ import json
 
 SCRIPT_NAME     = 'autosort'
 SCRIPT_AUTHOR   = 'Maarten de Vries <maarten@de-vri.es>'
-SCRIPT_VERSION  = '2.1'
+SCRIPT_VERSION  = '2.3'
 SCRIPT_LICENSE  = 'GPLv3'
-SCRIPT_DESC     = 'Automatically keep your buffers sorted and grouped by server.'
+SCRIPT_DESC     = 'Automatically or manually keep your buffers sorted and grouped by server.'
 
 
 config = None
-
+hooks  = []
 
 class HumanReadableError(Exception):
 	pass
@@ -101,65 +115,70 @@ class Pattern:
 		return self.regex.match(input)
 
 
-class RuleList:
-	''' A list of rules to test buffer names against. '''
-	rule_regex = re.compile(r'^(.*)=\s*([+-]?[^=]*)$')
+class FriendlyList(object):
+	''' A list with human readable errors. '''
 
-	def __init__(self, rules):
-		''' Construct a RuleList from a list of rules. '''
-		self.__rules   = rules
-		self.__highest = 0
-		for rule in rules:
-			self.__highest = max(self.__highest, rule[1] + 1)
+	def __init__(self):
+		self.__data = []
 
-	def get_score(self, name, rules):
-		''' Get the sort score of a partial name according to a rule list. '''
-		for rule in self.__rules:
-			if rule[0].match(name): return rule[1]
-		return self.__highest
+	def raw(self):
+		return self.__data
 
-	def encode(self):
-		''' Encode the rules for storage. '''
-		return json.dumps(map(lambda x: (x[0].pattern, x[1]), self.__rules))
-
-	def append(self, rule):
+	def append(self, value):
 		''' Add a rule to the list. '''
-		self.__rules.append(rule)
-		self.__highest = max(self.__highest, rule[1] + 1)
+		self.__data.append(value)
 
-	def insert(self, index, rule):
+	def insert(self, index, value):
 		''' Add a rule to the list. '''
 		if not 0 <= index <= len(self): raise HumanReadableError('Index out of range: expected an integer in the range [0, {}], got {}.'.format(len(self), index))
-		self.__rules.insert(index, rule)
-		self.__highest = max(self.__highest, rule[1] + 1)
+		self.__data.insert(index, value)
 
 	def pop(self, index):
 		''' Remove a rule from the list and return it. '''
 		if not 0 <= index < len(self): raise HumanReadableError('Index out of range: expected an integer in the range [0, {}), got {}.'.format(len(self), index))
-		return self.__rules.pop(index)
+		return self.__data.pop(index)
 
 	def move(self, index_a, index_b):
 		''' Move a rule to a new position in the list. '''
 		self.insert(index_b, self.pop(index_a))
 
 	def swap(self, index_a, index_b):
-		''' Swap two rules in the list. '''
+		''' Swap two elements in the list. '''
 		self[index_a], self[index_b] = self[index_b], self[index_a]
 
 	def __len__(self):
-		return len(self.__rules)
+		return len(self.__data)
 
 	def __getitem__(self, index):
 		if not 0 <= index < len(self): raise HumanReadableError('Index out of range: expected an integer in the range [0, {}), got {}.'.format(len(self), index))
-		return self.__rules[index]
+		return self.__data[index]
 
-	def __setitem__(self, index, rule):
+	def __setitem__(self, index, value):
 		if not 0 <= index < len(self): raise HumanReadableError('Index out of range: expected an integer in the range [0, {}), got {}.'.format(len(self), index))
-		self.__highest      = max(self.__highest, rule[1] + 1)
-		self.__rules[index] = rule
+		self.__data[index] = value
 
 	def __iter__(self):
-		return iter(self.__rules)
+		return iter(self.__data)
+
+
+class RuleList(FriendlyList):
+	''' A list of rules to test buffer names against. '''
+	rule_regex = re.compile(r'^(.*)=\s*([+-]?[^=]*)$')
+
+	def __init__(self, rules):
+		''' Construct a RuleList from a list of rules. '''
+		super(RuleList, self).__init__()
+		for rule in rules: self.append(rule)
+
+	def get_score(self, name, rules):
+		''' Get the sort score of a partial name according to a rule list. '''
+		for rule in self:
+			if rule[0].match(name): return rule[1]
+		return 999999999
+
+	def encode(self):
+		''' Encode the rules for storage. '''
+		return json.dumps(map(lambda x: (x[0].pattern, x[1]), self))
 
 	@staticmethod
 	def decode(blob):
@@ -175,7 +194,7 @@ class RuleList:
 		for rule in decoded:
 			# Rules must be a pattern,score pair.
 			if len(rule) != 2:
-				log('Invalid rule: expected [pattern, score], got "{}". Rule ignored.'.format(rule))
+				log('Invalid rule: expected (pattern, score), got "{}". Rule ignored.'.format(rule))
 				continue
 
 			# Rules must have a valid pattern.
@@ -214,6 +233,30 @@ class RuleList:
 		return (pattern, score)
 
 
+def decode_replacements(blob):
+	''' Decode a replacement list encoded as JSON. '''
+	result = FriendlyList()
+	try:
+		decoded = json.loads(blob)
+	except ValueError:
+		log('Invalid replacement list: expected JSON encoded list of pairs, got "{}".'.format(blob))
+		return [], 0
+
+	for replacement in decoded:
+		# Replacements must be a (string, string) pair.
+		if len(replacement) != 2:
+			log('Invalid replacement pattern: expected (pattern, replacement), got "{}". Replacement ignored.'.format(rule))
+			continue
+		result.append(replacement)
+
+	return result
+
+
+def encode_replacements(replacements):
+	''' Encode a list of replacement patterns as JSON. '''
+	return json.dumps(replacements.raw())
+
+
 class Config:
 	''' The autosort configuration. '''
 
@@ -226,6 +269,9 @@ class Config:
 		('irc.server',  1),
 	])
 
+	default_replacements = '[]'
+	default_signals      = 'buffer_opened buffer_merged buffer_unmerged buffer_renamed'
+
 	def __init__(self, filename):
 		''' Initialize the configuration. '''
 
@@ -236,11 +282,16 @@ class Config:
 		self.case_sensitive   = False
 		self.group_irc        = True
 		self.rules            = []
-		self.highest          = 0
+		self.replacements     = []
+		self.signals          = []
+		self.sort_on_config   = True
 
 		self.__case_sensitive = None
 		self.__group_irc      = None
 		self.__rules          = None
+		self.__replacements   = None
+		self.__signals        = None
+		self.__sort_on_config = None
 
 		if not self.config_file:
 			log('Failed to initialize configuration file "{}".'.format(self.filename))
@@ -265,7 +316,7 @@ class Config:
 			self.config_file, self.sorting_section,
 			'group_irc', 'boolean',
 			'If this option is on, the script pretends that IRC channel/private buffers are renamed to "irc.server.{network}.{channel}" rather than "irc.{network}.{channel}".' +
-			'This ensures that thsee buffers are grouped with their respective server buffer.',
+			'This ensures that these buffers are grouped with their respective server buffer.',
 			'', 0, 0, 'on', 'on', 0,
 			'', '', '', '', '', ''
 		)
@@ -275,6 +326,30 @@ class Config:
 			'rules', 'string',
 			'An ordered list of sorting rules encoded as JSON. See /help autosort for commands to manipulate these rules.',
 			'', 0, 0, Config.default_rules, Config.default_rules, 0,
+			'', '', '', '', '', ''
+		)
+
+		self.__replacements = weechat.config_new_option(
+			self.config_file, self.sorting_section,
+			'replacements', 'string',
+			'An ordered list of replacement patterns to use on buffer name components, encoded as JSON. See /help autosort for commands to manipulate these replacements.',
+			'', 0, 0, Config.default_replacements, Config.default_replacements, 0,
+			'', '', '', '', '', ''
+		)
+
+		self.__signals = weechat.config_new_option(
+			self.config_file, self.sorting_section,
+			'signals', 'string',
+			'The signals that will cause autosort to resort your buffer list. Seperate signals with spaces.',
+			'', 0, 0, Config.default_signals, Config.default_signals, 0,
+			'', '', '', '', '', ''
+		)
+
+		self.__sort_on_config = weechat.config_new_option(
+			self.config_file, self.sorting_section,
+			'sort_on_config_change', 'boolean',
+			'Decides if the buffer list should be sorted when autosort configuration changes.',
+			'', 0, 0, 'on', 'on', 0,
 			'', '', '', '', '', ''
 		)
 
@@ -291,12 +366,23 @@ class Config:
 
 		self.case_sensitive = weechat.config_boolean(self.__case_sensitive)
 		self.group_irc      = weechat.config_boolean(self.__group_irc)
+
 		rules_blob          = weechat.config_string(self.__rules)
+		replacements_blob   = weechat.config_string(self.__replacements)
+		signals_blob        = weechat.config_string(self.__signals)
+
 		self.rules          = RuleList.decode(rules_blob)
+		self.replacements   = decode_replacements(replacements_blob)
+		self.signals        = signals_blob.split()
+		self.sort_on_config = weechat.config_boolean(self.__sort_on_config)
 
 	def save_rules(self, run_callback = True):
 		''' Save the current rules to the configuration. '''
 		weechat.config_option_set(self.__rules, RuleList.encode(self.rules), run_callback)
+
+	def save_replacements(self, run_callback = True):
+		''' Save the current replacement patterns to the configuration. '''
+		weechat.config_option_set(self.__replacements, encode_replacements(self.replacements), run_callback)
 
 
 def pad(sequence, length, padding = None):
@@ -329,15 +415,17 @@ def get_buffers():
 
 def preprocess(buffer, config):
 	'''
-	Preprocess a buffers name components.
-	This function modifies IRC buffers to group them under their server buffer if group_irc is set.
+	Preprocess a buffers names.
 	'''
+	if not config.case_sensitive:
+		buffer = buffer.lower()
+
+	for replacement in config.replacements:
+		buffer = buffer.replace(replacement[0], replacement[1])
+
 	buffer = buffer.split('.')
 	if config.group_irc and len(buffer) >= 2 and buffer[0] == 'irc' and buffer[1] not in ('server', 'irc_raw'):
 		buffer.insert(1, 'server')
-
-	if not config.case_sensitive:
-		buffer = map(lambda x: x.lower(), buffer)
 
 	return buffer
 
@@ -361,12 +449,19 @@ def apply_buffer_order(buffers):
 		weechat.command('', '/buffer swap {} {}'.format(buffer, i + 1))
 
 
-def split_args(args, expected):
+def split_args(args, expected, optional = 0):
 	''' Split an argument string in the desired number of arguments. '''
 	split = args.split(' ', expected - 1)
-	if (len(split) != expected):
-		raise HumanReadableError('Expected exactly {} arguments, got {}.'.format(expected, len(split)))
-	return split
+	if (len(split) < expected):
+		raise HumanReadableError('Expected at least {} arguments, got {}.'.format(expected, len(split)))
+	return split[:-1] + pad(split[-1].split(' ', optional), optional + 1, '')
+
+
+def command_sort(buffer, command, args):
+	''' Sort the buffers and print a confirmation. '''
+	on_buffers_changed()
+	log("Finished sorting buffers.", buffer)
+	return weechat.WEECHAT_RC_OK
 
 
 def command_rule_list(buffer, command, args):
@@ -374,6 +469,8 @@ def command_rule_list(buffer, command, args):
 	output = 'Sorting rules:\n'
 	for i, rule in enumerate(config.rules):
 		output += '    {}: {} = {}\n'.format(i, rule[0].pattern, rule[1])
+	if not len(config.rules):
+		output += '    No sorting rules configured.\n'
 	log(output, buffer)
 
 	return weechat.WEECHAT_RC_OK
@@ -449,11 +546,97 @@ def command_rule_swap(buffer, command, args):
 	return weechat.WEECHAT_RC_OK
 
 
+def command_replacement_list(buffer, command, args):
+	''' Show the list of sorting rules. '''
+	output = 'Replacement patterns:\n'
+	for i, pattern in enumerate(config.replacements):
+		output += '    {}: {} -> {}\n'.format(i, pattern[0], pattern[1])
+	if not len(config.replacements):
+		output += '    No replacement patterns configured.'
+	log(output, buffer)
+
+	return weechat.WEECHAT_RC_OK
+
+
+def command_replacement_add(buffer, command, args):
+	''' Add a rule to the rule list. '''
+	pattern, replacement = split_args(args, 1, 1)
+
+	config.replacements.append((pattern, replacement))
+	config.save_replacements()
+	command_replacement_list(buffer, command, '')
+
+	return weechat.WEECHAT_RC_OK
+
+
+def command_replacement_insert(buffer, command, args):
+	''' Insert a rule at the desired position in the rule list. '''
+	index, pattern, replacement = split_args(args, 2, 1)
+	index = parse_int(index, 'index')
+
+	config.replacements.insert(index, (pattern, replacement))
+	config.save_replacements()
+	command_replacement_list(buffer, command, '')
+	return weechat.WEECHAT_RC_OK
+
+
+def command_replacement_update(buffer, command, args):
+	''' Update a rule in the rule list. '''
+	index, pattern, replacement = split_args(args, 2, 1)
+	index = parse_int(index, 'index')
+
+	config.replacements[index] = (pattern, replacement)
+	config.save_replacements()
+	command_replacement_list(buffer, command, '')
+	return weechat.WEECHAT_RC_OK
+
+
+def command_replacement_delete(buffer, command, args):
+	''' Delete a rule from the rule list. '''
+	index = args.strip()
+	index = parse_int(index, 'index')
+
+	config.replacements.pop(index)
+	config.save_replacements()
+	command_replacement_list(buffer, command, '')
+	return weechat.WEECHAT_RC_OK
+
+
+def command_replacement_move(buffer, command, args):
+	''' Move a rule to a new position. '''
+	index_a, index_b = split_args(args, 2)
+	index_a = parse_int(index_a, 'index')
+	index_b = parse_int(index_b, 'index')
+
+	config.replacements.move(index_a, index_b)
+	config.save_replacements()
+	command_replacement_list(buffer, command, '')
+	return weechat.WEECHAT_RC_OK
+
+
+def command_replacement_swap(buffer, command, args):
+	''' Swap two rules. '''
+	index_a, index_b = split_args(args, 2)
+	index_a = parse_int(index_a, 'index')
+	index_b = parse_int(index_b, 'index')
+
+	config.replacements.swap(index_a, index_b)
+	config.save_replacements()
+	command_replacement_list(buffer, command, '')
+	return weechat.WEECHAT_RC_OK
+
+
+
+
 def call_command(buffer, command, args, subcommands):
 	''' Call a subccommand from a dictionary. '''
 	subcommand, tail = pad(args.split(' ', 1), 2, '')
-	child            = subcommands.get(subcommand)
-	command          = command + [subcommand]
+	subcommand = subcommand.strip()
+	if (subcommand == ''):
+		child   = subcommands.get(' ')
+	else:
+		command = command + [subcommand]
+		child   = subcommands.get(subcommand)
 
 	if isinstance(child, dict):
 		return call_command(buffer, command, tail, child)
@@ -475,7 +658,16 @@ def on_buffers_changed(*args, **kwargs):
 def on_config_changed(*args, **kwargs):
 	''' Called whenever the configuration changes. '''
 	config.reload()
-	on_buffers_changed()
+
+	# Unhook all signals and hook the new ones.
+	for hook in hooks:
+		weechat.unhook(hook)
+	for signal in config.signals:
+		hooks.append(weechat.hook_signal(signal, 'on_buffers_changed', ''))
+
+	if config.sort_on_config:
+		on_buffers_changed()
+
 	return weechat.WEECHAT_RC_OK
 
 
@@ -483,13 +675,30 @@ def on_autosort_command(data, buffer, args):
 	''' Called when the autosort command is invoked. '''
 	try:
 		return call_command(buffer, ['/autosort'], args, {
-			'list':   command_rule_list,
-			'add':    command_rule_add,
-			'insert': command_rule_insert,
-			'update': command_rule_update,
-			'delete': command_rule_delete,
-			'move':   command_rule_move,
-			'swap':   command_rule_swap,
+			' ':      command_sort,
+			'sort':   command_sort,
+
+			'rules': {
+				' ':         command_rule_list,
+				'list':      command_rule_list,
+				'add':       command_rule_add,
+				'insert':    command_rule_insert,
+				'update':    command_rule_update,
+				'delete':    command_rule_delete,
+				'move':      command_rule_move,
+				'swap':      command_rule_swap,
+			},
+			'replacements': {
+				' ':      command_replacement_list,
+				'list':   command_replacement_list,
+				'add':    command_replacement_add,
+				'insert': command_replacement_insert,
+				'update': command_replacement_update,
+				'delete': command_replacement_delete,
+				'move':   command_replacement_move,
+				'swap':   command_replacement_swap,
+			},
+			'sort':   on_buffers_changed,
 		})
 	except HumanReadableError as e:
 		log(e, buffer)
@@ -497,26 +706,59 @@ def on_autosort_command(data, buffer, args):
 
 
 command_description = r'''
-/autosort list
+# Commands
+
+## Miscellaneous
+/autosort sort
+Manually trigger the buffer sorting.
+
+
+## Sorting rules
+
+/autosort rules list
 Print the list of sort rules.
 
-/autosort add <pattern> = <score>
-Add a new rule at the end of the rule list.
+/autosort rules add <pattern> = <score>
+Add a new rule at the end of the list.
 
-/autosort insert <index> <pattern> = <score>
-Insert a new rule at the given index in the rule list.
+/autosort rules insert <index> <pattern> = <score>
+Insert a new rule at the given index in the list.
 
-/autosort update <index> <pattern> = <score>
+/autosort rules update <index> <pattern> = <score>
 Update a rule in the list with a new pattern and score.
 
-/autosort delete <index>
+/autosort rules delete <index>
 Delete a rule from the list.
 
-/autosort move <index_from> <index_to>
+/autosort rules move <index_from> <index_to>
 Move a rule from one position in the list to another.
 
-/autosort swap <index_a> <index_b>
+/autosort rules swap <index_a> <index_b>
 Swap two rules in the list
+
+
+## Replacement patterns
+
+/autosort replacements list
+Print the list of replacement patterns.
+
+/autosort replacements add <pattern> <replacement>
+Add a new replacement pattern at the end of the list.
+
+/autosort replacements insert <index> <pattern> <replacement>
+Insert a new replacement pattern at the given index in the list.
+
+/autosort replacements update <index> <pattern> <replacement>
+Update a replacement pattern in the list.
+
+/autosort replacements delete <index>
+Delete a replacement pattern from the list.
+
+/autosort replacements move <index_from> <index_to>
+Move a replacement pattern from one position in the list to another.
+
+/autosort replacements swap <index_a> <index_b>
+Swap two replacement pattern in the list
 
 
 # Introduction
@@ -534,6 +776,30 @@ Any name component that did not get a score assigned will be sorted after those 
 Components are always sorted on their score first and on their name second.
 Lower scores are sorted first.
 
+## Automatic or manual sorting
+By default, autosort will automatically sort your buffer list whenever a buffer is opened, merged, unmerged or renamed.
+This should keep your buffers sorted in almost all situations.
+However, you may wish to change the list of signals that cause your buffer list to be sorted.
+Simply edit the "autosort.sorting.signals" option to add or remove any signal you like.
+If you remove all signals you can still sort your buffers manually with the "/autosort sort" command.
+To prevent all automatic sorting, "autosort.sorting.sort_on_config_change" should also be set to off.
+
+## Grouping IRC buffers
+In weechat, IRC channel/private buffers are named "irc.<network>.<#channel>",
+and IRC server buffers are named "irc.server.<network>".
+This does not work very well with lexicographical sorting if you want all buffers for one network grouped together.
+That is why autosort comes with the "autosort.sorting.group_irc" option,
+which secretly pretends IRC channel/private buffers are called "irc.server.<network>.<#channel>".
+The buffers are not actually renamed, autosort simply pretends they are for sorting purposes.
+
+## Replacement patterns
+Sometimes you may want to ignore some characters for sorting purposes.
+On Freenode for example, you may wish to ignore the difference between channels starting with a double or a single hash sign.
+To do so, simply add a replacement pattern that replaces ## with # with the following command:
+/autosort replacements add ## #
+
+Replacement patterns do not support wildcards or special characters at the moment.
+
 ## Sort rules
 You can assign scores to name components by defining sort rules.
 The first rule that matches a component decides the score.
@@ -541,7 +807,7 @@ Further rules are not examined.
 Sort rules use the following syntax:
 <glob-pattern> = <score>
 
-You can use the "/autosort rule" command to show and manipulate the list of sort rules.
+You can use the "/autosort rules" command to show and manipulate the list of sort rules.
 
 
 Allowed special characters in the glob patterns are:
@@ -554,15 +820,6 @@ Pattern | Meaning
 [^ab]   | A negated regex-like character class.
 \*      | A backslash escapes the next characters and removes its special meaning.
 \\      | A literal backslash.
-
-
-## Grouping IRC buffers
-In weechat, IRC channel/private buffers are named "irc.<network>.<#channel>",
-and IRC server buffers are named "irc.server.<network>".
-This does not work very well with lexicographical sorting if you want all buffers for one network grouped together.
-That is why autosort comes with the "autosort.sorting.group_irc" option,
-which secretly pretends IRC channel/private buffers are called "irc.server.<network>.<#channel>".
-The buffers are not actually renamed, autosort simply pretends they are for sorting purposes.
 
 
 ## Example
@@ -585,16 +842,12 @@ The same effect could also be achieved with a single rule:
 irc.server.*.[^#]* = 0
 '''
 
-command_completion = 'list|add|insert|update|delete|move|swap'
+command_completion = 'sort||rules list|add|insert|update|delete|move|swap||replacements list|add|insert|update|delete|move|swap'
 
 
 if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, "", ""):
 	config = Config('autosort')
 
-	weechat.hook_signal('buffer_opened',   'on_buffers_changed', '')
-	weechat.hook_signal('buffer_merged',   'on_buffers_changed', '')
-	weechat.hook_signal('buffer_unmerged', 'on_buffers_changed', '')
-	weechat.hook_signal('buffer_renamed',  'on_buffers_changed', '')
 	weechat.hook_config('autosort.*',      'on_config_changed',  '')
 	weechat.hook_command('autosort', command_description, '', '', command_completion, 'on_autosort_command', 'NULL')
 	on_config_changed()
