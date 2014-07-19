@@ -20,6 +20,9 @@
 #
 # History:
 #
+# 2014-07-19, Sebastien Helleu <flashcode@flashtux.org>:
+#     v4.8: add support of ctrl + mouse wheel to jump to previous/next buffer,
+#           new option "mouse_wheel"
 # 2014-06-22, Sebastien Helleu <flashcode@flashtux.org>:
 #     v4.7: fix typos in options
 # 2014-04-05, Sebastien Helleu <flashcode@flashtux.org>:
@@ -157,7 +160,7 @@ use strict;
 use Encode qw( decode encode );
 # -----------------------------[ internal ]-------------------------------------
 my $SCRIPT_NAME = "buffers";
-my $SCRIPT_VERSION = "4.7";
+my $SCRIPT_VERSION = "4.8";
 
 my $BUFFERS_CONFIG_FILE_NAME = "buffers";
 my $buffers_config_file;
@@ -165,7 +168,9 @@ my $cmd_buffers_whitelist= "buffers_whitelist";
 my $cmd_buffers_detach   = "buffers_detach";
 
 my %mouse_keys = ("\@item(buffers):button1*" => "hsignal:buffers_mouse",
-                  "\@item(buffers):button2*" => "hsignal:buffers_mouse");
+                  "\@item(buffers):button2*" => "hsignal:buffers_mouse",
+                  "\@bar(buffers):ctrl-wheelup" => "hsignal:buffers_mouse",
+                  "\@bar(buffers):ctrl-wheeldown" => "hsignal:buffers_mouse");
 my %options;
 my %hotlist_level = (0 => "low", 1 => "message", 2 => "private", 3 => "highlight");
 my @whitelist_buffers = ();
@@ -809,6 +814,12 @@ my %default_options_look =
  "mouse_move_buffer" => [
      "mouse_move_buffer", "boolean",
      "if option is \"on\", mouse gestures (drag & drop) can move buffers in list.",
+     "", 0, 0, "on", "on", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "mouse_wheel" => [
+     "mouse_wheel", "boolean",
+     "if option is \"on\", mouse wheel jumps to previous/next buffer in list.",
      "", 0, 0, "on", "on", 0,
      "", "", "buffers_signal_config", "", "", ""
  ],
@@ -1617,11 +1628,12 @@ sub buffers_hsignal_mouse
     my ($data, $signal, %hash) = ($_[0], $_[1], %{$_[2]});
     my $current_buffer = weechat::buffer_get_integer(weechat::current_buffer(), "number"); # get current buffer number
 
-    if ( $hash{"_key"} eq "button1" )           # left mouse button
+    if ( $hash{"_key"} eq "button1" )
     {
+        # left mouse button
         if ($hash{"number"} eq $hash{"number2"})
         {
-            if ( weechat::config_integer($options{"jump_prev_next_visited_buffer"}) eq 1 )
+            if ( weechat::config_boolean($options{"jump_prev_next_visited_buffer"}) )
             {
                 if ( $current_buffer eq $hash{"number"} )
                 {
@@ -1642,11 +1654,28 @@ sub buffers_hsignal_mouse
             move_buffer(%hash) if (weechat::config_boolean($options{"mouse_move_buffer"}));
         }
     }
-    elsif ( ($hash{"_key"} eq "button2") && (weechat::config_integer($options{"jump_prev_next_visited_buffer"}) eq 1) )# right mouse button
+    elsif ( ($hash{"_key"} eq "button2") && (weechat::config_boolean($options{"jump_prev_next_visited_buffer"})) )
     {
+        # right mouse button
         if ( $current_buffer eq $hash{"number2"} )
         {
             weechat::command("", "/input jump_next_visited_buffer");
+        }
+    }
+    elsif ( $hash{"_key"} =~ /wheelup$/ )
+    {
+        # wheel up
+        if (weechat::config_boolean($options{"mouse_wheel"}))
+        {
+            weechat::command("", "/buffer -1");
+        }
+    }
+    elsif ( $hash{"_key"} =~ /wheeldown$/ )
+    {
+        # wheel down
+        if (weechat::config_boolean($options{"mouse_wheel"}))
+        {
+            weechat::command("", "/buffer +1");
         }
     }
     else
