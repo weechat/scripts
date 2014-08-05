@@ -24,6 +24,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2014-08-02, Nils Görs <weechatter@arcor.de>
+#  version 0.14: add time to detach message. (idea by Mikaela)
 # 2014-06-19, Anders Bergh <anders1@gmail.com>
 #  version 0.13: Fix a simple typo in an option description.
 # 2014-01-12, Phyks (Lucas Verney) <phyks@phyks.me>
@@ -60,15 +62,17 @@
 import weechat as w
 import re
 import os
+import datetime, time
 
 SCRIPT_NAME    = "screen_away"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.13"
+SCRIPT_VERSION = "0.14"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Set away status on screen detach"
 
 settings = {
         'message': ('Detached from screen', 'Away message'),
+        'time_format': ('since %Y-%m-%d %H:%M:%S%z', 'time format append to away message'),
         'interval': ('5', 'How often in seconds to check screen status'),
         'away_suffix': ('', 'What to append to your nick when you\'re away.'),
         'command_on_attach': ('', 'Commands to execute on attach, separated by semicolon'),
@@ -109,8 +113,9 @@ def get_servers():
             continue
         if not w.config_string_to_boolean(w.config_get_plugin('set_away')) or \
                 not w.infolist_integer(infolist, 'is_away') or \
-                    w.infolist_string(infolist, 'away_message') == \
-                    w.config_get_plugin('message'):
+                    w.config_get_plugin('message') in w.infolist_string(infolist, 'away_message'):
+#                    w.infolist_string(infolist, 'away_message') == \
+#                    w.config_get_plugin('message'):
             buffers.append((w.infolist_pointer(infolist, 'buffer'),
                 w.infolist_string(infolist, 'nick')))
     w.infolist_free(infolist)
@@ -157,7 +162,7 @@ def screen_away_timer_cb(buffer, args):
                 if suffix and not nick.endswith(suffix):
                     w.command(server, "/nick %s%s" % (nick, suffix));
                 if set_away:
-                    w.command(server, "/away %s" % w.config_get_plugin('message'));
+                    w.command(server, "/away %s %s" % (w.config_get_plugin('message'), time.strftime(w.config_get_plugin('time_format'))))
             AWAY = True
             for cmd in w.config_get_plugin("command_on_detach").split(";"):
                 w.command("", cmd)
