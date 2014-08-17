@@ -1,13 +1,13 @@
 #
 # chanmon.pl - Channel Monitoring for weechat 0.3.0
-# Version 2.4
+# Version 2.5
 #
 # Add 'Channel Monitor' buffer/bar that you can position to show IRC channel
 # messages in a single location without constantly switching buffers
 # i.e. In a seperate window beneath the main channel buffer
 #
 # Usage:
-# /chanmon [help] | [monitor [channel [server]]] | [dynmon] | [clean default|orphan|all]
+# /chanmon [help] | [monitor [channel [server]]] | [dynmon] | [clean default|orphan|all] | clearbar
 #  Command wrapper for chanmon commands
 #
 # /chmonitor [channel] [server] is used to toggle a channel monitoring on and off, this
@@ -20,6 +20,8 @@
 #
 # /chanclean default|orphan|all will clean the config section of default 'on' entries,
 #  channels you are no longer joined, or both
+#
+# /chanmon clearbar will clear the contents of chanmon's bar output
 #
 # /set plugins.var.perl.chanmon.alignment
 #  The config setting "alignment" can be changed to;
@@ -62,16 +64,21 @@
 #
 # Example set up:
 # Split the layout 70/30 (or there abouts) horizontally and load
-# Optionally, make the status and input lines only show on active windows
+# Optionally, hide the status and input lines on chanmon
 #
-# /window splith 70 --> open the chanmon buffer
-# /set weechat.bar.status.conditions "active"
-# /set weechat.bar.input.conditions "active"
+# /window splith 70 --> change to chanmon buffer
+# /set weechat.bar.status.conditions "${window.buffer.full_name} != perl.chanmon"
+# /set weechat.bar.input.conditions "${window.buffer.full_name} != perl.chanmon"
 #
 
 # Bugs and feature requests at: https://github.com/KenjiE20/chanmon
 
 # History:
+# 2014-08-16, KenjiE20 <longbow@longbowslair.co.uk>:
+#	v2.5:	-add: clearbar command to clear bar output
+#			-add: firstrun output prompt to check the help text for set up hints as they were being missed
+#			and update hint for conditions to use eval
+#			-change: Make all outputs use the date callback for more accurate timestamps (thanks Germainz)
 # 2013-12-04, KenjiE20 <longbow@longbowslair.co.uk>:
 #	v2.4:	-add: Support for eval style colour codes in time format used for bar output
 # 2013-10-10, KenjiE20 <longbow@longbowslair.co.uk>:
@@ -186,7 +193,7 @@
 @bar_lines = ();
 @bar_lines_time = ();
 # Replicate info earlier for in-client help
-$chanmonhelp = weechat::color("bold")."/chanmon [help] | [monitor [channel [server]]] | [dynmon] | [clean default|orphan|all]".weechat::color("-bold")."
+$chanmonhelp = weechat::color("bold")."/chanmon [help] | [monitor [channel [server]]] | [dynmon] | [clean default|orphan|all] | clearbar".weechat::color("-bold")."
 Command wrapper for chanmon commands
 
 ".weechat::color("bold")."/chmonitor [channel] [server]".weechat::color("-bold")." is used to toggle a channel monitoring on and off, this
@@ -195,6 +202,8 @@ Command wrapper for chanmon commands
 ".weechat::color("bold")."/dynmon".weechat::color("-bold")." is used to toggle 'Dynamic Channel Monitoring' on and off, this will automagically stop monitoring the current active buffer, without affecting regular settings (Default is off)
 
 ".weechat::color("bold")."/chanclean".weechat::color("-bold")." default|orphan|all will clean the config section of default 'on' entries, channels you are no longer joined, or both
+
+".weechat::color("bold")."/chanmon clearbar".weechat::color("-bold")." will clear the contents of chanmon's bar output
 
 ".weechat::color("bold")."/set plugins.var.perl.chanmon.alignment".weechat::color("-bold")."
  The config setting \"alignment\" can be changed to;
@@ -237,11 +246,11 @@ Command wrapper for chanmon commands
 
 ".weechat::color("bold")."Example set up:".weechat::color("-bold")."
 Split the layout 70/30 (or there abouts) horizontally and load
-Optionally, make the status and input lines only show on active windows
+Optionally, hide the status and input lines on chanmon
 
-".weechat::color("bold")."/window splith 70 --> open the chanmon buffer".weechat::color("-bold")."
-".weechat::color("bold")."/set weechat.bar.status.conditions \"active\"".weechat::color("-bold")."
-".weechat::color("bold")."/set weechat.bar.input.conditions \"active\"".weechat::color("-bold");
+".weechat::color("bold")."/window splith 70".weechat::color("-bold")." --> change to chanmon buffer
+".weechat::color("bold")."/set weechat.bar.status.conditions \"\${window.buffer.full_name} != perl.chanmon\"".weechat::color("-bold")."
+".weechat::color("bold")."/set weechat.bar.input.conditions \"\${window.buffer.full_name} != perl.chanmon\"".weechat::color("-bold");
 # Print verbose help
 sub print_help
 {
@@ -408,6 +417,15 @@ sub chanmon_command_cb
 	{
 		chanmon_config_clean($data, $buffer, $arg);
 	}
+	# clearbar command
+	elsif ($cmd eq "clearbar")
+	{
+		if (weechat::config_get_plugin("output") eq "bar")
+		{
+			@bar_lines = ();
+			weechat::bar_item_update("chanmon");
+		}
+	}
 	# Fix closed buffer
 	elsif ($cmd eq "fix")
 	{
@@ -507,6 +525,15 @@ sub chanmon_config_clean
 # Check config elements
 sub chanmon_config_init
 {
+	# First run default
+	if (!(weechat::config_is_set_plugin ("first_run")))
+	{
+		if (weechat::config_get_plugin("first_run") ne "true")
+		{
+			weechat::print("", "\tThis appears to be the first time chanmon has been run. For help and common set up hints see /chanmon help");
+			weechat::config_set_plugin("first_run", "true");
+		}
+	}
 	# Alignment default
 	if (!(weechat::config_is_set_plugin ("alignment")))
 	{
@@ -680,7 +707,7 @@ sub chanmon_hook
 	weechat::hook_command("dynmon", "Toggles 'dynamic' monitoring (auto-disable monitoring for current channel)", "", "", "", "chanmon_dyn_toggle", "");
 	weechat::hook_command("chanclean", "Chanmon config clean up", "default|orphan|all", " default: Cleans all config entries with the default \"on\" value\n  orphan: Cleans all config entries for channels you aren't currently joined\n     all: Does both defaults and orphan", "default|orphan|all", "chanmon_config_clean", "");
 
-	weechat::hook_command("chanmon", "Chanmon help", "[help] | [monitor [channel [server]]] | [dynmon] | [clean default|orphan|all]", "    help: Print help for chanmon\n monitor: Toggles monitoring for a channel (/chmonitor)\n  dynmon: Toggles 'dynamic' monitoring (auto-disable monitoring for current channel) (/dynmon)\n   clean: Chanmon config clean up (/chanclean)", "help || monitor %(irc_channels) %(irc_servers) || dynmon || clean default|orphan|all", "chanmon_command_cb", "");
+	weechat::hook_command("chanmon", "Chanmon help", "[help] | [monitor [channel [server]]] | [dynmon] | [clean default|orphan|all] | clearbar", "    help: Print help for chanmon\n monitor: Toggles monitoring for a channel (/chmonitor)\n  dynmon: Toggles 'dynamic' monitoring (auto-disable monitoring for current channel) (/dynmon)\n   clean: Chanmon config clean up (/chanclean)\nclearbar: Clear Chanmon bar", "help || monitor %(irc_channels) %(irc_servers) || dynmon || clean default|orphan|all || clearbar", "chanmon_command_cb", "");
 
 	weechat::hook_config("plugins.var.perl.chanmon.*", "chanmon_config_cb", "");
 	weechat::hook_config("weechat.look.prefix_suffix", "chanmon_config_cb", "");
@@ -772,7 +799,7 @@ sub chanmon_new_message
 					}
 				}
 				# Send to output
-				chanmon_print ($cb_msg, $cb_bufferp, $nick);
+				chanmon_print ($cb_msg, $cb_bufferp, $nick, $cb_date, $cb_tags);
 			}
 		}
 	}
@@ -804,7 +831,7 @@ sub chanmon_new_message
 				$nick_self_colour = weechat::color(weechat::config_string(weechat::config_get("weechat.color.chat_nick_self")));
 				$nick = $action_colour.$action_prefix.$nick_self_colour.$nick.weechat::color("reset");
 				# Send to output
-				chanmon_print ($cb_msg, $cb_bufferp, $nick);
+				chanmon_print ($cb_msg, $cb_bufferp, $nick, $cb_date, $cb_tags);
 			}
 		}
 	}
@@ -817,6 +844,8 @@ sub chanmon_print
 	$cb_msg = $_[0];
 	my $cb_bufferp = $_[1] if ($_[1]);
 	my $nick = $_[2] if ($_[2]);
+	my $cb_date = $_[3] if ($_[3]);
+	my $cb_tags = $_[4] if ($_[4]);
 
 	#Normal channel message
 	if ($cb_bufferp && $nick)
@@ -919,13 +948,27 @@ sub chanmon_print
 		# Search for and confirm buffer
 		$chanmon_buffer = weechat::buffer_search("perl", "chanmon");
 		# Print
-		weechat::print($chanmon_buffer, $outstr);
+		if ($cb_date)
+		{
+			weechat::print_date_tags($chanmon_buffer, $cb_date, $cb_tags, $outstr);
+		}
+		else
+		{
+			weechat::print($chanmon_buffer, $outstr);
+		}
 	}
 	elsif (weechat::config_get_plugin("output") eq "bar")
 	{
 		# Add time string
 		use POSIX qw(strftime);
-		$time = strftime(weechat::config_string(weechat::config_get("weechat.look.buffer_time_format")), localtime);
+		if ($cb_date)
+		{
+			$time = strftime(weechat::config_string(weechat::config_get("weechat.look.buffer_time_format")), localtime($cb_date));
+		}
+		else
+		{
+			$time = strftime(weechat::config_string(weechat::config_get("weechat.look.buffer_time_format")), localtime);
+		}
 		# Colourise
 		if ($time =~ /\$\{(?:color:)?[\w,]+\}/) # Coloured string
 		{
@@ -1139,7 +1182,7 @@ sub format_buffer_name
 }
 
 # Check result of register, and attempt to behave in a sane manner
-if (!weechat::register("chanmon", "KenjiE20", "2.4", "GPL3", "Channel Monitor", "", ""))
+if (!weechat::register("chanmon", "KenjiE20", "2.5", "GPL3", "Channel Monitor", "", ""))
 {
 	# Double load
 	weechat::print ("", "\tChanmon is already loaded");
