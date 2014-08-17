@@ -1,15 +1,17 @@
 #
 # highmon.pl - Highlight Monitoring for weechat 0.3.0
-# Version 2.4
+# Version 2.5
 #
 # Add 'Highlight Monitor' buffer/bar to log all highlights in one spot
 #
 # Usage:
-# /highmon [help] | [monitor [channel [server]]] | [clean default|orphan|all]
+# /highmon [help] | [monitor [channel [server]]] | [clean default|orphan|all] | clearbar
 #  Command wrapper for highmon commands
 #
 # /highmon clean default|orphan|all will clean the config section of default 'on' entries,
 #  channels you are no longer joined, or both
+#
+# /highmon clearbar will clear the contents of highmon's bar output
 #
 # /highmon monitor [channel] [server] is used to toggle a highlight monitoring on and off, this
 #  can be used in the channel buffer for the channel you wish to toggle, or be given
@@ -62,10 +64,20 @@
 #  servername is the internal name for the server (set when you use /server add)
 #  #channel is the channel name, (where # is whatever channel type that channel happens to be)
 #
+# Optional, set up tweaks; Hide the status and input lines on highmon
+#
+# /set weechat.bar.status.conditions "${window.buffer.full_name} != perl.highmon"
+# /set weechat.bar.input.conditions "${window.buffer.full_name} != perl.highmon"
+#
 
 # Bugs and feature requests at: https://github.com/KenjiE20/highmon
 
 # History:
+# 2014-08-16, KenjiE20 <longbow@longbowslair.co.uk>:
+#	v2.5:	-add: clearbar command to clear bar output
+#			-add: firstrun output prompt to check the help text for set up hints as they were being missed
+#			and update hint for conditions to use eval
+#			-change: Make all outputs use the date callback for more accurate timestamps (thanks Germainz)
 # 2013-12-04, KenjiE20 <longbow@longbowslair.co.uk>:
 #	v2.4:	-add: Support for eval style colour codes in time format used for bar output
 # 2013-10-22, KenjiE20 <longbow@longbowslair.co.uk>:
@@ -140,10 +152,12 @@
 @bar_lines_time = ();
 # Replicate info earlier for in-client help
 
-$highmonhelp = weechat::color("bold")."/highmon [help] | [monitor [channel [server]]] | [clean default|orphan|all]".weechat::color("-bold")."
+$highmonhelp = weechat::color("bold")."/highmon [help] | [monitor [channel [server]]] | [clean default|orphan|all] | clearbar".weechat::color("-bold")."
  Command wrapper for highmon commands
 
 ".weechat::color("bold")."/highmon clean default|orphan|all".weechat::color("-bold")." will clean the config section of default 'on' entries, channels you are no longer joined, or both
+
+".weechat::color("bold")."/highmon clearbar".weechat::color("-bold")." will clear the contents of highmon's bar output
 
 ".weechat::color("bold")."/highmon monitor [channel] [server]".weechat::color("-bold")." is used to toggle a highlight monitoring on and off, this can be used in the channel buffer for the channel you wish to toggle, or be given with arguments e.g. /highmon monitor #weechat freenode
 
@@ -190,7 +204,12 @@ Setting this to 'on' will only put messages in the highmon buffer when you set y
 
 ".weechat::color("bold")."servername.#channel".weechat::color("-bold")."
  servername is the internal name for the server (set when you use /server add)
- #channel is the channel name, (where # is whatever channel type that channel happens to be)";
+ #channel is the channel name, (where # is whatever channel type that channel happens to be)
+
+".weechat::color("bold")."Optional, set up tweaks;".weechat::color("-bold")." Hide the status and input lines on highmon
+
+".weechat::color("bold")."/set weechat.bar.status.conditions \"\${window.buffer.full_name} != perl.highmon\"".weechat::color("-bold")."
+".weechat::color("bold")."/set weechat.bar.input.conditions \"\${window.buffer.full_name} != perl.highmon\"".weechat::color("-bold");
 # Print verbose help
 sub print_help
 {
@@ -355,6 +374,15 @@ sub highmon_command_cb
 	{
 		highmon_config_clean($data, $buffer, $arg);
 	}
+	# clearbar command
+	elsif ($cmd eq "clearbar")
+	{
+		if (weechat::config_get_plugin("output") eq "bar")
+		{
+			@bar_lines = ();
+			weechat::bar_item_update("highmon");
+		}
+	}
 	# Fix closed buffer
 	elsif ($cmd eq "fix")
 	{
@@ -454,6 +482,15 @@ sub highmon_config_clean
 # Check config elements
 sub highmon_config_init
 {
+	# First run default
+	if (!(weechat::config_is_set_plugin ("first_run")))
+	{
+		if (weechat::config_get_plugin("first_run") ne "true")
+		{
+			weechat::print("", "\tThis appears to be the first time highmon has been run. For help and common set up hints see /highmon help");
+			weechat::config_set_plugin("first_run", "true");
+		}
+	}
 	# Alignment default
 	if (!(weechat::config_is_set_plugin ("alignment")))
 	{
@@ -640,7 +677,7 @@ sub highmon_hook
 	weechat::hook_print("", "", "", 0, "highmon_new_message", "");
 	weechat::hook_command("highclean", "Highmon config clean up", "default|orphan|all", " default: Cleans all config entries with the default \"on\" value\n  orphan: Cleans all config entries for channels you aren't currently joined\n     all: Does both defaults and orphan", "default|orphan|all", "highmon_config_clean", "");
 
-	weechat::hook_command("highmon", "Highmon help", "[help] | [monitor [channel [server]]] | [clean default|orphan|all]", "   help: Print help on config options for highmon\n monitor: Toggles monitoring for a channel\n  clean: Highmon config clean up (/highclean)", "help || monitor %(irc_channels) %(irc_servers) || clean default|orphan|all", "highmon_command_cb", "");
+	weechat::hook_command("highmon", "Highmon help", "[help] | [monitor [channel [server]]] | [clean default|orphan|all] | clearbar", "    help: Print help on config options for highmon\n monitor: Toggles monitoring for a channel\n   clean: Highmon config clean up (/highclean)\nclearbar: Clear Highmon bar", "help || monitor %(irc_channels) %(irc_servers) || clean default|orphan|all || clearbar", "highmon_command_cb", "");
 
 	weechat::hook_config("plugins.var.perl.highmon.*", "highmon_config_cb", "");
 	weechat::hook_config("weechat.look.prefix_suffix", "highmon_config_cb", "");
@@ -720,7 +757,7 @@ sub highmon_new_message
 						$nick = weechat::color("chat_highlight").$uncolnick.weechat::color("reset");
 					}
 					# Send to output
-					highmon_print ($cb_msg, $cb_bufferp, $nick);
+					highmon_print ($cb_msg, $cb_bufferp, $nick, $cb_date, $cb_tags);
 				}
 			}
 			# Or is private message
@@ -731,7 +768,7 @@ sub highmon_new_message
 				# Format nick
 				$nick = " ".weechat::config_get_plugin("nick_prefix").weechat::color("chat_highlight").$uncolnick.weechat::color("reset").weechat::config_get_plugin("nick_suffix");
 				#Send to output
-				highmon_print ($cb_msg, $cb_bufferp, $nick);
+				highmon_print ($cb_msg, $cb_bufferp, $nick, $cb_date, $cb_tags);
 			}
 		}
 	}
@@ -744,6 +781,8 @@ sub highmon_print
 	$cb_msg = $_[0];
 	my $cb_bufferp = $_[1] if ($_[1]);
 	my $nick = $_[2] if ($_[2]);
+	my $cb_date = $_[3] if ($_[3]);
+	my $cb_tags = $_[4] if ($_[4]);
 
 	#Normal channel message
 	if ($cb_bufferp && $nick)
@@ -846,13 +885,27 @@ sub highmon_print
 		# Search for and confirm buffer
 		$highmon_buffer = weechat::buffer_search("perl", "highmon");
 		# Print
-		weechat::print($highmon_buffer, $outstr);
+		if ($cb_date)
+		{
+			weechat::print_date_tags($highmon_buffer, $cb_date, $cb_tags, $outstr);
+		}
+		else
+		{
+			weechat::print($highmon_buffer, $outstr);
+		}
 	}
 	elsif (weechat::config_get_plugin("output") eq "bar")
 	{
 		# Add time string
 		use POSIX qw(strftime);
-		$time = strftime(weechat::config_string(weechat::config_get("weechat.look.buffer_time_format")), localtime);
+		if ($cb_date)
+		{
+			$time = strftime(weechat::config_string(weechat::config_get("weechat.look.buffer_time_format")), localtime($cb_date));
+		}
+		else
+		{
+			$time = strftime(weechat::config_string(weechat::config_get("weechat.look.buffer_time_format")), localtime);
+		}
 		# Colourise
 		if ($time =~ /\$\{(?:color:)?[\w,]+\}/) # Coloured string
 		{
@@ -1071,7 +1124,7 @@ sub format_buffer_name
 }
 
 # Check result of register, and attempt to behave in a sane manner
-if (!weechat::register("highmon", "KenjiE20", "2.4", "GPL3", "Highlight Monitor", "", ""))
+if (!weechat::register("highmon", "KenjiE20", "2.5", "GPL3", "Highlight Monitor", "", ""))
 {
 	# Double load
 	weechat::print ("", "\tHighmon is already loaded");
