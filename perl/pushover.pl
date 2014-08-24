@@ -23,7 +23,7 @@ use CGI;
 my %SCRIPT = (
 	name => 'pushover',
 	author => 'stfn <stfnmd@gmail.com>',
-	version => '0.9',
+	version => '1.0',
 	license => 'GPL3',
 	desc => 'Send push notifications to your mobile devices using Pushover, NMA or Pushbullet',
 	opt => 'plugins.var.perl',
@@ -43,7 +43,7 @@ my %OPTIONS_DEFAULT = (
 	'only_if_away' => ['off', 'Notify only if away status is active'],
 	'only_if_inactive' => ['off', 'Notify only if buffer is not the active (current) buffer'],
 	'blacklist' => ['', 'Comma separated list of buffers (full name) to blacklist for notifications (wildcard "*" is allowed, name beginning with "!" is excluded)'],
-	'verbose' => ['2', 'Verbosity level (0 = silently ignore any errors, 1 = display brief error, 2 = display full server response)'],
+	'verbose' => ['1', 'Verbosity level (0 = silently ignore any errors, 1 = display brief error, 2 = display full server response)'],
 );
 my %OPTIONS = ();
 my $DEBUG = 0;
@@ -148,7 +148,7 @@ sub url_cb
 		weechat::print("", $msg);
 	} elsif ($command =~ /notifymyandroid/ && $return_code == 0 && !($out =~ /success code=\"200\"/)) {
 		weechat::print("", $msg);
-	} elsif ($command =~ /pushbullet/ && $return_code == 0 && !($out =~ /notification_id/)) {
+	} elsif ($command =~ /pushbullet/ && $return_code == 0 && !($out =~ /\"iden\"/)) {
 		weechat::print("", $msg);
 	}
 
@@ -234,20 +234,20 @@ sub notify_nma($$$$$)
 }
 
 #
-# https://www.pushbullet.com/api
+# https://docs.pushbullet.com/v2/pushes/
 #
 sub notify_pushbullet($$$$)
 {
 	my ($apikey, $device_iden, $title, $body) = @_;
 
 	# Required API arguments
-	my $apiurl = "https://$apikey:\@api.pushbullet.com/api/pushes";
+	my $apiurl = "https://$apikey\@api.pushbullet.com/v2/pushes";
 	my @post = (
-		"device_iden=" . CGI::escape($device_iden),
 		"type=note",
 	);
 
 	# Optional API arguments
+	push(@post, "device_iden=" . CGI::escape($device_iden)) if ($device_iden && length($device_iden) > 0);
 	push(@post, "title=" . CGI::escape($title)) if ($title && length($title) > 0);
 	push(@post, "body=" . CGI::escape($body)) if ($body && length($body) > 0);
 
