@@ -8,6 +8,8 @@
 # TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
 #
 # 0. You just DO WHAT THE FUCK YOU WANT TO.
+# 2014-09-03, Matthew Martin <phy1729@gmail.com>
+#    v0.2.8: add color reset to the end of the output
 # 2013-11-26, Seganku <seganku@zenu.net>
 #    v0.2.7: add -c switch for the option to pass output to a command
 # 2013-07-19, Sebastien Helleu <flashcode@flashtux.org>
@@ -30,7 +32,7 @@ import re
 
 SCRIPT_NAME    = "prism"
 SCRIPT_AUTHOR  = "Alex Barrett <al.barrett@gmail.com>"
-SCRIPT_VERSION = "0.2.7"
+SCRIPT_VERSION = "0.2.8"
 SCRIPT_LICENSE = "WTFPL"
 SCRIPT_DESC    = "Taste the rainbow."
 
@@ -120,6 +122,7 @@ def prism_cmd_cb(data, buffer, args):
             color_index += random.randint(1, color_count - 1)
         else:
             color_index += inc
+    output += u'\x0f'
 
     # output starting with a / will be executed as a
     # command unless we escape it with a preceding /
