@@ -195,16 +195,14 @@ function unload_cb()
    end
 end
 
-function get_default_open_command()
-   local p, s = io.popen("uname -s")
-   if p then
-      s = p:read("*l")
-      p:close()
-   end
-   if s and s == "Darwin" then
-      return "open"
-   else
-      return "xdg-open"
+function set_default_open_command_cb(_, cmd, ret, out, err)
+   if ret == w.WEECHAT_HOOK_PROCESS_ERROR or ret >= 0 then
+      local open_cmd = "xdg-open"
+      if out and out:match("^([^%s]+)") == "Darwin" then
+         open_cmd = "open"
+      end
+      w.config_set_plugin("cmd.o", "/exec -bg -nosh " .. open_cmd .. " ${url}")
+      w.config_set_plugin("label.o", open_cmd)
    end
 end
 
@@ -228,9 +226,7 @@ function setup()
    setup_hooks()
    if total_cmd == 0 and first_run then
       print("No custom commands configured. Adding default custom command...")
-      local open_cmd = get_default_open_command()
-      w.config_set_plugin("cmd.o", "/exec -bg -nosh " .. open_cmd .. " ${url}")
-      w.config_set_plugin("label.o", open_cmd)
+      w.hook_process("uname -s", 5000, "set_default_open_command_cb", "")
       w.config_set_plugin("cmd.i", "/input insert ${url}\\x20")
       w.config_set_plugin("label.i", "insert into input bar")
    end
