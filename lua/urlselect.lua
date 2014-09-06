@@ -6,9 +6,9 @@ To activate, run /urlselect. View the README at
 https://github.com/tomoe-mami/weechat-scripts/tree/master/urlselect for more
 information.
 
-Author: tomoe-mami <rumia.youkai.of.dusk@gmail.com>
+Author: tomoe-mami/singalaut <rumia.youkai.of.dusk@gmail.com>
 License: WTFPL
-Requires: Weechat 0.4.4+
+Requires: Weechat 1.0+
 
 ]]
 
@@ -16,7 +16,7 @@ local w = weechat
 local g = {
    script = {
       name = "urlselect",
-      version = "0.3",
+      version = "0.4",
       author = "tomoe-mami <rumia.youkai.of.dusk@gmail.com>",
       license = "WTFPL",
       description = "Interactively select URL"
@@ -52,6 +52,11 @@ local g = {
          description =
             "Type of name to use inside urlselect_buffer_name item. " ..
             "Valid values are \"full\", \"normal\", and \"short\""
+      },
+      use_simple_matching = {
+         type = "boolean",
+         value = "0",
+         description = "Use simple pattern matching when scanning for URLs"
       },
       url_color = {
          type = "string",
@@ -139,8 +144,8 @@ local g = {
    config = {},
    active = false,
    list = "",
-   bar_items = {
-      list = { "index", "nick", "url", "time",
+   bar_items = { 
+      list = { "index", "nick", "url", "time", "duplicate",
                "message", "buffer_name", "buffer_number"},
       extra = { "title", "help", "status", "search"}
    },
@@ -190,6 +195,17 @@ function unload_cb()
    end
 end
 
+function set_default_open_command_cb(_, cmd, ret, out, err)
+   if ret == w.WEECHAT_HOOK_PROCESS_ERROR or ret >= 0 then
+      local open_cmd = "xdg-open"
+      if out and out:match("^([^%s]+)") == "Darwin" then
+         open_cmd = "open"
+      end
+      w.config_set_plugin("cmd.o", "/exec -bg -nosh " .. open_cmd .. " ${url}")
+      w.config_set_plugin("label.o", open_cmd)
+   end
+end
+
 function setup()
    assert(
       w.register(
@@ -202,16 +218,17 @@ function setup()
       "Unable to register script. Perhaps it's already loaded before?")
 
    local wee_ver = tonumber(w.info_get("version_number", "") or 0)
-   if wee_ver < 0x00040400 then
-      error("This script requires WeeChat v0.4.4 or higher")
+   if wee_ver < 0x01000000 then
+      error("This script requires WeeChat v1.0 or higher")
    end
 
    local first_run, total_cmd = init_config()
    setup_hooks()
    if total_cmd == 0 and first_run then
       print("No custom commands configured. Adding default custom command...")
-      w.config_set_plugin("cmd.o", "/exec -bg -nosh xdg-open ${url}")
+      w.hook_process("uname -s", 5000, "set_default_open_command_cb", "")
       w.config_set_plugin("cmd.i", "/input insert ${url}\\x20")
+      w.config_set_plugin("label.i", "insert into input bar")
    end
    setup_bar()
 
@@ -330,7 +347,7 @@ function set_custom_command(key, cmd, label, silent)
          end
          if not silent then
             print(
-               "Key ${color:bold}${key}${color:-bold} bound to command: " ..
+               "Key ${color:bold}alt-${key}${color:-bold} bound to command: " ..
                "${color:bold}${cmd}${color:-bold}",
                { key = key, cmd = cmd })
          end
@@ -500,7 +517,7 @@ end
 
 function new_line_cb(buffer, evbuf, date, tags,
                      displayed, highlighted, prefix, message)
-   if displayed == "1" and g.list and g.list ~= "" then
+   if displayed == 1 and g.list and g.list ~= "" then
       if g.config.scan_merged_buffers then
          local evbuf_num = w.buffer_get_integer(evbuf, "number")
          local buf_num = w.buffer_get_integer(buffer, "number")
@@ -522,7 +539,7 @@ function new_line_cb(buffer, evbuf, date, tags,
       data.prefix = w.string_remove_color(prefix, "")
       data.message = message
       data.time = tonumber(date)
-      data.highlighted = tonumber(highlighted)
+      data.highlighted = highlighted
       data.buffer_full_name = w.buffer_get_string(evbuf, "full_name")
       data.buffer_name = w.buffer_get_string(evbuf, "name")
       data.buffer_short_name = w.buffer_get_string(evbuf, "short_name")
@@ -558,7 +575,7 @@ function cmd_action_activate(buffer, args)
          g.scan_mode = g.config.scan_merged_buffers and "merged" or "current"
       end
 
-      g.list = collect_urls(buffer, g.scan_mode)
+      g.list, g.duplicates = collect_urls(buffer, g.scan_mode)
       if g.list and g.list ~= "" then
 
          g.hooks.switch = w.hook_signal(
@@ -602,6 +619,7 @@ function cmd_action_deactivate(buffer)
       deactivate_search(buffer)
       set_keys(buffer, "normal", false)
       set_status()
+      g.duplicates = nil
       if g.list and g.list ~= "" then
          w.infolist_free(g.list)
          g.list = nil
@@ -1020,13 +1038,46 @@ function command_cb(_, buffer, param)
    end
 end
 
+function remove_delimiter(x1, x2, url, msg)
+   local end_char, remove_last_char = url:sub(-1), false
+   if end_char:match("[%.,;:]") then
+      remove_last_char = true
+   elseif x1 > 1 and end_char:match("[%)%]%>%}`\"\']") then
+      local pos = x1 - 1
+      local pre_char = msg:sub(pos, pos)
+      if (pre_char == "(" and end_char == ")") or
+         (pre_char == "[" and end_char == "]") or
+         (pre_char == "<" and end_char == ">") or
+         (pre_char == "{" and end_char == "}") or
+         (pre_char == "`" and end_char == "`") or
+         (pre_char == "'" and end_char == "'") or
+         (pre_char == "\"" and end_char == "\"") then
+         remove_last_char = true
+      end
+   end
+   if remove_last_char then
+      x2 = x2 - 1
+      url = url:sub(1, #url - 1)
+   end
+   return x1, x2, url
+end
+
 function process_urls_in_message(msg, callback)
-   local pattern = "([%w%+%.%-]+://[%w:!/#_~@&=,;%+%?%[%]%.%%%(%)%-]+)"
+   local pattern
+   if g.config.use_simple_matching then
+      pattern = "([%w%+%.%-]+://[%w:!/#_~@&=,;%+%?%[%]%.%%%(%)%-]+)"
+   else
+      pattern = "([%w%+%.%-]+://[^%s]+)"
+   end
+
    msg = w.string_remove_color(msg, "")
    local x1, x2, count = 1, 0, 0
    while x1 and x2 do
       x1, x2, url = msg:find(pattern, x2 + 1)
       if x1 and x2 and url then
+         if not g.config.use_simple_matching then
+            x1, x2, url = remove_delimiter(x1, x2, url, msg)
+         end
          count = count + 1
          local msg2
          if g.config.url_color then
@@ -1092,14 +1143,18 @@ function collect_urls(buffer, mode)
       return
    end
 
-   local index, info = 0, {}
+   local index, info, duplicates = 0, {}, {}
    local list = w.infolist_new()
    local line = w.hdata_pointer(w.hdata_get("lines"), source, "first_line")
    local h_line = w.hdata_get("line")
    local h_line_data = w.hdata_get("line_data")
 
    local add_cb = function (url, msg)
+      if not duplicates[url] then
+         duplicates[url] = {}
+      end
       index = index + 1
+      table.insert(duplicates[url], index)
       info.index = index
       info.url = url
       info.message = msg
@@ -1176,7 +1231,7 @@ function collect_urls(buffer, mode)
    else
       g.last_index = index
    end
-   return list
+   return list, duplicates
 end
 
 function default_item_handler(name, color_key)
@@ -1214,6 +1269,24 @@ function item_buffer_name_cb()
       key = "buffer_name"
    end
    return default_item_handler(key, "buffer_name_color")
+end
+
+function item_duplicate_cb()
+   local result = ""
+   if g.duplicates then
+      local url = w.infolist_string(g.list, "url")
+      local index = w.infolist_integer(g.list, "index")
+      if g.duplicates[url] then
+         local t = {}
+         for _, v in ipairs(g.duplicates[url]) do
+            if v ~= index then
+               table.insert(t, v)
+            end
+         end
+         result = table.concat(t, ",")
+      end
+   end
+   return result
 end
 
 function item_message_cb()
@@ -1407,8 +1480,8 @@ function setup_bar()
          filling_tb = "horizontal",
          max_size = 2,
          items = w.string_eval_expression(
-            "[${s}_title],#${s}_index,[${s}_buffer_name],<${s}_nick>," ..
-            "${s}_message,${s}_status",
+            "[${s}_title],#${s}_index,(${s}_duplicate),[${s}_buffer_name]," ..
+            "<${s}_nick>,${s}_message,${s}_status",
             {}, { s = g.script.name }, {})
       },
       search = {
@@ -1450,4 +1523,3 @@ function setup_bar()
 end
 
 setup()
-
