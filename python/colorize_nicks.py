@@ -23,6 +23,7 @@
 # History:
 # 2014-09-17, holomorph
 #   version 16: use weechat config facilities
+#               clean unused, minor linting, some simplification
 # 2014-05-05, holomorph
 #   version 15: fix python2-specific re.search check
 # 2013-01-29, nils_2
@@ -70,14 +71,6 @@ SCRIPT_DESC    = "Use the weechat nick colors in the chat area"
 
 VALID_NICK = r'([@~&!%+])?([-a-zA-Z0-9\[\]\\`_^\{|\}]+)'
 valid_nick_re = re.compile(VALID_NICK)
-PREFIX_COLORS = {
-        '@' : 'nicklist_prefix1',
-        '~' : 'nicklist_prefix1',
-        '&' : 'nicklist_prefix1',
-        '!' : 'nicklist_prefix1',
-        '%' : 'nicklist_prefix2',
-        '+' : 'nicklist_prefix3',
-}
 ignore_channels = []
 ignore_nicks = []
 
@@ -137,18 +130,24 @@ def colorize_config_read():
     global colorize_config_file
     return weechat.config_read(colorize_config_file)
 
+def colorize_nick_color(nick, my_nick):
+    ''' Retrieve nick color from weechat. '''
+    if nick == my_nick:
+        return w.color(w.config_string(w.config_get('weechat.color.chat_nick_self')))
+    else:
+        return w.info_get('irc_nick_color', nick)
+
 def colorize_cb(data, modifier, modifier_data, line):
     ''' Callback that does the colorizing, and returns new line if changed '''
 
     global ignore_nicks, ignore_channels, colored_nicks
 
     full_name = modifier_data.split(';')[1]
-    server = full_name.split('.')[0]
     channel = '.'.join(full_name.split('.')[1:])
 
     buffer = w.buffer_search('', full_name)
     # Check if buffer has colorized nicks
-    if not buffer in colored_nicks:
+    if buffer not in colored_nicks:
         return line
 
     if channel in ignore_channels:
@@ -166,7 +165,7 @@ def colorize_cb(data, modifier, modifier_data, line):
                 return line
 
     for words in valid_nick_re.findall(line):
-        prefix, nick = words[0], words[1]
+        nick = words[1]
         # Check that nick is not ignored and longer than minimum length
         if len(nick) < min_length or nick in ignore_nicks:
             continue
@@ -177,35 +176,34 @@ def colorize_cb(data, modifier, modifier_data, line):
             # Let's use greedy matching. Will check against every word in a line.
             if w.config_boolean(colorize_config_option['greedy_matching']):
                 for word in line.split():
-                   if nick in word:
-                       # Is there a nick that contains nick and has a greater lenght?
-                       # If so let's save that nick into var biggest_nick
-                       biggest_nick = ""
-                       for i in colored_nicks[buffer]:
-                           if nick in i and nick != i and len(i) > len(nick):
-                               if i in word:
-                                   # If a nick with greater len is found, and that word
-                                   # also happens to be in word, then let's save this nick
-                                   biggest_nick = i
-                       # If there's a nick with greater len, then let's skip this
-                       # As we will have the chance to colorize when biggest_nick
-                       # iterates being nick.
-                       if len(biggest_nick) > 0 and biggest_nick in word:
-                           pass
-                       elif len(word) < len(biggest_nick) or len(biggest_nick) == 0:
-                           new_word = word.replace(nick, '%s%s%s' %(nick_color, nick, reset))
-                           line = line.replace(word, new_word)
+                    if nick in word:
+                        # Is there a nick that contains nick and has a greater lenght?
+                        # If so let's save that nick into var biggest_nick
+                        biggest_nick = ""
+                        for i in colored_nicks[buffer]:
+                            if nick in i and nick != i and len(i) > len(nick):
+                                if i in word:
+                                    # If a nick with greater len is found, and that word
+                                    # also happens to be in word, then let's save this nick
+                                    biggest_nick = i
+                        # If there's a nick with greater len, then let's skip this
+                        # As we will have the chance to colorize when biggest_nick
+                        # iterates being nick.
+                        if len(biggest_nick) > 0 and biggest_nick in word:
+                            pass
+                        elif len(word) < len(biggest_nick) or len(biggest_nick) == 0:
+                            new_word = word.replace(nick, '%s%s%s' % (nick_color, nick, reset))
+                            line = line.replace(word, new_word)
             # Let's use lazy matching for nick
             else:
-                if nick in colored_nicks[buffer]:
-                    nick_color = colored_nicks[buffer][nick]
-                    # The two .? are in case somebody writes "nick:", "nick,", etc
-                    # to address somebody
-                    regex = r"(\A|\s).?(%s).?(\Z|\s)" % re.escape(nick)
-                    match = re.search(regex, line)
-                    if match is not None:
-                        new_line = line[:match.start(2)] + nick_color+nick+reset + line[match.end(2):]
-                        line = new_line
+                nick_color = colored_nicks[buffer][nick]
+                # The two .? are in case somebody writes "nick:", "nick,", etc
+                # to address somebody
+                regex = r"(\A|\s).?(%s).?(\Z|\s)" % re.escape(nick)
+                match = re.search(regex, line)
+                if match is not None:
+                    new_line = line[:match.start(2)] + nick_color+nick+reset + line[match.end(2):]
+                    line = new_line
     return line
 
 def colorize_input_cb(data, modifier, modifier_data, line):
@@ -220,23 +218,23 @@ def colorize_input_cb(data, modifier, modifier_data, line):
 
     buffer = w.current_buffer()
     # Check if buffer has colorized nicks
-    if not buffer in colored_nicks:
+    if buffer not in colored_nicks:
         return line
 
-    channel = w.buffer_get_string(buffer,'name')
+    channel = w.buffer_get_string(buffer, 'name')
     if channel in ignore_channels:
         return line
 
     reset = w.color('reset')
 
     for words in valid_nick_re.findall(line):
-        prefix, nick = words[0], words[1]
+        nick = words[1]
         # Check that nick is not ignored and longer than minimum length
         if len(nick) < min_length or nick in ignore_nicks:
             continue
         if nick in colored_nicks[buffer]:
             nick_color = colored_nicks[buffer][nick]
-            line = line.replace(nick, '%s%s%s' %(nick_color, nick, reset))
+            line = line.replace(nick, '%s%s%s' % (nick_color, nick, reset))
 
     return line
 
@@ -256,19 +254,13 @@ def populate_nicks(*args):
         while w.infolist_next(channels):
             pointer = w.infolist_pointer(channels, 'buffer')
             nicklist = w.infolist_get('nicklist', pointer, '')
-            channelname = w.infolist_string(channels, 'name')
 
-            if not pointer in colored_nicks:
+            if pointer not in colored_nicks:
                 colored_nicks[pointer] = {}
 
             while w.infolist_next(nicklist):
                 nick = w.infolist_string(nicklist, 'name')
-                if nick == my_nick:
-                    nick_color = w.color(\
-                            w.config_string(\
-                            w.config_get('weechat.color.chat_nick_self')))
-                else:
-                    nick_color = w.info_get('irc_nick_color', nick)
+                nick_color = colorize_nick_color(nick, my_nick)
 
                 colored_nicks[pointer][nick] = nick_color
 
@@ -285,18 +277,11 @@ def add_nick(data, signal, type_data):
     global colored_nicks
 
     pointer, nick = type_data.split(',')
-    if not pointer in colored_nicks:
+    if pointer not in colored_nicks:
         colored_nicks[pointer] = {}
 
-    servername = w.buffer_get_string(pointer, 'localvar_server')
     my_nick = w.buffer_get_string(pointer, 'localvar_nick')
-
-    if nick == my_nick:
-        nick_color = w.color(\
-        w.config_string(\
-        w.config_get('weechat.color.chat_nick_self')))
-    else:
-        nick_color = w.info_get('irc_nick_color', nick)
+    nick_color = colorize_nick_color(nick, my_nick)
 
     colored_nicks[pointer][nick] = nick_color
 
@@ -314,6 +299,7 @@ def remove_nick(data, signal, type_data):
     return w.WEECHAT_RC_OK
 
 def update_blacklist(*args):
+    ''' Set the blacklist for channels and nicks. '''
     global ignore_channels, ignore_nicks
     ignore_channels = w.config_string(colorize_config_option['blacklist_channels']).split(',')
     ignore_nicks = w.config_string(colorize_config_option['blacklist_nicks']).split(',')
@@ -321,16 +307,14 @@ def update_blacklist(*args):
 
 if __name__ == "__main__":
     if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
-                        SCRIPT_DESC, "", ""):
+                  SCRIPT_DESC, "", ""):
         colorize_config_init()
         colorize_config_read()
 
-        for key, value in list(PREFIX_COLORS.items()):
-#        for key, value in PREFIX_COLORS.iteritems():
-            PREFIX_COLORS[key] = w.color(w.config_string(w.config_get('weechat.look.%s'%value)))
+        # Run once to get data ready
+        update_blacklist()
+        populate_nicks()
 
-        update_blacklist() # Set blacklist
-        populate_nicks() # Run it once to get data ready
         w.hook_signal('nicklist_nick_added', 'add_nick', '')
         w.hook_signal('nicklist_nick_removed', 'remove_nick', '')
         w.hook_modifier('weechat_print', 'colorize_cb', '')
