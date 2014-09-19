@@ -21,6 +21,8 @@
 #
 #
 # History:
+# 2014-09-17, holomorph
+#   version 16: use weechat config facilities
 # 2014-05-05, holomorph
 #   version 15: fix python2-specific re.search check
 # 2013-01-29, nils_2
@@ -66,16 +68,6 @@ SCRIPT_VERSION = "15"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Use the weechat nick colors in the chat area"
 
-settings = {
-    "blacklist_channels"        : '',     # comma separated list of channels (use short_name)
-    "blacklist_nicks"           : 'so,root',  # comma separated list of nicks
-    "min_nick_length"           : '2',    # length
-    "colorize_input"            : 'off',  # boolean
-    "ignore_tags"               : '', # comma separated list of tags to ignore. I.e. irc_join,irc_part,irc_quit
-    "greedy_matching"           : 'on',  # if off, then let's use lazy matching instead
-}
-
-
 VALID_NICK = r'([@~&!%+])?([-a-zA-Z0-9\[\]\\`_^\{|\}]+)'
 valid_nick_re = re.compile(VALID_NICK)
 PREFIX_COLORS = {
@@ -91,6 +83,59 @@ ignore_nicks = []
 
 # Dict with every nick on every channel with its color as lookup value
 colored_nicks = {}
+
+CONFIG_FILE_NAME = "colorize_nicks"
+
+# config file and options
+colorize_config_file = ""
+colorize_config_option = {}
+
+def colorize_config_init():
+    '''
+    Initialization of configuration file.
+    Sections: look.
+    '''
+    global colorize_config_file, colorize_config_option
+    colorize_config_file = weechat.config_new(CONFIG_FILE_NAME,
+                                              "colorize_config_reload_cb", "")
+    if colorize_config_file == "":
+        return
+
+    # section "look"
+    section_look = weechat.config_new_section(
+        colorize_config_file, "look", 0, 0, "", "", "", "", "", "", "", "", "", "")
+    if section_look == "":
+        weechat.config_free(colorize_config_file)
+        return
+    colorize_config_option["blacklist_channels"] = weechat.config_new_option(
+        colorize_config_file, section_look, "blacklist_channels",
+        "string", "Comma separated list of channels", "", 0, 0,
+        "", "", 0, "", "", "", "", "", "")
+    colorize_config_option["blacklist_nicks"] = weechat.config_new_option(
+        colorize_config_file, section_look, "blacklist_nicks",
+        "string", "Comma separated list of nicks", "", 0, 0,
+        "so,root", "so,root", 0, "", "", "", "", "", "")
+    colorize_config_option["min_nick_length"] = weechat.config_new_option(
+        colorize_config_file, section_look, "min_nick_length",
+        "integer", "Minimum length nick to colorize", "",
+        2, 20, "", "", 0, "", "", "", "", "", "")
+    colorize_config_option["colorize_input"] = weechat.config_new_option(
+        colorize_config_file, section_look, "colorize_input",
+        "boolean", "Whether to colorize input", "", 0,
+        0, "off", "off", 0, "", "", "", "", "", "")
+    colorize_config_option["ignore_tags"] = weechat.config_new_option(
+        colorize_config_file, section_look, "ignore_tags",
+        "string", "Comma separated list of tags to ignore; i.e. irc_join,irc_part,irc_quit", "", 0, 0,
+        "", "", 0, "", "", "", "", "", "")
+    colorize_config_option["greedy_matching"] = weechat.config_new_option(
+        colorize_config_file, section_look, "greedy_matching",
+        "boolean", "If off, then use lazy matching instead", "", 0,
+        0, "on", "on", 0, "", "", "", "", "", "")
+
+def colorize_config_read():
+    ''' Read configuration file. '''
+    global colorize_config_file
+    return weechat.config_read(colorize_config_file)
 
 def colorize_cb(data, modifier, modifier_data, line):
     ''' Callback that does the colorizing, and returns new line if changed '''
@@ -109,19 +154,14 @@ def colorize_cb(data, modifier, modifier_data, line):
     if channel in ignore_channels:
         return line
 
-    try:
-        min_length = int(w.config_get_plugin('min_nick_length'))
-    except ValueError:
-        w.prnt('', '%sError with option min_nick_length, should be a integer' % weechat.prefix('error'))
-        w.config_set_plugin('min_nick_length', settings['min_nick_length'])
-
+    min_length = w.config_integer(colorize_config_option['min_nick_length'])
     reset = w.color('reset')
 
     # Don't colorize if the ignored tag is present in message
     tags_line = modifier_data.rsplit(';')
     if len(tags_line) >= 3:
         tags_line = tags_line[2].split(',')
-        for i in w.config_get_plugin('ignore_tags').split(','):
+        for i in w.config_string(colorize_config_option['ignore_tags']).split(','):
             if i in tags_line:
                 return line
 
@@ -135,7 +175,7 @@ def colorize_cb(data, modifier, modifier_data, line):
             nick_color = colored_nicks[buffer][nick]
 
             # Let's use greedy matching. Will check against every word in a line.
-            if w.config_get_plugin('greedy_matching') == "on":
+            if w.config_boolean(colorize_config_option['greedy_matching']):
                 for word in line.split():
                    if nick in word:
                        # Is there a nick that contains nick and has a greater lenght?
@@ -156,7 +196,7 @@ def colorize_cb(data, modifier, modifier_data, line):
                            new_word = word.replace(nick, '%s%s%s' %(nick_color, nick, reset))
                            line = line.replace(word, new_word)
             # Let's use lazy matching for nick
-            elif w.config_get_plugin('greedy_matching') == "off":
+            else:
                 if nick in colored_nicks[buffer]:
                     nick_color = colored_nicks[buffer][nick]
                     # The two .? are in case somebody writes "nick:", "nick,", etc
@@ -173,19 +213,9 @@ def colorize_input_cb(data, modifier, modifier_data, line):
 
     global ignore_nicks, ignore_channels, colored_nicks
 
-    try:
-        min_length = int(w.config_get_plugin('min_nick_length'))
-    except ValueError:
-        w.prnt('', '%sError with option min_nick_length, should be a integer' % weechat.prefix('error'))
-        w.config_set_plugin('min_nick_length', settings['min_nick_length'])
+    min_length = w.config_integer(colorize_config_option['min_nick_length'])
 
-    if w.config_get_plugin('colorize_input') == 'on':
-        pass
-    elif w.config_get_plugin('colorize_input') == 'off':
-        return line
-    else:
-        w.prnt('', '%sError with option colorize_input, should be on or off' % weechat.prefix('error'))
-        w.config_set_plugin('colorize_input', settings['colorize_input'])
+    if not w.config_boolean(colorize_config_option['colorize_input']):
         return line
 
     buffer = w.current_buffer()
@@ -285,19 +315,15 @@ def remove_nick(data, signal, type_data):
 
 def update_blacklist(*args):
     global ignore_channels, ignore_nicks
-    if w.config_get_plugin('blacklist_channels'):
-        ignore_channels = w.config_get_plugin('blacklist_channels').split(',')
-    ignore_nicks = w.config_get_plugin('blacklist_nicks').split(',')
+    ignore_channels = w.config_string(colorize_config_option['blacklist_channels']).split(',')
+    ignore_nicks = w.config_string(colorize_config_option['blacklist_nicks']).split(',')
     return w.WEECHAT_RC_OK
 
 if __name__ == "__main__":
     if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
                         SCRIPT_DESC, "", ""):
-        # Set default settings
-#        for option, default_value in settings.iteritems():
-        for option, default_value in list(settings.items()):
-            if not w.config_is_set_plugin(option):
-                w.config_set_plugin(option, default_value)
+        colorize_config_init()
+        colorize_config_read()
 
         for key, value in list(PREFIX_COLORS.items()):
 #        for key, value in PREFIX_COLORS.iteritems():
@@ -315,4 +341,4 @@ if __name__ == "__main__":
         # Hook for modifying input
         w.hook_modifier('250|input_text_display', 'colorize_input_cb', '')
         # Hook for updating blacklist (this could be improved to use fnmatch)
-        weechat.hook_config('plugins.var.python.%s.blacklist*' %SCRIPT_NAME, 'update_blacklist', '')
+        weechat.hook_config('%s.look.blacklist*' % SCRIPT_NAME, 'update_blacklist', '')
