@@ -19,6 +19,8 @@
 #
 # History:
 #
+# 2014-09-30, arza <arza@arza.us>:
+#     version 3.6: fix current line counter when options aren't found
 # 2014-06-03, nils_2 <weechatter@arcor.de>:
 #     version 3.5: add new option "use_mute"
 # 2014-01-30, stfn <stfnmd@gmail.com>:
@@ -115,7 +117,7 @@
 use strict;
 
 my $PRGNAME = "iset";
-my $VERSION = "3.5";
+my $VERSION = "3.6";
 my $DESCR   = "Interactive Set for configuration options";
 my $AUTHOR  = "Sebastien Helleu <flashcode\@flashtux.org>";
 my $LICENSE = "GPL3";
@@ -155,7 +157,17 @@ sub iset_title
     if ($iset_buffer ne "")
     {
         my $current_line_counter = "";
-        $current_line_counter = ($current_line + 1) . "/" if (weechat::config_boolean($options_iset{"show_current_line"}) == 1);
+        if (weechat::config_boolean($options_iset{"show_current_line"}) == 1)
+        {
+            if (@options_names eq 0)
+            {
+                $current_line_counter = "0/";
+            }
+            else
+            {
+                $current_line_counter = ($current_line + 1) . "/";
+            }
+        }
         my $show_filter = "";
         if ($search_mode eq 0)
         {
