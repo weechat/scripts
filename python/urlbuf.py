@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (c) 2011 by Jani Kesänen <jani.kesanen@gmail.com>
+# Copyright (c) 2011-2014 by Jani Kesänen <jani.kesanen@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,24 +16,26 @@
 #
 
 #
-# A common buffer for URLs 
+# A common buffer for URLs
 #
-# Collects received URLs from public and private messages into a single 
+# Collects received URLs from public and private messages into a single
 # buffer. This buffer is especially handy if you spend lot's of time afk
 # and you don't want to miss any of the cat pictures/videos that were pasted
 # while you were doing something meaningful.
 #
-# This script has been developed for WeeChat version 0.3.5. May not work
-# properly (or at all) on older versions.
+# This script has been originally developed for WeeChat version 0.3.5. May
+# not work properly (or at all) on older versions.
 #
 # History:
+# 2014-09-17, Jani Kesänen <jani.kesanen@gmail.com>
+#   version 0.2: - added descriptions to settings.
 # 2011-06-07, Jani Kesänen <jani.kesanen@gmail.com>
 #   version 0.1: - initial release.
 #
 
 SCRIPT_NAME    = "urlbuf"
 SCRIPT_AUTHOR  = "Jani Kesänen <jani.kesanen@gmail.com>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "A common buffer for received URLs."
 
@@ -57,12 +59,12 @@ urlRe = re.compile(r'(\w+://(?:%s|%s)(?::\d+)?(?:/[^\])>\s]*)?)' % (domain, ipAd
 urlbuf_buffer = None
 
 urlbuf_settings = {
-    "display_active_buffer" : "on",    # on = display URLs from the active buffer
-    "display_private"       : "on",    # on = display URLs from private messages
-    "display_buffer_number" : "on",    # on = display the buffer number before nick
-    "display_nick"          : "off",   # on = display the nick of the user
-    "skip_duplicates"       : "on",    # on = skip URL that is already in the urlbuf
-    "skip_buffers"          : "",      # a comma separated list of buffer numbers to skip
+    "display_active_buffer" : ("on",  "display URLs from the active buffer"),
+    "display_private"       : ("on",  "display URLs from private messages"),
+    "display_buffer_number" : ("on",  "display the buffer's number"),
+    "display_nick"          : ("off", "display the nick of the user"),
+    "skip_duplicates"       : ("on",  "skip the URL that is already in the urlbuf"),
+    "skip_buffers"          : ("",    "a comma separated list of buffer numbers to skip"),
 }
 
 
@@ -90,7 +92,7 @@ def urlbuf_print_cb(data, buffer, date, tags, displayed, highlight, prefix, mess
     if not urlbuf_buffer:
         return weechat.WEECHAT_RC_OK
 
-    # Exit if there is not wanted tag in the message
+    # Exit if the wanted tag is not in the message
     tagslist = tags.split(",")
     if not "notify_message" in tagslist:
         if weechat.config_get_plugin("display_private") == "on":
@@ -99,7 +101,7 @@ def urlbuf_print_cb(data, buffer, date, tags, displayed, highlight, prefix, mess
         else:
            return weechat.WEECHAT_RC_OK
 
-    # Exit if the message came into a buffer that is on the skip list
+    # Exit if the message came from a buffer that is on the skip list
     buffer_number = str(weechat.buffer_get_integer(buffer, "number"))
     skips = set(weechat.config_get_plugin("skip_buffers").split(","))
     if buffer_number in skips:
@@ -145,10 +147,14 @@ def urlbuf_close_cb(data, buffer):
 if __name__ == "__main__" and import_ok:
     if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION,
                         SCRIPT_LICENSE, SCRIPT_DESC, "urlbuf_close_cb", ""):
+        version = weechat.info_get('version_number', '') or 0
+
         # Set default settings
         for option, default_value in urlbuf_settings.iteritems():
             if not weechat.config_is_set_plugin(option):
-                weechat.config_set_plugin(option, default_value)
+                weechat.config_set_plugin(option, default_value[0])
+            if int(version) >= 0x00030500:
+                weechat.config_set_desc_plugin(option, default_value[1])
 
         urlbuf_buffer = weechat.buffer_search("python", "urlbuf")
 
