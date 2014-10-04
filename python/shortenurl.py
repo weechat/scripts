@@ -14,6 +14,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # History
+# 2014-08-18, Ilkka Laukkanen <ilkka@fastmail.fm>
+#   version 0.6: Add support for bit.ly via Python Bitly
+#                (https://code.google.com/p/python-bitly/)
 # 2014-5-3, John Anderson <sontek@gmail.com>
 #   version 0.5.3: Fixed short_own bug introduced in 0.5, notify the short url
 #                instead of appending to the message (returning to behavior
@@ -37,7 +40,7 @@ from urllib2 import urlopen
 
 SCRIPT_NAME = "shortenurl"
 SCRIPT_AUTHOR = "John Anderson <sontek@gmail.com>"
-SCRIPT_VERSION = "0.5.3"
+SCRIPT_VERSION = "0.6.0"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Shorten long incoming and outgoing URLs"
 
@@ -48,13 +51,17 @@ TINYURL = 'http://tinyurl.com/api-create.php?%s'
 # shortener options:
 #  - isgd
 #  - tinyurl
+#  - bitly
 
 settings = {
     "color": "red",
     "urllength": "30",
     "shortener": "isgd",
     "short_own": "off",
-    "ignore_list": "http://is.gd,http://tinyurl.com",
+    "ignore_list": "http://is.gd,http://tinyurl.com,http://bit.ly",
+    "bitly_login": "",
+    "bitly_key": "",
+    "bitly_add_to_history": "true"
 }
 
 octet = r'(?:2(?:[0-4]\d|5[0-5])|1\d\d|\d{1,2})'
@@ -125,6 +132,11 @@ def find_and_process_urls(new_message):
 
 def get_shortened_url(url):
     shortener = weechat.config_get_plugin('shortener')
+    if shortener == 'bitly':
+        import bitly
+        api = bitly.Api(login=weechat.config_get_plugin('bitly_login'), apikey=weechat.config_get_plugin('bitly_key'))
+        history = 1 if weechat.config_get_plugin('bitly_add_to_history') == 'true' else 0
+        return api.shorten(url, {'history':history})
     if shortener == 'isgd':
         url = ISGD % urlencode({'longurl': url})
     if shortener == 'tinyurl':
