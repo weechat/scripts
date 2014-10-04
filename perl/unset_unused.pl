@@ -17,6 +17,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 #
+# 14-10-04: 0.3: fixed: problem with unset options (reported by GermainZ)
+#
 # 13-07-27: 0.2 : added: support for guile_script
 #
 # 11-08-28: 0.1
@@ -27,7 +29,7 @@
 use strict;
 
 my $PRGNAME     = "unset_unused";
-my $VERSION     = "0.2";
+my $VERSION     = "0.3";
 my $AUTHOR      = "Nils Görs <weechatter\@arcor.de>";
 my $LICENCE     = "GPL3";
 my $DESCR       = "unset script option(s) from not installed scripts (YOU ARE USING THIS SCRIPT AT YOUR OWN RISK!)";
@@ -63,7 +65,7 @@ sub get_scripts
 
 sub get_options
 {
-    # $flag: 0 = list; 1 = unset options
+    # $flag: 0 = list options; 1 = unset options
     my ( $flag, $count ) = ( $_[0], $_[1] );
     my $key;
     my $number = 0;
@@ -89,12 +91,12 @@ sub get_options
                         if ( $flag == 1 )                               # remove options
                         {
                             weechat::print("",$number . "/" . $count . " deleted... " .$value);
-#                            weechat::command("","/mute unset $value");
-#                            if ($weechat_version >= 0x00030600)
-#                            {
-#                                my $name = substr($value, length("plugins.var."), length($value));
-#                                weechat::command("","/mute unset plugins.desc.$name");
-#                            }
+                            weechat::command("","/mute unset $value");
+                            if ($weechat_version >= 0x00030600)
+                            {
+                                my $name = substr($value, length("plugins.var."), length($value));
+                                weechat::command("","/mute unset plugins.desc.$name");
+                            }
                         }
                     }
                 }
@@ -143,7 +145,7 @@ weechat::hook_command($PRGNAME, $DESCR,
                 "   list         : list all unused script options\n".
                 "  unset         : reset config options (without warning!)\n\n".
                 "If \"plugins.desc.\" exists, it will be removed, too.\n".
-                "save your settings with \"/save plugins\" or restore settings with \"/reload plugins\"\n".
+                "save your settings with \"/save plugins\" or restore settings with \"/reload plugins\"".
                 "\n",
                 "list %-||".
                 "unset %-",
