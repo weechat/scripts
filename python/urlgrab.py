@@ -114,6 +114,10 @@
 #  - V2.6 nesthib: Fixed escaping of "="
 #                  Added missing quotes in default parameter (firefox '%s')
 #                  Removed the mix of tabs and spaces in the file indentation
+#  - V2.7 dobbymoodge <john.w.lamb [at] gmail . com>
+#                     ( https://github.com/dobbymoodge/ ):
+#           - Added 'copycmd' setting, users can set command to pipe into
+#             for '/url copy'
 #
 # Copyright (C) 2005 David Rubin <drubin AT smartcube dot co dot za>
 #
@@ -159,7 +163,7 @@ urlRe = re.compile(r'(\w+://(?:%s|%s)(?::\d+)?(?:/[^\]>\s]*)?)' % (domain, ipAdd
 
 SCRIPT_NAME    = "urlgrab"
 SCRIPT_AUTHOR  = "David Rubin <drubin [At] smartcube [dot] co [dot] za>"
-SCRIPT_VERSION = "2.6"
+SCRIPT_VERSION = "2.7"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Url functionality Loggin, opening of browser, selectable links"
 CONFIG_FILE_NAME= "urlgrab"
@@ -260,6 +264,14 @@ class UrlGrabSettings(UserDict):
             '%remodecmd%'""", "", 0, 0,
             "local", "local", 0, "", "", "", "", "", "")
 
+        self.data['copycmd']=weechat.config_new_option(
+            self.config_file, section_default,
+            "copycmd", "string",
+            "Command to pipe into for 'url copy'. "
+            "E.g. to copy into the CLIPBOARD buffer "
+            "instead of PRIMARY, you can use 'xsel -b "
+            "-i' here.", "", 0, 0,
+            "xsel -i", "xsel -i", 0, "", "", "", "", "", "")
 
         self.data['localcmd']=weechat.config_new_option(
             self.config_file, section_default,
@@ -429,7 +441,7 @@ def urlGrabCopy(bufferd, index):
         urlGrabPrint("No URL found - Invalid index")
     else:
         try:
-            pipe = os.popen("xsel -i","w")
+            pipe = os.popen(urlGrabSettings['copycmd'],"w")
             pipe.write(url)
             pipe.close()
             urlGrabPrint("Url: %s gone to clipboard." % url)
