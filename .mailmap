@@ -1,0 +1,17 @@
+# Map author and committer names and email addresses to canonical real names
+# and email addresses.
+#
+# For example with these commands:
+#   git shortlog -nse
+#   git shortlog -se | cut -f2 | sort
+
+Sébastien Helleu <flashcode@flashtux.org>
+Sébastien Helleu <flashcode@flashtux.org> <flashcode>
+Simon Kuhnle <Simon.Kuhnle@cs.fau.de> <simon@blarzwurst.de>
+Felix Eckhofer <felix@eckhofer.com> <felix@tribut.de>
+Filip H.F. Slagter <fixato@gmail.com>
+Nei <ailin@devio.us> <ailin@flupps.net>
+nesthib <nesthib@tdct.org> <nesthib@gmail.com>
+Nicolai Lissner <nlissne@linux01.gwdg.de> <nlissne@linux01.org>
+R1cochet <deltaxrho@gmail.com> <R1cochet@hushmail.com>
+Shawn Smith <ShawnSmith0828@gmail.com> <Shawn-Smith@users.noreply.github.com>
