@@ -120,7 +120,7 @@ for full pod documentation, filter this script with
 =cut
 
 use constant SCRIPT_NAME => 'multiline';
-weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.6', 'GPL3', 'Multi-line edit box', 'stop_multiline', '') || return;
+weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.6.2', 'GPL3', 'Multi-line edit box', 'stop_multiline', '') || return;
 sub SCRIPT_FILE() {
 	my $infolistptr = weechat::infolist_get('perl_script', '', SCRIPT_NAME);
 	my $filename = weechat::infolist_string($infolistptr, 'filename') if weechat::infolist_next($infolistptr);
@@ -714,12 +714,18 @@ sub do_key_bind {
 	}
 }
 
+{ my %keys;
 ## get_key_command -- get the command bound to a key
 ## $_[0] - key in weechat syntax
 ## returns the command
-sub get_key_command {
+  sub get_key_command {
+      unless (exists $keys{$_[0]}) {
+	  ($keys{$_[0]}) = 
 	map { $_->{command} } grep { $_->{key} eq $_[0] }
 		Nlib::i2h('key')
+		}
+      $keys{$_[0]}
+  }
 }
 
 ## default_options -- set up default option values on start and when unset
