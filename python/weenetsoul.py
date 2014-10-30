@@ -2,9 +2,11 @@
 # Copyright (C) 2011 godric <godric@0x3f.fr>
 # License: WTFPL
 #
-# v1.2 by Arza <lekva@arzaroth.com>
-#
 # Changelog
+# v1.3
+# + fix login regex
+# + completion with online contacts from contact list for send and who commands
+# + prevent default completion for all other commands
 # v1.2
 # + PEP8 almost-compliance
 # + code adjustment
@@ -22,7 +24,7 @@
 
 SCRIPT_NAME = 'weenetsoul'
 SCRIPT_AUTHOR = 'godric <godric@0x3f.fr>'
-SCRIPT_VERSION = '1.2'
+SCRIPT_VERSION = '1.3'
 SCRIPT_LICENSE = 'WTFPL'
 SCRIPT_DESC = 'Netsoul protocol for WeeChat'
 
@@ -391,11 +393,14 @@ class WeeNSServer(object):
         if self.buffer is not None:
             weechat.buffer_close(self.buffer)
             self.buffer = None
-        for option in self.options.keys():
+        for option in self.options:
             weechat.config_option_free(option)
 
     def setup_nick_list(self):
-        contact_list = self.get_option('contacts').replace(' ', '').split(',')
+        contact_list = {
+            True: [],
+            False: self.get_option('contacts').replace(' ', '').split(',')
+        }[self.get_option('contacts').replace(' ', '') == '']
         for login in contact_list:
             weechat.nicklist_add_group(self.buffer, '', login, 'lightcyan', 1)
             self.contacts[login] = {}
@@ -472,13 +477,13 @@ class WeeNSServer(object):
 
     def _ns_parse_from(self, str):
         r = re.compile(r"""
-        ([0-9]+):            # fd
+        ([0-9]+):                # fd
         user:
-        ([0-9]+)/([0-9]+):   # user_trust
-        ([_a-z]+)@([0-9.]+): # login@ip
-        ([^ :]+):            # machtype
-        ([^ :]+):            # location
-        ([^ :]+)             # group
+        ([0-9]+)/([0-9]+):       # user_trust
+        ([_a-z0-9-]+)@([0-9.]+): # login@ip
+        ([^ :]+):                # machtype
+        ([^ :]+):                # location
+        ([^ :]+)                 # group
         """, re.VERBOSE)
         match = re.match(r, str)
         groups = match.groups()
@@ -516,7 +521,7 @@ class WeeNSServer(object):
         r = re.compile(r"""
         who[ ]
         ([0-9]+)[ ]             # fd
-        ([_a-z]+)[ ]            # login
+        ([_a-z0-9-]+)[ ]        # login
         ([0-9.]+)[ ]            # ip
         ([0-9]+)[ ]             # connection_time
         ([0-9]+)[ ]             # lastseen_time
@@ -656,7 +661,12 @@ def wee_ns_hook_cmd_send(server, *args):
         return -1
     if not server.is_connected:
         return "Not connected"
-    match = re.match(re.compile(r'\A([a-z_]+)|:([0-9]+)\Z'), args[0])
+    match = re.match(re.compile(r'''
+    \A
+    ([_a-z0-9-]+) # login
+    |:([0-9]+)    # or :fd
+    \Z
+    ''', re.VERBOSE), args[0])
     if not match:
         return "Message recipients must be of type <login> or <:fd>"
     server.get_chat_by_recipient(*match.groups(),
@@ -686,26 +696,25 @@ def wee_ns_hook_cmd_add_contact(server, *args):
         return "Not connected"
     server.add_to_nick_list(*args)
 
-hook_cmd_ns = OrderedDict([
-    ('connect', (wee_ns_hook_cmd_connect, None)),
-    ('disconnect', (wee_ns_hook_cmd_disconnect, None)),
-    ('reconnect', (wee_ns_hook_cmd_reconnect, None)),
-    ('send', (wee_ns_hook_cmd_send, "<login> <msg>")),
-    ('state', (wee_ns_hook_cmd_state, "<status>")),
-    ('who', (wee_ns_hook_cmd_who, "<login>...")),
-    ('add_contact', (wee_ns_hook_cmd_add_contact, "<login>...")),
-])
+def wee_ns_hook_completion_send(data, completion_item,
+                                buffer, completion):
+    if server.is_connected:
+        [weechat.hook_completion_list_add(completion, contact, 0,
+                                          weechat.WEECHAT_LIST_POS_SORT)
+         for contact, fds in server.contacts.items() if fds]
+    return weechat.WEECHAT_RC_OK
 
 def wee_ns_hook_cmd_ns(data, buffer, args):
     buffer = server.buffer if server.buffer is not None else ''
     arglist = args.split(' ')
-    if arglist[0] in hook_cmd_ns.keys():
-        res = hook_cmd_ns[arglist[0]][0](server, *arglist[1:])
+    if arglist[0] in hook_cmd_ns:
+        target = hook_cmd_ns[arglist[0]]
+        res = target['cb'](server, *arglist[1:])
         if res is not None:
             if res == -1:
                 res = 'usage: %s%s' % (arglist[0],
-                                       '' if hook_cmd_ns[arglist[0]][1] is None
-                                       else " " + hook_cmd_ns[arglist[0]][1])
+                                       '' if 'desc' not in target
+                                       else " " + target['desc'])
             weechat.prnt(buffer, '%s%s' % (weechat.prefix('error'), res))
     else:
         weechat.prnt(buffer,
@@ -713,6 +722,28 @@ def wee_ns_hook_cmd_ns(data, buffer, args):
                       'wrong argument count, '
                       'or you need to (dis)connect') % weechat.prefix('error'))
     return weechat.WEECHAT_RC_OK
+
+# Add your commands here
+hook_cmd_ns = OrderedDict([
+    ('connect', {'cb': wee_ns_hook_cmd_connect,
+                 'compl': '%-'}),
+    ('disconnect', {'cb': wee_ns_hook_cmd_disconnect,
+                    'compl': '%-'}),
+    ('reconnect', {'cb': wee_ns_hook_cmd_reconnect,
+                   'compl': '%-'}),
+    ('send', {'cb': wee_ns_hook_cmd_send,
+              'desc': "<login> <msg>",
+              'compl': '%(ns_send) %-'}),
+    ('state', {'cb': wee_ns_hook_cmd_state,
+               'desc': "<status>",
+               'compl': '%-'}),
+    ('who', {'cb': wee_ns_hook_cmd_who,
+             'desc': "<login>...",
+             'compl': '%(ns_send) %-'}),
+    ('add_contact', {'cb': wee_ns_hook_cmd_add_contact,
+                     'desc': "<login>...",
+                     'compl': '%-'}),
+])
 
 ######################################
 # Main
@@ -722,13 +753,17 @@ if __name__ == "__main__":
     if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION,
                         SCRIPT_LICENSE, SCRIPT_DESC, '',
                         'wee_ns_script_unload_cb'):
+        weechat.hook_completion('ns_send', 'login completion',
+                                'wee_ns_hook_completion_send', '')
         weechat.hook_command('ns', 'weeNetsoul: A netsoul plugin for weechat',
-                             ' | '.join("%s%s" % (k, "" if v[1] is None
-                                                  else " " + v[1])
+                             ' | '.join("%s%s" % (k, "" if 'desc' not in v
+                                                  else " " + v['desc'])
                                         for k, v in hook_cmd_ns.items()),
-                             '\n'.join("%s: %s" % (k, v[0].__doc__)
+                             '\n'.join("%s: %s" % (k, v['cb'].__doc__)
                                        for k, v in hook_cmd_ns.items()),
-                             '|'.join(hook_cmd_ns.keys()),
+                             ' || '.join("%s%s" % (k, "" if 'compl' not in v
+                                                   else " " + v['compl'])
+                                         for k, v in hook_cmd_ns.items()),
                              'wee_ns_hook_cmd_ns', '')
         wee_ns_config_file = weechat.config_new(SCRIPT_NAME, '', '')
         wee_ns_conf_serv_sect = weechat.config_new_section(wee_ns_config_file,
