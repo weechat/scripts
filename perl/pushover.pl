@@ -18,12 +18,11 @@
 
 use strict;
 use warnings;
-use CGI;
 
 my %SCRIPT = (
 	name => 'pushover',
 	author => 'stfn <stfnmd@gmail.com>',
-	version => '1.0',
+	version => '1.1',
 	license => 'GPL3',
 	desc => 'Send push notifications to your mobile devices using Pushover, NMA or Pushbullet',
 	opt => 'plugins.var.perl',
@@ -46,13 +45,20 @@ my %OPTIONS_DEFAULT = (
 	'verbose' => ['1', 'Verbosity level (0 = silently ignore any errors, 1 = display brief error, 2 = display full server response)'],
 );
 my %OPTIONS = ();
-my $DEBUG = 0;
 my $TIMEOUT = 30 * 1000;
 
-# Register script and setup hooks
+my $DEBUG = 0;
+
+# Register script and initialize config
 weechat::register($SCRIPT{"name"}, $SCRIPT{"author"}, $SCRIPT{"version"}, $SCRIPT{"license"}, $SCRIPT{"desc"}, "", "");
-weechat::hook_print("", "notify_message,notify_private,notify_highlight", "", 1, "print_cb", "");
 init_config();
+
+# Setup hooks
+weechat::hook_print("", "notify_message,notify_private,notify_highlight", "", 1, "print_cb", "");
+weechat::hook_command($SCRIPT{"name"}, "send custom push notification",
+	"<text>",
+	"text: notification text to send",
+	"", "pushover_cb", "");
 
 #
 # Handle config stuff
@@ -92,6 +98,18 @@ sub grep_list($$)
 }
 
 #
+# URL escape (percent encoding)
+#
+sub url_escape($)
+{
+	my $toencode = $_[0];
+	return undef unless (defined($toencode));
+	utf8::encode($toencode) if (utf8::is_utf8($toencode));
+	$toencode =~ s/([^a-zA-Z0-9_.~-])/uc sprintf("%%%02x",ord($1))/eg;
+	return $toencode;
+}
+
+#
 # Catch printed messages
 #
 sub print_cb
@@ -120,6 +138,20 @@ sub print_cb
 	} elsif ($OPTIONS{show_priv_msg} eq "on" && $buffer_type eq "private") {
 		# Private message
 		notify($msg);
+	}
+
+	return weechat::WEECHAT_RC_OK;
+}
+
+#
+# /pushover
+#
+sub pushover_cb
+{
+	my ($data, $buffer, $args) = @_;
+
+	if (length($args) > 0) {
+		notify($args);
 	}
 
 	return weechat::WEECHAT_RC_OK;
@@ -183,15 +215,15 @@ sub notify_pushover($$$$$$)
 
 	# Required API arguments
 	my @post = (
-		"token=" . CGI::escape($token),
-		"user=" . CGI::escape($user),
-		"message=" . CGI::escape($message),
+		"token=" . url_escape($token),
+		"user=" . url_escape($user),
+		"message=" . url_escape($message),
 	);
 
 	# Optional API arguments
-	push(@post, "title=" . CGI::escape($title)) if ($title && length($title) > 0);
-	push(@post, "priority=" . CGI::escape($priority)) if ($priority && length($priority) > 0);
-	push(@post, "sound=" . CGI::escape($sound)) if ($sound && length($sound) > 0);
+	push(@post, "title=" . url_escape($title)) if ($title && length($title) > 0);
+	push(@post, "priority=" . url_escape($priority)) if ($priority && length($priority) > 0);
+	push(@post, "sound=" . url_escape($sound)) if ($sound && length($sound) > 0);
 
 	# Send HTTP POST
 	my $hash = { "post"  => 1, "postfields" => join(";", @post) };
@@ -213,14 +245,14 @@ sub notify_nma($$$$$)
 
 	# Required API arguments
 	my @post = (
-		"apikey=" . CGI::escape($apikey),
-		"application=" . CGI::escape($application),
-		"event=" . CGI::escape($event),
-		"description=" . CGI::escape($description),
+		"apikey=" . url_escape($apikey),
+		"application=" . url_escape($application),
+		"event=" . url_escape($event),
+		"description=" . url_escape($description),
 	);
 
 	# Optional API arguments
-	push(@post, "priority=" . CGI::escape($priority)) if ($priority && length($priority) > 0);
+	push(@post, "priority=" . url_escape($priority)) if ($priority && length($priority) > 0);
 
 	# Send HTTP POST
 	my $hash = { "post"  => 1, "postfields" => join("&", @post) };
@@ -247,9 +279,9 @@ sub notify_pushbullet($$$$)
 	);
 
 	# Optional API arguments
-	push(@post, "device_iden=" . CGI::escape($device_iden)) if ($device_iden && length($device_iden) > 0);
-	push(@post, "title=" . CGI::escape($title)) if ($title && length($title) > 0);
-	push(@post, "body=" . CGI::escape($body)) if ($body && length($body) > 0);
+	push(@post, "device_iden=" . url_escape($device_iden)) if ($device_iden && length($device_iden) > 0);
+	push(@post, "title=" . url_escape($title)) if ($title && length($title) > 0);
+	push(@post, "body=" . url_escape($body)) if ($body && length($body) > 0);
 
 	# Send HTTP POST
 	my $hash = { "post"  => 1, "postfields" => join("&", @post) };
