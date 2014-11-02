@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2012-2013 by nils_2 <weechatter@arcor.de>
+# Copyright (c) 2012-2014 by nils_2 <weechatter@arcor.de>
 # Copyright (c) 2006 by EgS <i@egs.name>
 #
 # script to keep your nick and recover it in case it's occupied
@@ -17,6 +17,9 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# 2014-10-30: nils_2 (freenode.#weechat)
+#       1.2 : support of regular expression for server option (idea by michele)
 #
 # 2013-09-17: nils_2 (freenode.#weechat)
 #       1.1 : format of weechat_string_eval_expression() changed
@@ -54,12 +57,7 @@
 # Name:    Keepnick                                                   #
 # Licence: GPL v2                                                     #
 # Author:  Marcus Eggenberger <i@egs.name>                            #
-#                                                                     #
-#  Usage:                                                             #
-#   /keepnick on|off|<positive number>                                #
-#                                                                     #
-#   use /help command for  detailed information                       #
-#                                                                     #
+#
 #  Changelog:                                                         #
 #   0.4: now starts on load and features user defined check intervals #
 #   0.3: Fixed major bug with continuous nickchanges                  #
@@ -70,7 +68,7 @@
 
 try:
     from string import Template
-    import weechat,sys#
+    import weechat,sys,re
 
 
 except Exception:
@@ -81,7 +79,7 @@ except Exception:
 # -------------------------------[ Constants ]-------------------------------------
 SCRIPT_NAME     = "keepnick"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "1.1"
+SCRIPT_VERSION  = "1.2"
 SCRIPT_LICENCE  = "GPL3"
 SCRIPT_DESC     = "keep your nick and recover it in case it's occupied"
 
@@ -89,7 +87,7 @@ ISON            = '/ison %s'
 
 OPTIONS         =       { 'delay'       : ('600','delay (in seconds) to look at occupied nick (0 means OFF). It is not recommended to flood the server with /ison requests)'),
                           'timeout'     : ('60','timeout (in seconds) to wait for an answer from server.'),
-                          'serverlist'  : ('','comma separated list of servers to look at. Try to register a nickname on server (see: /msg NickServ help).'),
+                          'serverlist'  : ('','comma separated list of servers to look at. Try to register a nickname on server (see: /msg NickServ help).regular expression are allowed (eg. ".*" = matches ALL server,"freen.*" = matches freenode, freenet....)'),
                           'text'        : ('Nickstealer left Network: %s!','text that will be displayed if your nick will not be occupied anymore. (\"%s\" is a placeholder for the servername)'),
                           'nickserv'    : ('/msg -server $server NICKSERV IDENTIFY $passwd','Use SASL authentification, if possible. This command will be used to IDENTIFY you on server (following placeholder can be used: \"$server\" for servername; \"$passwd\" for password. The password will be stored in a separate option for every single server: \"plugins.var.python.%s.<servername>.password\"). Using the "/secure" function, you\'ll have to add a format described in "/help secure" to password option (eg: ${sec.data.keepnick_freenode_password})' %  SCRIPT_NAME),
                           'command'     : ('/nick %s','This command will be used to rename your nick (\"%s\" will be filled with your nickname for specific server)'),
@@ -109,33 +107,31 @@ def redirect_isonhandler(data, signal, hashtable):
     if hashtable['output'] == '':
         return weechat.WEECHAT_RC_OK
 
-    # ISON_nicks contains nicks that are already online on server (separated with space)
+    # ISON_nicks contains nicks that are online on server (separated with space)
+    # nicks in ISON_nicks are lowercase
     message,ISON_nicks = hashtable['output'].split(':')[1:]
     ISON_nicks = [nick.lower() for nick in ISON_nicks.split()]
 
     for nick in server_nicks(hashtable['server']):
         mynick = weechat.info_get('irc_nick',hashtable['server'])
+
         if nick.lower() == mynick.lower():
             return weechat.WEECHAT_RC_OK
         elif nick.lower() not in ISON_nicks and nick != '':
+            # get password for given server (evaluated)
             if int(version) >= 0x00040200:
                 password = weechat.string_eval_expression(weechat.config_get_plugin('%s.password' % hashtable['server']),{},{},{})
             else:
-                password = weechat.config_get_plugin('%s.password' % hashtable['server'])   # get password for given server
+                password = weechat.config_get_plugin('%s.password' % hashtable['server'])
 
-            grabnick(hashtable['server'], nick)                                         # get your nick back
+            grabnick(hashtable['server'], nick)                                             # get your nick back
+
             if password != '' and OPTIONS['nickserv'] != '':
+                # command stored in "keepnick.nickserv" option
                 t = Template(OPTIONS['nickserv'])
                 run_msg = t.safe_substitute(server=hashtable['server'], passwd=password)
                 weechat.command('',run_msg)
     return weechat.WEECHAT_RC_OK
-
-#    if 0 in [nick.lower() in [mynick.lower() for mynick in server_nicks(hashtable['server'])] for nick in nicks]:
-        # if any nick which is return by ison is not on our checklist we're not the caller
-#        return weechat.WEECHAT_RC_OK
-#    else:
-        # seems like we're the caller -> ignore the output
-#        return weechat.WEECHAT_RC_OK
 
 # ================================[ functions ]===============================
 # nicks used on server
@@ -156,7 +152,9 @@ def check_nicks(data, remaining_calls):
         nick = weechat.infolist_string(infolist, 'nick')
         ssl_connected = weechat.infolist_integer(infolist,'ssl_connected')
         is_connected = weechat.infolist_integer(infolist,'is_connected')
-        if servername in serverlist:
+
+        server_matched = re.search(r"\b({})\b".format("|".join(serverlist)), servername)
+        if servername in serverlist or server_matched and is_connected:
             if nick and ssl_connected + is_connected:
                 ison(ptr_buffer,servername,nick,server_nicks(servername))
     weechat.infolist_free(infolist)
