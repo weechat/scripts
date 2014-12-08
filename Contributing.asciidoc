@@ -7,12 +7,12 @@
 == Add a script
 
 To submit a new script in this repository, please use the form at:
-http://weechat.org/scripts/add/
+https://weechat.org/scripts/add/
 
 There are strict rules for new scripts, please read them carefully, otherwise
 your script will be rejected.
 
-Pending scripts are visible at: http://weechat.org/scripts/pending/
+Pending scripts are visible at: https://weechat.org/scripts/pending/
 
 == Update a script
 
@@ -33,7 +33,7 @@ There are two ways to send a new release for a script:
 
 * Send a pull request, the commit message must have the name of script,
   version, and changes, like that: `script.py 0.3: ...`.
-* Use the form at: <http://weechat.org/scripts/update/>.
+* Use the form at: <https://weechat.org/scripts/update/>.
 
 When sending a new version :
 

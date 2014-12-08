@@ -6,7 +6,7 @@
 These official scripts can be installed with command `/script install <name>`
 in WeeChat.
 
-They are also displayed on http://weechat.org/scripts/
+They are also displayed on https://weechat.org/scripts/
 
 == Add/update a script
 
