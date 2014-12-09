@@ -22,7 +22,7 @@ use warnings;
 my %SCRIPT = (
 	name => 'pushover',
 	author => 'stfn <stfnmd@gmail.com>',
-	version => '1.1',
+	version => '1.2',
 	license => 'GPL3',
 	desc => 'Send push notifications to your mobile devices using Pushover, NMA or Pushbullet',
 	opt => 'plugins.var.perl',
@@ -39,6 +39,7 @@ my %OPTIONS_DEFAULT = (
 	'priority' => ['', "priority (empty for default)"],
 	'show_highlights' => ['on', 'Notify on highlights'],
 	'show_priv_msg' => ['on', 'Notify on private messages'],
+	'redact_priv_msg' => ['off', 'When receiving private message notifications, hide the actual message text'],
 	'only_if_away' => ['off', 'Notify only if away status is active'],
 	'only_if_inactive' => ['off', 'Notify only if buffer is not the active (current) buffer'],
 	'blacklist' => ['', 'Comma separated list of buffers (full name) to blacklist for notifications (wildcard "*" is allowed, name beginning with "!" is excluded)'],
@@ -129,7 +130,13 @@ sub print_cb
 		return weechat::WEECHAT_RC_OK;
 	}
 
-	my $msg = "[$buffer_full_name] <$prefix> $message";
+	my $msg = "[$buffer_full_name] <$prefix> ";
+
+	if ($buffer_type eq "private" && $OPTIONS{redact_priv_msg} eq "on") {
+		$msg .= "...";
+	} else {
+		$msg .= "$message";
+	}
 
 	# Notify!
 	if ($OPTIONS{show_highlights} eq "on" && $highlight == 1) {
