@@ -25,6 +25,8 @@
 
 #
 # Changelog:
+# 2.4:
+#   * Make script python3 compatible.
 # 2.3:
 #   * Fix sorting items without score last (regressed in 2.2).
 # 2.2:
@@ -44,8 +46,8 @@ import json
 
 SCRIPT_NAME     = 'autosort'
 SCRIPT_AUTHOR   = 'Maarten de Vries <maarten@de-vri.es>'
-SCRIPT_VERSION  = '2.3'
-SCRIPT_LICENSE  = 'GPLv3'
+SCRIPT_VERSION  = '2.4'
+SCRIPT_LICENSE  = 'GPL3'
 SCRIPT_DESC     = 'Automatically or manually keep your buffers sorted and grouped by server.'
 
 
@@ -62,7 +64,7 @@ def parse_int(arg, arg_name = 'argument'):
 	try:
 		return int(arg)
 	except ValueError:
-		raise HumanReadableError('Invalid {}: expected integer, got "{}".'.format(arg_name, arg))
+		raise HumanReadableError('Invalid {0}: expected integer, got "{1}".'.format(arg_name, arg))
 
 
 class Pattern:
@@ -130,12 +132,12 @@ class FriendlyList(object):
 
 	def insert(self, index, value):
 		''' Add a rule to the list. '''
-		if not 0 <= index <= len(self): raise HumanReadableError('Index out of range: expected an integer in the range [0, {}], got {}.'.format(len(self), index))
+		if not 0 <= index <= len(self): raise HumanReadableError('Index out of range: expected an integer in the range [0, {0}], got {1}.'.format(len(self), index))
 		self.__data.insert(index, value)
 
 	def pop(self, index):
 		''' Remove a rule from the list and return it. '''
-		if not 0 <= index < len(self): raise HumanReadableError('Index out of range: expected an integer in the range [0, {}), got {}.'.format(len(self), index))
+		if not 0 <= index < len(self): raise HumanReadableError('Index out of range: expected an integer in the range [0, {0}), got {1}.'.format(len(self), index))
 		return self.__data.pop(index)
 
 	def move(self, index_a, index_b):
@@ -150,11 +152,11 @@ class FriendlyList(object):
 		return len(self.__data)
 
 	def __getitem__(self, index):
-		if not 0 <= index < len(self): raise HumanReadableError('Index out of range: expected an integer in the range [0, {}), got {}.'.format(len(self), index))
+		if not 0 <= index < len(self): raise HumanReadableError('Index out of range: expected an integer in the range [0, {0}), got {1}.'.format(len(self), index))
 		return self.__data[index]
 
 	def __setitem__(self, index, value):
-		if not 0 <= index < len(self): raise HumanReadableError('Index out of range: expected an integer in the range [0, {}), got {}.'.format(len(self), index))
+		if not 0 <= index < len(self): raise HumanReadableError('Index out of range: expected an integer in the range [0, {0}), got {1}.'.format(len(self), index))
 		self.__data[index] = value
 
 	def __iter__(self):
@@ -178,7 +180,7 @@ class RuleList(FriendlyList):
 
 	def encode(self):
 		''' Encode the rules for storage. '''
-		return json.dumps(map(lambda x: (x[0].pattern, x[1]), self))
+		return json.dumps(list(map(lambda x: (x[0].pattern, x[1]), self)))
 
 	@staticmethod
 	def decode(blob):
@@ -188,27 +190,27 @@ class RuleList(FriendlyList):
 		try:
 			decoded = json.loads(blob)
 		except ValueError:
-			log('Invalid rules: expected JSON encoded list of pairs, got "{}".'.format(blob))
+			log('Invalid rules: expected JSON encoded list of pairs, got "{0}".'.format(blob))
 			return [], 0
 
 		for rule in decoded:
 			# Rules must be a pattern,score pair.
 			if len(rule) != 2:
-				log('Invalid rule: expected (pattern, score), got "{}". Rule ignored.'.format(rule))
+				log('Invalid rule: expected (pattern, score), got "{0}". Rule ignored.'.format(rule))
 				continue
 
 			# Rules must have a valid pattern.
 			try:
 				pattern = Pattern(rule[0])
 			except ValueError as e:
-				log('Invalid pattern: {} in "{}". Rule ignored.'.format(e, rule[0]))
+				log('Invalid pattern: {0} in "{1}". Rule ignored.'.format(e, rule[0]))
 				continue
 
 			# Rules must have a valid score.
 			try:
 				score = int(rule[1])
 			except ValueError as e:
-				log('Invalid score: expected an integer, got "{}". Rule ignored.'.format(score))
+				log('Invalid score: expected an integer, got "{0}". Rule ignored.'.format(score))
 				continue
 
 			result.append((pattern, score))
@@ -221,13 +223,13 @@ class RuleList(FriendlyList):
 		arg = arg.strip()
 		match = RuleList.rule_regex.match(arg)
 		if not match:
-			raise HumanReadableError('Invalid rule: expected "<pattern> = <score>", got "{}".'.format(arg))
+			raise HumanReadableError('Invalid rule: expected "<pattern> = <score>", got "{0}".'.format(arg))
 
 		pattern = match.group(1).strip()
 		try:
 			pattern = Pattern(pattern)
 		except ValueError as e:
-			raise HumanReadableError('Invalid pattern: {} in "{}".'.format(e, pattern))
+			raise HumanReadableError('Invalid pattern: {0} in "{1}".'.format(e, pattern))
 
 		score   = parse_int(match.group(2), 'score')
 		return (pattern, score)
@@ -239,13 +241,13 @@ def decode_replacements(blob):
 	try:
 		decoded = json.loads(blob)
 	except ValueError:
-		log('Invalid replacement list: expected JSON encoded list of pairs, got "{}".'.format(blob))
+		log('Invalid replacement list: expected JSON encoded list of pairs, got "{0}".'.format(blob))
 		return [], 0
 
 	for replacement in decoded:
 		# Replacements must be a (string, string) pair.
 		if len(replacement) != 2:
-			log('Invalid replacement pattern: expected (pattern, replacement), got "{}". Replacement ignored.'.format(rule))
+			log('Invalid replacement pattern: expected (pattern, replacement), got "{0}". Replacement ignored.'.format(rule))
 			continue
 		result.append(replacement)
 
@@ -294,7 +296,7 @@ class Config:
 		self.__sort_on_config = None
 
 		if not self.config_file:
-			log('Failed to initialize configuration file "{}".'.format(self.filename))
+			log('Failed to initialize configuration file "{0}".'.format(self.filename))
 			return
 
 		self.sorting_section = weechat.config_new_section(self.config_file, 'sorting', False, False, '', '', '', '', '', '', '', '', '', '')
@@ -391,7 +393,7 @@ def pad(sequence, length, padding = None):
 
 
 def log(message, buffer = 'NULL'):
-	weechat.prnt(buffer, 'autosort: {}'.format(message))
+	weechat.prnt(buffer, 'autosort: {0}'.format(message))
 
 
 def get_buffers():
@@ -446,14 +448,14 @@ def buffer_sort_key(rules):
 def apply_buffer_order(buffers):
 	''' Sort the buffers in weechat according to the order in the input list.  '''
 	for i, buffer in enumerate(buffers):
-		weechat.command('', '/buffer swap {} {}'.format(buffer, i + 1))
+		weechat.command('', '/buffer swap {0} {1}'.format(buffer, i + 1))
 
 
 def split_args(args, expected, optional = 0):
 	''' Split an argument string in the desired number of arguments. '''
 	split = args.split(' ', expected - 1)
 	if (len(split) < expected):
-		raise HumanReadableError('Expected at least {} arguments, got {}.'.format(expected, len(split)))
+		raise HumanReadableError('Expected at least {0} arguments, got {1}.'.format(expected, len(split)))
 	return split[:-1] + pad(split[-1].split(' ', optional), optional + 1, '')
 
 
@@ -468,7 +470,7 @@ def command_rule_list(buffer, command, args):
 	''' Show the list of sorting rules. '''
 	output = 'Sorting rules:\n'
 	for i, rule in enumerate(config.rules):
-		output += '    {}: {} = {}\n'.format(i, rule[0].pattern, rule[1])
+		output += '    {0}: {1} = {2}\n'.format(i, rule[0].pattern, rule[1])
 	if not len(config.rules):
 		output += '    No sorting rules configured.\n'
 	log(output, buffer)
@@ -550,7 +552,7 @@ def command_replacement_list(buffer, command, args):
 	''' Show the list of sorting rules. '''
 	output = 'Replacement patterns:\n'
 	for i, pattern in enumerate(config.replacements):
-		output += '    {}: {} -> {}\n'.format(i, pattern[0], pattern[1])
+		output += '    {0}: {1} -> {2}\n'.format(i, pattern[0], pattern[1])
 	if not len(config.replacements):
 		output += '    No replacement patterns configured.'
 	log(output, buffer)
@@ -643,7 +645,7 @@ def call_command(buffer, command, args, subcommands):
 	elif callable(child):
 		return child(buffer, command, tail)
 
-	log('{}: command not found'.format(' '.join(command)))
+	log('{0}: command not found'.format(' '.join(command)))
 	return weechat.WEECHAT_RC_ERROR
 
 
