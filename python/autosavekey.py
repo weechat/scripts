@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2013 by nils_2 <weechatter@arcor.de>
+# Copyright (c) 2013-2014 by nils_2 <weechatter@arcor.de>
 #
 # save channel key from protected channel(s) to autojoin or secure data
 #
@@ -18,6 +18,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # idea by freenode.elsae
+#
+# 2014-12-20: nils_2, (freenode.#weechat)
+#       0.2 : add option "add" to automatically add channel/key to autojoin option after a /join (idea by Prezident)
 #
 # 2013-10-03: nils_2, (freenode.#weechat)
 #       0.1 : initial release
@@ -37,14 +40,86 @@ except Exception:
 
 SCRIPT_NAME     = "autosavekey"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.1"
+SCRIPT_VERSION  = "0.2"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "save channel key from protected channel(s) to autojoin or secure data"
 
 OPTIONS         = { 'mute'        : ('off','execute command silently, only error messages will be displayed.'),
                     'secure'      : ('off','change channel key in secure data.'),
+                    'add'         : ('off','adds channel and key to autojoin list on /join, if channel/key does not already exists'),
                   }
+# /join #channel key
+# signal = freenode,irc_raw_in_324
+# signal_data = :asimov.freenode.net 324 nick #channel +modes key
+def irc_raw_in_324_cb(data, signal, signal_data):
+    parsed = get_hashtable(signal_data)
+    server = signal.split(',',1)[0]
+    argv = parsed['arguments'].split(" ")
 
+    # buffer without channel key
+    if len(argv) < 4:
+        return weechat.WEECHAT_RC_OK
+
+    channel = argv[1]
+    new_key = argv[3]
+
+    autojoin_list = get_autojoin(server)
+    if not autojoin_list:
+        return weechat.WEECHAT_RC_OK
+
+    # check autojoin for space
+    if len(re.findall(r" ", autojoin_list)) > 1:
+        weechat.prnt('', '%s%s: autojoin format for server "%s" invalid (two or more spaces).' % (weechat.prefix('error'),SCRIPT_NAME,server) )
+        return weechat.WEECHAT_RC_OK
+
+    # no keylist, only channels in autojoin option
+    if len(re.findall(r" ", autojoin_list)) == 0:
+        argv_channels = autojoin_list.split(',')
+        argv_keys = []
+    else:
+        # split autojoin option to a channel and a key list
+        arg_channel,arg_keys = autojoin_list.split(' ')
+        argv_channels = arg_channel.split(',')
+        argv_keys = arg_keys.split(',')
+
+    # check channel position
+    channel_position = argv_channels.index(channel)
+
+    sec_data = 0
+    # does buffer already exist in autojoin list?
+    if channel_position >= 0:
+        # remove channel from list
+        argv_channels.pop(channel_position)
+        # check if there is at least one key in list
+        if len(argv_keys) >= 1:
+            # check channel position and number of keys
+            if channel_position <= len(argv_keys):
+                # remove key from list
+                sec_data = check_key_for_secure(argv_keys,channel_position)
+                sec_data_name = argv_keys[channel_position][11:-1]
+                argv_keys.pop(channel_position)
+    else:
+        if OPTIONS['add'].lower() == 'off':
+            return weechat.WEECHAT_RC_OK
+
+    # add channel and key at first position
+    argv_channels.insert(0, channel)
+    argv_keys.insert(0,new_key)
+
+
+    # check weechat version and if secure option is on and secure data will be used for this key?
+    if int(version) >= 0x00040200 and OPTIONS['secure'].lower() == 'on' and sec_data == 1:
+        weechat.command('','%s/secure set %s %s' % (use_mute(),sec_data_name,new_key))
+    else:
+        if sec_data == 1:
+            weechat.prnt('', '%s%s: key for channel "%s.%s" not changed! option "plugins.var.python.%s.secure" is off and you are using secured data for key.' % (weechat.prefix('error'),SCRIPT_NAME,server,channel,SCRIPT_NAME) )
+            return weechat.WEECHAT_RC_OK
+        new_joined_option = '%s %s' % (','.join(argv_channels),','.join(argv_keys))
+        save_autojoin_option(server,new_joined_option)
+    return weechat.WEECHAT_RC_OK
+
+# replace an already existing channel key with an new one
+# when OP changes channel key
 def irc_raw_in_mode_cb(data, signal, signal_data):
     parsed = get_hashtable(signal_data)
 
@@ -57,6 +132,10 @@ def irc_raw_in_mode_cb(data, signal, signal_data):
     channel = argv[0]
     new_key = argv[2]
 
+    add_key_to_list(server,channel,new_key)
+    return weechat.WEECHAT_RC_OK
+
+def add_key_to_list(server,channel,new_key):
     autojoin_list = get_autojoin(server)
     if not autojoin_list:
         return weechat.WEECHAT_RC_OK
@@ -83,27 +162,19 @@ def irc_raw_in_mode_cb(data, signal, signal_data):
             weechat.prnt('', '%s%s: not enough keys in list or channel position is not valid. check out autojoin option for server "%s".' % (weechat.prefix('error'),SCRIPT_NAME,server) )
             return weechat.WEECHAT_RC_OK
 
-        sec_data = 0
-        # check key for "${sec.data."
-        if argv_keys[channel_pos_in_list][0:11] == '${sec.data.':
-            sec_data = 1
-
-        use_mute = ''
-        if OPTIONS['mute'].lower() == 'on':
-            use_mute = '/mute '
+        sec_data = check_key_for_secure(argv_keys,channel_pos_in_list)
 
         # check weechat version and if secure option is on and secure data will be used for this key?
         if int(version) >= 0x00040200 and OPTIONS['secure'].lower() == 'on' and sec_data == 1:
             sec_data_name = argv_keys[channel_pos_in_list][11:-1]
-            weechat.command('','%s/secure set %s %s' % (use_mute,sec_data_name,new_key))
+            weechat.command('','%s/secure set %s %s' % (use_mute(),sec_data_name,new_key))
         else:
             if sec_data == 1:
                 weechat.prnt('', '%s%s: key for channel "%s.%s" not changed! option "plugins.var.python.%s.secure" is off and you are using secured data for key.' % (weechat.prefix('error'),SCRIPT_NAME,server,channel,SCRIPT_NAME) )
                 return weechat.WEECHAT_RC_OK
             argv_keys[channel_pos_in_list] = new_key
             new_joined_option = '%s %s' % (','.join(argv_channels),','.join(argv_keys))
-            weechat.command('','%s/set irc.server.%s.autojoin %s' % (use_mute,server,new_joined_option))
-
+            save_autojoin_option(server,new_joined_option)
     return weechat.WEECHAT_RC_OK
 
 def get_hashtable(string):
@@ -117,6 +188,28 @@ def get_hashtable(string):
 def get_autojoin(server):
     return weechat.config_string(weechat.config_get('irc.server.%s.autojoin' % server))
 
+def find_element_in_list(element,list_element):
+        try:
+            index_element=list_element.index(element)
+            return index_element
+        except ValueError:
+            return -1
+
+def save_autojoin_option(server,new_joined_option):
+    weechat.command('','%s/set irc.server.%s.autojoin %s' % (use_mute(),server,new_joined_option))
+
+def use_mute():
+    use_mute = ''
+    if OPTIONS['mute'].lower() == 'on':
+        use_mute = '/mute '
+    return use_mute
+
+# check key for "${sec.data."
+def check_key_for_secure(argv_keys,position):
+    sec_data = 0
+    if argv_keys[position][0:11] == '${sec.data.':
+        sec_data = 1
+    return sec_data
 # ================================[ weechat options & description ]===============================
 def init_options():
     for option,value in OPTIONS.items():
@@ -142,6 +235,7 @@ if __name__ == "__main__":
             init_options()
             weechat.hook_config( 'plugins.var.python.' + SCRIPT_NAME + '.*', 'toggle_refresh', '' )
             weechat.hook_signal("*,irc_raw_in_mode","irc_raw_in_mode_cb","")
+            weechat.hook_signal("*,irc_raw_in_324","irc_raw_in_324_cb","")
         else:
             weechat.prnt("","%s%s %s" % (weechat.prefix("error"),SCRIPT_NAME,": needs version 0.3.2 or higher"))
             weechat.command("","/wait 1ms /python unload %s" % SCRIPT_NAME)
