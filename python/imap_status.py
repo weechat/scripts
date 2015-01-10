@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
-# Copyright (c) 2009 by xt <xt@bash.no>
+# Copyright (c) 2009-2015 by xt <xt@bash.no>
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2015-01-09, nils_2
+#   version 0.7: use eval_expression()
 # 2010-07-12, TenOfTen
 #   version 0.6: beautify notification area
 # 2010-03-17, xt
@@ -44,7 +46,7 @@ import re
 
 SCRIPT_NAME    = "imap_status"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.6"
+SCRIPT_VERSION = "0.7"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Bar item with unread imap messages count"
 
@@ -73,9 +75,9 @@ class Imap(object):
 
     def __init__(self):
         ''' Connect and login'''
-        username = w.config_get_plugin('username')
-        password = w.config_get_plugin('password')
-        hostname = w.config_get_plugin('hostname')
+        username = string_eval_expression( w.config_get_plugin('username') )
+        password = string_eval_expression( w.config_get_plugin('password') )
+        hostname = string_eval_expression( w.config_get_plugin('hostname') )
         port = int(w.config_get_plugin('port'))
 
         if username and password and hostname and port:
@@ -147,12 +149,18 @@ def imap_update(*kwargs):
 
     return w.WEECHAT_RC_OK
 
+def string_eval_expression(text):
+    if int(version) >= 0x00040200:
+        return w.string_eval_expression(text,{},{},{})
+    return text
+
 if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
         SCRIPT_DESC, '', ''):
     for option, default_value in settings.iteritems():
         if not w.config_is_set_plugin(option):
             w.config_set_plugin(option, default_value)
 
+    version = w.info_get("version_number", "") or 0
 
     w.bar_item_new('imap', 'imap_cb', '')
     w.hook_timer(\
