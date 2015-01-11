@@ -1,5 +1,3 @@
-# Copyright (C) 2014 CrazyCat <crazycat@c-p-f.org>
-#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 3 of the License, or
@@ -44,10 +42,13 @@
 # => CrazyCat on net1 and net3, GatoLoco on net2
 #
 # History:
+# 2015-01-09, CrazyCat <crazycat@c-p-f.org>:
+#    version 0.2 : corrected a stupid bug. Nick change is now only sent
+#    to connected networks
 # 2014-04-01, CrazyCat <crazycat@c-p-f.org>:
 #    version 0.1 : first official version
 
-weechat::register("mnick", "CrazyCat", "0.1", "GPL", "Multi Nick Changer", "", "");
+weechat::register("mnick", "CrazyCat", "0.2", "GPL", "Multi Nick Changer", "", "");
 weechat::hook_command(
 	"mnick",
 	"Multi Nick Changer",
@@ -57,9 +58,6 @@ weechat::hook_command(
 	"mnick_change",
 	""
 );
-
-# Unused yet
-#weechat::hook_config("plugins.var.perl.mnick.*", "mnick_setup", "");
 
 sub mnick_setup
 {
@@ -91,7 +89,8 @@ sub mnick_change
 			my $name = weechat::infolist_string($infolist, "name");
 			my $nick = weechat::info_get('irc_nick', $name);
 			if (weechat::config_is_set_plugin($name."_enabled")
-				&& weechat::config_get_plugin($name."_enabled") eq "on")
+				&& weechat::config_get_plugin($name."_enabled") eq "on"
+				&& weechat::infolist_integer($infolist, "is_connected")==1)
 			{
 				$newnick = sprintf($nick . weechat::config_get_plugin($name."_mask"), $text);
 				weechat::config_set_plugin($name."_backnick", $nick);
@@ -104,7 +103,8 @@ sub mnick_change
 			my $name = weechat::infolist_string($infolist, "name");
 			my $nick = weechat::info_get('irc_nick', $name);
 			if (weechat::config_is_set_plugin($name."_enabled")
-				&& weechat::config_get_plugin($name."_enabled") eq "on")
+				&& weechat::config_get_plugin($name."_enabled") eq "on"
+				&& weechat::infolist_integer($infolist, "is_connected")==1)
 			{
 				if (weechat::config_is_set_plugin($name."_backnick")
 					&& weechat::config_get_plugin($name."_backnick") ne "") {
