@@ -65,6 +65,9 @@
 #
 #
 #   History:
+#   2015-01-14, nils_2
+#   version 0.7.4: make q work to quit grep buffer (requested by: gb)
+#
 #   2014-03-29, Felix Eckhofer <felix@tribut.de>
 #   version 0.7.3: fix typo
 #
@@ -191,7 +194,7 @@ except ImportError:
 
 SCRIPT_NAME    = "grep"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.7.3"
+SCRIPT_VERSION = "0.7.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Search in buffers and logs"
 SCRIPT_COMMAND = "grep"
@@ -1144,7 +1147,7 @@ def buffer_update():
         note = ' (last %s lines shown)' %len(matched_lines)
     else:
         note = ''
-    title = "Search in %s%s%s %s matches%s | pattern \"%s%s%s\"%s %s | %.4f seconds (%.2f%%)" \
+    title = "'q': close buffer | Search in %s%s%s %s matches%s | pattern \"%s%s%s\"%s %s | %.4f seconds (%.2f%%)" \
             %(color_title, matched_lines, color_reset, matched_lines.get_matches_count(), note,
               color_title, pattern_tmpl, color_reset, invert and ' (inverted)' or '', format_options(),
               time_total, time_grep_pct)
@@ -1239,6 +1242,9 @@ def buffer_input(data, buffer, input_data):
         cmd_grep_stop(buffer, input_data)
     except:
         return WEECHAT_RC_OK
+    if input_data in ('q', 'Q'):
+        weechat.buffer_close(buffer)
+        return weechat.WEECHAT_RC_OK
 
     global search_in_buffers, search_in_files
     global pattern
