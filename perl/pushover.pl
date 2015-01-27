@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2013-2014  stfn <stfnmd@gmail.com>
+# Copyright (C) 2013-2015  stfn <stfnmd@gmail.com>
 # https://github.com/stfnm/weechat-scripts
 #
 # This program is free software: you can redistribute it and/or modify
@@ -22,7 +22,7 @@ use warnings;
 my %SCRIPT = (
 	name => 'pushover',
 	author => 'stfn <stfnmd@gmail.com>',
-	version => '1.2',
+	version => '1.3',
 	license => 'GPL3',
 	desc => 'Send push notifications to your mobile devices using Pushover, NMA or Pushbullet',
 	opt => 'plugins.var.perl',
@@ -44,11 +44,18 @@ my %OPTIONS_DEFAULT = (
 	'only_if_inactive' => ['off', 'Notify only if buffer is not the active (current) buffer'],
 	'blacklist' => ['', 'Comma separated list of buffers (full name) to blacklist for notifications (wildcard "*" is allowed, name beginning with "!" is excluded)'],
 	'verbose' => ['1', 'Verbosity level (0 = silently ignore any errors, 1 = display brief error, 2 = display full server response)'],
+	'rate_limit' => ['0', 'Rate limit in seconds (0 = unlimited), will send a maximum of 1 notification per time limit'],
+	'short_name' => ['off', 'Use short buffer name in notification'],
 );
 my %OPTIONS = ();
 my $TIMEOUT = 30 * 1000;
+my $WEECHAT_VERSION;
 
+# Enable for debugging
 my $DEBUG = 0;
+
+# Rate limit flag
+my $RATE_LIMIT_OK = 1;
 
 # Register script and initialize config
 weechat::register($SCRIPT{"name"}, $SCRIPT{"author"}, $SCRIPT{"version"}, $SCRIPT{"license"}, $SCRIPT{"desc"}, "", "");
@@ -67,7 +74,7 @@ weechat::hook_command($SCRIPT{"name"}, "send custom push notification",
 sub init_config
 {
 	weechat::hook_config("$SCRIPT{'opt'}.$SCRIPT{'name'}.*", "config_cb", "");
-	my $version = weechat::info_get("version_number", "") || 0;
+	$WEECHAT_VERSION = weechat::info_get("version_number", "") || 0;
 	foreach my $option (keys %OPTIONS_DEFAULT) {
 		if (!weechat::config_is_set_plugin($option)) {
 			weechat::config_set_plugin($option, $OPTIONS_DEFAULT{$option}[0]);
@@ -75,11 +82,12 @@ sub init_config
 		} else {
 			$OPTIONS{$option} = weechat::config_get_plugin($option);
 		}
-		if ($version >= 0x00030500) {
+		if ($WEECHAT_VERSION >= 0x00030500) {
 			weechat::config_set_desc_plugin($option, $OPTIONS_DEFAULT{$option}[1]." (default: \"".$OPTIONS_DEFAULT{$option}[0]."\")");
 		}
 	}
 }
+
 sub config_cb
 {
 	my ($pointer, $name, $value) = @_;
@@ -111,6 +119,30 @@ sub url_escape($)
 }
 
 #
+# Evaluate expression (used for /secure support)
+#
+sub eval_expr($)
+{
+	my $value = $_[0];
+	if ($WEECHAT_VERSION >= 0x00040200) {
+		my $eval_expression = weechat::string_eval_expression($value, {}, {}, {});
+		return $eval_expression if ($eval_expression ne "");
+	}
+	return $value;
+}
+
+#
+# Flip rate_limit flag back to OK
+#
+sub rate_limit_cb
+{
+	$RATE_LIMIT_OK = 1;
+	if ($DEBUG) {
+		weechat::print("", "[$SCRIPT{name}] Rate Limit Deactivated");
+	}
+}
+
+#
 # Catch printed messages
 #
 sub print_cb
@@ -118,7 +150,13 @@ sub print_cb
 	my ($data, $buffer, $date, $tags, $displayed, $highlight, $prefix, $message) = @_;
 
 	my $buffer_type = weechat::buffer_get_string($buffer, "localvar_type");
-	my $buffer_full_name = weechat::buffer_get_string($buffer, "full_name");
+	my $buffer_full_name = "";
+	# check for long or short name
+	if ($OPTIONS{short_name} eq 'on') {
+		$buffer_full_name = weechat::buffer_get_string($buffer, "short_name");
+	} else {
+		$buffer_full_name = weechat::buffer_get_string($buffer, "full_name");
+	}
 	my $away_msg = weechat::buffer_get_string($buffer, "localvar_away");
 	my $away = ($away_msg && length($away_msg) > 0) ? 1 : 0;
 
@@ -127,6 +165,13 @@ sub print_cb
 	    ($OPTIONS{only_if_away} eq "on" && $away == 0) ||
 	    ($OPTIONS{only_if_inactive} eq "on" && $buffer eq weechat::current_buffer()) ||
 	    weechat::buffer_match_list($buffer, $OPTIONS{blacklist})) {
+		return weechat::WEECHAT_RC_OK;
+	}
+
+	if ($RATE_LIMIT_OK == 0) {
+		if ($DEBUG) {
+			weechat::print("", "[$SCRIPT{name}] No Notification - Rate Limited.");
+		}
 		return weechat::WEECHAT_RC_OK;
 	}
 
@@ -201,15 +246,27 @@ sub notify($)
 {
 	my $message = $_[0];
 
+	# Start timer
+	if ($OPTIONS{rate_limit}) {
+		my $timer = $OPTIONS{rate_limit} * 1000;
+
+		if ($DEBUG) {
+			weechat::print("", "[$SCRIPT{name}] Rate Limit Activated. Timer: $timer");
+		}
+
+		$RATE_LIMIT_OK = 0;
+		weechat::hook_timer($timer, 0, 1, "rate_limit_cb", "");
+	}
+
 	# Notify services
 	if (grep_list("pushover", $OPTIONS{service})) {
-		notify_pushover($OPTIONS{token}, $OPTIONS{user}, $message, "weechat", $OPTIONS{priority}, $OPTIONS{sound});
+		notify_pushover(eval_expr($OPTIONS{token}), eval_expr($OPTIONS{user}), $message, "weechat", $OPTIONS{priority}, $OPTIONS{sound});
 	}
 	if (grep_list("nma", $OPTIONS{service})) {
-		notify_nma($OPTIONS{nma_apikey}, "weechat", "$SCRIPT{name}.pl", $message, $OPTIONS{priority});
+		notify_nma(eval_expr($OPTIONS{nma_apikey}), "weechat", "$SCRIPT{name}.pl", $message, $OPTIONS{priority});
 	}
 	if (grep_list("pushbullet", $OPTIONS{service})) {
-		notify_pushbullet($OPTIONS{pb_apikey}, $OPTIONS{pb_device_iden}, "weechat", $message);
+		notify_pushbullet(eval_expr($OPTIONS{pb_apikey}), eval_expr($OPTIONS{pb_device_iden}), "weechat", $message);
 	}
 }
 
