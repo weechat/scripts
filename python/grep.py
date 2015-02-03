@@ -65,6 +65,12 @@
 #
 #
 #   History:
+#
+#   2015-01-31, Nicd-
+#   version 0.7.5:
+#   '~' is now expaned to the home directory in the log file path so
+#   paths like '~/logs/' should work.
+#
 #   2015-01-14, nils_2
 #   version 0.7.4: make q work to quit grep buffer (requested by: gb)
 #
@@ -194,7 +200,7 @@ except ImportError:
 
 SCRIPT_NAME    = "grep"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.7.4"
+SCRIPT_VERSION = "0.7.5"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Search in buffers and logs"
 SCRIPT_COMMAND = "grep"
@@ -408,6 +414,7 @@ def get_config_log_filter():
 
 def get_home():
     home = weechat.config_string(weechat.config_get('logger.file.path'))
+    home = path.abspath(path.expanduser(home))
     return home.replace('%h', weechat.info_get('weechat_dir', ''))
 
 def strip_home(s, dir=''):
