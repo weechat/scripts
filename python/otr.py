@@ -5,7 +5,7 @@
 # messaging in WeeChat, but I offer no guarantee. Please report any security
 # holes you find.
 #
-# Copyright (c) 2012-2014 Matthew M. Boedicker <matthewm@boedicker.org>
+# Copyright (c) 2012-2015 Matthew M. Boedicker <matthewm@boedicker.org>
 #                         Nils Görs <weechatter@arcor.de>
 #                         Daniel "koolfy" Faucon <koolfy@koolfy.be>
 #                         Felix Eckhofer <felix@tribut.de>
@@ -31,6 +31,7 @@ import collections
 import glob
 import io
 import os
+import platform
 import re
 import traceback
 import shlex
@@ -45,6 +46,7 @@ class PythonVersion2(object):
 
         import HTMLParser
         self.html_parser = HTMLParser
+        self.html_parser_init_kwargs = {}
 
         import htmlentitydefs
         self.html_entities = htmlentitydefs
@@ -75,12 +77,18 @@ class PythonVersion2(object):
 class PythonVersion3(object):
     """Python 3 version of code that must differ between Python 2 and 3."""
 
-    def __init__(self):
+    def __init__(self, minor):
+        self.minor = minor
+
         import html
         self.html = html
 
         import html.parser
         self.html_parser = html.parser
+        if self.minor >= 4:
+            self.html_parser_init_kwargs = { 'convert_charrefs' : True }
+        else:
+            self.html_parser_init_kwargs = {}
 
         import html.entities
         self.html_entities = html.entities
@@ -109,7 +117,7 @@ class PythonVersion3(object):
         return strng
 
 if sys.version_info.major >= 3:
-    PYVER = PythonVersion3()
+    PYVER = PythonVersion3(sys.version_info.minor)
 else:
     PYVER = PythonVersion2()
 
@@ -145,20 +153,26 @@ View default OTR policies: /otr policy default
 Start/Stop log recording for the current OTR session: /otr log [start|stop]
 This will be reverted back to the previous log setting at the end of the session.
 
+To refresh the OTR session: /otr refresh
+
 To end your private conversation: /otr finish
+
+This script supports only OTR protocol version 2.
 """.format(description=SCRIPT_DESC)
 
 SCRIPT_AUTHOR = 'Matthew M. Boedicker'
 SCRIPT_LICENCE = 'GPL3'
-SCRIPT_VERSION = '1.5.0'
+SCRIPT_VERSION = '1.6.0'
 
 OTR_DIR_NAME = 'otr'
 
 OTR_QUERY_RE = re.compile(r'\?OTR(\?|\??v[a-z\d]*\?)')
 
 POLICIES = {
-    'allow_v2' : 'allow OTR protocol version 2',
-    'require_encryption' : 'refuse to send unencrypted messages',
+    'allow_v2' : 'allow OTR protocol version 2, effectively enable OTR '
+        'since v2 is the only supported version',
+    'require_encryption' : 'refuse to send unencrypted messages when OTR is '
+        'enabled',
     'log' : 'enable logging of OTR conversations',
     'send_tag' : 'advertise your OTR capability using the whitespace tag',
     'html_escape' : 'escape HTML special characters in outbound messages',
@@ -287,15 +301,29 @@ def irc_user(nick, server):
             nick=nick,
             server=server)
 
-def is_a_channel(channel):
+def isupport_value(server, feature):
+    """Get the value of an IRC server feature."""
+    args = '{server},{feature}'.format(server=server, feature=feature)
+    return info_get('irc_server_isupport_value', args)
+
+def is_a_channel(channel, server):
     """Return true if a string has an IRC channel prefix."""
-    return channel.startswith(('#', '&', '+', '!'))
+    prefixes = \
+        tuple(isupport_value(server, 'CHANTYPES')) + \
+        tuple(isupport_value(server, 'STATUSMSG'))
+
+    # If the server returns nothing for CHANTYPES and STATUSMSG use
+    # default prefixes.
+    if not prefixes:
+        prefixes = ('#', '&', '+', '!', '@')
+
+    return channel.startswith(prefixes)
 
 # Exception class for PRIVMSG parsing exceptions.
 class PrivmsgParseException(Exception):
     pass
 
-def parse_irc_privmsg(message):
+def parse_irc_privmsg(message, server):
     """Parse an IRC PRIVMSG command and return a dictionary.
 
     Either the to_channel key or the to_nick key will be set depending on
@@ -330,15 +358,12 @@ def parse_irc_privmsg(message):
             'text': text,
             }
 
-        # Normally weechat_result['nick'] is the 'from' nick. If there is no
-        # 'from' nick, weechat_result['nick'] will be the 'to' nick.
-        unicode_nick = PYVER.to_unicode(weechat_result['nick'])
-        if unicode_nick == target:
-            result['from_nick'] = ''
+        if weechat_result['host']:
+            result['from_nick'] = PYVER.to_unicode(weechat_result['nick'])
         else:
-            result['from_nick'] = unicode_nick
+            result['from_nick'] = ''
 
-        if is_a_channel(target):
+        if is_a_channel(target, server):
             result['to_channel'] = target
             result['to_nick'] = None
         else:
@@ -1016,7 +1041,7 @@ class IrcHTMLParser(PYVER.html_parser.HTMLParser):
     @staticmethod
     def parse(data):
         """Create a temporary IrcHTMLParser and parse a single string"""
-        parser = IrcHTMLParser()
+        parser = IrcHTMLParser(**PYVER.html_parser_init_kwargs)
         parser.feed(data)
         parser.close()
         return parser.result
@@ -1100,7 +1125,8 @@ def message_in_cb(data, modifier, modifier_data, string):
     """Incoming message callback"""
     debug(('message_in_cb', data, modifier, modifier_data, string))
 
-    parsed = parse_irc_privmsg(PYVER.to_unicode(string))
+    parsed = parse_irc_privmsg(
+        PYVER.to_unicode(string), PYVER.to_unicode(modifier_data))
     debug(('parsed message', parsed))
 
     # skip processing messages to public channels
@@ -1162,7 +1188,8 @@ def message_out_cb(data, modifier, modifier_data, string):
     try:
         debug(('message_out_cb', data, modifier, modifier_data, string))
 
-        parsed = parse_irc_privmsg(PYVER.to_unicode(string))
+        parsed = parse_irc_privmsg(
+            PYVER.to_unicode(string), PYVER.to_unicode(modifier_data))
         debug(('parsed message', parsed))
 
         # skip processing messages to public channels
@@ -1198,8 +1225,10 @@ def message_out_cb(data, modifier, modifier_data, string):
             debug(('context send message', parsed['text'], parsed['to_nick'],
                    server))
 
-            if not context.is_encrypted() and not is_query and \
-                    context.getPolicy('require_encryption'):
+            if context.policyOtrEnabled() and \
+                not context.is_encrypted() and \
+                not is_query and \
+                context.getPolicy('require_encryption'):
                 context.print_buffer(
                    'Your message will not be sent, because policy requires an '
                    'encrypted connection.', 'error')
@@ -1232,6 +1261,8 @@ def message_out_cb(data, modifier, modifier_data, string):
     except:
         try:
             print_buffer('', traceback.format_exc(), 'error')
+            print_buffer('', 'Versions: {versions}'.format(
+                versions=dependency_versions()), 'error')
             context.print_buffer(
                 'Failed to send message. See core buffer for traceback.',
                 'error')
@@ -1265,7 +1296,7 @@ def command_cb(data, buf, args):
         debug("Command parsing error.")
         return result
 
-    if len(arg_parts) in (1, 3) and arg_parts[0] == 'start':
+    if len(arg_parts) in (1, 3) and arg_parts[0] in ('start', 'refresh'):
         nick, server = default_peer_args(arg_parts[1:3], buf)
 
         if nick is not None and server is not None:
@@ -1290,7 +1321,7 @@ def command_cb(data, buf, args):
             privmsg(server, nick, '?OTR?')
 
             result = weechat.WEECHAT_RC_OK
-    elif len(arg_parts) in (1, 3) and arg_parts[0] == 'finish':
+    elif len(arg_parts) in (1, 3) and arg_parts[0] in ('finish', 'end'):
         nick, server = default_peer_args(arg_parts[1:3], buf)
 
         if nick is not None and server is not None:
@@ -1339,6 +1370,8 @@ def command_cb(data, buf, args):
             elif len(arg_parts) == 5:
                 nick, server = default_peer_args(arg_parts[2:4], buf)
                 secret = arg_parts[4]
+            else:
+                return weechat.WEECHAT_RC_ERROR
 
             if secret:
                 secret = PYVER.to_str(secret)
@@ -1372,7 +1405,8 @@ def command_cb(data, buf, args):
                 nick, server = default_peer_args(arg_parts[2:4], buf)
                 secret = arg_parts[5]
                 question = arg_parts[4]
-
+            else:
+                return weechat.WEECHAT_RC_ERROR
 
             context = ACCOUNTS[current_user(server)].getContext(
                 irc_user(nick, server))
@@ -1403,6 +1437,9 @@ def command_cb(data, buf, args):
             # Nickname and server are specified
             elif len(arg_parts) == 4:
                 nick, server = default_peer_args(arg_parts[2:4], buf)
+            else:
+                return weechat.WEECHAT_RC_ERROR
+
             context = ACCOUNTS[current_user(server)].getContext(
                 irc_user(nick, server))
 
@@ -1870,55 +1907,103 @@ def git_info():
 
     return result
 
+def weechat_version_ok():
+    """Check if the WeeChat version is compatible with this script.
+
+    If WeeChat version < 0.4.2 log an error to the core buffer and return
+    False. Otherwise return True.
+    """
+    weechat_version = weechat.info_get('version_number', '') or 0
+    if int(weechat_version) < 0x00040200:
+        error_message = (
+            '{script_name} requires WeeChat version >= 0.4.2. The current '
+            'version is {current_version}.').format(
+            script_name=SCRIPT_NAME,
+            current_version=weechat.info_get('version', ''))
+        prnt('', error_message)
+        return False
+    else:
+        return True
+
 SCRIPT_VERSION = git_info() or SCRIPT_VERSION
+
+def dependency_versions():
+    """Return a string containing the versions of all dependencies."""
+    return ('weechat-otr {script_version}, '
+        'potr {potr_major}.{potr_minor}.{potr_patch}-{potr_sub}, '
+        'Python {python_version}, '
+        'WeeChat {weechat_version}'
+        ).format(
+        script_version=SCRIPT_VERSION,
+        potr_major=potr.VERSION[0],
+        potr_minor=potr.VERSION[1],
+        potr_patch=potr.VERSION[2],
+        potr_sub=potr.VERSION[3],
+        python_version=platform.python_version(),
+        weechat_version=weechat.info_get('version', ''))
+
+def excepthook(typ, value, traceback):
+    sys.stderr.write('Versions: ')
+    sys.stderr.write(dependency_versions())
+    sys.stderr.write('\n')
+
+    sys.__excepthook__(typ, value, traceback)
+
+sys.excepthook = excepthook
 
 if weechat.register(
     SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENCE, SCRIPT_DESC,
     'shutdown', ''):
-    init_config()
+    if weechat_version_ok():
+        init_config()
 
-    OTR_DIR = os.path.join(info_get('weechat_dir', ''), OTR_DIR_NAME)
-    create_dir()
+        OTR_DIR = os.path.join(info_get('weechat_dir', ''), OTR_DIR_NAME)
+        create_dir()
 
-    ACCOUNTS = AccountDict()
+        ACCOUNTS = AccountDict()
 
-    weechat.hook_modifier('irc_in_privmsg', 'message_in_cb', '')
-    weechat.hook_modifier('irc_out_privmsg', 'message_out_cb', '')
+        weechat.hook_modifier('irc_in_privmsg', 'message_in_cb', '')
+        weechat.hook_modifier('irc_out_privmsg', 'message_out_cb', '')
 
-    weechat.hook_command(
-        SCRIPT_NAME, SCRIPT_HELP,
-        'start [NICK SERVER] || '
-        'finish [NICK SERVER] || '
-        'status [NICK SERVER] || '
-        'smp ask [NICK SERVER] [QUESTION] SECRET || '
-        'smp respond [NICK SERVER] SECRET || '
-        'smp abort [NICK SERVER] || '
-        'trust [NICK SERVER] || '
-        'distrust [NICK SERVER] || '
-        'log [on|off] || '
-        'policy [POLICY on|off] || '
-        'fingerprint [SEARCH|all]',
-        '',
-        'start %(nick) %(irc_servers) %-||'
-        'finish %(nick) %(irc_servers) %-||'
-        'status %(nick) %(irc_servers) %-||'
-        'smp ask|respond %(nick) %(irc_servers) %-||'
-        'smp abort %(nick) %(irc_servers) %-||'
-        'trust %(nick) %(irc_servers) %-||'
-        'distrust %(nick) %(irc_servers) %-||'
-        'log on|off %-||'
-        'policy %(otr_policy) on|off %-||'
-        'fingerprint all %-||',
-        'command_cb',
-        '')
+        weechat.hook_command(
+            SCRIPT_NAME, SCRIPT_HELP,
+            'start [NICK SERVER] || '
+            'refresh [NICK SERVER] || '
+            'finish [NICK SERVER] || '
+            'end [NICK SERVER] || '
+            'status [NICK SERVER] || '
+            'smp ask [NICK SERVER] [QUESTION] SECRET || '
+            'smp respond [NICK SERVER] SECRET || '
+            'smp abort [NICK SERVER] || '
+            'trust [NICK SERVER] || '
+            'distrust [NICK SERVER] || '
+            'log [on|off] || '
+            'policy [POLICY on|off] || '
+            'fingerprint [SEARCH|all]',
+            '',
+            'start %(nick) %(irc_servers) %-||'
+            'refresh %(nick) %(irc_servers) %-||'
+            'finish %(nick) %(irc_servers) %-||'
+            'end %(nick) %(irc_servers) %-||'
+            'status %(nick) %(irc_servers) %-||'
+            'smp ask|respond %(nick) %(irc_servers) %-||'
+            'smp abort %(nick) %(irc_servers) %-||'
+            'trust %(nick) %(irc_servers) %-||'
+            'distrust %(nick) %(irc_servers) %-||'
+            'log on|off %-||'
+            'policy %(otr_policy) on|off %-||'
+            'fingerprint all %-||',
+            'command_cb',
+            '')
 
-    weechat.hook_completion(
-        'otr_policy', 'OTR policies', 'policy_completion_cb', '')
+        weechat.hook_completion(
+            'otr_policy', 'OTR policies', 'policy_completion_cb', '')
 
-    weechat.hook_config('logger.level.irc.*', 'logger_level_update_cb', '')
+        weechat.hook_config('logger.level.irc.*', 'logger_level_update_cb', '')
 
-    weechat.hook_signal('buffer_switch', 'buffer_switch_cb', '')
-    weechat.hook_signal('buffer_closing', 'buffer_closing_cb', '')
+        weechat.hook_signal('buffer_switch', 'buffer_switch_cb', '')
+        weechat.hook_signal('buffer_closing', 'buffer_closing_cb', '')
 
-    OTR_STATUSBAR = weechat.bar_item_new(SCRIPT_NAME, 'otr_statusbar_cb', '')
-    weechat.bar_item_update(SCRIPT_NAME)
+        OTR_STATUSBAR = weechat.bar_item_new(
+            SCRIPT_NAME, 'otr_statusbar_cb', '')
+        weechat.bar_item_update(SCRIPT_NAME)
