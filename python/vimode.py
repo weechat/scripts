@@ -36,7 +36,7 @@ import weechat
 
 SCRIPT_NAME = "vimode"
 SCRIPT_AUTHOR = "GermainZ <germanosz@gmail.com>"
-SCRIPT_VERSION = "0.4"
+SCRIPT_VERSION = "0.5"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = ("Add vi/vim-like modes and keybindings to WeeChat.")
 
@@ -54,11 +54,11 @@ FAQ_KEYBINDINGS = GITHUB_BASE + "FAQ#problematic-key-bindings.md"
 FAQ_ESC = GITHUB_BASE + "FAQ.md#esc-key-not-being-detected-instantly"
 
 # Holds the text of the command-line mode (currently only Ex commands ":").
-cmd_text = ''
+cmd_text = ""
 # Mode we're in. One of INSERT, NORMAL or REPLACE.
 mode = "INSERT"
-# Holds normal commands (e.g. 'dd').
-vi_buffer = ''
+# Holds normal commands (e.g. "dd").
+vi_buffer = ""
 # See `cb_key_combo_default()`.
 esc_pressed = 0
 # See `cb_key_pressed()`.
@@ -76,14 +76,15 @@ vimode_settings = {'no_warn': ("off", "don't warn about problematic"
 # Regex patterns.
 # ---------------
 
-REGEX_MOTION_LOWERCASE_W = re.compile(r"\b\w|[^\w ]")
-REGEX_MOTION_UPPERCASE_W = re.compile(r"(?<!\S)\b\w")
-REGEX_MOTION_LOWERCASE_E = re.compile(r"\w\b|[^\w ]")
+WHITESPACE = re.compile(r"\s")
+IS_KEYWORD = re.compile(r"[a-zA-Z0-9_@À-ÿ]")
+REGEX_MOTION_LOWERCASE_W = re.compile(r"\b\S|(?<=\s)\S")
+REGEX_MOTION_UPPERCASE_W = re.compile(r"(?<=\s)\S")
 REGEX_MOTION_UPPERCASE_E = re.compile(r"\S(?!\S)")
-REGEX_MOTION_LOWERCASE_B = re.compile(r"\w\b|[^\w ]")
-REGEX_MOTION_UPPERCASE_B = re.compile(r"\w\b(?!\S)")
-REGEX_MOTION_GE = re.compile(r"\b\w|[^\w ]")
+REGEX_MOTION_UPPERCASE_B = REGEX_MOTION_UPPERCASE_E
+REGEX_MOTION_G_UPPERCASE_E = REGEX_MOTION_UPPERCASE_W
 REGEX_MOTION_CARRET = re.compile(r"\S")
+REGEX_INT = r"[0-9]"
 
 # Regex used to detect problematic keybindings.
 # For example: meta-wmeta-s is bound by default to ``/window swap``.
@@ -104,6 +105,11 @@ VI_COMMANDS = {'h': "/help",
                'q': "/close",
                'w': "/save",
                'set': "/set",
+               'bp': "/buffer -1",
+               'bn': "/buffer +1",
+               'bd': "/close",
+               'b#': "/input jump_last_buffer_displayed",
+               'b': "/buffer",
                'sp': "/window splith",
                'vsp': "/window splitv"}
 
@@ -113,7 +119,7 @@ VI_COMMANDS = {'h': "/help",
 
 # Each operator must have a corresponding function, called "operator_X" where
 # X is the operator. For example: `operator_c()`.
-VI_OPERATORS = ['c', 'd', 'y']
+VI_OPERATORS = ["c", "d", "y"]
 
 
 # Vi motions.
@@ -122,11 +128,11 @@ VI_OPERATORS = ['c', 'd', 'y']
 # Vi motions. Each motion must have a corresponding function, called
 # "motion_X" where X is the motion (e.g. `motion_w()`).
 # See Also: `SPECIAL_CHARS`.
-VI_MOTIONS = ['w', 'e', 'b', '^', '$', 'h', 'l', 'W', 'E', 'B', 'f', 'F', 't',
-              'T', 'ge', 'gE']
+VI_MOTIONS = ["w", "e", "b", "^", "$", "h", "l", "W", "E", "B", "f", "F", "t",
+              "T", "ge", "gE", "0"]
 
 # Special characters for motions. The corresponding function's name is
-# converted before calling. For example, '^' will call `motion_carret` instead
+# converted before calling. For example, "^" will call `motion_carret` instead
 # of `motion_^` (which isn't allowed because of illegal characters).
 SPECIAL_CHARS = {'^': "carret",
                  '$': "dollar"}
@@ -164,7 +170,7 @@ def operator_base(buf, input_line, pos1, pos2, overwrite):
     start = min(pos1, pos2)
     end = max(pos1, pos2)
     # Print the text the operator should go over.
-    weechat.prnt('', "Selection: %s" % input_line[start:end])
+    weechat.prnt("", "Selection: %s" % input_line[start:end])
 
 def motion_base(input_line, cur, count):
     """Motion method example.
@@ -175,9 +181,11 @@ def motion_base(input_line, cur, count):
         count (int): the amount of times to multiply or iterate the action.
 
     Returns:
-        A tuple containing two values:
+        A tuple containing three values:
             int: the new position of the cursor.
             bool: True if the motion is inclusive, False otherwise.
+            bool: True if the motion is catching, False otherwise.
+                See `start_catching_keys()` for more info on catching motions.
 
     Notes:
         Should be called "motion_X", where X is the motion, and defined in
@@ -189,7 +197,7 @@ def motion_base(input_line, cur, count):
         `motion_f()` (catching motion).
     """
     # Find (relative to cur) position of next number.
-    pos = get_pos(input_line, r"[0-9]", cur, True, count)
+    pos = get_pos(input_line, REGEX_INT, cur, True, count)
     # Return the new (absolute) cursor position.
     # This motion is exclusive, so overwrite is False.
     return cur + pos, False
@@ -212,7 +220,7 @@ def key_base(buf, input_line, cur, count):
         For additional examples, see `key_a()` (normal key) and
         `key_r()` (catching key).
     """
-    # Key was pressed. Go to Insert mode (similar to 'i').
+    # Key was pressed. Go to Insert mode (similar to "i").
     set_mode("INSERT")
 
 
@@ -234,7 +242,7 @@ def operator_d(buf, input_line, pos1, pos2, overwrite=False):
         end += 1
     input_line = list(input_line)
     del input_line[start:end]
-    input_line = ''.join(input_line)
+    input_line = "".join(input_line)
     weechat.buffer_set(buf, "input", input_line)
     set_cur(buf, input_line, pos1)
 
@@ -258,12 +266,21 @@ def operator_y(buf, input_line, pos1, pos2, _):
     """
     start = min(pos1, pos2)
     end = max(pos1, pos2)
-    proc = subprocess.Popen(['xsel', '-bi'], stdin=subprocess.PIPE)
+    proc = subprocess.Popen(["xclip", "-selection", "c"],
+                            stdin=subprocess.PIPE)
     proc.communicate(input=input_line[start:end])
 
 
 # Motions:
 # --------
+
+def motion_0(input_line, cur, count):
+    """Go to the first character of the line.
+
+    See Also;
+        `motion_base()`.
+    """
+    return 0, False, False
 
 def motion_w(input_line, cur, count):
     """Go `count` words forward and return position.
@@ -272,9 +289,9 @@ def motion_w(input_line, cur, count):
         `motion_base()`.
     """
     pos = get_pos(input_line, REGEX_MOTION_LOWERCASE_W, cur, True, count)
-    if not pos:
-        return len(input_line), False
-    return cur + pos, False
+    if pos == -1:
+        return len(input_line), False, False
+    return cur + pos, False, False
 
 def motion_W(input_line, cur, count):
     """Go `count` WORDS forward and return position.
@@ -283,9 +300,9 @@ def motion_W(input_line, cur, count):
         `motion_base()`.
     """
     pos = get_pos(input_line, REGEX_MOTION_UPPERCASE_W, cur, True, count)
-    if not pos:
-        return len(input_line), False
-    return cur + pos, False
+    if pos == -1:
+        return len(input_line), False, False
+    return cur + pos, False, False
 
 def motion_e(input_line, cur, count):
     """Go to the end of `count` words and return position.
@@ -293,10 +310,29 @@ def motion_e(input_line, cur, count):
     See Also:
         `motion_base()`.
     """
-    pos = get_pos(input_line, REGEX_MOTION_LOWERCASE_E, cur, True, count)
-    if not pos:
-        return len(input_line), False
-    return cur + pos, True
+    for _ in range(max(1, count)):
+        found = False
+        pos = cur
+        for pos in range(cur + 1, len(input_line) - 1):
+            # Whitespace, keep going.
+            if WHITESPACE.match(input_line[pos]):
+                pass
+            # End of sequence made from 'iskeyword' characters only,
+            # or end of sequence made from non 'iskeyword' characters only.
+            elif ((IS_KEYWORD.match(input_line[pos]) and
+                   (not IS_KEYWORD.match(input_line[pos + 1]) or
+                    WHITESPACE.match(input_line[pos + 1]))) or
+                  (not IS_KEYWORD.match(input_line[pos]) and
+                   (IS_KEYWORD.match(input_line[pos + 1]) or
+                    WHITESPACE.match(input_line[pos + 1])))):
+                found = True
+                cur = pos
+                break
+        # We're at the character before the last and we still found nothing.
+        # Go to the last character.
+        if not found:
+            cur = pos + 1
+    return cur, True, False
 
 def motion_E(input_line, cur, count):
     """Go to the end of `count` WORDS and return cusor position.
@@ -305,9 +341,9 @@ def motion_E(input_line, cur, count):
         `motion_base()`.
     """
     pos = get_pos(input_line, REGEX_MOTION_UPPERCASE_E, cur, True, count)
-    if not pos:
-        return len(input_line), False
-    return cur + pos, True
+    if pos == -1:
+        return len(input_line), False, False
+    return cur + pos, True, False
 
 def motion_b(input_line, cur, count):
     """Go `count` words backwards and return position.
@@ -315,13 +351,10 @@ def motion_b(input_line, cur, count):
     See Also:
         `motion_base()`.
     """
-    new_cur = len(input_line) - cur
-    pos = get_pos(input_line[::-1], REGEX_MOTION_LOWERCASE_B, new_cur,
-                  count=count)
-    if not pos:
-        return 0, False
-    pos = len(input_line) - (pos + new_cur + 1)
-    return pos, True
+    # "b" is just "e" on inverted data (e.g. "olleH" instead of "Hello").
+    pos_inv = motion_e(input_line[::-1], len(input_line) - cur - 1, count)[0]
+    pos = len(input_line) - pos_inv - 1
+    return pos, True, False
 
 def motion_B(input_line, cur, count):
     """Go `count` WORDS backwards and return position.
@@ -332,10 +365,10 @@ def motion_B(input_line, cur, count):
     new_cur = len(input_line) - cur
     pos = get_pos(input_line[::-1], REGEX_MOTION_UPPERCASE_B, new_cur,
                   count=count)
-    if not pos:
-        return 0, False
+    if pos == -1:
+        return 0, False, False
     pos = len(input_line) - (pos + new_cur + 1)
-    return pos, True
+    return pos, True, False
 
 def motion_ge(input_line, cur, count):
     """Go to end of `count` words backwards and return position.
@@ -343,13 +376,10 @@ def motion_ge(input_line, cur, count):
     See Also:
         `motion_base()`.
     """
-    new_cur = len(input_line) - cur - 1
-    pos = get_pos(input_line[::-1], REGEX_MOTION_GE, new_cur,
-                  count)
-    if not pos:
-        return 0, False
-    pos = len(input_line) - (pos + new_cur + 1)
-    return pos, True
+    # "ge is just "w" on inverted data (e.g. "olleH" instead of "Hello").
+    pos_inv = motion_w(input_line[::-1], len(input_line) - cur - 1, count)[0]
+    pos = len(input_line) - pos_inv - 1
+    return pos, True, False
 
 def motion_gE(input_line, cur, count):
     """Go to end of `count` WORDS backwards and return position.
@@ -357,13 +387,13 @@ def motion_gE(input_line, cur, count):
     See Also:
         `motion_base()`.
     """
-    new_cur = len(input_line) - cur
-    pos = get_pos(input_line[::-1], REGEX_MOTION_GE, new_cur,
+    new_cur = len(input_line) - cur - 1
+    pos = get_pos(input_line[::-1], REGEX_MOTION_G_UPPERCASE_E, new_cur,
                   True, count)
-    if not pos:
-        return 0, False
+    if pos == -1:
+        return 0, False, False
     pos = len(input_line) - (pos + new_cur + 1)
-    return pos, True
+    return pos, True, False
 
 def motion_h(input_line, cur, count):
     """Go `count` characters to the left and return position.
@@ -371,7 +401,7 @@ def motion_h(input_line, cur, count):
     See Also:
         `motion_base()`.
     """
-    return max(0, cur - count), False
+    return max(0, cur - max(count, 1)), False, False
 
 def motion_l(input_line, cur, count):
     """Go `count` characters to the right and return position.
@@ -379,7 +409,7 @@ def motion_l(input_line, cur, count):
     See Also:
         `motion_base()`.
     """
-    return cur + count, False
+    return cur + max(count, 1), False, False
 
 def motion_carret(input_line, cur, count):
     """Go to first non-blank character of line and return position.
@@ -388,7 +418,7 @@ def motion_carret(input_line, cur, count):
         `motion_base()`.
     """
     pos = get_pos(input_line, REGEX_MOTION_CARRET, 0)
-    return pos, False
+    return pos, False, False
 
 def motion_dollar(input_line, cur, count):
     """Go to end of line and return position.
@@ -397,7 +427,7 @@ def motion_dollar(input_line, cur, count):
         `motion_base()`.
     """
     pos = len(input_line)
-    return pos, False
+    return pos, False, False
 
 def motion_f(input_line, cur, count):
     """Go to `count`'th occurence of character and return position.
@@ -424,10 +454,10 @@ def cb_motion_f(update_last=True):
     pos = get_pos(catching_keys_data['input_line'], re.escape(pattern),
                   catching_keys_data['cur'], True,
                   catching_keys_data['count'])
-    catching_keys_data['new_cur'] = pos + catching_keys_data['cur']
+    catching_keys_data['new_cur'] = max(0, pos) + catching_keys_data['cur']
     if update_last:
-        last_search_motion = {'motion': 'f', 'data': pattern}
-    cb_key_combo_default(None, None, '')
+        last_search_motion = {'motion': "f", 'data': pattern}
+    cb_key_combo_default(None, None, "")
 
 def motion_F(input_line, cur, count):
     """Go to `count`'th occurence of char to the right and return position.
@@ -451,16 +481,16 @@ def cb_motion_F(update_last=True):
     """
     global last_search_motion
     pattern = catching_keys_data['keys']
-    cur = len(catching_keys_data['input_line']) - catching_keys_data['cur'] + 1
+    cur = len(catching_keys_data['input_line']) - catching_keys_data['cur']
     pos = get_pos(catching_keys_data['input_line'][::-1],
                   re.escape(pattern),
                   cur,
-                  True,
+                  False,
                   catching_keys_data['count'])
-    catching_keys_data['new_cur'] = catching_keys_data['cur'] - pos
+    catching_keys_data['new_cur'] = catching_keys_data['cur'] - max(0, pos + 1)
     if update_last:
-        last_search_motion = {'motion': 'F', 'data': pattern}
-    cb_key_combo_default(None, None, '')
+        last_search_motion = {'motion': "F", 'data': pattern}
+    cb_key_combo_default(None, None, "")
 
 def motion_t(input_line, cur, count):
     """Go to `count`'th occurence of char and return position.
@@ -495,8 +525,8 @@ def cb_motion_t(update_last=True):
     else:
         catching_keys_data['new_cur'] = catching_keys_data['cur']
     if update_last:
-        last_search_motion = {'motion': 't', 'data': pattern}
-    cb_key_combo_default(None, None, '')
+        last_search_motion = {'motion': "t", 'data': pattern}
+    cb_key_combo_default(None, None, "")
 
 def motion_T(input_line, cur, count):
     """Go to `count`'th occurence of char to the left and return position.
@@ -533,8 +563,8 @@ def cb_motion_T(update_last=True):
     else:
         catching_keys_data['new_cur'] = catching_keys_data['cur']
     if update_last:
-        last_search_motion = {'motion': 'T', 'data': pattern}
-    cb_key_combo_default(None, None, '')
+        last_search_motion = {'motion': "T", 'data': pattern}
+    cb_key_combo_default(None, None, "")
 
 
 # Keys:
@@ -546,7 +576,16 @@ def key_cc(buf, input_line, cur, count):
     See Also:
         `key_base()`.
     """
-    weechat.command('', "/input delete_line")
+    weechat.command("", "/input delete_line")
+    set_mode("INSERT")
+
+def key_C(buf, input_line, cur, count):
+    """Delete from cursor to end of line and start Insert mode.
+
+    See Also:
+        `key_base()`.
+    """
+    weechat.command("", "/input delete_end_of_line")
     set_mode("INSERT")
 
 def key_yy(buf, input_line, cur, count):
@@ -555,7 +594,8 @@ def key_yy(buf, input_line, cur, count):
     See Also:
         `key_base()`.
     """
-    proc = subprocess.Popen(['xsel', '-bi'], stdin=subprocess.PIPE)
+    proc = subprocess.Popen(["xclip", "-selection", "c"],
+                            stdin=subprocess.PIPE)
     proc.communicate(input=input_line)
 
 def key_i(buf, input_line, cur, count):
@@ -590,7 +630,7 @@ def key_I(buf, input_line, cur, count):
     See Also:
         `key_base()`.
     """
-    pos, _ = motion_carret(input_line, cur, 0)
+    pos, _, _ = motion_carret(input_line, cur, 0)
     set_cur(buf, input_line, pos)
     set_mode("INSERT")
 
@@ -602,10 +642,10 @@ def key_G(buf, input_line, cur, count):
     """
     if count > 0:
         # This is necessary to prevent weird scroll jumps.
-        weechat.command('', "/window scroll_bottom")
-        weechat.command('', "/window scroll %s" % count)
+        weechat.command("", "/window scroll_top")
+        weechat.command("", "/window scroll %s" % (count - 1))
     else:
-        weechat.command('', "/window scroll_bottom")
+        weechat.command("", "/window scroll_bottom")
 
 def key_r(buf, input_line, cur, count):
     """Replace `count` characters under the cursor.
@@ -623,13 +663,13 @@ def cb_key_r():
     """
     global catching_keys_data
     input_line = list(catching_keys_data['input_line'])
-    count = catching_keys_data['count']
+    count = max(catching_keys_data['count'], 1)
     cur = catching_keys_data['cur']
     if cur + count <= len(input_line):
         for _ in range(count):
             input_line[cur] = catching_keys_data['keys']
             cur += 1
-        input_line = ''.join(input_line)
+        input_line = "".join(input_line)
         weechat.buffer_set(catching_keys_data['buf'], "input", input_line)
         set_cur(catching_keys_data['buf'], input_line, cur - 1)
     catching_keys_data = {'amount': 0}
@@ -649,11 +689,12 @@ def key_tilda(buf, input_line, cur, count):
         `key_base()`.
     """
     input_line = list(input_line)
+    count = max(1, count)
     while count and cur < len(input_line):
         input_line[cur] = input_line[cur].swapcase()
         count -= 1
         cur += 1
-    input_line = ''.join(input_line)
+    input_line = "".join(input_line)
     weechat.buffer_set(buf, "input", input_line)
     set_cur(buf, input_line, cur)
 
@@ -677,7 +718,7 @@ def cb_key_alt_j():
         `start_catching_keys()`.
     """
     global catching_keys_data
-    weechat.command('', "/buffer " + catching_keys_data['keys'])
+    weechat.command("", "/buffer " + catching_keys_data['keys'])
     catching_keys_data = {'amount': 0}
 
 def key_semicolon(buf, input_line, cur, count, swap=False):
@@ -685,7 +726,7 @@ def key_semicolon(buf, input_line, cur, count, swap=False):
 
     Args:
         swap (bool, optional): if True, the last motion will be repeated in the
-            opposite direction (e.g. 'f' instead of 'F'). Defaults to False.
+            opposite direction (e.g. "f" instead of "F"). Defaults to False.
 
     See Also:
         `key_base()`.
@@ -728,14 +769,15 @@ VI_KEYS = {'j': "/window scroll_down",
            'x': "/input delete_next_char",
            'X': "/input delete_previous_char",
            'dd': "/input delete_line",
+           'D': "/input delete_end_of_line",
            'cc': key_cc,
+           'C': key_C,
            'i': key_i,
            'a': key_a,
            'A': key_A,
            'I': key_I,
            'yy': key_yy,
            'p': "/input clipboard_paste",
-           '0': "/input move_beginning_of_line",
            '/': "/input search_text",
            'gt': "/buffer +1",
            'K': "/buffer +1",
@@ -768,7 +810,7 @@ VI_KEYS = {'j': "/window scroll_down",
            '\x01[8': "/buffer *8",
            '\x01[9': "/buffer *9",
            '\x01[0': "/buffer *10",
-           '\x01^': "/input jump_last_buffer",
+           '\x01^': "/input jump_last_buffer_displayed",
            '\x01D': "/window page_down",
            '\x01U': "/window page_up",
            '\x01Wh': "/window left",
@@ -813,9 +855,9 @@ def cb_check_esc(data, remaining_calls):
         esc_pressed += 1
         set_mode("NORMAL")
         # Cancel any current partial commands.
-        vi_buffer = ''
-        cmd_text = ''
-        weechat.command('', "/bar hide vi_cmd")
+        vi_buffer = ""
+        cmd_text = ""
+        weechat.command("", "/bar hide vi_cmd")
         catching_keys_data = {'amount': 0}
         weechat.bar_item_update("vi_buffer")
     return weechat.WEECHAT_RC_OK
@@ -834,15 +876,23 @@ def cb_key_combo_default(data, signal, signal_data):
     # Example: user presses Esc followed by i. This is detected as "\x01[i",
     # but we only want to handle "i".
     keys = signal_data
-    if esc_pressed and keys.startswith("\x01[" * esc_pressed):
-        keys = keys[2 * esc_pressed:]
-        # Multiples of 3 seem to "cancel" themselves,
-        # e.g. Esc-Esc-Esc-Alt-j-11 is detected as "\x01[\x01[\x01" followed by
-        # "\x01[j11" (two different signals).
-        if signal_data == "\x01[" * 3:
-            esc_pressed = -1  # Because cb_check_esc will increment it to 0.
+    if esc_pressed or esc_pressed == -2:
+        if keys.startswith("\x01[" * esc_pressed):
+            # Multiples of 3 seem to "cancel" themselves,
+            # e.g. Esc-Esc-Esc-Alt-j-11 is detected as "\x01[\x01[\x01"
+            # followed by "\x01[j11" (two different signals).
+            if signal_data == "\x01[" * 3:
+                esc_pressed = -1  # `cb_check_esc()` will increment it to 0.
+            else:
+                esc_pressed = 0
+        # This can happen if a valid combination is started but interrupted
+        # with Esc, such as Ctrl-W→Esc→w which would send two signals:
+        # "\x01W\x01[" then "\x01W\x01[w".
+        # In that case, we still need to handle the next signal ("\x01W\x01[w")
+        # so we use the special value "-2".
         else:
-            esc_pressed = 0
+            esc_pressed = -2
+        keys = keys.split("\x01[")[-1]  # Remove the "Esc" part(s).
     # Ctrl-Space.
     elif keys == "\x01@":
         set_mode("NORMAL")
@@ -852,18 +902,18 @@ def cb_key_combo_default(data, signal, signal_data):
     if mode == "INSERT":
         return weechat.WEECHAT_RC_OK
 
-    # We're in Replace mode — allow 'normal' key presses (e.g. 'a') and
+    # We're in Replace mode — allow "normal" key presses (e.g. "a") and
     # overwrite the next character with them, but let the other key presses
     # pass normally (e.g. backspace, arrow keys, etc).
     if mode == "REPLACE":
         if len(keys) == 1:
-            weechat.command('', "/input delete_next_char")
+            weechat.command("", "/input delete_next_char")
         elif keys == "\x01?":
-            weechat.command('', "/input move_previous_char")
+            weechat.command("", "/input move_previous_char")
             return weechat.WEECHAT_RC_OK_EAT
         return weechat.WEECHAT_RC_OK
 
-    # We're catching keys! Only 'normal' key presses interest us (e.g. 'a'),
+    # We're catching keys! Only "normal" key presses interest us (e.g. "a"),
     # not complex ones (e.g. backspace).
     if len(keys) == 1 and catching_keys_data['amount']:
         catching_keys_data['keys'] += keys
@@ -871,7 +921,7 @@ def cb_key_combo_default(data, signal, signal_data):
         # Done catching keys, execute the callback.
         if catching_keys_data['amount'] == 0:
             globals()[catching_keys_data['callback']]()
-            vi_buffer = ''
+            vi_buffer = ""
             weechat.bar_item_update("vi_buffer")
         return weechat.WEECHAT_RC_OK_EAT
 
@@ -882,23 +932,23 @@ def cb_key_combo_default(data, signal, signal_data):
             # Remove the last character from our command line.
             cmd_text = list(cmd_text)
             del cmd_text[-1]
-            cmd_text = ''.join(cmd_text)
+            cmd_text = "".join(cmd_text)
         # Return key.
         elif keys == "\x01M":
             weechat.hook_timer(1, 0, 1, "cb_exec_cmd", cmd_text)
-            cmd_text = ''
+            cmd_text = ""
         # Input.
         elif len(keys) == 1:
             cmd_text += keys
         # Update (and maybe hide) the bar item.
         weechat.bar_item_update("cmd_text")
         if not cmd_text:
-            weechat.command('', "/bar hide vi_cmd")
+            weechat.command("", "/bar hide vi_cmd")
         return weechat.WEECHAT_RC_OK_EAT
     # Enter command mode.
-    elif keys == ':':
-        cmd_text += ':'
-        weechat.command('', "/bar show vi_cmd")
+    elif keys == ":":
+        cmd_text += ":"
+        weechat.command("", "/bar show vi_cmd")
         weechat.bar_item_update("cmd_text")
         return weechat.WEECHAT_RC_OK_EAT
 
@@ -908,83 +958,45 @@ def cb_key_combo_default(data, signal, signal_data):
     if not vi_buffer:
         return weechat.WEECHAT_RC_OK
 
-    # Keys without the count. These are the actual keys we should handle.
-    # The count, if any, will be removed from vi_keys just below.
-    # After that, vi_buffer is only used for display purposes — only vi_keys is
-    # checked for all the handling.
-    vi_keys = vi_buffer
-
-    # Look for a potential match (e.g. 'd' might become 'dw' or 'dd' so we
-    # accept it, but 'd9' is invalid).
+    # Check if the keys have a (partial or full) match. If so, also get the
+    # keys without the count. (These are the actual keys we should handle.)
+    # After that, `vi_buffer` is only used for display purposes — only
+    # `vi_keys` is checked for all the handling.
     # If no matches are found, the keys buffer is cleared.
-    match = False
-    # Digits are allowed at the beginning (counts or '0').
-    count = 1
-    if vi_buffer.isdigit():
-        match = True
-    elif vi_buffer and vi_buffer[0].isdigit():
-        count = ''
-        for char in vi_buffer:
-            if char.isdigit():
-                count += char
-            else:
-                break
-        vi_keys = vi_buffer.replace(count, '', 1)
-        count = int(count)
-    # Check against defined keys.
-    if not match:
-        for key in VI_KEYS:
-            if key.startswith(vi_keys):
-                match = True
-                break
-    # Check against defined motions.
-    if not match:
-        for motion in VI_MOTIONS:
-            if motion.startswith(vi_keys):
-                match = True
-                break
-    # Check against defined operators + motions.
-    if not match:
-        for operator in VI_OPERATORS:
-            if vi_keys.startswith(operator):
-                for motion in VI_MOTIONS:
-                    if motion.startswith(vi_keys[1:]):
-                        match = True
-                        break
-    # No match found — clear the keys buffer.
-    if not match:
-        vi_buffer = ''
+    matched, vi_keys, count = get_keys_and_count(vi_buffer)
+    if not matched:
+        vi_buffer = ""
         return weechat.WEECHAT_RC_OK_EAT
 
     buf = weechat.current_buffer()
-    input_line = weechat.buffer_get_string(buf, 'input')
+    input_line = weechat.buffer_get_string(buf, "input")
     cur = weechat.buffer_get_integer(buf, "input_pos")
 
     # It's a key. If the corresponding value is a string, we assume it's a
     # WeeChat command. Otherwise, it's a method we'll call.
     if vi_keys in VI_KEYS:
         if isinstance(VI_KEYS[vi_keys], str):
-            for _ in range(count):
+            for _ in range(max(count, 1)):
                 # This is to avoid crashing WeeChat on script reloads/unloads,
                 # because no hooks must still be running when a script is
                 # reloaded or unloaded.
                 if VI_KEYS[vi_keys] == "/input return":
                     return weechat.WEECHAT_RC_OK
-                weechat.command('', VI_KEYS[vi_keys])
+                weechat.command("", VI_KEYS[vi_keys])
                 current_cur = weechat.buffer_get_integer(buf, "input_pos")
                 set_cur(buf, input_line, current_cur)
         else:
             VI_KEYS[vi_keys](buf, input_line, cur, count)
-    # It's a motion (e.g. 'w') — call `motion_X()` where X is the motion, then
+    # It's a motion (e.g. "w") — call `motion_X()` where X is the motion, then
     # set the cursor's position to what that function returned.
     elif vi_keys in VI_MOTIONS:
         if vi_keys in SPECIAL_CHARS:
             func = "motion_%s" % SPECIAL_CHARS[vi_keys]
         else:
             func = "motion_%s" % vi_keys
-        end, _ = globals()[func](input_line, cur, count)
+        end, _, _ = globals()[func](input_line, cur, count)
         set_cur(buf, input_line, end)
-    # It's an operator + motion (e.g. 'dw') — call `motion_X()` (where X is
+    # It's an operator + motion (e.g. "dw") — call `motion_X()` (where X is
     # the motion), then we call `operator_Y()` (where Y is the operator)
     # with the position `motion_X()` returned. `operator_Y()` should then
     # handle changing the input line.
@@ -995,16 +1007,20 @@ def cb_key_combo_default(data, signal, signal_data):
             func = "motion_%s" % SPECIAL_CHARS[vi_keys[1:]]
         else:
             func = "motion_%s" % vi_keys[1:]
-        pos, overwrite = globals()[func](input_line, cur, count)
-        oper = "operator_%s" % vi_keys[0]
-        globals()[oper](buf, input_line, cur, pos, overwrite)
-    # The combo isn't completed yet (e.g. just 'd').
+        pos, overwrite, catching = globals()[func](input_line, cur, count)
+        # If it's a catching motion, we don't want to call the operator just
+        # yet -- this code will run again when the motion is complete, at which
+        # point we will.
+        if not catching:
+            oper = "operator_%s" % vi_keys[0]
+            globals()[oper](buf, input_line, cur, pos, overwrite)
+    # The combo isn't completed yet (e.g. just "d").
     else:
         return weechat.WEECHAT_RC_OK_EAT
 
     # We've already handled the key combo, so clear the keys buffer.
     if not catching_keys_data['amount']:
-        vi_buffer = ''
+        vi_buffer = ""
         weechat.bar_item_update("vi_buffer")
     return weechat.WEECHAT_RC_OK_EAT
 
@@ -1027,13 +1043,39 @@ def cb_mode_indicator(data, item, window):
     """Return the current mode (INSERT/NORMAL/REPLACE)."""
     return mode
 
+def cb_line_numbers(data, item, window):
+    """Fill the line numbers bar item."""
+    bar_height = weechat.window_get_integer(window, "win_chat_height")
+    content = ""
+    for i in range(1, bar_height + 1):
+        content += "%s \n" % i
+    return content
+
+# Callbacks for the line numbers bar.
+# ...................................
+
+def cb_update_line_numbers(data, signal, signal_data):
+    """Call `cb_timer_update_line_numbers()` when switching buffers.
+
+    A timer is required because the bar item is refreshed before the new buffer
+    is actually displayed, so ``win_chat_height`` would refer to the old
+    buffer. Using a timer refreshes the item after the new buffer is displayed.
+    """
+    weechat.hook_timer(10, 0, 1, "cb_timer_update_line_numbers", "")
+    return weechat.WEECHAT_RC_OK
+
+def cb_timer_update_line_numbers(data, remaining_calls):
+    """Update the line numbers bar item."""
+    weechat.bar_item_update("line_numbers")
+    return weechat.WEECHAT_RC_OK
+
 
 # Config.
 # -------
 
 def cb_config(data, option, value):
     """Script option changed, update our copy."""
-    option_name = option.split('.')[-1]
+    option_name = option.split(".")[-1]
     if option_name in vimode_settings:
         vimode_settings[option_name] = value
     return weechat.WEECHAT_RC_OK
@@ -1047,40 +1089,51 @@ def cb_exec_cmd(data, remaining_calls):
     # Process the entered command.
     data = list(data)
     del data[0]
-    data = ''.join(data)
+    data = "".join(data)
     # s/foo/bar command.
     if data.startswith("s/"):
         cmd = data
-        parsed_cmd = next(csv.reader(StringIO(cmd), delimiter='/',
-                                     escapechar='\\'))
+        parsed_cmd = next(csv.reader(StringIO(cmd), delimiter="/",
+                                     escapechar="\\"))
         pattern = re.escape(parsed_cmd[1])
         repl = parsed_cmd[2]
-        repl = re.sub(r'([^\\])&', r'\1' + pattern, repl)
+        repl = re.sub(r"([^\\])&", r"\1" + pattern, repl)
         flag = None
         if len(parsed_cmd) == 4:
             flag = parsed_cmd[3]
         count = 1
-        if flag == 'g':
+        if flag == "g":
             count = 0
         buf = weechat.current_buffer()
-        input_line = weechat.buffer_get_string(buf, 'input')
+        input_line = weechat.buffer_get_string(buf, "input")
         input_line = re.sub(pattern, repl, input_line, count)
         weechat.buffer_set(buf, "input", input_line)
     # Shell command.
-    elif data.startswith('!'):
-        weechat.command('', "/exec -buffer shell %s" % data[1:])
+    elif data.startswith("!"):
+        weechat.command("", "/exec -buffer shell %s" % data[1:])
+    # Commands like `:22`. This should start cursor mode (``/cursor``) and take
+    # us to the relevant line.
+    # TODO: look into possible replacement key bindings for: ← ↑ → ↓ Q m q.
+    elif data.isdigit():
+        line_number = int(data)
+        hdata_window = weechat.hdata_get("window")
+        window = weechat.current_window()
+        x = weechat.hdata_integer(hdata_window, window, "win_chat_x")
+        y = (weechat.hdata_integer(hdata_window, window, "win_chat_y") +
+             (line_number - 1))
+        weechat.command("", "/cursor go {},{}".format(x, y))
     # Check againt defined commands.
     else:
-        data = data.split(' ', 1)
+        data = data.split(" ", 1)
         cmd = data[0]
-        args = ''
+        args = ""
         if len(data) == 2:
             args = data[1]
         if cmd in VI_COMMANDS:
-            weechat.command('', "%s %s" % (VI_COMMANDS[cmd], args))
+            weechat.command("", "%s %s" % (VI_COMMANDS[cmd], args))
         # No vi commands defined, run the command as a WeeChat command.
         else:
-            weechat.command('', "/{} {}".format(cmd, args))
+            weechat.command("", "/{} {}".format(cmd, args))
     return weechat.WEECHAT_RC_OK
 
 
@@ -1091,13 +1144,14 @@ def cb_vimode_cmd(data, buf, args):
     """Handle script commands (``/vimode <command>``)."""
     # ``/vimode`` or ``/vimode help``
     if not args or args == "help":
-        weechat.prnt('', "[vimode.py] %s" % README_URL)
+        weechat.prnt("", "[vimode.py] %s" % README_URL)
     # ``/vimode bind_keys`` or ``/vimode bind_keys --list``
     elif args.startswith("bind_keys"):
-        infolist = weechat.infolist_get("key", '', "default")
+        infolist = weechat.infolist_get("key", "", "default")
         weechat.infolist_reset_item_cursor(infolist)
         commands = ["/key unbind ctrl-W",
-                    "/key bind ctrl-^ /input jump_last_buffer",
+                    "/key bind ctrl-W /input delete_previous_word",
+                    "/key bind ctrl-^ /input jump_last_buffer_displayed",
                     "/key bind ctrl-Wh /window left",
                     "/key bind ctrl-Wj /window down",
                     "/key bind ctrl-Wk /window up",
@@ -1112,15 +1166,15 @@ def cb_vimode_cmd(data, buf, args):
             if re.match(REGEX_PROBLEMATIC_KEYBINDINGS, key):
                 commands.append("/key unbind %s" % key)
         if args == "bind_keys":
-            weechat.prnt('', "Running commands:")
+            weechat.prnt("", "Running commands:")
             for command in commands:
-                weechat.command('', command)
-            weechat.prnt('', "Done.")
+                weechat.command("", command)
+            weechat.prnt("", "Done.")
         elif args == "bind_keys --list":
-            weechat.prnt('', "Listing commands we'll run:")
+            weechat.prnt("", "Listing commands we'll run:")
             for command in commands:
-                weechat.prnt('', "    %s" % command)
-            weechat.prnt('', "Done.")
+                weechat.prnt("", "    %s" % command)
+            weechat.prnt("", "Done.")
     return weechat.WEECHAT_RC_OK
 
 
@@ -1143,11 +1197,11 @@ def get_pos(data, regex, cur, ignore_cur=False, count=0):
         count (int, optional): the index of the match to return. Defaults to 0.
 
     Returns:
-        int: position of the match. 0 if no matches are found.
+        int: position of the match. -1 if no matches are found.
     """
     # List of the *positions* of the found patterns.
     matches = [m.start() for m in re.finditer(regex, data[cur:])]
-    pos = 0
+    pos = -1
     if count:
         if len(matches) > count - 1:
             if ignore_cur and matches[0] == 0:
@@ -1178,13 +1232,13 @@ def set_cur(buf, input_line, pos, cap=True):
     weechat.buffer_set(buf, "input_pos", str(pos))
 
 def start_catching_keys(amount, callback, input_line, cur, count, buf=None):
-    """Start catching keys. Used for special commands (e.g. 'f', 'r').
+    """Start catching keys. Used for special commands (e.g. "f", "r").
 
     amount (int): amount of keys to catch.
     callback (str): name of method to call once all keys are caught.
     input_line (str): input line's content.
     cur (int): cursor's position.
-    count (int): count, e.g. '2' for "2fs".
+    count (int): count, e.g. "2" for "2fs".
     buf (str, optional): pointer to the current WeeChat buffer.
         Defaults to None.
 
@@ -1192,26 +1246,97 @@ def start_catching_keys(amount, callback, input_line, cur, count, buf=None):
         keys (str): pressed keys will be added under this key.
         new_cur (int): the new cursor's position, set in the callback.
 
-    When catching keys is active, normal pressed keys (e.g. 'a' but not arrows)
-    will get added to `catching_keys_data` under the key 'keys', and will not
+    When catching keys is active, normal pressed keys (e.g. "a" but not arrows)
+    will get added to `catching_keys_data` under the key "keys", and will not
     be handled any further.
-    Once all keys are caught, the method defined in the 'callback' key is
+    Once all keys are caught, the method defined in the "callback" key is
     called, and can use the data in `catching_keys_data` to perform its action.
     """
     global catching_keys_data
-    if 'new_cur' in catching_keys_data:
+    if "new_cur" in catching_keys_data:
         new_cur = catching_keys_data['new_cur']
         catching_keys_data = {'amount': 0}
-        return new_cur, True
+        return new_cur, True, False
     catching_keys_data = ({'amount': amount,
                            'callback': callback,
                            'input_line': input_line,
                            'cur': cur,
-                           'keys': '',
+                           'keys': "",
                            'count': count,
                            'new_cur': 0,
                            'buf': buf})
-    return cur, False
+    return cur, False, True
+
+def get_keys_and_count(combo):
+    """Check if `combo` is a valid combo and extract keys/counts if so.
+
+    Args:
+        combo (str): pressed keys combo.
+
+    Returns:
+        matched (bool): True if the combo has a (partial or full) match, False
+            otherwise.
+        combo (str): `combo` with the count removed. These are the actual keys
+            we should handle.
+        count (int): count for `combo`.
+    """
+    # Look for a potential match (e.g. "d" might become "dw" or "dd" so we
+    # accept it, but "d9" is invalid).
+    matched = False
+    # Digits are allowed at the beginning (counts or "0").
+    count = 0
+    if combo.isdigit():
+        matched = True
+    elif combo and combo[0].isdigit():
+        count = ""
+        for char in combo:
+            if char.isdigit():
+                count += char
+            else:
+                break
+        combo = combo.replace(count, "", 1)
+        count = int(count)
+    # Check against defined keys.
+    if not matched:
+        for key in VI_KEYS:
+            if key.startswith(combo):
+                matched = True
+                break
+    # Check against defined motions.
+    if not matched:
+        for motion in VI_MOTIONS:
+            if motion.startswith(combo):
+                matched = True
+                break
+    # Check against defined operators + motions.
+    if not matched:
+        for operator in VI_OPERATORS:
+            if combo.startswith(operator):
+                # Check for counts before the motion (but after the operator).
+                vi_keys_no_op = combo[len(operator):]
+                # There's no motion yet.
+                if vi_keys_no_op.isdigit():
+                    matched = True
+                    break
+                # Get the motion count, then multiply the operator count by
+                # it, similar to vim's behavior.
+                elif vi_keys_no_op and vi_keys_no_op[0].isdigit():
+                    motion_count = ""
+                    for char in vi_keys_no_op:
+                        if char.isdigit():
+                            motion_count += char
+                        else:
+                            break
+                    # Remove counts from `vi_keys_no_op`.
+                    combo = combo.replace(motion_count, "", 1)
+                    motion_count = int(motion_count)
+                    count = max(count, 1) * motion_count
+                # Check against defined motions.
+                for motion in VI_MOTIONS:
+                    if motion.startswith(combo[1:]):
+                        matched = True
+                        break
+    return matched, combo, count
 
 
 # Other helpers.
@@ -1221,11 +1346,18 @@ def set_mode(arg):
     """Set the current mode and update the bar mode indicator."""
     global mode
     mode = arg
+    # If we're going to Normal mode, the cursor must move one character to the
+    # left.
+    if mode == "NORMAL":
+        buf = weechat.current_buffer()
+        input_line = weechat.buffer_get_string(buf, "input")
+        cur = weechat.buffer_get_integer(buf, "input_pos")
+        set_cur(buf, input_line, cur - 1, False)
     weechat.bar_item_update("mode_indicator")
 
 def print_warning(text):
     """Print warning, in red, to the current buffer."""
-    weechat.prnt('', ("%s[vimode.py] %s" % (weechat.color("red"), text)))
+    weechat.prnt("", ("%s[vimode.py] %s" % (weechat.color("red"), text)))
 
 def check_warnings():
     """Warn the user about problematic key bindings and tmux/screen."""
@@ -1233,7 +1365,7 @@ def check_warnings():
     # Warn the user about problematic key bindings that may conflict with
     # vimode.
     # The solution is to remove these key bindings, but that's up to the user.
-    infolist = weechat.infolist_get("key", '', "default")
+    infolist = weechat.infolist_get("key", "", "default")
     problematic_keybindings = []
     while weechat.infolist_next(infolist):
         key = weechat.infolist_string(infolist, "key")
@@ -1254,13 +1386,13 @@ def check_warnings():
     # Warn tmux/screen users about possible Esc detection delays.
     if "STY" in os.environ or "TMUX" in os.environ:
         if user_warned:
-            weechat.prnt('', '')
+            weechat.prnt("", "")
         user_warned = True
         print_warning("tmux/screen users, see: %s" % FAQ_ESC)
     if (user_warned and not
             weechat.config_string_to_boolean(vimode_settings['no_warn'])):
         if user_warned:
-            weechat.prnt('', '')
+            weechat.prnt("", "")
         print_warning("To force disable warnings, you can set"
                       " plugins.var.python.vimode.no_warn to 'on'")
 
@@ -1268,11 +1400,11 @@ def check_warnings():
 # Main script.
 # ============
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION,
-                     SCRIPT_LICENSE, SCRIPT_DESC, '', '')
+                     SCRIPT_LICENSE, SCRIPT_DESC, "", "")
     # Warn the user if he's using an unsupported WeeChat version.
-    VERSION = weechat.info_get("version_number", '')
+    VERSION = weechat.info_get("version_number", "")
     if int(VERSION) < 0x01000000:
         print_warning("Please upgrade to WeeChat ≥ 1.0.0. Previous versions"
                       " are not supported.")
@@ -1290,20 +1422,25 @@ if __name__ == '__main__':
     if not weechat.config_string_to_boolean(vimode_settings['no_warn']):
         check_warnings()
     # Create bar items and setup hooks.
-    weechat.bar_item_new("mode_indicator", "cb_mode_indicator", '')
-    weechat.bar_item_new("cmd_text", "cb_cmd_text", '')
-    weechat.bar_item_new("vi_buffer", "cb_vi_buffer", '')
-    vi_cmd = weechat.bar_new("vi_cmd", "off", "0", "root", '', "bottom",
-                             "vertical", "vertical", "0", "0", "default",
-                             "default", "default", "0", "cmd_text")
-    weechat.hook_config('plugins.var.python.%s.*' % SCRIPT_NAME, 'cb_config',
-                        '')
-    weechat.hook_signal("key_pressed", "cb_key_pressed", '')
-    weechat.hook_signal("key_combo_default", "cb_key_combo_default", '')
+    weechat.bar_item_new("mode_indicator", "cb_mode_indicator", "")
+    weechat.bar_item_new("cmd_text", "cb_cmd_text", "")
+    weechat.bar_item_new("vi_buffer", "cb_vi_buffer", "")
+    weechat.bar_item_new("line_numbers", "cb_line_numbers", "")
+    weechat.bar_new("vi_cmd", "off", "0", "root", "", "bottom", "vertical",
+                    "vertical", "0", "0", "default", "default", "default", "0",
+                    "cmd_text")
+    weechat.bar_new("vi_line_numbers", "on", "0", "window", "", "left",
+                    "vertical", "vertical", "0", "0", "default", "default",
+                    "default", "0", "line_numbers")
+    weechat.hook_config("plugins.var.python.%s.*" % SCRIPT_NAME, "cb_config",
+                        "")
+    weechat.hook_signal("key_pressed", "cb_key_pressed", "")
+    weechat.hook_signal("key_combo_default", "cb_key_combo_default", "")
+    weechat.hook_signal("buffer_switch", "cb_update_line_numbers", "")
     weechat.hook_command("vimode", SCRIPT_DESC, "[help | bind_keys [--list]]",
                          "     help: show help\n"
                          "bind_keys: unbind problematic keys, and bind"
                          " recommended keys to use in WeeChat\n"
                          "          --list: only list changes",
                          "help || bind_keys |--list",
-                         "cb_vimode_cmd", '')
+                         "cb_vimode_cmd", "")
