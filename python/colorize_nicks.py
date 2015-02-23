@@ -21,6 +21,8 @@
 #
 #
 # History:
+# 2015-02-23, holomorph
+#   version 17: fix coloring in non-channel buffers (#58)
 # 2014-09-17, holomorph
 #   version 16: use weechat config facilities
 #               clean unused, minor linting, some simplification
@@ -65,7 +67,7 @@ w = weechat
 
 SCRIPT_NAME    = "colorize_nicks"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "16"
+SCRIPT_VERSION = "17"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Use the weechat nick colors in the chat area"
 
@@ -150,7 +152,7 @@ def colorize_cb(data, modifier, modifier_data, line):
     if buffer not in colored_nicks:
         return line
 
-    if channel in ignore_channels:
+    if channel and channel in ignore_channels:
         return line
 
     min_length = w.config_integer(colorize_config_option['min_nick_length'])
@@ -222,7 +224,7 @@ def colorize_input_cb(data, modifier, modifier_data, line):
         return line
 
     channel = w.buffer_get_string(buffer, 'name')
-    if channel in ignore_channels:
+    if channel and channel in ignore_channels:
         return line
 
     reset = w.color('reset')
