@@ -26,7 +26,7 @@
 
 SCRIPT_NAME    = "whoissource"
 SCRIPT_AUTHOR  = "Max Teufel"
-SCRIPT_VERSION = "0.0.1"
+SCRIPT_VERSION = "0.0.2"
 SCRIPT_LICENSE = "MIT"
 SCRIPT_DESC    = "Display source of \"End of WHOIS\" numerics"
 
@@ -64,7 +64,9 @@ def endofwhois_cb(data, signal, signal_data):
     prefix_network = weechat.prefix('network')
     color_delimiter = weechat.color('chat_delimiters')
     buffer = get_buffer(server, whois_nick)
-    if weechat.info_get("irc_nick_color", whois_nick) != '':
+    if whois_nick == weechat.info_get("irc_nick", server):
+        color_nick = weechat.color("chat_nick_self")
+    elif weechat.info_get("irc_nick_color", whois_nick) != '':
         color_nick = weechat.info_get("irc_nick_color", whois_nick)
     else:
         color_nick = weechat.color('chat_nick')
