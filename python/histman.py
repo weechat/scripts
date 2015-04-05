@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2012-2013 by nils_2 <weechatter@arcor.de>
+# Copyright (c) 2012-2015 by nils_2 <weechatter@arcor.de>
 #
 # save and restore global and/or buffer command history
 #
@@ -16,6 +16,9 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# 2015-04-05: nils_2 (freenode.#weechat)
+#       0.5 : change priority of hook_signal('buffer_opened') to 100
 #
 # 2013-01-25: nils_2 (freenode.#weechat)
 #       0.4 : make script compatible with Python 3.x
@@ -46,7 +49,7 @@ except Exception:
 
 SCRIPT_NAME     = 'histman'
 SCRIPT_AUTHOR   = 'nils_2 <weechatter@arcor.de>'
-SCRIPT_VERSION  = '0.4'
+SCRIPT_VERSION  = '0.5'
 SCRIPT_LICENSE  = 'GPL'
 SCRIPT_DESC     = 'save and restore global and/or buffer command history'
 
@@ -200,7 +203,6 @@ def add_buffer_line(line, ptr_buffer):
 
 # =================================[ read/write history to file ]=================================
 def read_history(filename,ptr_buffer):
-
     global_history = 0
 
     # global history does not use buffer pointers!
@@ -294,7 +296,8 @@ def create_hooks():
     # create hooks
     weechat.hook_signal('quit', 'quit_signal_cb', '')
     weechat.hook_signal('upgrade_ended', 'upgrade_ended_cb', '')
-    weechat.hook_signal('buffer_opened', 'buffer_opened_cb', '')
+    # low priority for hook_signal('buffer_opened') to ensure that buffer_autoset hook_signal() runs first
+    weechat.hook_signal('100|buffer_opened', 'buffer_opened_cb', '')
     weechat.hook_config('plugins.var.python.' + SCRIPT_NAME + '.*', 'toggle_refresh', '' )
     weechat.hook_signal('buffer_closing', 'buffer_closing_cb', '')
 
