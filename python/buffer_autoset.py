@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2015-04-05, Nils Görs <freenode@#weechat>:
+#     version 0.7: increase priority of hook_signal('buffer_opened')
 # 2012-12-09, Nils Görs <freenode@#weechat>:
 #     version 0.6: add support of core buffer
 # 2012-03-09, Sebastien Helleu <flashcode@flashtux.org>:
@@ -39,7 +41,7 @@
 
 SCRIPT_NAME    = "buffer_autoset"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.6"
+SCRIPT_VERSION = "0.7"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Auto-set buffer properties when a buffer is opened"
 
@@ -211,7 +213,7 @@ if __name__ == "__main__" and import_ok:
                                     "bas_completion_current_buffer_cb", "")
             weechat.hook_completion("buffer_autoset_options", "list of options for buffer_autoset",
                                     "bas_completion_options_cb", "")
-            weechat.hook_signal("buffer_opened", "bas_signal_buffer_opened_cb", "")
+            weechat.hook_signal("9000|buffer_opened", "bas_signal_buffer_opened_cb", "")
 
             # core buffer is already open on script startup, check manually!
             bas_signal_buffer_opened_cb("", "", weechat.buffer_search_main())
