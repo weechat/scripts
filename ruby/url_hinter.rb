@@ -135,8 +135,6 @@ end
 # Custome classes
 #----------------------------
 
-HINT_KEYS = 'jfhkgyuiopqwertnmzxcvblasd'
-
 class Hint
   include Singleton
 
@@ -183,13 +181,22 @@ class Hint
 
   private
 
+  def get_hint_keys
+	option = 'hintkeys'
+    if Weechat.config_is_set_plugin(option) == 0
+      Weechat.config_set_plugin(option, 'jfhkgyuiopqwertnmzxcvblasd')
+    end
+    Weechat.config_get_plugin(option)
+  end
+
   def next_hint_key
-    if @url_count > HINT_KEYS.length
-      key1 = HINT_KEYS[@hint_key_index / HINT_KEYS.length]
-      key2 = HINT_KEYS[@hint_key_index % HINT_KEYS.length]
+    hint_keys = get_hint_keys()
+    if @url_count > hint_keys.length
+      key1 = hint_keys[@hint_key_index / hint_keys.length]
+      key2 = hint_keys[@hint_key_index % hint_keys.length]
       hint_key = key1 + key2
     else
-      hint_key = HINT_KEYS[@hint_key_index]
+      hint_key = hint_keys[@hint_key_index]
     end
 
     @hint_key_index += 1
