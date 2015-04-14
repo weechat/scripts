@@ -21,6 +21,8 @@
 #
 #
 # History:
+# 2015-03-03, xt
+#   version 18: iterate buffers looking for nicklists instead of servers
 # 2015-02-23, holomorph
 #   version 17: fix coloring in non-channel buffers (#58)
 # 2014-09-17, holomorph
@@ -67,7 +69,7 @@ w = weechat
 
 SCRIPT_NAME    = "colorize_nicks"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "17"
+SCRIPT_VERSION = "18"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Use the weechat nick colors in the chat area"
 
@@ -143,6 +145,7 @@ def colorize_cb(data, modifier, modifier_data, line):
     ''' Callback that does the colorizing, and returns new line if changed '''
 
     global ignore_nicks, ignore_channels, colored_nicks
+
 
     full_name = modifier_data.split(';')[1]
     channel = '.'.join(full_name.split('.')[1:])
@@ -247,30 +250,23 @@ def populate_nicks(*args):
 
     colored_nicks = {}
 
-    servers = w.infolist_get('irc_server', '', '')
-    while w.infolist_next(servers):
-        servername = w.infolist_string(servers, 'name')
-        colored_nicks[servername] = {}
-        my_nick = w.info_get('irc_nick', servername)
-        channels = w.infolist_get('irc_channel', '', servername)
-        while w.infolist_next(channels):
-            pointer = w.infolist_pointer(channels, 'buffer')
-            nicklist = w.infolist_get('nicklist', pointer, '')
+    buffers = w.infolist_get('buffer', '', '')
+    while w.infolist_next(buffers):
+        buffer_ptr = w.infolist_pointer(buffers, 'pointer')
+        my_nick = w.buffer_get_string(buffer_ptr, 'localvar_nick')
+        nicklist = w.infolist_get('nicklist', buffer_ptr, '')
+        while w.infolist_next(nicklist):
+            if buffer_ptr not in colored_nicks:
+                colored_nicks[buffer_ptr] = {}
 
-            if pointer not in colored_nicks:
-                colored_nicks[pointer] = {}
+            nick = w.infolist_string(nicklist, 'name')
+            nick_color = colorize_nick_color(nick, my_nick)
 
-            while w.infolist_next(nicklist):
-                nick = w.infolist_string(nicklist, 'name')
-                nick_color = colorize_nick_color(nick, my_nick)
+            colored_nicks[buffer_ptr][nick] = nick_color
 
-                colored_nicks[pointer][nick] = nick_color
+        w.infolist_free(nicklist)
 
-            w.infolist_free(nicklist)
-
-        w.infolist_free(channels)
-
-    w.infolist_free(servers)
+    w.infolist_free(buffers)
 
     return w.WEECHAT_RC_OK
 
