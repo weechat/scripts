@@ -50,6 +50,8 @@
 # - in browser: http://myhost.org:1234/
 #
 # History:
+# 2015-04-14, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 1.8: evaluate option http_auth (to use secured data)
 # 2013-12-09, WakiMiko
 #     version 1.7: use HTTPS for youtube embedding
 # 2013-12-09, Sebastien Helleu <flashcode@flashtux.org>:
@@ -107,7 +109,7 @@
 
 SCRIPT_NAME    = 'urlserver'
 SCRIPT_AUTHOR  = 'Sebastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '1.7'
+SCRIPT_VERSION = '1.8'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC    = 'Shorten URLs with own HTTP server'
 
@@ -154,7 +156,7 @@ urlserver_settings_default = {
     'http_port'          : ('', 'force port for listening (empty value = find a random free port)'),
     'http_port_display'  : ('', 'display this port in shortened URLs. Useful if you forward a different external port to the internal port'),
     'http_allowed_ips'   : ('', 'regex for IPs allowed to use server (example: "^(123.45.67.89|192.160.*)$")'),
-    'http_auth'          : ('', 'login and password (format: "login:password") required to access to page with list of URLs'),
+    'http_auth'          : ('', 'login and password (format: "login:password") required to access to page with list of URLs (note: content is evaluated, see /help eval)'),
     'http_url_prefix'    : ('', 'prefix to add in URLs to prevent external people to scan your URLs (for example: prefix "xx" will give URL: http://host.com:1234/xx/8)'),
     'http_bg_color'      : ('#f4f4f4', 'background color for HTML page'),
     'http_fg_color'      : ('#000', 'foreground color for HTML page'),
@@ -434,8 +436,9 @@ def urlserver_server_fd_cb(data, fd):
                     # page with list of urls
                     authok = True
                     if urlserver_settings['http_auth']:
+                        http_auth = weechat.string_eval_expression(urlserver_settings['http_auth'], {}, {}, {})
                         auth = re.search('^Authorization: Basic (\S+)$', data, re.MULTILINE | re.IGNORECASE)
-                        if not auth or base64_decode(auth.group(1)).decode('utf-8') != urlserver_settings['http_auth']:
+                        if not auth or base64_decode(auth.group(1)).decode('utf-8') != http_auth:
                             authok = False
                     if authok:
                         urlserver_server_reply_list(conn, sort)
