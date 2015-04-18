@@ -181,11 +181,6 @@ def colorize_cb(data, modifier, modifier_data, line):
         if len(nick) < min_length or nick in ignore_nicks:
             continue
 
-        if w.config_boolean(colorize_config_option['ignore_nicks_in_urls']) and \
-              word.startswith(('http://', 'https://')):
-            continue
-
-
         # Check that nick is in the dictionary colored_nicks
         if nick in colored_nicks[buffer]:
             nick_color = colored_nicks[buffer][nick]
@@ -193,6 +188,10 @@ def colorize_cb(data, modifier, modifier_data, line):
             # Let's use greedy matching. Will check against every word in a line.
             if w.config_boolean(colorize_config_option['greedy_matching']):
                 for word in line.split():
+                    if w.config_boolean(colorize_config_option['ignore_nicks_in_urls']) and \
+                          word.startswith(('http://', 'https://')):
+                        continue
+
                     if nick in word:
                         # Is there a nick that contains nick and has a greater lenght?
                         # If so let's save that nick into var biggest_nick
