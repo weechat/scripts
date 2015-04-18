@@ -21,6 +21,8 @@
 #
 #
 # History:
+# 2015-04-18, xt
+#   version 19: new option ignore nicks in URLs
 # 2015-03-03, xt
 #   version 18: iterate buffers looking for nicklists instead of servers
 # 2015-02-23, holomorph
@@ -69,7 +71,7 @@ w = weechat
 
 SCRIPT_NAME    = "colorize_nicks"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "18"
+SCRIPT_VERSION = "19"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Use the weechat nick colors in the chat area"
 
@@ -128,6 +130,10 @@ def colorize_config_init():
         colorize_config_file, section_look, "greedy_matching",
         "boolean", "If off, then use lazy matching instead", "", 0,
         0, "on", "on", 0, "", "", "", "", "", "")
+    colorize_config_option["ignore_nicks_in_urls"] = weechat.config_new_option(
+        colorize_config_file, section_look, "ignore_nicks_in_urls",
+        "boolean", "If on, don't colorize nicks inside URLs", "", 0,
+        0, "off", "off", 0, "", "", "", "", "", "")
 
 def colorize_config_read():
     ''' Read configuration file. '''
@@ -174,6 +180,12 @@ def colorize_cb(data, modifier, modifier_data, line):
         # Check that nick is not ignored and longer than minimum length
         if len(nick) < min_length or nick in ignore_nicks:
             continue
+
+        if w.config_boolean(colorize_config_option['ignore_nicks_in_urls']) and \
+              word.startswith(('http://', 'https://')):
+            continue
+
+
         # Check that nick is in the dictionary colored_nicks
         if nick in colored_nicks[buffer]:
             nick_color = colored_nicks[buffer][nick]
