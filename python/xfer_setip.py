@@ -29,16 +29,17 @@
 #    v 0.3 - add option to change service from which the IP is gathered
 #          - better recognition of ipv4 addresses and support of ipv6
 #          - add mute option
-
+#    v 0.4 - check if xfer plugin is loaded.
 
 SCR_NAME    = "xfer_setip"
 SCR_AUTHOR  = "Stephan Huebner <shuebnerfun01@gmx.org>"
-SCR_VERSION = "0.3"
+SCR_VERSION = "0.4"
 SCR_LICENSE = "GPL3"
 SCR_DESC    = "Set apropriate xfer-option for external ip"
 SCR_COMMAND = "xfer_setip"
 
 import_ok = True
+ip_from_option = 0
 
 OPTIONS         = { 'mute'      : ('off','hide output'),
                     'url'       : ('http://checkip.dyndns.org/','url to fetch'),
@@ -53,7 +54,6 @@ except:
     print "Script must be run under weechat. http://www.weechat.org"
     import_ok = False
 
-
 def alert(myString):
     w.prnt("", myString)
     return
@@ -61,7 +61,8 @@ def alert(myString):
 # create a subclass and override the handler methods
 class MyHTMLParser(HTMLParser):
     def handle_data(self, data):
-        global OPTIONS
+        global OPTIONS, ip_from_option
+
         data=data.strip()
 
         ipv6 = re.compile(r"""
@@ -96,16 +97,18 @@ class MyHTMLParser(HTMLParser):
         matchipv4 = ipv4.search(data)
         matchipv6 = ipv6.search(data)
         set_ip = ""
+        current_ip = ""
 
         if matchipv4:
+            current_ip = matchipv4.group()
             set_ip = "/set xfer.network.own_ip %s" % matchipv4.group()
-
         if matchipv6:
+            current_ip = matchipv6.group()
             set_ip = "/set xfer.network.own_ip %s" % matchipv6.group()
-
         if OPTIONS['mute'].lower() == "on":
             set_ip = "/mute %s" % set_ip
-        if set_ip != "":
+
+        if set_ip != "" and current_ip != ip_from_option:
             w.command("", set_ip)
 
 def fn_setip(data, command, return_code, out, err):
@@ -114,6 +117,12 @@ def fn_setip(data, command, return_code, out, err):
     return w.WEECHAT_RC_OK
 
 def fn_connected(data, signal, signal_data):
+    global ip_from_option
+    # check if xfer option exists
+    own_ip_option = w.config_get("xfer.network.own_ip")
+    if not own_ip_option:
+        return w.WEECHAT_RC_OK
+    ip_from_option = w.config_string(own_ip_option)
     w.hook_process('url:%s' % OPTIONS['url'], 60000, "fn_setip", "")
     return w.WEECHAT_RC_OK
 
