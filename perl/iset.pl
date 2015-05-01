@@ -1,6 +1,6 @@
 #
 # Copyright (C) 2008-2014 Sebastien Helleu <flashcode@flashtux.org>
-# Copyright (C) 2010-2014 Nils Görs <weechatter@arcor.de>
+# Copyright (C) 2010-2015 Nils Görs <weechatter@arcor.de>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@
 #
 # History:
 #
+# 2015-05-01, nils_2 <weechatter@arcor.de>:
+#     version 3.7: fix two perl warnings (reported by t3chguy)
 # 2014-09-30, arza <arza@arza.us>:
 #     version 3.6: fix current line counter when options aren't found
 # 2014-06-03, nils_2 <weechatter@arcor.de>:
@@ -117,7 +119,7 @@
 use strict;
 
 my $PRGNAME = "iset";
-my $VERSION = "3.6";
+my $VERSION = "3.7";
 my $DESCR   = "Interactive Set for configuration options";
 my $AUTHOR  = "Sebastien Helleu <flashcode\@flashtux.org>";
 my $LICENSE = "GPL3";
@@ -237,6 +239,10 @@ sub iset_create_filter
 sub iset_buffer_input
 {
     my ($data, $buffer, $string) = ($_[0], $_[1], $_[2]);
+
+    # string begins with space?
+    return weechat::WEECHAT_RC_OK if (substr($string, 0, 1 ) eq " ");
+
     if ($string eq "q")
     {
         weechat::buffer_close($buffer);
@@ -1161,6 +1167,8 @@ sub hook_focus_iset_cb
 sub iset_hsignal_mouse_cb
 {
     my ($data, $signal, %hash) = ($_[0], $_[1], %{$_[2]});
+
+    return weechat::WEECHAT_RC_OK unless (@options_types);
 
     if ($hash{"_buffer_name"} eq $PRGNAME && ($hash{"_buffer_plugin"} eq $LANG))
     {
