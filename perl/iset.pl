@@ -19,6 +19,8 @@
 #
 # History:
 #
+# 2015-05-02, arza <arza@arza.us>:
+#     version 3.8: don't append "null" to /set when setting an undefined setting
 # 2015-05-01, nils_2 <weechatter@arcor.de>:
 #     version 3.7: fix two perl warnings (reported by t3chguy)
 # 2014-09-30, arza <arza@arza.us>:
@@ -119,7 +121,7 @@
 use strict;
 
 my $PRGNAME = "iset";
-my $VERSION = "3.7";
+my $VERSION = "3.8";
 my $DESCR   = "Interactive Set for configuration options";
 my $AUTHOR  = "Sebastien Helleu <flashcode\@flashtux.org>";
 my $LICENSE = "GPL3";
@@ -982,15 +984,15 @@ sub iset_cmd_cb
             my $value = $options_values[$current_line];
             if ($options_is_null[$current_line])
             {
-                $value = "null";
+                $value = "";
             }
             else
             {
                 $quote = "\"" if ($options_types[$current_line] eq "string");
             }
+            
             my $set_command = "/set";
             $set_command = "/mute " . $set_command if (weechat::config_boolean($options_iset{"use_mute"}) == 1);
-
             weechat::buffer_set($iset_buffer, "input", $set_command." ".$options_names[$current_line]." ".$quote.$value.$quote);
             weechat::command($iset_buffer, "/input move_beginning_of_line");
             weechat::command($iset_buffer, "/input move_next_word");
