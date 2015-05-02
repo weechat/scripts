@@ -8,57 +8,6 @@ in WeeChat.
 
 They are also displayed on https://weechat.org/scripts/
 
-== Add a script
+== Add/update a script
 
-To submit a new script in this repository, please use the form at:
-https://weechat.org/scripts/add/
-
-There are strict rules for new scripts, please read them carefully, otherwise
-your script will be rejected.
-
-Pending scripts are visible at: https://weechat.org/scripts/pending/
-
-== Update a script
-
-=== Contact the author
-
-Before updating a script, you *must* contact the author of script directly,
-and discuss about your changes (to check if it's OK), especially if you are
-adding new features or if you are changing the behavior of the script.
-
-For example, if the author uses a GitHub repository for the script, you can
-send a pull request to the author (instead of sending directly to this
-repository). +
-Then the author will send a pull request on this repository.
-
-=== Send new release
-
-There are two ways to send a new release for a script:
-
-* Send a pull request, the commit message must have the name of script,
-  version, and changes, like that: `script.py 0.3: ...`.
-* Use the form at: <https://weechat.org/scripts/update/>.
-
-When sending a new version :
-
-* Don't forget to update the version number in the script (used in `register`
-  function) and the ChangeLog (if there is one).
-* If the script is tagged `py3k-ok` (script running fine with Python 3.x),
-  please ensure that your update is still compatible with both
-  Python 2.x *AND* 3.x.
-
-== Report an issue
-
-Before reporting an issue, it's better to contact the author of script
-directly.
-
-If you have no answer, or if the author has no time to fix the problem, then
-you can report the issue in the tracker (or send an update of script if you are
-able to fix yourself).
-
-When reporting an issue, please give the following info:
-
-* The *version* of WeeChat: output of `/v` in WeeChat, for example:
-  `WeeChat 0.4.4-dev (git: v0.4.3-215-g2d77782)`.
-* If possible, please include a reproducible example: explain the steps which
-  led you to the problem.
+See the file https://github.com/weechat/scripts/blob/master/Contributing.asciidoc[Contributing.asciidoc].
