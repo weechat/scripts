@@ -230,7 +230,7 @@ my $d7		= 1 if $darwin && $osv =~ /^7\.\d+\.\d+/;
 my $d8		= 1 if $darwin && $osv =~ /^8\.\d+\.\d+/;
 my $d9		= 1 if $darwin && $osv =~ /^9\.\d+\.\d+/;
 my $l26		= 1 if $linux && $osv =~ /^2\.6/;
-my $l3          = 1 if $linux && $osv =~ /^2\.7/  || $osv =~ /^3\./;
+my $l3          = 1 if $linux && $osv =~ /^2\.7/  || $osv =~ /^3\./ || $osv =~ /^4\./;
 my $f_old	= 1 if $freebsd && $osv =~ /^4\.1-/ || $osv =~ /^4\.0-/ || $osv =~ /^3/ || $osv =~ /^2/;
 
 my $isJail = `sysctl -n security.jail.jailed` if $freebsd;
