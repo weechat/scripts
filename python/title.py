@@ -62,6 +62,7 @@ def update_title(data, signal, signal_data):
     else:
         title = w.buffer_get_string(w.current_buffer(), 'name')
 
+    title = w.string_remove_color(title,"")
     hotlist = w.infolist_get('hotlist', '', '')
     while w.infolist_next(hotlist):
         priority = w.infolist_integer(hotlist, 'priority')
