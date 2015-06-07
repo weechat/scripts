@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2013  Stefan Wold <ratler@stderr.eu>
+# Copyright (C) 2013 - 2015  Stefan Wold <ratler@stderr.eu>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,28 +17,30 @@
 #
 # (This script requires WeeChat 0.4.2 or higher).
 #
-# WeeChat script for UnderNET's X OTP (OATH-TOTP) authentication
+# WeeChat script that enables automatic OTP (OATH-TOTP) support for UnderNET's X
+# and Login on Connect (LoC) authentication.
 #
 # The script will generate an OTP and automatically append it when it
 # notices /msg x@channels.undernet.org login <username> <password> command.
 # This allows OTP login when using irc.server.*.command to automatically
 # sign in to the X service when connecting to an undernet server.
 #
+#
 # Configuration:
 #  /set plugins.var.python.undernet-totp.otp_server_names "<server1>,<server2>,..."
 #  Set servers for which to automatically enable OTP login
 #
 # Commands:
-#  /uotp <server>
-#  Generate an OTP for supplied server, output in core buffer.
+#  /uotp [server]
+#  Generate an OTP for server, output in core buffer.
 #
 
 
 SCRIPT_NAME    = "undernet_totp"
 SCRIPT_AUTHOR  = "Stefan Wold <ratler@stderr.eu>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.3.1"
 SCRIPT_LICENSE = "GPL3"
-SCRIPT_DESC    = "UnderNET X OTP (OATH-TOTP) authentication"
+SCRIPT_DESC    = "Enables automatic OTP (OATH-TOTP) support for UnderNET's X and Login on Connect (LoC) authentication."
 SCRIPT_COMMAND = "uotp"
 
 HOOKS = {}
@@ -84,7 +86,7 @@ def unhook(hook):
 
 
 def unhook_all(server):
-    for hook in [server+'.notice', server+'.modifier']:
+    for hook in [server+'.notice', server+'.modifier', server+'.modifier2']:
         unhook(hook)
 
 
@@ -93,18 +95,23 @@ def hook_all(server):
 
     notice = server + '.notice'
     modifier = server + '.modifier'
+    modifier2 = server + '.modifier2'
 
     if notice not in HOOKS:
-        HOOKS[notice]   = weechat.hook_signal("%s,irc_raw_in_notice" % server, "auth_success_cb", server)
+        HOOKS[notice] = weechat.hook_signal("%s,irc_raw_in_notice" % server, "auth_success_cb", server)
     if modifier not in HOOKS:
-        HOOKS[modifier] = weechat.hook_modifier("irc_out_privmsg", "totp_login_modifier_cb", "")
+        HOOKS[modifier] = weechat.hook_modifier("irc_out_privmsg", "totp_login_modifier_cb", server)
+    if modifier2 not in HOOKS:
+        HOOKS[modifier2] = weechat.hook_modifier("irc_out_pass", "totp_login_modifier_cb", server)
 
 
 def totp_login_modifier_cb(data, modifier, server, cmd):
-    if server in enabled_servers() and re.match(r'(?i)^PRIVMSG x@channels.undernet.org :login .+ .+', cmd):
-        otp = generate_totp(server)
-        if otp is not None:
-            cmd += " %s" % otp
+    if server == data and server in enabled_servers():
+        if re.match(r'(?i)^(PRIVMSG x@channels.undernet.org :login .+ .+|PASS .*)', cmd):
+            print_debug("totp_login_modifier_cb(%s)" % cmd)
+            otp = generate_totp(server)
+            if otp is not None:
+                cmd += " %s" % otp
     return cmd
 
 
@@ -128,10 +135,16 @@ def signal_cb(data, signal, server):
 
 
 def get_otp_cb(data, buffer, server):
-    otp = generate_totp(server)
+    if server:
+        server = [server]
+    else:
+        server = enabled_servers()
 
-    if otp is not None:
-        weechat.prnt("", "%s OTP: %s" % (server, otp))
+
+    for _server in server:
+        otp = generate_totp(_server)
+        if otp is not None:
+            weechat.prnt("", "%s OTP: %s" % (_server, otp))
 
     return weechat.WEECHAT_RC_OK
 
@@ -158,7 +171,7 @@ def generate_totp(server, period=30):
     if len(seed) == 40:  # Assume hex format
         seed = unhexlify(seed)
     else:
-        seed = b32decode(seed, True)
+        seed = b32decode(seed.replace(" ", ""), True)
 
     t = pack(">Q", int(time() / period))
     _hmac = hmac.new(seed, t, sha1).digest()
@@ -176,7 +189,7 @@ if __name__ == "__main__" and import_ok:
             weechat.prnt("", "%s requires WeeChat >= 0.4.2 for secure_data support." % SCRIPT_NAME)
             weechat.command("", "/wait 1ms /python unload %s" % SCRIPT_NAME)
 
-        weechat.hook_command(SCRIPT_COMMAND, "Generate OTP for supplied server", "<server>", "", "%(irc_servers)", "get_otp_cb", "")
+        weechat.hook_command(SCRIPT_COMMAND, "Generate OTP for server", "[server]", "", "%(irc_servers)", "get_otp_cb", "")
         weechat.hook_signal("irc_server_connecting", "signal_cb", "")
         weechat.hook_signal("irc_server_disconnected", "signal_cb", "")
 
