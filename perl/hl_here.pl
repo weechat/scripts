@@ -25,7 +25,7 @@ sub highlight_everywhere {
     my @chan = split(/\./, $bfname);
 
     if($hl == 1 && $buffer ne weechat::current_buffer()) {
-        weechat::print_date_tags(weechat::current_buffer(), 0, 'no_log', $chan[1]."\t".'<'.$prefix.weechat::color('default').'> '.$msg);
+        weechat::print_date_tags(weechat::current_buffer(), 0, 'no_log', $chan[-1]."\t".'<'.$prefix.weechat::color('default').'> '.$msg);
     }
 
     return weechat::WEECHAT_RC_OK;
