@@ -22,6 +22,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2015-06-07, t3chguy
+#     version 0.6, Strip Colour Codes from Title
 # 2012-12-09, WakiMiko
 #     version 0.5, update title when switching window (for WeeChat >= 0.3.7)
 # 2009-06-18, xt
@@ -37,7 +39,7 @@ import weechat as w
 
 SCRIPT_NAME    = "title"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.5"
+SCRIPT_VERSION = "0.6"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Set screen title to current buffer name + hotlist items with configurable priority level"
 
@@ -62,6 +64,7 @@ def update_title(data, signal, signal_data):
     else:
         title = w.buffer_get_string(w.current_buffer(), 'name')
 
+    title = w.string_remove_color(title, '')
     hotlist = w.infolist_get('hotlist', '', '')
     while w.infolist_next(hotlist):
         priority = w.infolist_integer(hotlist, 'priority')

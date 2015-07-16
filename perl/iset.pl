@@ -19,6 +19,8 @@
 #
 # History:
 #
+# 2015-05-16, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 3.9: fix cursor position when editing an option with WeeChat >= 1.2
 # 2015-05-02, arza <arza@arza.us>:
 #     version 3.8: don't append "null" to /set when setting an undefined setting
 # 2015-05-01, nils_2 <weechatter@arcor.de>:
@@ -121,7 +123,7 @@
 use strict;
 
 my $PRGNAME = "iset";
-my $VERSION = "3.8";
+my $VERSION = "3.9";
 my $DESCR   = "Interactive Set for configuration options";
 my $AUTHOR  = "Sebastien Helleu <flashcode\@flashtux.org>";
 my $LICENSE = "GPL3";
@@ -990,16 +992,28 @@ sub iset_cmd_cb
             {
                 $quote = "\"" if ($options_types[$current_line] eq "string");
             }
-            
+            $value = " ".$quote.$value.$quote if ($value ne "" or $quote ne "");
+
             my $set_command = "/set";
-            $set_command = "/mute " . $set_command if (weechat::config_boolean($options_iset{"use_mute"}) == 1);
-            weechat::buffer_set($iset_buffer, "input", $set_command." ".$options_names[$current_line]." ".$quote.$value.$quote);
-            weechat::command($iset_buffer, "/input move_beginning_of_line");
-            weechat::command($iset_buffer, "/input move_next_word");
-            weechat::command($iset_buffer, "/input move_next_word");
-            weechat::command($iset_buffer, "/input move_next_word") if (weechat::config_boolean($options_iset{"use_mute"}) == 1);
-            weechat::command($iset_buffer, "/input move_next_char");
-            weechat::command($iset_buffer, "/input move_next_char") if ($quote ne "");
+            my $start_index = 5;
+            if (weechat::config_boolean($options_iset{"use_mute"}) == 1)
+            {
+                $set_command = "/mute ".$set_command;
+                $start_index += 11;
+            }
+            $set_command = $set_command." ".$options_names[$current_line].$value;
+            my $pos_space = index($set_command, " ", $start_index);
+            if ($pos_space < 0)
+            {
+                $pos_space = 9999;
+            }
+            else
+            {
+                $pos_space = $pos_space + 1;
+                $pos_space = $pos_space + 1 if ($quote ne "");
+            }
+            weechat::buffer_set($iset_buffer, "input", $set_command);
+            weechat::buffer_set($iset_buffer, "input_pos", "".$pos_space);
         }
     }
     weechat::bar_item_update("isetbar_help") if (weechat::config_boolean($options_iset{"show_help_bar"}) == 1);

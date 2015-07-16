@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2013-2014 by nils_2 <weechatter@arcor.de>
+# Copyright (c) 2013-2015 by nils_2 <weechatter@arcor.de>
 #
 # save channel key from protected channel(s) to autojoin or secure data
 #
@@ -18,6 +18,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # idea by freenode.elsae
+#
+# 2015-05-09: nils_2, (freenode.#weechat)
+#       0.3 : fix: ValueError (reported by: Darpa)
 #
 # 2014-12-20: nils_2, (freenode.#weechat)
 #       0.2 : add option "add" to automatically add channel/key to autojoin option after a /join (idea by Prezident)
@@ -40,7 +43,7 @@ except Exception:
 
 SCRIPT_NAME     = "autosavekey"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.2"
+SCRIPT_VERSION  = "0.3"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "save channel key from protected channel(s) to autojoin or secure data"
 
@@ -83,7 +86,10 @@ def irc_raw_in_324_cb(data, signal, signal_data):
         argv_keys = arg_keys.split(',')
 
     # check channel position
-    channel_position = argv_channels.index(channel)
+    try:
+        channel_position = argv_channels.index(channel)
+    except ValueError:
+        channel_position = -1
 
     sec_data = 0
     # does buffer already exist in autojoin list?

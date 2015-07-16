@@ -20,6 +20,8 @@
 #
 # History:
 #
+# 2015-03-29, Ed Santiago <ed@edsantiago.com>
+#     v5.1: merged buffers: always indent, except when filling is horizontal
 # 2014-12-12
 #     v5.0: fix cropping non-latin buffer names
 # 2014-08-29, Patrick Steinhardt <ps@pks.im>:
@@ -164,7 +166,7 @@ use strict;
 use Encode qw( decode encode );
 # -----------------------------[ internal ]-------------------------------------
 my $SCRIPT_NAME = "buffers";
-my $SCRIPT_VERSION = "5.0";
+my $SCRIPT_VERSION = "5.1";
 
 my $BUFFERS_CONFIG_FILE_NAME = "buffers";
 my $buffers_config_file;
@@ -1298,8 +1300,17 @@ sub build_buffers
             }
             else
             {
-                my $indent = "";
-                $indent = ((" " x length($buffer->{"number"}))." ") if (($position eq "left") || ($position eq "right"));
+                # Indentation aligns channels in a visually appealing way
+                # when viewing list top-to-bottom...
+                my $indent = (" " x length($buffer->{"number"}))." ";
+                # ...except when list is top/bottom and channels left-to-right.
+                my $option_pos = weechat::config_string( weechat::config_get( "weechat.bar.buffers.position" ) );
+                if (($option_pos eq 'top') || ($option_pos eq 'bottom')) {
+                    my $option_filling = weechat::config_string( weechat::config_get( "weechat.bar.buffers.filling_top_bottom" ) );
+                    if ($option_filling =~ /horizontal/) {
+                        $indent = '';
+                    }
+                }
                 $str .= weechat::color("default")
                     .$color_bg
                     .$indent;

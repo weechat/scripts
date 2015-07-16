@@ -1,7 +1,5 @@
 # https://github.com/sindresorhus/weechat-notification-center
 # Requires `pip install pync`
-# Author: Sindre Sorhus <sindresorhus@gmail.com>
-# License: MIT
 
 import weechat
 from pync import Notifier
@@ -9,7 +7,7 @@ from pync import Notifier
 
 SCRIPT_NAME = 'notification_center'
 SCRIPT_AUTHOR = 'Sindre Sorhus <sindresorhus@gmail.com>'
-SCRIPT_VERSION = '0.3.0'
+SCRIPT_VERSION = '1.0.0'
 SCRIPT_LICENSE = 'MIT'
 SCRIPT_DESC = 'Pass highlights and private messages to the OS X 10.8+ Notification Center'
 
@@ -29,6 +27,11 @@ for key, val in DEFAULT_OPTIONS.items():
 weechat.hook_print('', 'irc_privmsg', '', 1, 'notify', '')
 
 def notify(data, buffer, date, tags, displayed, highlight, prefix, message):
+	# ignore if it's yourself
+	own_nick = weechat.buffer_get_string(buffer, 'localvar_nick')
+	if prefix == own_nick or prefix == ('@%s' % own_nick):
+		return weechat.WEECHAT_RC_OK
+
 	# passing `None` or `''` still plays the default sound so we pass a lambda instead
 	sound = 'Pong' if weechat.config_get_plugin('sound') == 'on' else lambda:_
 	if weechat.config_get_plugin('show_highlights') == 'on' and int(highlight):

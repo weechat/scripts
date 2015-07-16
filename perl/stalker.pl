@@ -20,6 +20,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # History:
+# version 1.5:nils_2@freenode.#weechat
+# 2015-06-15: add: new option del_date
+#
 # version 1.4:nils_2@freenode.#weechat
 # 2014-05-14: fix: perl error under some circumstances (thanks Piotrek)
 #
@@ -98,7 +101,7 @@ use File::Spec;
 use DBI;
 
 my $SCRIPT_NAME         = "stalker";
-my $SCRIPT_VERSION      = "1.4";
+my $SCRIPT_VERSION      = "1.5";
 my $SCRIPT_AUTHOR       = "Nils Görs <weechatter\@arcor.de>";
 my $SCRIPT_LICENCE      = "GPL3";
 my $SCRIPT_DESC         = "Records and correlates nick!user\@host information";
@@ -777,6 +780,15 @@ sub _deassociate_nick_from_host
     return $sth->rows;
 }
 
+sub delete_older_entries
+{
+    # $day = yyyy-mm-dd
+    my ( $day1, $day2 ) = @_;
+    # from date ? to date ?
+    $sth = $DBH->prepare( "DELETE FROM records WHERE added >= '" . $day1 . "' AND added < '" . $day2 . "'" );
+    $sth->execute();
+}
+
 # ------------------------[ OUTPUT with tags ]------------------------------
 sub OUTPUT
 {
@@ -933,6 +945,10 @@ sub stalker_command_cb
       my $color  = weechat::color(weechat::config_color(weechat::config_get('weechat.color.chat_prefix_error')));
       my $DEBUG_prefix = weechat::config_string(weechat::config_get('weechat.look.prefix_error'));
       weechat::print($buffer, _color_str($color, $DEBUG_prefix) . "\t$SCRIPT_NAME: $affected_rows deleted");
+    }
+    elsif (lc($args_array[0]) eq 'del_date')
+    {
+        delete_older_entries($args_array[1],$args_array[2]) if ($args_array[1] and $args_array[2]);
     }
     return weechat::WEECHAT_RC_OK;
 }
@@ -1370,6 +1386,7 @@ weechat::register($SCRIPT_NAME, $SCRIPT_AUTHOR, $SCRIPT_VERSION,
                       "                scan : scan a channel (be careful; scanning large channels takes a while!)\n".
                       "                       you should manually /WHO #channel first or use /quote PROTOCTL UHNAMES\n".
                       "                count: display the number of rows in database\n".
+                      "             del_date: delete all entries from date1 to date2\n".
                       "remove_nick_from_host: remove a nick from a given host\n".
                       "\n\n".
                       "Stalker will add nick!user\@host to database monitoring JOIN/WHOIS/NICK messages.\n\n".
@@ -1411,8 +1428,11 @@ weechat::register($SCRIPT_NAME, $SCRIPT_AUTHOR, $SCRIPT_VERSION,
                       "    /".$SCRIPT_NAME." host .*\\.de -regex\n".
                       "  remove nick from an association host'\n".
                       "    /".$SCRIPT_NAME." remove_nick_from_host TheNick ~the\@bad.users.host\n".
+                      "  remove entries from database in range of given date:'\n".
+                      "    /".$SCRIPT_NAME." del_date 2014-01-01 2014-12-31\n".
                       "",
                       "count %-||".
+                      "del_date %-||".
                       "host %% %(irc_servers)|-regex %-||".
                       "nick %(nick) %(irc_servers)|-regex -regex %-||".
                       "remove_nick_from_host %(nick) |-regex -regex %-||".

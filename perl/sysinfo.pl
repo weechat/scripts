@@ -40,6 +40,8 @@
 # ported to WeeChat (http://www.weechat.org/) by Nils Görs. Copyright
 # (c) 2011-2015 Nils Görs
 #
+# 2015-05-16: 0.9 Keridos <fuffzehn@gmail.com>
+#             add compatibility with linux kernel 4.x
 # 2015-02-15: 0.8 nils_2 (freenode@nils_2)
 #           : based on sysinfo 2.81.24 (Feb 10 2015)
 # 2013-08-10: 0.7 nils_2 (freenode@nils_2)
@@ -68,7 +70,7 @@ use POSIX qw(floor);
 use strict;
 
 my $SCRIPT_NAME         = "sysinfo";
-my $SCRIPT_VERSION      = "0.8";
+my $SCRIPT_VERSION      = "0.9";
 my $SCRIPT_DESCR        = "provides a system info command";
 my $SCRIPT_LICENSE      = "GPL3";
 my $SCRIPT_AUTHOR       = "Nils Görs <weechatter\@arcor.de>";
@@ -230,7 +232,7 @@ my $d7		= 1 if $darwin && $osv =~ /^7\.\d+\.\d+/;
 my $d8		= 1 if $darwin && $osv =~ /^8\.\d+\.\d+/;
 my $d9		= 1 if $darwin && $osv =~ /^9\.\d+\.\d+/;
 my $l26		= 1 if $linux && $osv =~ /^2\.6/;
-my $l3          = 1 if $linux && $osv =~ /^2\.7/  || $osv =~ /^3\./;
+my $l3          = 1 if $linux && $osv =~ /^2\.7/  || $osv =~ /^3\./ || $osv =~ /^4\./;
 my $f_old	= 1 if $freebsd && $osv =~ /^4\.1-/ || $osv =~ /^4\.0-/ || $osv =~ /^3/ || $osv =~ /^2/;
 
 my $isJail = `sysctl -n security.jail.jailed` if $freebsd;
