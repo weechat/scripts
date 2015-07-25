@@ -24,7 +24,7 @@ import weechat
 
 SCRIPT_NAME = "hatwidget"
 SCRIPT_AUTHOR = "GermainZ <germanosz@gmail.com>"
-SCRIPT_VERSION = "1.0"
+SCRIPT_VERSION = "1.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = ("Shows hats (user modes like @ or +) in a handy bar item.")
 
@@ -39,9 +39,12 @@ def cb_buffer_switch(data, signal, signal_data):
     weechat.bar_item_update("hats")
     return weechat.WEECHAT_RC_OK
 
-def cb_irc_tag(data, signal, signal_data):
+def cb_irc_mode(data, buff, date, tags, displayed, highlight, prefix, message):
     weechat.bar_item_update("hats")
     return weechat.WEECHAT_RC_OK
+
+# def cb_irc_mode_actual(data, remaining_calls):
+    # return weechat.WEECHAT_RC_OK
 
 # Bar items.
 # ----------
@@ -70,5 +73,5 @@ if __name__ == "__main__":
                      SCRIPT_LICENSE, SCRIPT_DESC, "", "")
     # Create bar items and setup hooks.
     weechat.bar_item_new("hats", "cb_hats", "")
-    weechat.hook_signal("irc_mode", "cb_irc_mode", "")
+    weechat.hook_print("", "irc_mode", "", 0, "cb_irc_mode", "")
     weechat.hook_signal("buffer_switch", "cb_buffer_switch", "")
