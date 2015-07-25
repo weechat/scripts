@@ -20,6 +20,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2015-04-29, Colgate Minuette <rabbit@minuette.net>
+#   version 0.2.3: add option to send queued messages on /nick
 # 2013-11-08, Stefan Huber <shuber@sthu.org>
 #   version 0.2.2: add match_prefix setting, recall timestamp of message
 # 2012-12-29, Stefan Huber <shuber@sthu.org>
@@ -36,16 +38,24 @@ from time import strftime
 
 SCRIPT_NAME    = "postpone"
 SCRIPT_AUTHOR  = "Alexander Schremmer <alex@alexanderweb.de>"
-SCRIPT_VERSION = "0.2.2"
+SCRIPT_VERSION = "0.2.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Postpones written messages for later dispatching if target nick is not on channel"
 
 postpone_data = {}
 
 settings = {
-        'match_prefix': ('', 'Postpone message if prefix before "nick:" is matched.')
+        'match_prefix': ('', 'Postpone message if prefix before "nick:" is matched. (Default: "")'),
+        'message_on_nick': ('off', 'Send message on /nick in addition to /join (Default: off)')
 }
 
+def send_messages(server, channel, nick):
+    buffer = w.buffer_search("", "%s.%s" % (server, channel))
+    messages = postpone_data[server][channel][nick]
+    for time, msg in messages:
+        tstr = strftime("%Y-%m-%d %H:%M:%S", time.timetuple())
+        w.command(buffer, msg + " (This message has been postponed on " + tstr + ".)")
+    messages[:] = []
 
 def join_cb(data, signal, signal_data):
     server = signal.split(',')[0] # EFNet,irc_in_JOIN
@@ -54,11 +64,25 @@ def join_cb(data, signal, signal_data):
     buffer = w.buffer_search("", "%s.%s" % (server, channel))
     if server in postpone_data and channel in postpone_data[server] and\
             nick in postpone_data[server][channel]:
-        messages = postpone_data[server][channel][nick]
-        for time, msg in messages:
-            tstr = strftime("%Y-%m-%d %H:%M:%S", time.timetuple())
-            w.command(buffer, msg + " (This message has been postponed on " + tstr + ".)")
-        messages[:] = []
+        send_messages(server, channel, nick)
+    return w.WEECHAT_RC_OK
+
+def nick_cb(data, signal, signal_data):
+
+    if not w.config_is_set_plugin('message_on_nick'):
+        return w.WEECHAT_RC_OK
+    if not w.config_get_plugin('message_on_nick').lower() == "on":
+        return w.WEECHAT_RC_OK
+
+    server = signal.split(",")[0]
+    if server in postpone_data:
+        nick = signal_data.split(" ")[2]
+        if nick.startswith(":"):
+           nick = nick[1:]
+        nick = nick.lower()
+        for channel in postpone_data[server]:
+            if nick in postpone_data[server][channel]:
+                send_messages(server, channel, nick)
     return w.WEECHAT_RC_OK
 
 def channel_has_nick(server, channel, nick):
@@ -102,4 +126,4 @@ if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
 
     w.hook_command_run("/input return", "command_run_input", "")
     w.hook_signal('*,irc_in2_join', 'join_cb', '')
-
+    w.hook_signal('*,irc_in2_nick', 'nick_cb', '')
