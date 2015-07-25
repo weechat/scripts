@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2010-2013 by Nils Görs <weechatter@arcor.de>
+# Copyright (c) 2010-2015 by Nils Görs <weechatter@arcor.de>
 # Copyleft (ɔ) 2013 by oakkitten
 #
 # colors the channel text with nick color and also highlight the whole line
@@ -44,6 +44,7 @@
 # /buffer set localvar_set_colorize_lines *yellow
 
 # history:
+# 3.4: new options "tags" and "ignore_tags"
 # 3.3: use localvar "colorize_lines" for buffer related color (idea by tomoe-mami)
 # 3.2: minor logic fix
 # 3.1: fix: line wasn't colored with nick color, when highlight option was "off" (reported by rivarun)
@@ -105,10 +106,10 @@
 
 use strict;
 my $PRGNAME     = "colorize_lines";
-my $VERSION     = "3.3";
+my $VERSION     = "3.4";
 my $AUTHOR      = "Nils Görs <weechatter\@arcor.de>";
 my $LICENCE     = "GPL3";
-my $DESCR       = "colors text in chat area with according nick color, including highlights";
+my $DESCR       = "Colorize users' text in chat area with their nick color, including highlights";
 
 my %config = ("buffers"             => "all",       # all, channel, query
               "blacklist_buffers"   => "",          # "a,b,c"
@@ -116,15 +117,22 @@ my %config = ("buffers"             => "all",       # all, channel, query
               "highlight"           => "on",        # on, off, nicks
               "nicks"               => "",          # "d,e,f", "/file"
               "own_lines"           => "on",        # on, off, only
+              "tags"                => "irc_privmsg",
+              "ignore_tags"         => "irc_ctcp",
 );
 
-my %help_desc = ("buffers"             => "buffer type affected by the script (all/channel/query, default: all)",
-                 "blacklist_buffers"   => "comma-separated list of channels to be ignored (e.g. freenode.#weechat,*.#python)",
-                 "lines"               => "apply nickname color to the lines (off/on/nicks). the latter will limit highlighting to nicknames in option 'nicks'",
-                 "highlight"           => "apply highlight color to the highlighted lines (off/on/nicks). the latter will limit highlighting to nicknames in option 'nicks'",
-                 "nicks"               => "comma-separater list of nicks (e.g. freenode.cat,*.dog) OR file name starting with '/' (e.g. /file.txt). in the latter case, nicknames will get loaded from that file inside weechat folder (e.g. from ~/.weechat/file.txt). nicknames in file are newline-separated (e.g. freenode.dog\\n*.cat)",
-                 "own_lines"           => "apply nickname color to own lines (off/on/only). the latter turns off all other kinds of coloring altogether",
+my %help_desc = ("buffers"             => "Buffer type affected by the script (all/channel/query, default: all)",
+                 "blacklist_buffers"   => "Comma-separated list of channels to be ignored (e.g. freenode.#weechat,*.#python)",
+                 "lines"               => "Apply nickname color to the lines (off/on/nicks). The latter will limit highlighting to nicknames in option 'nicks'",
+                 "highlight"           => "Apply highlight color to the highlighted lines (off/on/nicks). The latter will limit highlighting to nicknames in option 'nicks'",
+                 "nicks"               => "Comma-separater list of nicks (e.g. freenode.cat,*.dog) OR file name starting with '/' (e.g. /file.txt). In the latter case, nicknames will get loaded from that file inside weechat folder (e.g. from ~/.weechat/file.txt). Nicknames in file are newline-separated (e.g. freenode.dog\\n*.cat)",
+                 "own_lines"           => "Apply nickname color to own lines (off/on/only). The latter turns off all other kinds of coloring altogether",
+                 "tags"                => "Comma-separated list of tags to accept (see /debug tags)",
+                 "ignore_tags"         => "Comma-separated list of tags to ignore (see /debug tags)",
 );
+
+my @ignore_tags_array;
+my @tags_array;
 
 #################################################################################################### config
 
@@ -133,14 +141,22 @@ sub colorize_cb
 {
     my ( $data, $modifier, $modifier_data, $string ) = @_;
 
-    # quit if it's not a privmsg or ctcp
-    # or we are not supposed to
-    if ((index($modifier_data,"irc_privmsg") == -1) ||
-        (index($modifier_data,"irc_ctcp") >= 0)) {
-        return $string;
+    # quit if a ignore_tag was found
+    if (@ignore_tags_array)
+    {
+        my $combined_search = join("|",@ignore_tags_array);
+        my @ignore_tags_found = ($modifier_data =~ /($combined_search)/);
+        return $string if (@ignore_tags_found);
     }
 
-    # find buffer pointer
+    if (@tags_array)
+    {
+        my $combined_search = join("|",@tags_array);
+        my @tags_found = ($modifier_data =~ /($combined_search)/);
+        return $string unless (@tags_found);
+    }
+
+# find buffer pointer
     $modifier_data =~ m/([^;]*);([^;]*);/;
     my $buf_ptr = weechat::buffer_search($1, $2);
     return $string if ($buf_ptr eq "");
@@ -229,7 +245,6 @@ sub colorize_cb
     return $out;
 }
 
-
 sub get_localvar_colorize_lines
 {
     my ( $buf_ptr ) = @_;
@@ -258,6 +273,16 @@ sub nicklist_read
     $config{nicks} = $nili;
 }
 
+sub ignore_tags
+{
+    @ignore_tags_array = split(",",$config{ignore_tags});
+}
+
+sub use_of_tags
+{
+    @tags_array = split(",",$config{tags});
+}
+
 # called when a config option ha been changed
 # $name = plugins.var.perl.$prgname.nicks etc
 sub toggle_config_by_set
@@ -266,6 +291,8 @@ sub toggle_config_by_set
     $name = substr($name,length("plugins.var.perl.$PRGNAME."),length($name));
     $config{$name} = lc($value);
     nicklist_read() if ($name eq "nicks");
+    ignore_tags() if ($name eq "ignore_tags");
+    use_of_tags() if ($name eq "tags");
 }
 
 # read configuration from weechat OR
@@ -284,6 +311,8 @@ sub init_config
         }
     }
     nicklist_read();
+    ignore_tags();
+    use_of_tags();
 }
 
 #################################################################################################### start
