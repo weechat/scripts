@@ -21,6 +21,8 @@
 #
 #
 # History:
+# 2015-07-28, xt
+#   version 21: fix problems with nicks with commas in them
 # 2015-04-19, xt
 #   version 20: fix ignore of nicks in URLs
 # 2015-04-18, xt
@@ -73,7 +75,7 @@ w = weechat
 
 SCRIPT_NAME    = "colorize_nicks"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "20"
+SCRIPT_VERSION = "21"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Use the weechat nick colors in the chat area"
 
@@ -287,7 +289,10 @@ def add_nick(data, signal, type_data):
     ''' Add nick to dict of colored nicks '''
     global colored_nicks
 
-    pointer, nick = type_data.split(',')
+    # Nicks can have , in them in some protocols
+    splitted = type_data.split(',')
+    pointer = splitted[0]
+    nick = ",".join(splitted[1:])
     if pointer not in colored_nicks:
         colored_nicks[pointer] = {}
 
@@ -302,7 +307,10 @@ def remove_nick(data, signal, type_data):
     ''' Remove nick from dict with colored nicks '''
     global colored_nicks
 
-    pointer, nick = type_data.split(',')
+    # Nicks can have , in them in some protocols
+    splitted = type_data.split(',')
+    pointer = splitted[0]
+    nick = ",".join(splitted[1:])
 
     if pointer in colored_nicks and nick in colored_nicks[pointer]:
         del colored_nicks[pointer][nick]
