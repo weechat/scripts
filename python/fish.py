@@ -59,6 +59,7 @@ CONFIG_FILE_NAME = SCRIPT_NAME
 
 import_ok = True
 
+import base64
 import re
 import struct
 import hashlib
@@ -226,17 +227,43 @@ def fish_config_write():
 
 class Blowfish:
 
-    def __init__(self, key=None):
-        if key:
-            if len(key) > 72:
-                key = key[:72]
-            self.blowfish = Crypto.Cipher.Blowfish.new(key)
+    def __init__(self, key=None, iv=None):
+        if not key:
+            return
 
-    def decrypt(self, data):
+        if key.startswith('cbc:'):
+            self.cbc = True
+            self.key = key[4:]
+            if not iv:
+                self.iv = urandom(8)
+            else:
+                self.iv = iv
+        else:
+            self.cbc = False
+            self.key = key
+            self.iv = None
+
+        if len(self.key) > 72:
+            self.key = self.key[:72]
+
+        self.init()
+
+    def init(self):
+        if self.cbc:
+            self.blowfish = Crypto.Cipher.Blowfish.new(self.key, 
+                Crypto.Cipher.Blowfish.MODE_CBC, self.iv)
+        else:
+            self.blowfish = Crypto.Cipher.Blowfish.new(self.key)
+
+    def decrypt(self, data, iv=None):
+        if self.cbc and iv:
+            self.iv = iv
+            self.init()
         return self.blowfish.decrypt(data)
 
     def encrypt(self, data):
-        return self.blowfish.encrypt(data)
+        iv = self.iv or ''
+        return iv + self.blowfish.encrypt(data)
 
 
 # XXX: Unstable.
@@ -286,29 +313,47 @@ def padto(msg, length):
 
 def blowcrypt_pack(msg, cipher):
     """."""
-    return '+OK ' + blowcrypt_b64encode(cipher.encrypt(padto(msg, 8)))
+    if cipher.cbc:
+        return '+OK *' + base64.b64encode(cipher.encrypt(padto(msg, 8)))
+    else:
+        return '+OK ' + blowcrypt_b64encode(cipher.encrypt(padto(msg, 8)))
 
 
 def blowcrypt_unpack(msg, cipher):
     """."""
     if not (msg.startswith('+OK ') or msg.startswith('mcps ')):
         raise ValueError
+
     _, rest = msg.split(' ', 1)
-    if len(rest) < 12:
+
+    if cipher.cbc:
+        rest = rest[1:]
+
+    if cipher.cbc:
+        min_len = 24
+    else:
+        min_len = 12
+
+    if len(rest) < min_len:
         raise MalformedError
 
-    if not (len(rest) %12) == 0:
+    if not (len(rest) % 12) == 0:
         rest = rest[:-(len(rest) % 12)]
 
-    try:
-        raw = blowcrypt_b64decode(padto(rest, 12))
-    except TypeError:
-        raise MalformedError
-    if not raw:
-        raise MalformedError
+    if cipher.cbc:
+        raw = base64.b64decode(rest)
+        iv, raw = raw[:8], raw[8:]
+    else:
+        try:
+            raw = blowcrypt_b64decode(padto(rest, 12))
+        except TypeError:
+            raise MalformedError
+        if not raw:
+            raise MalformedError
+        iv = None
 
     try:
-        plain = cipher.decrypt(raw)
+        plain = cipher.decrypt(raw, iv)
     except ValueError:
         raise MalformedError
 
@@ -665,7 +710,7 @@ def fish_modifier_in_privmsg_cb(data, modifier, server_name, string):
     global fish_keys, fish_cyphers
 
     match = re.match(
-        r"^(:(.*?)!.*? PRIVMSG (.*?) :)(\x01ACTION )?((\+OK |mcps )?.*?)(\x01)?$",
+        r"^(:(.*?)!.*? PRIVMSG (.*?) :)(\x01ACTION )?((\+OK |mcps )?(\*)?.*?)(\x01)?$",
         string)
     #match.group(0): message
     #match.group(1): msg without payload
@@ -674,6 +719,7 @@ def fish_modifier_in_privmsg_cb(data, modifier, server_name, string):
     #match.group(4): action
     #match.group(5): msg
     #match.group(6): +OK |mcps
+    #match.group(7): * (cbc)
     if not match:
         return string
 
