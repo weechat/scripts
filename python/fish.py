@@ -233,7 +233,7 @@ class Blowfish:
 
         if key.startswith('cbc:'):
             self.cbc = True
-            self.key = key[4:]
+            self.set_key(key[4:])
             if not iv:
                 self.iv = urandom(8)
             else:
@@ -243,8 +243,8 @@ class Blowfish:
             self.key = key
             self.iv = None
 
-        if len(self.key) > 72:
-            self.key = self.key[:72]
+            if len(self.key) > 72:
+                self.key = self.key[:72]
 
         self.init()
 
@@ -265,6 +265,12 @@ class Blowfish:
         iv = self.iv or ''
         return iv + self.blowfish.encrypt(data)
 
+    def set_key(self, key):
+        if len(key) < 8:
+            while len(key) < 8:
+                key += key
+
+        self.key = key
 
 # XXX: Unstable.
 def blowcrypt_b64encode(s):
@@ -837,11 +843,15 @@ def fish_modifier_out_privmsg_cb(data, modifier, server_name, string):
 
         return string
 
-    if targetl not in fish_cyphers:
+    if fish_keys[targetl].startswith('cbc:'):
         b = Blowfish(fish_keys[targetl])
-        fish_cyphers[targetl] = b
     else:
-        b = fish_cyphers[targetl]
+        if targetl not in fish_cyphers:
+            b = Blowfish(fish_keys[targetl])
+            fish_cyphers[targetl] = b
+        else:
+            b = fish_cyphers[targetl]
+
     cypher = blowcrypt_pack(match.group(3), b)
 
     fish_announce_encrypted(buffer, target)
