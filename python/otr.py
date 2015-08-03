@@ -35,6 +35,7 @@ import platform
 import re
 import traceback
 import shlex
+import shutil
 import sys
 
 class PythonVersion2(object):
@@ -162,7 +163,7 @@ This script supports only OTR protocol version 2.
 
 SCRIPT_AUTHOR = 'Matthew M. Boedicker'
 SCRIPT_LICENCE = 'GPL3'
-SCRIPT_VERSION = '1.6.0'
+SCRIPT_VERSION = '1.7.0'
 
 OTR_DIR_NAME = 'otr'
 
@@ -199,7 +200,15 @@ otr_debug_buffer = None
 # strips trailing spaces from commands. This causes OTR initiation to fail so
 # the following code adds an extra tab at the end of the plaintext tags if
 # they end in a space.
+#
+# The patched version also skips OTR tagging for CTCP messages because it
+# breaks the CTCP format.
 def patched__bytes__(self):
+    # Do not tag CTCP messages.
+    if self.msg.startswith(b'\x01') and \
+        self.msg.endswith(b'\x01'):
+        return self.msg
+
     data = self.msg + potr.proto.MESSAGE_TAG_BASE
     for v in self.versions:
         data += potr.proto.MESSAGE_TAGS[v]
@@ -522,6 +531,17 @@ def show_peer_fingerprints(grep=None):
                     ])
     print_buffer('', table_formatter.format())
 
+def private_key_file_path(account_name):
+    """Return the private key file path for an account."""
+    return os.path.join(OTR_DIR, '{}.key3'.format(account_name))
+
+def read_private_key(key_file_path):
+    """Return the private key in a private key file."""
+    debug(('read private key', key_file_path))
+
+    with open(key_file_path, 'rb') as key_file:
+        return potr.crypt.PK.parsePrivateKey(key_file.read())[0]
+
 class AccountDict(collections.defaultdict):
     """Dictionary that adds missing keys as IrcOtrAccount instances."""
 
@@ -589,11 +609,19 @@ class IrcContext(potr.context.Context):
 
         if key_lower in READ_ONLY_POLICIES:
             result = READ_ONLY_POLICIES[key_lower]
-        elif key_lower == 'send_tag' and self.is_serv():
+        elif key_lower == 'send_tag' and self.no_send_tag():
             result = False
         else:
             option = weechat.config_get(
                 PYVER.to_str(self.policy_config_option(key)))
+
+            if option == '':
+                option = weechat.config_get(
+                    PYVER.to_str(self.user.policy_config_option(key)))
+
+            if option == '':
+                option = weechat.config_get(config_prefix('.'.join(
+                    ['policy', self.peer_server, key_lower])))
 
             if option == '':
                 option = weechat.config_get(
@@ -952,13 +980,17 @@ Note: You can safely omit specifying the peer and server when
         # potr expects bytes to be returned
         return to_bytes(msg)
 
-    def is_serv(self):
-        return self.peer_nick.lower() in [
-            'chanserv',
-            'memoserv',
-            'nickserv'
-            ]
+    def no_send_tag(self):
+        """Skip OTR whitespace tagging to bots and services.
 
+        Any nicks matching the otr.general.no_send_tag_regex config setting
+        will not be tagged.
+        """
+        no_send_tag_regex = config_string('general.no_send_tag_regex')
+        debug(('no_send_tag', no_send_tag_regex, self.peer_nick))
+        if no_send_tag_regex:
+            return re.match(no_send_tag_regex, self.peer_nick, re.IGNORECASE)
+ 
     def __repr__(self):
         return PYVER.to_str(('<{} {:x} peer_nick={c.peer_nick} '
             'peer_server={c.peer_server}>').format(
@@ -982,7 +1014,7 @@ class IrcOtrAccount(potr.context.Account):
         # need to be one message
         self.defaultQuery = self.defaultQuery.replace("\n", ' ')
 
-        self.key_file_path = os.path.join(OTR_DIR, '{}.key3'.format(name))
+        self.key_file_path = private_key_file_path(name)
         self.fpr_file_path = os.path.join(OTR_DIR, '{}.fpr'.format(name))
 
         self.load_trusts()
@@ -995,7 +1027,7 @@ class IrcOtrAccount(potr.context.Account):
                     debug(('load trust check', line))
 
                     context, account, protocol, fpr, trust = \
-                        line[:-1].split('\t')
+                        PYVER.to_unicode(line[:-1]).split('\t')
 
                     if account == self.name and \
                             protocol == IrcOtrAccount.PROTOCOL:
@@ -1003,12 +1035,22 @@ class IrcOtrAccount(potr.context.Account):
                         self.setTrust(context, fpr, trust)
 
     def loadPrivkey(self):
-        """Load key file."""
+        """Load key file.
+
+        If no key file exists, load the default key. If there is no default
+        key, a new key will be generated automatically by potr."""
         debug(('load private key', self.key_file_path))
 
         if os.path.exists(self.key_file_path):
-            with open(self.key_file_path, 'rb') as key_file:
-                return potr.crypt.PK.parsePrivateKey(key_file.read())[0]
+            return read_private_key(self.key_file_path)
+        else:
+            default_key = config_string('general.defaultkey')
+            if default_key:
+                default_key_path = private_key_file_path(default_key)
+
+                if os.path.exists(default_key_path):
+                    shutil.copyfile(default_key_path, self.key_file_path)
+                    return read_private_key(self.key_file_path)
 
     def savePrivkey(self):
         """Save key file."""
@@ -1034,6 +1076,11 @@ class IrcOtrAccount(potr.context.Account):
         for context in self.ctxs.values():
             if context.is_encrypted():
                 context.disconnect()
+
+    def policy_config_option(self, policy):
+        """Get the option name of a policy option for this account."""
+        return config_prefix('.'.join([
+                    'policy', self.server, self.nick, policy.lower()]))
 
 class IrcHTMLParser(PYVER.html_parser.HTMLParser):
     """A simple HTML parser that throws away anything but newlines and links"""
@@ -1780,6 +1827,12 @@ def init_config():
     for option, typ, desc, default in [
         ('debug', 'boolean', 'OTR script debugging', 'off'),
         ('hints', 'boolean', 'Give helpful hints how to use this script and how to stay secure while using OTR (recommended)', 'on'),
+        ('defaultkey', 'string',
+         'default private key to use for new accounts (nick@server)', ''),
+        ('no_send_tag_regex', 'string',
+         'do not OTR whitespace tag messages to nicks matching this regex '
+         '(case insensitive)',
+         '^(alis|chanfix|global|.+serv|\*.+)$'),
         ]:
         weechat.config_new_option(
             CONFIG_FILE, CONFIG_SECTIONS['general'], option, typ, desc, '', 0,
