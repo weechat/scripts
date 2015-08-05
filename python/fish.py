@@ -343,7 +343,7 @@ def blowcrypt_unpack(msg, cipher):
     if len(rest) < min_len:
         raise MalformedError
 
-    if not (len(rest) % 12) == 0:
+    if not (len(rest) % 12) == 0 and not cipher.cbc:
         rest = rest[:-(len(rest) % 12)]
 
     if cipher.cbc:
@@ -654,13 +654,22 @@ def fish_modifier_in_notice_cb(data, modifier, server_name, string):
             server_name, match.group(2)))
 
     if match.group(5) == "DH1080_FINISH " and targetl in fish_DH1080ctx:
-        if not dh1080_unpack(match.group(4), fish_DH1080ctx[targetl]):
-            fish_announce_unencrypted(buffer, target)
-            return string
+        try:
+            if not dh1080_unpack(match.group(4), fish_DH1080ctx[targetl]):
+                fish_announce_unencrypted(buffer, target)
+                return string
+        except MalformedError, ValueError:
+            fish_alert(buffer, "Invalid data received.")
+            return ""
 
         fish_alert(buffer, "Key exchange for %s sucessful" % target)
 
-        fish_keys[targetl] = dh1080_secret(fish_DH1080ctx[targetl])
+        try:
+            fish_keys[targetl] = dh1080_secret(fish_DH1080ctx[targetl])
+        except MalformedError, ValueError:
+            fish_alert(buffer, "Invalid data received.")
+            return ""
+
         if targetl in fish_cyphers:
             del fish_cyphers[targetl]
         del fish_DH1080ctx[targetl]
@@ -672,18 +681,31 @@ def fish_modifier_in_notice_cb(data, modifier, server_name, string):
 
         msg = ' '.join(match.group(4).split()[0:2])
 
-        if not dh1080_unpack(msg, fish_DH1080ctx[targetl]):
-            fish_announce_unencrypted(buffer, target)
-            return string
+        try:
+            if not dh1080_unpack(msg, fish_DH1080ctx[targetl]):
+                fish_announce_unencrypted(buffer, target)
+                return string
+        except MalformedError, ValueError:
+            fish_alert(buffer, "Invalid data received.")
+            return ""
 
-        reply = dh1080_pack(fish_DH1080ctx[targetl])
+        try:
+            reply = dh1080_pack(fish_DH1080ctx[targetl])
+        except MalformedError, ValueError:
+            fish_alert(buffer, "Invalid data received.")
+            return ""
 
         fish_alert(buffer, "Key exchange initiated by %s. Key set." % target)
 
         weechat.command(buffer, "/mute -all notice %s %s" % (
                 match.group(2), reply))
 
-        fish_keys[targetl] = dh1080_secret(fish_DH1080ctx[targetl])
+        try:
+            fish_keys[targetl] = dh1080_secret(fish_DH1080ctx[targetl])
+        except MalformedError, ValueError:
+            fish_alert(buffer, "Invalid data received.")
+            return ""
+
         if targetl in fish_cyphers:
             del fish_cyphers[targetl]
         del fish_DH1080ctx[targetl]
@@ -701,7 +723,11 @@ def fish_modifier_in_notice_cb(data, modifier, server_name, string):
         else:
             b = fish_cyphers[targetl]
 
-        clean = blowcrypt_unpack(match.group(4), b)
+        try:
+            clean = blowcrypt_unpack(match.group(4), b)
+        except MalformedError, ValueError:
+            fish_alert(buffer, "Invalid data received.")
+            return ""
 
         fish_announce_encrypted(buffer, target)
 
@@ -754,7 +780,12 @@ def fish_modifier_in_privmsg_cb(data, modifier, server_name, string):
         fish_cyphers[targetl] = b
     else:
         b = fish_cyphers[targetl]
-    clean = blowcrypt_unpack(match.group(5), b)
+
+    try:
+        clean = blowcrypt_unpack(match.group(5), b)
+    except MalformedError, ValueError:
+        fish_alert(buffer, "Invalid encrypted data received.")
+        return ""
 
     if not match.group(4):
         return "%s%s" % (match.group(1), fish_msg_w_marker(clean))
@@ -789,7 +820,12 @@ def fish_modifier_in_topic_cb(data, modifier, server_name, string):
         fish_cyphers[targetl] = b
     else:
         b = fish_cyphers[targetl]
-    clean = blowcrypt_unpack(match.group(3), b)
+
+    try:
+        clean = blowcrypt_unpack(match.group(3), b)
+    except MalformedError, ValueError:
+        fish_alert(buffer, "Invalid encrypted data received.")
+        return ""
 
     fish_announce_encrypted(buffer, target)
 
@@ -819,7 +855,11 @@ def fish_modifier_in_332_cb(data, modifier, server_name, string):
     else:
         b = fish_cyphers[targetl]
 
-    clean = blowcrypt_unpack(match.group(3), b)
+    try:
+        clean = blowcrypt_unpack(match.group(3), b)
+    except MalformedError, ValueError:
+        fish_alert(buffer, "Invalid encrypted data received.")
+        return ""
 
     fish_announce_encrypted(buffer, target)
 
@@ -840,7 +880,6 @@ def fish_modifier_out_privmsg_cb(data, modifier, server_name, string):
 
     if targetl not in fish_keys:
         fish_announce_unencrypted(buffer, target)
-
         return string
 
     if fish_keys[targetl].startswith('cbc:'):
