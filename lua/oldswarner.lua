@@ -30,6 +30,8 @@ Usage:
 
 
     Changelog:
+        version 2.1, 2015-08-06, boyska
+            * FIX urls interpreted as patterns
         version 2, 2013-09-21, xt
             * Use hdata instead of infolines to improve performance
         version 1, 2013-09-15, xt
@@ -38,7 +40,7 @@ Usage:
 
 SCRIPT_NAME     = "oldswarner"
 SCRIPT_AUTHOR   = "xt <xt@bash.no>"
-SCRIPT_VERSION  = "2"
+SCRIPT_VERSION  = "2.1"
 SCRIPT_LICENSE  = "GPL3"
 SCRIPT_DESC     = "Warn user if about to paste URL already existing in buffer"
 
@@ -87,7 +89,7 @@ function is_url_in_buffer(buffer, url)
     while #line > 0 do
         data = weechat.hdata_pointer(hdata_line, line, 'data')
         message = weechat.hdata_string(hdata_line_data, data, 'message')
-        if string.find(message, url) then
+        if message:find(url, 1, true) ~= nil then
             return true
         end
         line = weechat.hdata_move(hdata_line, line, 1)
