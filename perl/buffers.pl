@@ -20,6 +20,8 @@
 #
 # History:
 #
+# 2015-08-21, Matthew Cox <matthewcpcox@gmail.com>
+#     v5.3: add option "indenting_amount", to adjust the indenting of channel buffers
 # 2015-05-02, arza <arza@arza.us>:
 #     v5.2: truncate long names (name_size_max) more when mark_inactive adds parenthesis
 # 2015-03-29, Ed Santiago <ed@edsantiago.com>:
@@ -168,7 +170,7 @@ use strict;
 use Encode qw( decode encode );
 # -----------------------------[ internal ]-------------------------------------
 my $SCRIPT_NAME = "buffers";
-my $SCRIPT_VERSION = "5.2";
+my $SCRIPT_VERSION = "5.3";
 
 my $BUFFERS_CONFIG_FILE_NAME = "buffers";
 my $buffers_config_file;
@@ -679,6 +681,13 @@ my %default_options_look =
      "use indenting for numbers. This option only takes effect if bar is ".
      "left/right positioned",
      "", 0, 0, "on", "on", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
+ "indenting_amount" => [
+     "indenting_amount", "integer",
+     "amount of indenting to use. This option only takes effect if bar ".
+     "is left/right positioned, and indenting is enabled",
+     "", 0, 16, 2, 2, 0,
      "", "", "buffers_signal_config", "", "", ""
  ],
  "short_names" => [
@@ -1335,16 +1344,17 @@ sub build_buffers
             {
                 if ( weechat::config_integer( $options{"indenting"} ) eq 1 )
                 {
-                    $str .= "  ";
+                    $str .= (" " x weechat::config_integer( $options{"indenting_amount"} ) );
                 }
                 elsif ( (weechat::config_integer($options{"indenting"}) eq 2) and (weechat::config_integer($options{"indenting_number"}) eq 0) )        #under_name
                 {
                     if ( weechat::config_boolean( $options{"show_number"} ) eq 0 )
                     {
-                      $str .= "  ";
-                    }else
+                      $str .= (" " x weechat::config_integer( $options{"indenting_amount"} ) );
+                    }
+                    else
                     {
-                      $str .= ( (" " x ( $max_number_digits - length($buffer->{"number"}) ))." " );
+                      $str .= ( (" " x ( $max_number_digits - length($buffer->{"number"}) )).(" " x weechat::config_integer( $options{"indenting_amount"} ) ) );
                     }
                 }
             }
