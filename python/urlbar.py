@@ -22,6 +22,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2015-08-25, Simmo Saan <simmo.saan@gmail.com>
+#     version 12: fix error on empty prefix
 # 2014-03-01, Lars Kiesow <lkiesow@uos.de>
 #     version 11: Fixed autocompletion of /urlbar arguments
 # 2010-12-20, xt <xt@bash.no>
@@ -48,7 +50,7 @@
 
 SCRIPT_NAME    = "urlbar"
 SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "11"
+SCRIPT_VERSION = "12"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Bar with URLs. For easy clicking or selecting."
 SCRIPT_COMMAND = "urlbar"
@@ -225,10 +227,16 @@ def urlbar_completion_urls_cb(data, completion_item, buffer, completion):
     return weechat.WEECHAT_RC_OK
 
 def irc_nick_find_color(nick):
+    if not nick: # nick (actually prefix) is empty, irc_nick_color returns None on empty input
+        return ''
 
     color = weechat.info_get('irc_nick_color', nick)
     if not color:
         # probably we're in WeeChat 0.3.0
+        color = 0
+        for char in nick:
+            color += ord(char)
+        
         color %= weechat.config_integer(weechat.config_get("weechat.look.color_nicks_number"))
         color = weechat.config_get('weechat.color.chat_nick_color%02d' %(color+1))
         color = w.color(weechat.config_string(color))
