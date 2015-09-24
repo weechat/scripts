@@ -1,5 +1,6 @@
 #
 # (c) 2013 Hendrik 'henk' Jaeger <weechat@henk.geekmail.org>
+# (c) 2015 arza <arza@arza.us>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,11 +16,18 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+# Changelog:
+# 2013-10-19 0.0.1 henk:
+#  - initial release
+# 2015-09-24 0.1 arza:
+#  - option -m/--minimum for minimum count of mutual channels
+#  - fixed completion
+
 def weechat_init
   Weechat.register(
     "samechannel",
     "henk",
-    "0.0.1",
+    "0.1",
     "GPL3",
     "Lists multiple occurences of the same nick(s) in a set of channels.",
     "",
@@ -29,34 +37,33 @@ def weechat_init
   Weechat.hook_command(
     "samechannel",
     "Lists multiple occurences of the same nick(s) in a set of channels.",
-    "[[-s|--servers] servername[,...]] [[-c|--channels] channelname[,...]] [[-n|--nicks] nickname[,...]]",
+    "[-s/--servers servername[,...]] [-c/--channels channelname[,...]] [-n/--nicks nickname[,...]] [-m/--minimum minimum]",
     "--servers servername[,servername],...]
 --channels channelname[@servername][,channelname[@servername],...]
 --nicks nickname[,nickname,...]
-Options used to set filters. All given names are treated as regular expressions. If no names are given, no filters are set.
+--minimum minimum (default: 2)
 
-WARNING: If you are joined to MANY or even just a few very crowded channels, this script may have to do a lot of comparisons!
+Options used to set filters. All given names are treated as regular expressions. If no names are given, no filters are set.
 
 NOTE: Only nicknames from channels the client is joined to are available for comparison!
 
 EXAMPLES:
+
+    /samechannel -m 5 -s freenode,IRCnet
+    Lists nicks found on at least five channels in freenode and IRCnet combined.
+
     /samechannel --channels foo
-    Lists nicks found in more than two channels on all servers.
+    Lists nicks found on at least two channels that include 'foo' on all servers.
 
     /samechannel --nicks barbaz,hons --servers example,foobarbaz
     Lists channels from the servers example and foobarbaz for each given nick.
 
     /samechannel --nicks foo --channels ^#example.*@.*free.*$
     Lists channels you share with nick foo that begin with 'example' from every server with 'free' in their names.",
-    "-servers %(irc_servers)
-    || -servers %(irc_servers) -channels %(irc_channels)
-    || -servers %(irc_servers) -nicks %(irc_server_nicks)
-    || -channels %(irc_channels)
-    || -channels %(irc_channels) -servers %(irc_servers)
-    || -channels %(irc_channels) -nicks %(irc_server_nicks)
-    || -nicks %(irc_server_nicks)
-    || -nicks %(irc_server_nicks) -servers %(irc_servers)
-    || -nicks %(irc_server_nicks) -channels %(irc_channels)",
+       "--minimum" +
+    "|| --servers %(irc_servers) --minimum --channels %(irc_channels)" +
+    "|| --channels %(irc_channels) --servers %(irc_servers)" +
+    "|| --nicks %(irc_server_nicks) --servers %(irc_servers)",
     "samechannel_cb",
     ""
   )
@@ -98,8 +105,11 @@ def samechannel_cb( data, buffer, args )
     end
   end
 
+  minimum = options[:minimumfilter].to_i
+  minimum = 2 if minimum==0
+
   duplicate_nicks = nickcount.delete_if do |nickname, nickpaths|
-    nickpaths.length <= 1
+    nickpaths.length < minimum
   end
   duplicate_nicks_sorted = duplicate_nicks.sort do |a, b|
     a[1].length <=> b[1].length
@@ -168,6 +178,7 @@ def get_options( args )
   options = Hash.new
 
   opt_parser = OptionParser.new do |opts|
+
     opts.on("-c", "--channels channelname[,channelname,...]",
             "Only channels matching the given (partial) channelname(s) will be considered.)") do |channels|
       options[:channelfilter] = channels.split(',')
@@ -182,6 +193,12 @@ def get_options( args )
             "Only servers matching the given (partial) servername(s) will be considered.)") do |servers|
       options[:serverfilter] = servers.split(',')
     end
+
+    opts.on("-m", "--minimum minimum",
+            "Only nicks with at least this many matches will be considered.") do |minimum|
+      options[:minimumfilter] = minimum
+    end
+
   end
 
   opt_parser.parse(args)
