@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2015-09-28, Simmo Saan <simmo.saan@gmail.com>:
+#     version 0.9: instantly apply properties
 # 2015-07-12, Sébastien Helleu <flashcode@flashtux.org>:
 #     version 0.8: add option buffer_autoset.look.timer to add a small timer
 #                  before setting buffer properties
@@ -44,7 +46,7 @@
 
 SCRIPT_NAME = "buffer_autoset"
 SCRIPT_AUTHOR = "Sébastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.8"
+SCRIPT_VERSION = "0.9"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Auto-set buffer properties when a buffer is opened"
 
@@ -92,6 +94,11 @@ def bas_config_init():
         "Timer used to delay the set of properties (in milliseconds, "
         "0 = don't use a timer)",
         "", 0, 2147483647, "1", "1", 0, "", "", "", "", "", "")
+
+    bas_options["look_instant"] = weechat.config_new_option(
+        bas_config_file, section_look, "instant", "boolean",
+        "Instantly apply properties to buffers affected",
+        "", 0, 0, "on", "on", 0, "", "", "", "", "", "")
 
     # section "buffer"
     section_buffer = weechat.config_new_section(
@@ -188,7 +195,7 @@ def bas_completion_options_cb(data, completion_item, buffer, completion):
     return weechat.WEECHAT_RC_OK
 
 
-# ==============================[ timer/signal ]==============================
+# ==========================[ timer/signal/option ]===========================
 
 def bas_apply_options_for_buffer(buffer):
     full_name = weechat.buffer_get_string(buffer, "full_name")
@@ -231,6 +238,33 @@ def bas_signal_buffer_opened_cb(data, signal, signal_data):
         weechat.hook_timer(timer, 0, 1,
                            "bas_timer_buffer_opened_cb",
                            weechat.buffer_get_string(buffer, "full_name"))
+    return weechat.WEECHAT_RC_OK
+
+def bas_config_option_cb(data, option, value):
+    if not weechat.config_boolean(bas_options["look_instant"]):
+        return weechat.WEECHAT_RC_OK
+
+    if not weechat.config_get(option): # option was deleted
+        return weechat.WEECHAT_RC_OK
+
+    option = option[len("%s.buffer." % CONFIG_FILE_NAME):]
+
+    pos = option.rfind(".")
+    if pos > 0:
+        buffer_mask = option[0:pos]
+        property = option[pos+1:]
+        if buffer_mask and property:
+            buffers = weechat.infolist_get("buffer", "", buffer_mask)
+
+            if not buffers:
+                return weechat.WEECHAT_RC_OK
+
+            while weechat.infolist_next(buffers):
+                buffer = weechat.infolist_pointer(buffers, "pointer")
+                weechat.buffer_set(buffer, property, value)
+
+            weechat.infolist_free(buffers)
+
     return weechat.WEECHAT_RC_OK
 
 # ==================================[ main ]==================================
@@ -287,6 +321,8 @@ if __name__ == "__main__" and import_ok:
                 "bas_completion_options_cb", "")
             weechat.hook_signal("9000|buffer_opened",
                                 "bas_signal_buffer_opened_cb", "")
+            weechat.hook_config("%s.buffer.*" % CONFIG_FILE_NAME,
+                                "bas_config_option_cb", "")
 
             # core buffer is already open on script startup, check manually!
             bas_signal_buffer_opened_cb("", "", weechat.buffer_search_main())
