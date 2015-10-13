@@ -506,9 +506,9 @@ def dh1080_pack(ctx):
     cmd = None
     if ctx.state == 0:
         ctx.state = 1
-        cmd = "DH1080_INIT "
+        cmd = "DH1080_INIT_cbc "
     else:
-        cmd = "DH1080_FINISH "
+        cmd = "DH1080_FINISH_cbc "
     return cmd + dh1080_b64encode(int2bytes(ctx.public))
 
 
@@ -522,7 +522,7 @@ def dh1080_unpack(msg, ctx):
                  "anyway. See RFC 2785 for more details."
 
     if ctx.state == 0:
-        if not msg.startswith("DH1080_INIT "):
+        if not msg.startswith("DH1080_INIT_cbc "):
             raise MalformedError
         ctx.state = 1
         try:
@@ -541,7 +541,7 @@ def dh1080_unpack(msg, ctx):
             raise MalformedError
 
     elif ctx.state == 1:
-        if not msg.startswith("DH1080_FINISH "):
+        if not msg.startswith("DH1080_FINISH_cbc "):
             raise MalformedError
         ctx.state = 1
         try:
@@ -634,14 +634,14 @@ def fish_modifier_in_notice_cb(data, modifier, server_name, string):
     global fish_DH1080ctx, fish_keys, fish_cyphers
 
     match = re.match(
-        r"^(:(.*?)!.*? NOTICE (.*?) :)((DH1080_INIT |DH1080_FINISH |\+OK |mcps )?.*)$",
+        r"^(:(.*?)!.*? NOTICE (.*?) :)((DH1080_INIT_cbc |DH1080_FINISH_cbc |\+OK |mcps )?.*)$",
         string)
     #match.group(0): message
     #match.group(1): msg without payload
     #match.group(2): source
     #match.group(3): target
     #match.group(4): msg
-    #match.group(5): DH1080_INIT |DH1080_FINISH
+    #match.group(5): DH1080_INIT_cbc |DH1080_FINISH_cbc
     if not match or not match.group(5):
         return string
 
@@ -653,7 +653,7 @@ def fish_modifier_in_notice_cb(data, modifier, server_name, string):
     buffer = weechat.info_get("irc_buffer", "%s,%s" % (
             server_name, match.group(2)))
 
-    if match.group(5) == "DH1080_FINISH " and targetl in fish_DH1080ctx:
+    if match.group(5) == "DH1080_FINISH_cbc " and targetl in fish_DH1080ctx:
         try:
             if not dh1080_unpack(match.group(4), fish_DH1080ctx[targetl]):
                 fish_announce_unencrypted(buffer, target)
@@ -665,7 +665,7 @@ def fish_modifier_in_notice_cb(data, modifier, server_name, string):
         fish_alert(buffer, "Key exchange for %s sucessful" % target)
 
         try:
-            fish_keys[targetl] = dh1080_secret(fish_DH1080ctx[targetl])
+            fish_keys[targetl] = 'cbc:' + dh1080_secret(fish_DH1080ctx[targetl])
         except MalformedError, ValueError:
             fish_alert(buffer, "Invalid data received.")
             return ""
@@ -676,7 +676,7 @@ def fish_modifier_in_notice_cb(data, modifier, server_name, string):
 
         return ""
 
-    if match.group(5) == "DH1080_INIT ":
+    if match.group(5) == "DH1080_INIT_cbc ":
         fish_DH1080ctx[targetl] = DH1080Ctx()
 
         msg = ' '.join(match.group(4).split()[0:2])
@@ -701,7 +701,7 @@ def fish_modifier_in_notice_cb(data, modifier, server_name, string):
                 match.group(2), reply))
 
         try:
-            fish_keys[targetl] = dh1080_secret(fish_DH1080ctx[targetl])
+            fish_keys[targetl] = 'cbc:' + dh1080_secret(fish_DH1080ctx[targetl])
         except MalformedError, ValueError:
             fish_alert(buffer, "Invalid data received.")
             return ""
