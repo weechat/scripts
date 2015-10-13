@@ -914,14 +914,17 @@ def fish_modifier_out_topic_cb(data, modifier, server_name, string):
 
     if targetl not in fish_keys:
         fish_announce_unencrypted(buffer, target)
-
         return string
 
-    if targetl not in fish_cyphers:
+    if fish_keys[targetl].startswith('cbc:'):
         b = Blowfish(fish_keys[targetl])
-        fish_cyphers[targetl] = b
     else:
-        b = fish_cyphers[targetl]
+        if targetl not in fish_cyphers:
+            b = Blowfish(fish_keys[targetl])
+            fish_cyphers[targetl] = b
+        else:
+            b = fish_cyphers[targetl]
+
     cypher = blowcrypt_pack(match.group(3), b)
 
     fish_announce_encrypted(buffer, target)
