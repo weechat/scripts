@@ -118,6 +118,8 @@
 #                     ( https://github.com/dobbymoodge/ ):
 #           - Added 'copycmd' setting, users can set command to pipe into
 #             for '/url copy'
+#  - V2.8 Simmo Saan <simmo.saan@gmail.com>:
+#           - Changed print hook to ignore filtered lines
 #
 # Copyright (C) 2005 David Rubin <drubin AT smartcube dot co dot za>
 #
@@ -163,7 +165,7 @@ urlRe = re.compile(r'(\w+://(?:%s|%s)(?::\d+)?(?:/[^\]>\s]*)?)' % (domain, ipAdd
 
 SCRIPT_NAME    = "urlgrab"
 SCRIPT_AUTHOR  = "David Rubin <drubin [At] smartcube [dot] co [dot] za>"
-SCRIPT_VERSION = "2.7"
+SCRIPT_VERSION = "2.8"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Url functionality Loggin, opening of browser, selectable links"
 CONFIG_FILE_NAME= "urlgrab"
@@ -405,9 +407,9 @@ class UrlGrabber:
         if not found:
             urlGrabPrint(buff + ": no entries")
 
-def urlGrabCheckMsgline(bufferp, message):
+def urlGrabCheckMsgline(bufferp, message, isdisplayed):
     global urlGrab, max_buffer_length
-    if not message:
+    if not message or isdisplayed == 0:
         return
     # Ignore output from 'tinyurl.py' and our selfs
     if ( message.startswith( "[AKA] http://tinyurl.com" ) or
@@ -423,7 +425,7 @@ def urlGrabCheckMsgline(bufferp, message):
 
 
 def urlGrabCheck(data, bufferp, uber_empty, tagsn, isdisplayed, ishilight, prefix, message):
-    urlGrabCheckMsgline(hashBufferName(bufferp), message)
+    urlGrabCheckMsgline(hashBufferName(bufferp), message, isdisplayed)
     return weechat.WEECHAT_RC_OK
 
 def urlGrabCopy(bufferd, index):
