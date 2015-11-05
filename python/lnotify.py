@@ -26,10 +26,20 @@
 # - changed entire system to hook_process_hashtable calls to notify-send
 # - also changed the configuration option names and methods
 # Note: If you want pynotify, refer to the 'notify.py' weechat script
+#
+# 0.3.0
+# - added check to see whether the window has x focus so that notify will
+# still fire if the conversation tab is open, but the x window is not.
+# Note: This will check whether X is running first and whether xdotool
+# is installed. If anybody knows a better way to do this, please let me know.
+#
+
 import weechat as weechat
+import subprocess
+from os import environ, path
 
 lnotify_name = "lnotify"
-lnotify_version = "0.2.0"
+lnotify_version = "0.3.0"
 lnotify_license = "GPL3"
 
 # convenient table checking for bools
@@ -74,14 +84,25 @@ def handle_msg(data, pbuffer, date, tags, displayed, highlight, prefix, message)
     notify_away = true[cfg["notify_away"]]
     buffer_type = weechat.buffer_get_string(pbuffer, "localvar_type")
     away = weechat.buffer_get_string(pbuffer, "localvar_away")
+    x_focus = False
+    window_name = ""
 
-    if pbuffer == weechat.current_buffer():
+    # Check to make sure we're in X and xdotool exists.
+    # This is kinda crude, but I'm no X master.
+    if (environ.get('DISPLAY') != None) and path.isfile("/bin/xdotool"):
+        window_name = subprocess.check_output(["xdotool", "getwindowfocus", "getwindowname"])
+
+    if "WeeChat" in window_name:
+        x_focus = True
+
+    if pbuffer == weechat.current_buffer() and x_focus:
         return weechat.WEECHAT_RC_OK
 
     if away and not notify_away:
         return weechat.WEECHAT_RC_OK
 
     buffer_name = weechat.buffer_get_string(pbuffer, "short_name")
+
 
     if buffer_type == "private" and query:
         notify_user(buffer_name, message)
