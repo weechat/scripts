@@ -21,6 +21,10 @@
 #
 # History:
 #
+# 2015-11-12, nils_2 <weechatter@arcor.de>
+#     version 2.1: fix problem with buffer short_name "weechat", using option
+#                  "use_core_instead_weechat", see:
+#                  https://github.com/weechat/weechat/issues/574
 # 2014-05-12, Sébastien Helleu <flashcode@flashtux.org>:
 #     version 2.0: add help on options, replace option "sort_by_activity" by
 #                  "sort" (add sort by name and first match at beginning of
@@ -80,7 +84,7 @@ from __future__ import print_function
 
 SCRIPT_NAME = 'go'
 SCRIPT_AUTHOR = 'Sébastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '2.0'
+SCRIPT_VERSION = '2.1'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC = 'Quick jump to buffers'
 
@@ -279,7 +283,9 @@ def go_matching_buffers(strinput):
             name = weechat.infolist_string(infolist, 'short_name')
         else:
             name = weechat.infolist_string(infolist, 'name')
-        if name == 'weechat' and go_option_enabled('use_core_instead_weechat'):
+        if name == 'weechat' \
+                and go_option_enabled('use_core_instead_weechat') \
+                and weechat.infolist_string(infolist, 'plugin_name') == 'core':
             name = 'core'
         number = weechat.infolist_integer(infolist, 'number')
         full_name = weechat.infolist_string(infolist, 'full_name')
