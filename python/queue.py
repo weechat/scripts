@@ -20,6 +20,9 @@
 #
 # Version History:
 #
+# 0.4.2 - Nov 22nd, 2015
+#    Add saving of static queues to disk and reloading them on startup.
+#    Added by Tim Kuhlman - https://github.com/tkuhlman
 # 0.4.1 - Jan 20th, 2011
 #    Multi-list queuing seems to work flawlessly so far. Expanded on the /help qu text.
 #    Properties are fully-functional. As for loading/saving of lists, I want to hold off until
@@ -70,6 +73,9 @@
 # 0.1.0 - Jan 4th, 2011 
 #   Wrote basic outline with minimal functionality
 # ==================================================== #
+
+import os
+import pickle
 
 import_ok = True
 try:
@@ -153,13 +159,13 @@ class Queue():
 
 SCRIPT_NAME		= "queue"
 SCRIPT_AUTHOR	= "walk"
-SCRIPT_VERSION	= "0.4.1"
+SCRIPT_VERSION	= "0.4.2"
 SCRIPT_LICENSE	= "GPL3"
 SCRIPT_DESC		= "Command queuing"
 
 COMM_CMD		= "qu"
 COMM_DESC		= "Queuing commands in WeeChat"
-COMM_ARGS		= "[add [command] | del [index] | new [list] | dellist [list] | set [property] [on|off] |list | clear | exec | listview]"
+COMM_ARGS       = "[add [command] | del [index] | new [list] | dellist [list] | set [property] [on|off] |list | clear | exec | listview | save]"
 COMM_ARGS_DESC		= "Examples: \n\
    /qu add /msg chanserv op #foo bar \n\
    /qu del 1 \n\
@@ -171,6 +177,7 @@ COMM_ARGS_DESC		= "Examples: \n\
    /qu clear - Clear current list.. add a listname to clear a specified list. \n\
    /qu exec - Execute the commands of the current list.. you can also specify a list here as well. \n\
    /qu listview - Outputs the names of all your lists. \n\
+   /qu save - Save static lists to disk \n\
    /qu set static on - Sets static property to ON for current list. This means that when executed, the list WILL NOT clear. The clear command will not work either.\n \
    \n\
    PROPERTIES (for set command):\n \
@@ -191,7 +198,19 @@ def __config__():
 	if not weechat.config_get_plugin("verbose") in ("yes", "no"):
 		weechat.config_set_plugin("verbose", "yes")
 	
+	load()
 	return weechat.WEECHAT_RC_OK
+
+def load():
+    """ Load saved queues from pickle. """
+    global COMMAND_QU
+    pickle_path = os.path.join(weechat.info_get("weechat_dir", ""), 'queue.pickle')
+    if os.path.exists(pickle_path):
+        with open(pickle_path, 'r') as qu_pickle:
+            COMMAND_QU = pickle.load(qu_pickle)
+
+    if 'default' not in COMMAND_QU:
+        COMMAND_QU['default'] = Queue()
 
 def rainbow(data):
 	""" Not my favorite option but a requested one """
@@ -225,6 +244,18 @@ def prntcore(data, essential=0, rb=0):
 			weechat.prnt(buffer, rainbow(data))
 	return weechat.WEECHAT_RC_OK
 
+def save():
+    """ Save to disk all static lists as a pickle. """
+    global COMMAND_QU
+    pickle_path = os.path.join(weechat.info_get("weechat_dir", ""), 'queue.pickle')
+    to_save = {}
+    for name, qu in COMMAND_QU.iteritems():
+        if not qu.__clearable__:  # Note isClear method doesn't show status it sets it
+            to_save[name] = qu
+
+    with open(pickle_path, 'w') as qu_pickle:
+        pickle.dump(to_save, qu_pickle, pickle.HIGHEST_PROTOCOL)
+
 def rejoin(data, delimiter=' '):
 	""" Rejoins a split string """
 	tmpString = ''
@@ -247,7 +278,7 @@ def qu_cb(data, buffer, args):
                 return weechat.WEECHAT_RC_OK
 
 	argv = args.split()
-	arglist = ['add', 'del', 'new', 'dellist', 'list', 'clear', 'exec', 'listview', 'set']
+	arglist = ['add', 'del', 'new', 'dellist', 'list', 'clear', 'exec', 'listview', 'save', 'set']
 	
 	if not argv[0] in arglist:
 		prntcore('[ queue -> not a valid argument: {0}'.format(argv[0]), rb=rainbowit)
@@ -362,6 +393,8 @@ def qu_cb(data, buffer, args):
 			del COMMAND_QU[argv[1].lower()]
 			prntcore('[ queue -> {0} successfully deleted.'.format(argv[1].lower()), rb=rainbowit)
 	
+	elif argv[0].lower() == "save":
+		save()
 	elif argv[0].lower() == "set" and len(argv) == 4:
 		setargs = args.split()
 		list_name = setargs[1].lower()
@@ -380,9 +413,11 @@ def qu_cb(data, buffer, args):
 				if toggle=='on':
 					COMMAND_QU[list_name].isClear(False)
 					prntcore('[ queue -> static property toggled on for: {0} ]'.format(list_name), rb=rainbowit)
+					save()
 				else:
 					COMMAND_QU[list_name].isClear(True)
 					prntcore('[ queue -> static property toggled off for: {0} ]'.format(list_name), rb=rainbowit)
+					save()
 			
 			elif set_prop == 'lock':
 				if toggle=='on':
