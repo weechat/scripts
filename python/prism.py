@@ -9,7 +9,7 @@
 #
 # 0. You just DO WHAT THE FUCK YOU WANT TO.
 # 2015-11-16, wowaname <wowaname@volatile.ch>
-#    v0.2.9: wrote an actual parser rather than regex
+#    v0.2.9, 0.2.10: wrote an actual parser rather than regex
 # 2014-09-03, Matthew Martin <phy1729@gmail.com>
 #    v0.2.8: add color reset to the end of the output
 # 2013-11-26, Seganku <seganku@zenu.net>
@@ -34,7 +34,7 @@ import re
 
 SCRIPT_NAME    = "prism"
 SCRIPT_AUTHOR  = "Alex Barrett <al.barrett@gmail.com>"
-SCRIPT_VERSION = "0.2.9"
+SCRIPT_VERSION = "0.2.10"
 SCRIPT_LICENSE = "WTFPL"
 SCRIPT_DESC    = "Taste the rainbow."
 
@@ -93,7 +93,7 @@ def prism_cmd_cb(data, buffer, args):
     opts = input[1:optstop] if optstop else ''
     cmdstop = 'c' in opts and input.find(' ', optstop+1)
     cmd = ''
-    if 'm' in opts: cmd = '/me'
+    if 'm' in opts: cmd = '/me '
     if 'c' in opts:
         find = input[optstop+1:cmdstop]
         where = input.find(find, cmdstop+1)
@@ -129,7 +129,7 @@ def prism_cmd_cb(data, buffer, args):
     if len(output) > 0 and output[0] == "/":
         output = "/" + output
     if len(cmd) > 0:
-        output = cmd + ' ' + output
+        output = cmd + output
     if input_method == "keybinding":
         w.buffer_set(buffer, "input", output.encode("UTF-8"))
     else:
