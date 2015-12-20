@@ -1,46 +1,57 @@
-# Copyright (c) 2014 by Vlad Stoica <stoica.vl@gmail.com>
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
-# History
-# 01-05-2014 - Vlad Stoica
-# Uses a sqlite3 database to store triggers with the replies, has the
-# ability to ignore channels.
-#
-# Bugs : not that i'm aware of.
+"""
+Copyright (c) 2014 by Vlad Stoica <stoica.vl@gmail.com>
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+History
+-------
+01-05-2014 - Vlad Stoica
+Uses a sqlite3 database to store triggers with the replies, has the
+ability to ignore channels.
+16-08-2015 - Vlad Stoica
+Fixed a bug where replies couldn't have `:' in them.
+
+Bugs: not that i'm aware of.
+"""
+
+#pylint: disable-msg=too-many-arguments
 
 try:
     import weechat
     import sqlite3
-    import_error = 0
+    IMPORT_ERR = 0
 except ImportError:
-    import_error = 1
+    IMPORT_ERR = 1
 import os
 
 SCRIPT_NAME = "triggerreply"
 SCRIPT_AUTHOR = "Vlad Stoica <stoica.vl@gmail.com>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Auto replies when someone sends a specified trigger."
 
 def phelp():
-    weechat.prnt("", "Triggerreply (trigge.rs) plugin. Automatically replies over specified triggers")
+    """ print the help message """
+    weechat.prnt("", "Triggerreply (trigge.rs) plugin. Automatically \
+replies over specified triggers")
     weechat.prnt("", "------------")
-    weechat.prnt("", "Usage: /triggerreply [list | add trigger:reply | remove trigger | ignore server.#channel | parse server.#channel]")
+    weechat.prnt("", "Usage: /triggerreply [list | add trigger:reply \
+| remove trigger | ignore server.#channel | parse server.#channel]")
 
 def create_db():
-    tmpcon = sqlite3.connect(dbfile)
+    """ create the sqlite database """
+    tmpcon = sqlite3.connect(DBFILE)
     cur = tmpcon.cursor()
     cur.execute("CREATE TABLE triggers(id INTEGER PRIMARY KEY, trig VARCHAR, reply VARCHAR);")
     cur.execute("INSERT INTO triggers(trig, reply) VALUES ('trigge.rs', 'Automatic reply');")
@@ -50,10 +61,8 @@ def create_db():
     cur.close()
 
 def search_trig_cb(data, buffer, date, tags, displayed, highlight, prefix, message):
-    """
-    Function for parsing sent messages.
-    """
-    database = sqlite3.connect(dbfile)
+    """ function for parsing sent messages """
+    database = sqlite3.connect(DBFILE)
     database.text_factory = str
     cursor = database.cursor()
     ignored_chan = False
@@ -66,10 +75,8 @@ def search_trig_cb(data, buffer, date, tags, displayed, highlight, prefix, messa
     return weechat.WEECHAT_RC_OK
 
 def command_input_callback(data, buffer, argv):
-    """
-    Function called when `/triggerreply args' is run
-    """
-    database = sqlite3.connect(dbfile)
+    """ function called when `/triggerreply args' is run """
+    database = sqlite3.connect(DBFILE)
     cursor = database.cursor()
     command = argv.split()
     if len(command) == 0:
@@ -84,7 +91,8 @@ def command_input_callback(data, buffer, argv):
     elif command[0] == "add":
         try:
             trigger = argv[4:].split(":")[0]
-            reply = argv[4:].split(":")[1]
+            #reply = ''.join(argv[4:].split(":")[1:])
+            reply = argv[4:].replace(trigger+":", '')
             cursor.execute("INSERT INTO triggers(trig, reply) VALUES (?,?)", (trigger, reply,))
         except:
             weechat.prnt("", "Could not add trigger.\n")
@@ -125,13 +133,15 @@ def command_input_callback(data, buffer, argv):
             weechat.prnt("", "Channel successfully removed from ignored.")
     return weechat.WEECHAT_RC_OK
 
-if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, "", ""):
-    if import_error:
+if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC,
+                    "", ""):
+    if IMPORT_ERR:
         weechat.prnt("", "You need sqlite3 to run this plugin.")
-    dbfile = "%s/trigge.rs" % weechat.info_get("weechat_dir", "")
-    if not os.path.isfile(dbfile):
+    DBFILE = "%s/trigge.rs" % weechat.info_get("weechat_dir", "")
+    if not os.path.isfile(DBFILE):
         create_db()
 
 
     weechat.hook_print("", "", "", 1, "search_trig_cb", "")
-    weechat.hook_command(SCRIPT_NAME, SCRIPT_DESC, "See `/triggerreply' for more information.", "", "", "command_input_callback", "")
+    weechat.hook_command(SCRIPT_NAME, SCRIPT_DESC, "See `/triggerreply' for more information.", "",
+                         "", "command_input_callback", "")
