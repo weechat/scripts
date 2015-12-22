@@ -163,7 +163,7 @@ This script supports only OTR protocol version 2.
 
 SCRIPT_AUTHOR = 'Matthew M. Boedicker'
 SCRIPT_LICENCE = 'GPL3'
-SCRIPT_VERSION = '1.7.0'
+SCRIPT_VERSION = '1.8.0'
 
 OTR_DIR_NAME = 'otr'
 
@@ -307,7 +307,7 @@ def current_user(server_name):
 def irc_user(nick, server):
     """Build an IRC user string from a nick and server."""
     return '{nick}@{server}'.format(
-            nick=nick,
+            nick=nick.lower(),
             server=server)
 
 def isupport_value(server, feature):
@@ -1228,7 +1228,7 @@ def message_out_cb(data, modifier, modifier_data, string):
     """Outgoing message callback."""
     result = ''
 
-    # If any exception is raised in this function, WeeChat will send the
+    # If any exception is raised in this function, WeeChat will not send the
     # outgoing message, which could be something that the user intended to be
     # encrypted. This paranoid exception handling ensures that the system
     # fails closed and not open.
