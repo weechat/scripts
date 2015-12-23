@@ -26,6 +26,8 @@
 # Happy chat, enjoy :)
 #
 # History:
+# 2015-12-30, Jochen Sprickerhof <weechat@jochen.sprickerhof.de>:
+#     version 0.1: Reworked for Whatsapp
 # 2013-09-30, Nils Görs <freenode.nils_2>:
 #     version 1.6: add support of /secure for passwords and jid
 #                : fix stdout/stderr when no JID was set
@@ -93,7 +95,6 @@ SCRIPT_DESC    = "Whatsapp protocol for WeeChat"
 SCRIPT_COMMAND = SCRIPT_NAME
 
 import re
-import warnings
 
 import_ok = True
 
@@ -104,19 +105,28 @@ except:
     print("Get WeeChat now at: http://www.weechat.org/")
     import_ok = False
 
-# On import, xmpp may produce warnings about using hashlib instead of
-# deprecated sha and md5. Since the code producing those warnings is
-# outside this script, catch them and ignore.
-original_filters = warnings.filters[:]
-warnings.filterwarnings("ignore",category=DeprecationWarning)
 try:
-    import xmpp
+    from yowsup.common import YowConstants
+    from yowsup.layers import YowLayerEvent
+    from yowsup.layers.auth import AuthError
+    from yowsup.layers.interface import YowInterfaceLayer, ProtocolEntityCallback
+    from yowsup.layers.network import YowNetworkLayer
+    from yowsup.layers.protocol_contacts.protocolentities.iq_statuses_get import GetStatusesIqProtocolEntity
+    from yowsup.layers.protocol_contacts.protocolentities.iq_statuses_result import ResultStatusesIqProtocolEntity
+    from yowsup.layers.protocol_iq import YowIqProtocolLayer
+    from yowsup.layers.protocol_iq.protocolentities.iq import IqProtocolEntity
+    from yowsup.layers.protocol_iq.protocolentities.iq_ping import PingIqProtocolEntity
+    from yowsup.layers.protocol_messages.protocolentities.message_text import TextMessageProtocolEntity
+    from yowsup.layers.protocol_presence.protocolentities.presence_available import AvailablePresenceProtocolEntity
+    from yowsup.layers.protocol_presence.protocolentities.presence_subscribe import SubscribePresenceProtocolEntity
+    from yowsup.layers.protocol_presence.protocolentities.presence_unavailable import UnavailablePresenceProtocolEntity
+    from yowsup.layers.protocol_presence.protocolentities.presence_unsubscribe import UnsubscribePresenceProtocolEntity
+    from yowsup.layers.protocol_profiles.protocolentities import SetStatusIqProtocolEntity
+    from yowsup.stacks import YowStackBuilder
 except:
-    print("Package python-xmpp (xmpppy) must be installed to use whatsapp protocol.")
-    print("Get xmpppy with your package manager, or at this URL: http://xmpppy.sourceforge.net/")
+    print("Package python-yowsup (yowsup) must be installed to use whatsapp protocol.")
+    print("Get yowsup with your package manager, or at this URL: https://github.com/tgalal/yowsup")
     import_ok = False
-finally:
-    warnings.filters = original_filters
 
 # ==============================[ global vars ]===============================
 
@@ -133,28 +143,6 @@ whatsapp_server_options = {
                        "change_cb"    : "",
                        "delete_cb"    : "",
                        },
-    "priority"     : { "type"         : "integer",
-                       "desc"         : "Default resource priority",
-                       "min"          : 0,
-                       "max"          : 65535,
-                       "string_values": "",
-                       "default"      : "8",
-                       "value"        : "8",
-                       "check_cb"     : "",
-                       "change_cb"    : "",
-                       "delete_cb"    : "",
-                       },
-    "away_priority": { "type"         : "integer",
-                       "desc"         : "Resource priority on away",
-                       "min"          : 0,
-                       "max"          : 65535,
-                       "string_values": "",
-                       "default"      : "0",
-                       "value"        : "0",
-                       "check_cb"     : "",
-                       "change_cb"    : "",
-                       "delete_cb"    : "",
-                       },
     "password"     : { "type"         : "string",
                        "desc"         : "password for whatsapp id on server",
                        "min"          : 0,
@@ -162,28 +150,6 @@ whatsapp_server_options = {
                        "string_values": "",
                        "default"      : "",
                        "value"        : "",
-                       "check_cb"     : "",
-                       "change_cb"    : "",
-                       "delete_cb"    : "",
-                       },
-    "server"       : { "type"         : "string",
-                       "desc"         : "connect server host or ip, eg. talk.google.com",
-                       "min"          : 0,
-                       "max"          : 0,
-                       "string_values": "",
-                       "default"      : "",
-                       "value"        : "",
-                       "check_cb"     : "",
-                       "change_cb"    : "",
-                       "delete_cb"    : "",
-                       },
-    "port"         : { "type"         : "integer",
-                       "desc"         : "connect server port, eg. 5223",
-                       "min"          : 0,
-                       "max"          : 65535,
-                       "string_values": "",
-                       "default"      : "5222",
-                       "value"        : "5222",
                        "check_cb"     : "",
                        "change_cb"    : "",
                        "delete_cb"    : "",
@@ -204,8 +170,8 @@ whatsapp_server_options = {
                        "min"          : 0,
                        "max"          : 0,
                        "string_values": "",
-                       "default"      : "off",
-                       "value"        : "off",
+                       "default"      : "on",
+                       "value"        : "on",
                        "check_cb"     : "",
                        "change_cb"    : "",
                        "delete_cb"    : "",
@@ -221,13 +187,35 @@ whatsapp_server_options = {
                        "change_cb"    : "",
                        "delete_cb"    : "",
                        },
+    "recipes"      : { "type"         : "boolean",
+                       "desc"         : "Send recipes for messages",
+                       "min"          : 0,
+                       "max"          : 0,
+                       "string_values": "",
+                       "default"      : "on",
+                       "value"        : "on",
+                       "check_cb"     : "",
+                       "change_cb"    : "",
+                       "delete_cb"    : "",
+                       },
+    "read"         : { "type"         : "boolean",
+                       "desc"         : "Send read notifications",
+                       "min"          : 0,
+                       "max"          : 0,
+                       "string_values": "",
+                       "default"      : "on",
+                       "value"        : "on",
+                       "check_cb"     : "",
+                       "change_cb"    : "",
+                       "delete_cb"    : "",
+                       },
     "ping_interval": { "type"         : "integer",
                        "desc"         : "Number of seconds between server pings. 0 = disable",
                        "min"          : 0,
                        "max"          : 9999999,
                        "string_values": "",
-                       "default"      : "0",
-                       "value"        : "0",
+                       "default"      : "50",
+                       "value"        : "50",
                        "check_cb"     : "ping_interval_check_cb",
                        "change_cb"    : "",
                        "delete_cb"    : "",
@@ -312,6 +300,10 @@ def whatsapp_config_server_read_cb(data, config_file, section, option_name, valu
         if not server:
             server = Server(items[0])
             whatsapp_servers.append(server)
+            stackbuilder = YowStackBuilder()
+            # disable status ping as weechat seems to have a problem with threads
+            stackbuilder.setProp(YowIqProtocolLayer.PROP_PING_INTERVAL, 0)
+            stackbuilder.pushDefaultLayers(True).push(server).build()
         if server:
             rc = weechat.config_option_set(server.options[items[1]], value, 1)
     return rc
@@ -399,12 +391,16 @@ def ping_interval_check_cb(server_name, option, value):
 
 # ================================[ servers ]=================================
 
-class Server:
+class Server(YowInterfaceLayer):
     """ Class to manage a server: buffer, connection, send/recv data. """
 
     def __init__(self, name, **kwargs):
         """ Init server """
         global whatsapp_config_file, whatsapp_config_section, whatsapp_server_options
+
+        super(Server, self).__init__()
+        self.connected = False
+
         self.name = name
         # create options (user can set them with /set)
         self.options = {}
@@ -424,18 +420,14 @@ class Server:
                 props["delete_cb"], "")
         # internal data
         self.jid = None
-        self.client = None
         self.sock = None
         self.hook_fd = None
         self.buffer = ""
         self.chats = []
-        self.roster = None
         self.buddies = []
         self.buddy = None
         self.ping_timer = None              # weechat.hook_timer for sending pings
         self.ping_timeout_timer = None      # weechat.hook_timer for monitoring ping timeout
-        self.ping_up = False                # Connection status as per pings.
-        self.presence = xmpp.protocol.Presence()
 
     def option_string(self, option_name):
         """ Return a server option, as string. """
@@ -448,6 +440,20 @@ class Server:
     def option_integer(self, option_name):
         """ Return a server option, as string. """
         return weechat.config_integer(self.options[option_name])
+
+    @ProtocolEntityCallback("receipt")
+    def onReceipt(self, entity):
+        self.toLower(entity.ack())
+
+    @ProtocolEntityCallback("notification")
+    def onNotification(self, notification):
+        notificationData = notification.__str__()
+        if notificationData:
+            weechat.prnt('', "Notification: %s" % notificationData)
+        else:
+            weechat.prnt('', "From :%s, Type: %s" % (notification.getFrom(), notification.getType()))
+        if weechat.config_boolean(self.options['recipes']):
+            self.toLower(notification.ack())
 
     def connect(self):
         """ Connect to whatsapp server. """
@@ -465,84 +471,33 @@ class Server:
                 weechat.buffer_set(self.buffer, "nicklist", "1")
                 weechat.buffer_set(self.buffer, "nicklist_display_groups", "1")
                 weechat.buffer_set(self.buffer, "display", "auto")
-        self.disconnect()
-
-        if not eval_expression(self.option_string("jid")):
-            weechat.prnt(self.buffer, "%swhatsapp: JID must contain at least domain name"
-                         % weechat.prefix("error"))
-            self.ping_up = False
-            self.client = None
-            return self.is_connected()
 
         self.buddy = Buddy(jid=eval_expression(self.option_string("jid")), server=self)
 
-        server = self.option_string("server")
-        port = self.option_integer("port")
-        self.client = xmpp.Client(server=self.buddy.domain, debug=[])
-        conn = None
-        server_tuple = None
-        if server:
-            if port:
-                server_tuple = (server, port)
-            else:
-                server_tuple = (server)
+        credentials = (eval_expression(self.option_string("jid")), eval_expression(self.option_string("password")))
+        self.getStack().setCredentials(credentials)
+        self.getStack().broadcastEvent(YowLayerEvent(YowNetworkLayer.EVENT_STATE_CONNECT))
 
-        # self.client.connect() may produce a "socket.ssl() is deprecated"
-        # warning. Since the code producing the warning is outside this script,
-        # catch it and ignore.
-        original_filters = warnings.filters[:]
-        warnings.filterwarnings("ignore",category=DeprecationWarning)
-        try:
-            conn = self.client.connect(server=server_tuple)
-        finally:
-            warnings.filters = original_filters
+        # set blocking, so we don't send in the select loop as asyncore does it
+        self.sock = self.getStack().getLayer(0).socket.setblocking(1)
+        # push initial connect message through the socket (would have been done in the select loop otherwise
+        self.getStack().getLayer(0).handle_write_event()
 
-        if conn:
-            weechat.prnt(self.buffer, "whatsapp: connection ok with %s" % conn)
-            res = self.buddy.resource
-            if not res:
-                res = "WeeChat"
+        self.sock = self.getStack().getLayer(0).socket.fileno()
+        self.hook_fd = weechat.hook_fd(self.sock, 1, 0, 0, "whatsapp_fd_cb", "")
 
-            auth = self.client.auth(self.buddy.username,
-                                    eval_expression(self.option_string("password")),
-                                    res)
+        weechat.buffer_set(self.buffer, "highlight_words", self.buddy.alias)
+        weechat.buffer_set(self.buffer, "localvar_set_nick", self.buddy.alias)
+        hook_away = weechat.hook_command_run("/away -all*", "whatsapp_away_command_run_cb", "")
 
-            if auth:
-                weechat.prnt(self.buffer, "whatsapp: authentication ok (using %s)" % auth)
-
-                self.roster = self.client.getRoster()
-                self.client.RegisterHandler("presence", self.presence_handler)
-                self.client.RegisterHandler("iq", self.iq_handler)
-                self.client.RegisterHandler("message", self.message_handler)
-                self.client.sendInitPresence(requestRoster=1)
-                self.sock = self.client.Connection._sock.fileno()
-                self.hook_fd = weechat.hook_fd(self.sock, 1, 0, 0, "whatsapp_fd_cb", "")
-                weechat.buffer_set(self.buffer, "highlight_words", self.buddy.username)
-                weechat.buffer_set(self.buffer, "localvar_set_nick", self.buddy.username);
-                hook_away = weechat.hook_command_run("/away -all*", "whatsapp_away_command_run_cb", "")
-
-
-                # setting initial presence
-                priority = weechat.config_integer(self.options['priority'])
-                self.set_presence(show="",priority=priority)
-
-
-                self.ping_up = True
-            else:
-                weechat.prnt(self.buffer, "%swhatsapp: could not authenticate"
-                             % weechat.prefix("error"))
-                self.ping_up = False
-                self.client = None
-        else:
-            weechat.prnt(self.buffer, "%swhatsapp: could not connect"
-                         % weechat.prefix("error"))
-            self.ping_up = False
-            self.client = None
-        return self.is_connected()
+        # Whatsapp doesn't send context, so we use aliases as contacts instead
+        for jid in whatsapp_jid_aliases.values():
+            if jid != self.buddy.jid:
+                self.add_buddy(jid)
 
     def is_connected(self):
         """Return connect status"""
-        if not self.client or not self.client.isConnected():
+        if not self.connected:
             return False
         else:
             return True
@@ -553,15 +508,10 @@ class Server:
         self.chats.append(chat)
         return chat
 
-    def add_buddy(self, jid):
-        """ Add a new buddy """
-        self.client.Roster.Authorize(jid)
-        self.client.Roster.Subscribe(jid)
-
     def del_buddy(self, jid):
         """ Remove a buddy and/or deny authorization request """
-        self.client.Roster.Unauthorize(jid)
-        self.client.Roster.Unsubscribe(jid)
+        entity = UnsubscribePresenceProtocolEntity(jid)
+        self.toLower(entity)
 
     def print_debug_server(self, message):
         """ Print debug message on server buffer. """
@@ -571,17 +521,17 @@ class Server:
     def print_debug_handler(self, handler_name, node):
         """ Print debug message for a handler on server buffer. """
         self.print_debug_server("%s_handler, xml message:\n%s"
-                                % (handler_name,
-                                   node.__str__(fancy=True).encode("utf-8")))
+                                % (handler_name, node))
 
     def print_error(self, message):
         """ Print error message on server buffer. """
         if whatsapp_debug_enabled():
             weechat.prnt(self.buffer, "%swhatsapp: %s" % (weechat.prefix("error"), message))
 
-    def presence_handler(self, conn, node):
+    @ProtocolEntityCallback("chatstate")
+    def presence_handler(self, node):
         self.print_debug_handler("presence", node)
-        buddy = self.search_buddy_list(node.getFrom().getStripped().encode("utf-8"), by='jid')
+        buddy = self.search_buddy_list(node.getFrom(), by='jid')
         if not buddy:
             buddy = self.add_buddy(jid=node.getFrom())
         action='update'
@@ -590,65 +540,97 @@ class Server:
             action='remove'
         if action == 'update':
             away = node.getShow() in ["away", "xa"]
-            status = ''
+            status = ' '
             if node.getStatus():
-                status = node.getStatus().encode("utf-8")
-            if self.roster:
-                name = self.roster.getName(buddy.bare_jid)
-                if name:
-                    buddy.set_name(name.encode("utf-8"))
+                status = node.getStatus()
             buddy.set_status(status=status, away=away)
         self.update_nicklist(buddy=buddy, action=action)
         return
 
-    def iq_handler(self, conn, node):
+    @ProtocolEntityCallback("iq")
+    def iq_handler(self, node):
         """ Receive iq message. """
         self.print_debug_handler("iq", node)
         #weechat.prnt(self.buffer, "whatsapp: iq handler")
-        if node.getFrom() == self.buddy.domain:
-            # type='result' => pong from server
-            # type='error'  => error message from server
-            # The ping_up is set True on an error message to handle cases where
-            # the ping feature is not implemented on a server. It's a bit of a
-            # hack, but if we can receive an error from the server, we assume
-            # the connection to the server is up.
-            if node.getType() in ['result', 'error']:
-                self.delete_ping_timeout_timer()    # Disable the timeout feature
-                self.ping_up = True
-                if not self.client.isConnected() and weechat.config_boolean(self.options['autoreconnect']):
-                    self.connect()
+        if isinstance(node, ResultStatusesIqProtocolEntity):
+            for jid in node.statuses:
+                buddy = self.search_buddy_list(jid, by='jid')
+                if not buddy:
+                    buddy = self.add_buddy(jid=jid)
+                buddy.set_status(status=node.statuses[jid][0])
 
-    def message_handler(self, conn, node):
+        elif isinstance(node, IqProtocolEntity):
+            self.delete_ping_timeout_timer()    # Disable the timeout feature
+            if not self.is_connected() and weechat.config_boolean(self.options['autoreconnect']):
+                self.connect()
+
+    def onEvent(self, layerEvent):
+        weechat.prnt('', layerEvent.getName())
+        if layerEvent.getName() == YowNetworkLayer.EVENT_STATE_CONNECTED:
+            self.connected = True
+            return True
+        elif layerEvent.getName() == YowNetworkLayer.EVENT_STATE_DISCONNECTED:
+            weechat.prnt('', "Disconnected: %s" % layerEvent.getArg("reason"))
+            if not self.is_connected() and weechat.config_boolean(self.options['autoreconnect']):
+                self.connect()
+            return True
+
+    @ProtocolEntityCallback("message")
+    def message_handler(self, node):
         """ Receive message. """
         self.print_debug_handler("message", node)
-        node_type = node.getType()
-        if node_type not in ["message", "chat", None]:
-            self.print_error("unknown message type: '%s'" % node_type)
-            return
-        jid = node.getFrom()
-        body = node.getBody()
+        messageOut = ""
+        if node.getType() == "text":
+            messageOut = self.getTextMessageBody(node)
+        elif node.getType() == "media":
+            messageOut = self.getMediaMessageBody(node)
+        else:
+            messageOut = "Unknown message type %s " % node.getType()
+            self.print_debug_handler("send", messageOut.toProtocolTreeNode())
+
+        jid = node.getFrom() if not node.isGroupMessage() else "%s/%s" % (node.getParticipant(False), node.getFrom())
+        body = messageOut
+
+        if weechat.config_boolean(self.options['recipes']):
+            self.toLower(node.ack(weechat.config_boolean(self.options['recipes'])))
+            self.print_debug_handler("Sent delivered receipt", "Message %s" % node.getId())
+
         if not jid or not body:
             return
-        buddy = self.search_buddy_list(self.stringify_jid(jid), by='jid')
+        buddy = self.search_buddy_list(jid, by='jid')
         if not buddy:
             buddy = self.add_buddy(jid=jid)
         # If a chat buffer exists for the buddy, receive the message with that
         # buffer even if private is off. The buffer may have been created with
-        # /wchat.
+        # /query.
         recv_object = self
         if not buddy.chat and weechat.config_boolean(self.options['private']):
             self.add_chat(buddy)
         if buddy.chat:
             recv_object = buddy.chat
-        recv_object.recv_message(buddy, body.encode("utf-8"))
+        recv_object.recv_message(buddy, body)
+
+    def getTextMessageBody(self, message):
+        return message.getBody()
+
+    def getMediaMessageBody(self, message):
+        if message.getMediaType() in ("image", "audio", "video"):
+            return self.getDownloadableMediaMessageBody(message)
+        else:
+            return "Media Type: %s" % message.getMediaType()
+
+    def getDownloadableMediaMessageBody(self, message):
+        return "Media Type:{media_type}, Size:{media_size}, URL:{media_url}".format(
+            media_type=message.getMediaType(),
+            media_size=message.getMediaSize(),
+            media_url=message.getMediaUrl()
+        )
 
     def recv(self):
         """ Receive something from whatsapp server. """
-        if not self.client:
-            return
         try:
-            self.client.Process(1)
-        except xmpp.protocol.StreamError as e:
+            self.getStack().getLayer(0).handle_read()
+        except AuthError as e:
             weechat.prnt('', '%s: Error from server: %s' %(SCRIPT_NAME, e))
             self.disconnect()
             if weechat.config_boolean(self.options['autoreconnect']):
@@ -686,13 +668,12 @@ class Server:
         recipient = buddy
         if isinstance(buddy, Buddy):
             recipient = buddy.jid
-        if not self.ping_up:
+        if not self.is_connected():
             weechat.prnt(self.buffer, "%swhatsapp: unable to send message, connection is down"
                          % weechat.prefix("error"))
             return
-        if self.client:
-            msg = xmpp.protocol.Message(to=recipient, body=message, typ='chat')
-            self.client.send(msg)
+        outgoingMessage = TextMessageProtocolEntity(message, to=self.stringify_jid(recipient))
+        self.toLower(outgoingMessage)
 
     def send_message_from_input(self, input=''):
         """ Send a message from input text on server buffer. """
@@ -734,27 +715,29 @@ class Server:
         If no message, then status is set to 'online'.
         """
         if message:
-            show = "xa"
-            status = message
-            priority = weechat.config_integer(self.options['away_priority'])
-            self.buddy.set_status(away=True, status=message)
+            entity = UnavailablePresenceProtocolEntity()
+            self.toLower(entity)
         else:
-            show = ""
-            status = None
-            priority = weechat.config_integer(self.options['priority'])
-            self.buddy.set_status(away=False)
-        self.set_presence(show, status, priority)
+            entity = AvailablePresenceProtocolEntity()
+            self.toLower(entity)
+        self.set_presence(message)
 
-    def set_presence(self, show=None, status=None, priority=None):
-        if not show == None: self.presence.setShow(show)
-        if not status == None: self.presence.setStatus(status)
-        if not priority == None: self.presence.setPriority(priority)
-        self.client.send(self.presence)
+    def set_presence(self, status=None):
+        message = status if status else ''
+        entity = SetStatusIqProtocolEntity(message)
+        self.toLower(entity)
 
-    def add_buddy(self, jid=None):
+    def add_buddy(self, jid):
+        """ Add a new buddy """
+        full_jid = self.stringify_jid(jid)
+        entity = SubscribePresenceProtocolEntity(full_jid)
+        self.toLower(entity)
+        entity = GetStatusesIqProtocolEntity([full_jid])
+        self.toLower(entity)
+
         buddy = Buddy(jid=jid, server=self)
-        buddy.resource = buddy.resource.encode("utf-8")
         self.buddies.append(buddy)
+        self.update_nicklist(buddy=buddy, action='update')
         return buddy
 
     def display_buddies(self):
@@ -764,11 +747,11 @@ class Server:
 
         len_max = { 'alias': 5, 'jid': 5 }
         lines = []
-        for buddy in sorted(self.buddies, key=lambda x: x.jid.getStripped().encode('utf-8')):
+        for buddy in sorted(self.buddies, key=lambda x: x.jid.getStripped()):
             alias = ''
-            if buddy.alias != buddy.bare_jid:
+            if buddy.alias != buddy.jid:
                 alias = buddy.alias
-            buddy_jid_string = buddy.jid.getStripped().encode('utf-8')
+            buddy_jid_string = buddy.jid.getStripped()
             lines.append( {
                 'jid': buddy_jid_string,
                 'alias': alias,
@@ -787,7 +770,7 @@ class Server:
                                                     line['status'],
                                                     ))
 
-    def stringify_jid(self, jid, wresource=1):
+    def stringify_jid(self, jid):
         """ Serialise JID into string.
 
         Args:
@@ -797,16 +780,12 @@ class Server:
             Method is based on original JID.__str__ but with hack to allow
             non-ascii in resource names.
         """
-        if jid.node:
-            jid_str = jid.node + '@' + jid.domain
-        else:
-            jid_str = jid.domain
-        if wresource and jid.resource:
-            # concatenate jid with resource delimiter first and encode them
-            # into utf-8, else it will raise UnicodeException becaouse of
-            # slash character :((
-            return (jid_str + '/').encode("utf-8") + jid.resource.encode("utf-8")
-        return jid_str.encode("utf-8")
+        if '@' in jid:
+            return jid
+        elif "-" in jid:
+            return "%s@g.us" % jid
+
+        return "%s@s.whatsapp.net" % jid
 
     def search_buddy_list(self, name, by='jid'):
         """ Search for a buddy by name.
@@ -833,7 +812,7 @@ class Server:
                 if self.stringify_jid(buddy.jid) == name:
                     return buddy
             for buddy in self.buddies:
-                if buddy.bare_jid == name:
+                if buddy.jid == name:
                     return buddy
         else:
             for buddy in self.buddies:
@@ -894,7 +873,7 @@ class Server:
     def delete_ping_timer(self):
         if self.ping_timer:
             weechat.unhook(self.ping_timer)
-        self.ping_time = None
+        self.ping_timer = None
         return
 
     def add_ping_timeout_timer(self):
@@ -917,23 +896,16 @@ class Server:
         if not self.is_connected():
             if not self.connect():
                 return
-        iq = xmpp.protocol.Iq(to=self.buddy.domain, typ='get')
-        iq.addChild( name= "ping", namespace = "urn:xmpp:ping" )
-        id = self.client.send(iq)
+        iq = PingIqProtocolEntity(to = YowConstants.DOMAIN)
+        self.toLower(iq)
         self.print_debug_handler("ping", iq)
         self.add_ping_timeout_timer()
         return
 
     def ping_time_out(self):
         self.delete_ping_timeout_timer()
-        self.ping_up = False
         # A ping timeout indicates a server connection problem. Disconnect
         # completely.
-        try:
-            self.client.disconnected()
-        except IOError:
-            # An IOError is raised by the default DisconnectHandler
-            pass
         self.disconnect()
         return
 
@@ -942,14 +914,11 @@ class Server:
         if self.hook_fd != None:
             weechat.unhook(self.hook_fd)
             self.hook_fd = None
-        if self.client != None:
-            #if self.client.isConnected():
-            #    self.client.disconnect()
-            self.client = None
-            self.jid = None
-            self.sock = None
-            self.buddy = None
-            weechat.nicklist_remove_all(self.buffer)
+        self.getStack().broadcastEvent(YowLayerEvent(YowNetworkLayer.EVENT_STATE_DISCONNECT))
+        self.jid = None
+        self.sock = None
+        self.buddy = None
+        weechat.nicklist_remove_all(self.buffer)
 
     def close_buffer(self):
         """ Close server buffer. """
@@ -1049,7 +1018,7 @@ class Chat:
 
     def send_message(self, message):
         """ Send message to buddy. """
-        if not self.server.ping_up:
+        if not self.server.is_connected():
             weechat.prnt(self.buffer, "%swhatsapp: unable to send message, connection is down"
                          % weechat.prefix("error"))
             return
@@ -1098,19 +1067,14 @@ class Buddy:
 
         # The jid argument of xmpp.protocol.JID can be either a string or a
         # xmpp.protocol.JID object instance itself.
-        self.jid = xmpp.protocol.JID(jid=jid)
+        self.jid = jid
         self.chat = chat
         self.server = server
-        self.bare_jid = ''
-        self.username = ''
         self.name = ''
-        self.domain = ''
-        self.resource = ''
         self.alias = ''
         self.away = True
         self.status = ''
 
-        self.parse_jid()
         self.set_alias()
         return
 
@@ -1123,47 +1087,27 @@ class Buddy:
         str_colon = ": "
         if not self.status:
             str_colon = ""
+        status = self.status.replace('\n', ' ') if self.status else ''
         return "%s(%saway%s%s%s)" % (weechat.color("chat_delimiters"),
                                       weechat.color("chat"),
                                       str_colon,
-                                      self.status.replace("\n", " "),
+                                      status,
                                       weechat.color("chat_delimiters"))
-
-    def parse_jid(self):
-        """Parse the jid property.
-
-        The table shows how the jid is parsed and which properties are updated.
-
-            Property        Value
-            jid             myuser@mydomain.tld/myresource
-
-            bare_jid        myuser@mydomain.tld
-            username        myuser
-            domain          mydomain.tld
-            resource        myresource
-        """
-        if not self.jid:
-            return
-        self.bare_jid = self.jid.getStripped().encode("utf-8")
-        self.username = self.jid.getNode()
-        self.domain = self.jid.getDomain()
-        self.resource = self.jid.getResource()
-        return
 
     def set_alias(self):
         """Set the buddy alias.
 
         If an alias is defined in whatsapp_jid_aliases, it is used. Otherwise the
-        alias is set to self.bare_jid or self.name if it exists.
+        alias is set to self.jid or self.name if it exists.
         """
-        self.alias = self.bare_jid
-        if not self.bare_jid:
+        self.alias = self.jid
+        if not self.jid:
             self.alias = ''
         if self.name:
             self.alias = self.name
         global whatsapp_jid_aliases
         for alias, jid in whatsapp_jid_aliases.items():
-            if jid == self.bare_jid:
+            if jid == self.jid:
                 self.alias = alias
                 break
         return
@@ -1195,10 +1139,10 @@ class Buddy:
 def whatsapp_hook_commands_and_completions():
     """ Hook commands and completions. """
     weechat.hook_command(SCRIPT_COMMAND, "Manage whatsapp servers",
-                         "list || add <name> <jid> <password> [<server>[:<port>]]"
+                         "list || add <name> <jid> <password>"
                          " || connect|disconnect|del [<server>] || alias [add|del <alias> <jid>]"
-                         " || away [<message>] || buddies || priority [<priority>]"
-                         " || status [<message>] || presence [online|chat|away|xa|dnd]"
+                         " || away [<message>] || buddies ||"
+                         " || status [<message>]"
                          " || debug || set <server> <setting> [<value>]",
                          "      list: list servers and chats\n"
                          "       add: add a server\n"
@@ -1207,9 +1151,7 @@ def whatsapp_hook_commands_and_completions():
                          "       del: delete server\n"
                          "     alias: manage jid aliases\n"
                          "      away: set away with a message (if no message, away is unset)\n"
-                         "  priority: set priority\n"
                          "    status: set status message\n"
-                         "  presence: set presence status\n"
                          "   buddies: display buddies on server\n"
                          "     debug: toggle whatsapp debug on/off (for all servers)\n"
                          "\n"
@@ -1228,7 +1170,7 @@ def whatsapp_hook_commands_and_completions():
                          "  Delete an alias: /whatsapp alias del alias_name\n"
                          "\n"
                          "Other whatsapp commands:\n"
-                         "  Chat with a buddy (pv buffer): /wchat\n"
+                         "  Chat with a buddy (pv buffer): /query\n"
                          "  Add buddy to roster:           /winvite\n"
                          "  Remove buddy from roster:      /wkick\n"
                          "  Send message to buddy:         /wmsg",
@@ -1239,18 +1181,16 @@ def whatsapp_hook_commands_and_completions():
                          " || del %(whatsapp_servers)"
                          " || alias add|del %(whatsapp_jid_aliases)"
                          " || away"
-                         " || priority"
                          " || status"
-                         " || presence online|chat|away|xa|dnd"
                          " || buddies"
                          " || debug",
                          "whatsapp_cmd_whatsapp", "")
-    weechat.hook_command("wchat", "Chat with a whatsapp buddy",
+    weechat.hook_command("query", "Chat with a whatsapp buddy",
                          "<buddy>",
                          "buddy: buddy id",
                          "",
-                         "whatsapp_cmd_wchat", "")
-    weechat.hook_command("wmsg", "Send a messge to a buddy",
+                         "whatsapp_cmd_query", "")
+    weechat.hook_command("wmsg", "Send a message to a buddy",
                          "[-server <server>] <buddy> <text>",
                          "server: name of whatsapp server buddy is on\n"
                          " buddy: buddy id\n"
@@ -1281,10 +1221,6 @@ def whatsapp_list_servers_chats(name):
         for server in whatsapp_servers:
             if name == "" or server.name.find(name) >= 0:
                 conn_server = ''
-                if server.option_string("server"):
-                    conn_server = ':'.join(
-                            (server.option_string("server"),
-                            server.option_string("port")))
                 connected = ""
                 if server.sock >= 0:
                     connected = "(connected)"
@@ -1316,19 +1252,16 @@ def whatsapp_cmd_whatsapp(data, buffer, args):
                     weechat.prnt("", "whatsapp: server '%s' already exists" % argv[1])
                 else:
                     kwargs = {'jid': argv[2], 'password': argv[3]}
-                    if len(argv) > 4:
-                        conn_server, _, conn_port = argv[4].partition(':')
-                        if conn_port and not conn_port.isdigit():
-                            weechat.prnt("", "whatsapp: error, invalid port, digits only")
-                            return weechat.WEECHAT_RC_OK
-                        if conn_server: kwargs['server'] = conn_server
-                        if conn_port: kwargs['port'] = conn_port
                     server = Server(argv[1], **kwargs)
                     whatsapp_servers.append(server)
+                    stackbuilder = YowStackBuilder()
+                    # disable status ping as weechat seems to have a problem with threads
+                    stackbuilder.setProp(YowIqProtocolLayer.PROP_PING_INTERVAL, 0)
+                    stackbuilder.pushDefaultLayers(True).push(server).build()
                     weechat.prnt("", "whatsapp: server '%s' created" % argv[1])
             else:
                 weechat.prnt("", "whatsapp: unable to add server, missing arguments")
-                weechat.prnt("", "whatsapp: usage: /whatsapp add name jid password [server[:port]]")
+                weechat.prnt("", "whatsapp: usage: /whatsapp add name jid password")
         elif argv[0] == "alias":
             alias_command = AliasCommand(buffer, argv=argv[1:])
             alias_command.run()
@@ -1384,15 +1317,6 @@ def whatsapp_cmd_whatsapp(data, buffer, args):
             context = whatsapp_search_context(buffer)
             if context["server"]:
                 context["server"].set_away(argv1eol)
-        elif argv[0] == "priority":
-            context = whatsapp_search_context(buffer)
-            if context["server"]:
-                if len(argv) == 1:
-                    weechat.prnt("", "whatsapp: priority = %d" % int(context["server"].presence.getPriority()))
-                elif len(argv) == 2 and argv[1].isdigit():
-                    context["server"].set_presence(priority=int(argv[1]))
-                else:
-                    weechat.prnt("", "whatsapp: you need to specify priority as positive integer between 0 and 65535")
         elif argv[0] == "status":
             context = whatsapp_search_context(buffer)
             if context["server"]:
@@ -1400,19 +1324,6 @@ def whatsapp_cmd_whatsapp(data, buffer, args):
                     weechat.prnt("", "whatsapp: status = %s" % context["server"].presence.getStatus())
                 else:
                     context["server"].set_presence(status=argv1eol)
-        elif argv[0] == "presence":
-            context = whatsapp_search_context(buffer)
-            if context["server"]:
-                if len(argv) == 1:
-                    show =  context["server"].presence.getShow()
-                    if show == "": show = "online"
-                    weechat.prnt("", "whatsapp: presence = %s" % show)
-                elif not re.match(r'^(?:online|chat|away|xa|dnd)$', argv[1]):
-                    weechat.prnt("", "whatsapp: Presence should be one of: online, chat, away, xa, dnd")
-                else:
-                    if argv[1] == "online": show = ""
-                    else: show = argv[1]
-                    context["server"].set_presence(show=show)
         elif argv[0] == "buddies":
             context = whatsapp_search_context(buffer)
             if context["server"]:
@@ -1427,8 +1338,8 @@ def whatsapp_cmd_whatsapp(data, buffer, args):
             weechat.prnt("", "whatsapp: unknown action")
     return weechat.WEECHAT_RC_OK
 
-def whatsapp_cmd_wchat(data, buffer, args):
-    """ Command '/wchat'. """
+def whatsapp_cmd_query(data, buffer, args):
+    """ Command '/query'. """
     if args:
         context = whatsapp_search_context(buffer)
         if context["server"]:
@@ -1534,8 +1445,8 @@ class AliasCommand(object):
             weechat.prnt("", "\nwhatsapp: invalid jid: %s" % self.jid)
             weechat.prnt("", "whatsapp: must be no more than %s characters long" % max_len)
             return
-        jid = self.jid.encode("utf-8")
-        alias = self.alias.encode("utf-8")
+        jid = self.jid
+        alias = self.alias
         if alias in whatsapp_jid_aliases.keys():
             weechat.prnt("", "\nwhatsapp: unable to add alias: %s" % (alias))
             weechat.prnt("", "whatsapp: alias already exists, delete first")
