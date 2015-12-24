@@ -19,6 +19,9 @@
 #
 # History:
 #
+# 2015-12-24, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 4.0: add support of parent options (inherited values in irc servers)
+#                  with WeeChat >= 1.4
 # 2015-05-16, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 3.9: fix cursor position when editing an option with WeeChat >= 1.2
 # 2015-05-02, arza <arza@arza.us>:
@@ -123,7 +126,7 @@
 use strict;
 
 my $PRGNAME = "iset";
-my $VERSION = "3.9";
+my $VERSION = "4.0";
 my $DESCR   = "Interactive Set for configuration options";
 my $AUTHOR  = "Sebastien Helleu <flashcode\@flashtux.org>";
 my $LICENSE = "GPL3";
@@ -135,9 +138,11 @@ my $iset_buffer = "";
 my $wee_version_number = 0;
 my @iset_focus = ();
 my @options_names = ();
+my @options_parent_names = ();
 my @options_types = ();
 my @options_values = ();
 my @options_default_values = ();
+my @options_parent_values = ();
 my @options_is_null = ();
 my $option_max_length = 0;
 my $current_line = 0;
@@ -353,9 +358,11 @@ sub iset_get_options
     $search_value = $var_value;
     @iset_focus = ();
     @options_names = ();
+    @options_parent_names = ();
     @options_types = ();
     @options_values = ();
     @options_default_values = ();
+    @options_parent_values = ();
     @options_is_null = ();
     $option_max_length = 0;
     my %options_internal = ();
@@ -371,34 +378,44 @@ sub iset_get_options
     {
         $key = sprintf("%08d", $i);
         my $name = weechat::infolist_string($infolist, "full_name");
+        my $parent_name = weechat::infolist_string($infolist, "parent_name");
         next if (weechat::config_boolean($options_iset{"show_plugin_description"}) == 0 and index ($name, "plugins.desc.") != -1);
         my $type = weechat::infolist_string($infolist, "type");
         my $value = weechat::infolist_string($infolist, "value");
         my $default_value = weechat::infolist_string($infolist, "default_value");
+        my $parent_value;
+        if ($parent_name && (($wee_version_number < 0x00040300) || (weechat::infolist_search_var($infolist, "parent_value"))))
+        {
+            $parent_value = weechat::infolist_string($infolist, "parent_value");
+        }
         my $is_null = weechat::infolist_integer($infolist, "value_is_null");
         if ($search_mode == 3)
         {
             my $value = weechat::infolist_string($infolist, "value");
             if ( grep /\Q$var_value/,lc($value) )
             {
+                $options_internal{$name}{"parent_name"} = $parent_name;
                 $options_internal{$name}{"type"} = $type;
                 $options_internal{$name}{"value"} = $value;
                 $options_internal{$name}{"default_value"} = $default_value;
+                $options_internal{$name}{"parent_value"} = $parent_value;
                 $options_internal{$name}{"is_null"} = $is_null;
                 $option_max_length = length($name) if (length($name) > $option_max_length);
-        $iset_struct{$key} = $options_internal{$name};
-        push(@iset_focus, $iset_struct{$key});
+                $iset_struct{$key} = $options_internal{$name};
+                push(@iset_focus, $iset_struct{$key});
             }
         }
         else
         {
+            $options_internal{$name}{"parent_name"} = $parent_name;
             $options_internal{$name}{"type"} = $type;
             $options_internal{$name}{"value"} = $value;
             $options_internal{$name}{"default_value"} = $default_value;
+            $options_internal{$name}{"parent_value"} = $parent_value;
             $options_internal{$name}{"is_null"} = $is_null;
             $option_max_length = length($name) if (length($name) > $option_max_length);
-        $iset_struct{$key} = $options_internal{$name};
-        push(@iset_focus, $iset_struct{$key});
+            $iset_struct{$key} = $options_internal{$name};
+            push(@iset_focus, $iset_struct{$key});
         }
         $i++;
     }
@@ -407,9 +424,11 @@ sub iset_get_options
     foreach my $name (sort keys %options_internal)
     {
         push(@options_names, $name);
+        push(@options_parent_names, $options_internal{$name}{"parent_name"});
         push(@options_types, $options_internal{$name}{"type"});
         push(@options_values, $options_internal{$name}{"value"});
         push(@options_default_values, $options_internal{$name}{"default_value"});
+        push(@options_parent_values, $options_internal{$name}{"parent_value"});
         push(@options_is_null, $options_internal{$name}{"is_null"});
     }
 }
@@ -432,9 +451,11 @@ sub iset_search_values
 {
     my ($var_value,$search_mode) = ($_[0],$_[1]);
     @options_names = ();
+    @options_parent_names = ();
     @options_types = ();
     @options_values = ();
     @options_default_values = ();
+    @options_parent_values = ();
     @options_is_null = ();
     $option_max_length = 0;
     my %options_internal = ();
@@ -443,18 +464,26 @@ sub iset_search_values
     while (weechat::infolist_next($infolist))
     {
         my $name = weechat::infolist_string($infolist, "full_name");
+        my $parent_name = weechat::infolist_string($infolist, "parent_name");
         next if (weechat::config_boolean($options_iset{"show_plugin_description"}) == 0 and index ($name, "plugins.desc.") != -1);
         my $type = weechat::infolist_string($infolist, "type");
         my $is_null = weechat::infolist_integer($infolist, "value_is_null");
         my $value = weechat::infolist_string($infolist, "value");
         my $default_value = weechat::infolist_string($infolist, "default_value");
+        my $parent_value;
+        if ($parent_name && (($wee_version_number < 0x00040300) || (weechat::infolist_search_var($infolist, "parent_value"))))
+        {
+            $parent_value = weechat::infolist_string($infolist, "parent_value");
+        }
         if ($search_mode)
         {
             if ( grep /\Q$var_value/,lc($value) )
             {
+                $options_internal{$name}{"parent_name"} = $parent_name;
                 $options_internal{$name}{"type"} = $type;
                 $options_internal{$name}{"value"} = $value;
                 $options_internal{$name}{"default_value"} = $default_value;
+                $options_internal{$name}{"parent_value"} = $parent_value;
                 $options_internal{$name}{"is_null"} = $is_null;
                 $option_max_length = length($name) if (length($name) > $option_max_length);
             }
@@ -464,9 +493,11 @@ sub iset_search_values
 #            if ($value =~ /\Q$var_value/si)
             if (lc($value) eq $var_value)
             {
+                $options_internal{$name}{"parent_name"} = $parent_name;
                 $options_internal{$name}{"type"} = $type;
                 $options_internal{$name}{"value"} = $value;
                 $options_internal{$name}{"default_value"} = $default_value;
+                $options_internal{$name}{"parent_value"} = $parent_value;
                 $options_internal{$name}{"is_null"} = $is_null;
                 $option_max_length = length($name) if (length($name) > $option_max_length);
             }
@@ -477,9 +508,11 @@ sub iset_search_values
     foreach my $name (sort keys %options_internal)
     {
         push(@options_names, $name);
+        push(@options_parent_names, $options_internal{$name}{"parent_name"});
         push(@options_types, $options_internal{$name}{"type"});
         push(@options_values, $options_internal{$name}{"value"});
         push(@options_default_values, $options_internal{$name}{"default_value"});
+        push(@options_parent_values, $options_internal{$name}{"parent_value"});
         push(@options_is_null, $options_internal{$name}{"is_null"});
     }
 }
@@ -508,9 +541,11 @@ sub iset_refresh_line
             my $color1 = weechat::color(weechat::config_color($options_iset{"color_option"}));
             my $color2 = weechat::color(weechat::config_color($options_iset{"color_type"}));
             my $color3 = "";
+            my $color4 = "";
             if ($options_is_null[$y])
             {
                 $color3 = weechat::color(weechat::config_color($options_iset{"color_value_undef"}));
+                $color4 = weechat::color(weechat::config_color($options_iset{"color_value"}));
             }
             elsif ($options_values[$y] ne $options_default_values[$y])
             {
@@ -527,6 +562,7 @@ sub iset_refresh_line
                 if ($options_is_null[$y])
                 {
                     $color3 = weechat::color(weechat::config_color($options_iset{"color_value_undef_selected"}).",".weechat::config_color($options_iset{"color_bg_selected"}));
+                    $color4 = weechat::color(weechat::config_color($options_iset{"color_value_selected"}).",".weechat::config_color($options_iset{"color_bg_selected"}));
                 }
                 elsif ($options_values[$y] ne $options_default_values[$y])
                 {
@@ -538,7 +574,23 @@ sub iset_refresh_line
                 }
             }
             my $value = $options_values[$y];
-            $value = "(undef)" if ($options_is_null[$y]);
+            if ($options_is_null[$y])
+            {
+                $value = "null";
+                if ($options_parent_names[$y])
+                {
+                    if (defined $options_parent_values[$y])
+                    {
+                        my $around_parent = "";
+                        $around_parent = "\"" if ($options_types[$y] eq "string");
+                        $value .= $color1." -> ".$color4.$around_parent.$options_parent_values[$y].$around_parent;
+                    }
+                    else
+                    {
+                        $value .= $color1." -> ".$color3."null";
+                    }
+                }
+            }
             my $strline = sprintf($format,
                                   $color1, $options_names[$y], $padding,
                                   $color2, $options_types[$y],
@@ -712,6 +764,39 @@ sub iset_get_option_name_index
     return -1;
 }
 
+sub iset_refresh_option
+{
+    my $option_name = $_[0];
+    my $index = $_[1];
+    my $infolist = weechat::infolist_get("option", "", $option_name);
+    if ($infolist)
+    {
+        weechat::infolist_next($infolist);
+        if (weechat::infolist_fields($infolist))
+        {
+            $options_parent_names[$index] = weechat::infolist_string($infolist, "parent_name");
+            $options_types[$index] = weechat::infolist_string($infolist, "type");
+            $options_values[$index] = weechat::infolist_string($infolist, "value");
+            $options_default_values[$index] = weechat::infolist_string($infolist, "default_value");
+            $options_is_null[$index] = weechat::infolist_integer($infolist, "value_is_null");
+            $options_parent_values[$index] = undef;
+            if ($options_parent_names[$index]
+                && (($wee_version_number < 0x00040300) || (weechat::infolist_search_var($infolist, "parent_value"))))
+            {
+                $options_parent_values[$index] = weechat::infolist_string($infolist, "parent_value");
+            }
+            iset_refresh_line($index);
+            iset_title() if ($option_name eq "iset.look.show_current_line");
+        }
+        else
+        {
+            iset_full_refresh(1);  # if not found, refresh fully without clearing buffer
+            weechat::print_y($iset_buffer, $#options_names + 1, "");
+        }
+        weechat::infolist_free($infolist);
+    }
+}
+
 sub iset_config_cb
 {
     my ($data, $option_name, $value) = ($_[0], $_[1], $_[2]);
@@ -724,25 +809,15 @@ sub iset_config_cb
         if ($index >= 0)
         {
             # refresh info about changed option
-            my $infolist = weechat::infolist_get("option", "", $option_name);
-            if ($infolist)
+            iset_refresh_option($option_name, $index);
+            # refresh any other option having this changed option as parent
+            foreach my $i (0 .. $#options_names)
             {
-                weechat::infolist_next($infolist);
-                if (weechat::infolist_fields($infolist))
+                if ($options_parent_names[$i] eq $option_name)
                 {
-                    $options_types[$index] = weechat::infolist_string($infolist, "type");
-                    $options_values[$index] = weechat::infolist_string($infolist, "value");
-                    $options_default_values[$index] = weechat::infolist_string($infolist, "default_value");
-                    $options_is_null[$index] = weechat::infolist_integer($infolist, "value_is_null");
-                    iset_refresh_line($index);
-                    iset_title() if ($option_name eq "iset.look.show_current_line");
+                    weechat::print("", "refresh: ".$options_names[$i]);
+                    iset_refresh_option($options_names[$i], $i);
                 }
-                else
-                {
-                    iset_full_refresh(1); # if not found, refresh fully without clearing buffer
-                    weechat::print_y($iset_buffer, $#options_names + 1, "");
-                }
-                weechat::infolist_free($infolist);
             }
         }
         else
