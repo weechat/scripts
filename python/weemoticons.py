@@ -21,17 +21,18 @@
 #
 # Source available on GitHUB: https://github.com/Ratler/ratlers-weechat-scripts
 #
+# Contributors:
+# Nicolas G. Querol 
+#
 # Commands:
 # /weemoticons - List supported emoticons in the current buffer
 
-
 SCRIPT_NAME    = "weemoticons"
 SCRIPT_AUTHOR  = "Stefan Wold <ratler@stderr.eu>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Convert ascii emotes to unicode emoticons."
 SCRIPT_COMMAND = "weemoticons"
-
 
 import_ok = True
 
@@ -42,9 +43,8 @@ except ImportError:
     print "This script must be run under WeeChat."
     import_ok = False
 
-
 ICONS = {
-    # '': u'\U0001F601',  # GRINNING FACE WITH SMILING EYES
+    '^^': u'\U0001F601', '^_^': u'\U0001F601',  # GRINNING FACE WITH SMILING EYES
     # '': u'\U0001F602',  # FACE WITH TEARS OF JOY
     ':)': u'\U0001F603', ':-)': u'\U0001F603', '=)': u'\U0001F603',  # SMILING FACE WITH OPEN MOUTH
     ':D': u'\U0001F604', '=D': u'\U0001F604',  # SMILING FACE WITH OPEN MOUTH AND SMILING EYES
@@ -61,7 +61,7 @@ ICONS = {
     # '': u'\U0001F60F',  # SMIRKING FACE
     # '': u'\U0001F610',  # NEUTRAL FACE
     # '': u'\U0001F611',  # EXPRESSIONLESS FACE
-    # '': u'\U0001F612',  # UNAMUSED FACE
+    ':|': u'\U0001F612', '=|': u'\U0001F612', '>_>': u'\U0001F612', '<_<': u'\U0001F612',  # UNAMUSED FACE
     # '': u'\U0001F613',  # FACE WITH COLD SWEAT
     # '': u'\U0001F614',  # PENSIVE FACE
     ':S': u'\U0001F615', ':/': u'\U0001F615', ':\\': u'\U0001F615', '=S': u'\U0001F615', '=/': u'\U0001F615',
@@ -72,14 +72,14 @@ ICONS = {
     # '': u'\U0001F619',  # KISSING FACE WITH SMILING EYES
     # '': u'\U0001F61A',  # KISSING FACE WITH CLOSED EYES
     ':P': u'\U0001F61B', ':p': u'\U0001F61B', '=P': u'\U0001F61B', '=p': u'\U0001F61B',  # FACE WITH STUCK-OUT TONGUE
-    #';)': u'\U0001F61C', ';-)': u'\U0001F61C',  # FACE WITH STUCK-OUT TONGUE AND WINKING EYE
+    ';P': u'\U0001F61C', ';-P': u'\U0001F61C',  # FACE WITH STUCK-OUT TONGUE AND WINKING EYE
     # '': u'\U0001F61D',  # FACE WITH STUCK-OUT TONGUE AND TIGHTLY-CLOSED EYES
     ':(': u'\U0001F61E', ':-(': u'\U0001F61E', '=(': u'\U0001F61E', '=-(': u'\U0001F61E',  # DISAPPOINTED FACE
     # '': u'\U0001F61F',  # WORRIED FACE
     # '': u'\U0001F620',  # ANGRY FACE
     '>:(': u'\U0001F621', '>=(': u'\U0001F621',  # POUTING FACE
     ':\'(': u'\U0001F622', '=\'(': u'\U0001F622',  # CRYING FACE
-    # '': u'\U0001F623',  # PERSEVERING FACE
+    '>_<': u'\U0001F623',  # PERSEVERING FACE
     # '': u'\U0001F624',  # FACE WITH LOOK OF TRIUMPH
     # '': u'\U0001F625',  # DISAPPOINTED BUT RELIEVED FACE
     # '': u'\U0001F626',  # FROWNING FACE WITH OPEN MOUTH
@@ -98,43 +98,28 @@ ICONS = {
     ':")': u'\U0001F633', '=")': u'\U0001F633',  # FLUSHED FACE
 }
 
-ICON_PATTERN = re.compile(r"[>:;=8B]+[\"'-]*[DSPp\\/\(\)<>]")
-NOTICE_PATTERN = re.compile(r"(.*?:)(.*)")
+ICON_PATTERN = re.compile(r"(?<!\S)([>;:=8B\^]\S{1,2})")
 
-
-def icon(smiley):
+def icon(match):
     global ICONS
-    if smiley in ICONS:
-        return "%s " % ICONS[smiley].encode('utf-8')
-    return None
+    emoticon = match.group(0)
 
+    if emoticon in ICONS:
+        return "%s " % ICONS[emoticon].encode("utf-8")
 
-def transform_message(message):
-    global ICON_PATTERN
-
-    for match in re.findall(ICON_PATTERN, message):
-        _icon = icon(match)
-        if _icon is not None:
-            message = message.replace(match, _icon)
-
-    return message
-
+    return emoticon
 
 def convert_icon_cb(data, modifier, modifier_data, message):
-    global NOTICE_PATTERN
+    global ICON_PATTERN
 
     plugin, buf, tags = modifier_data.split(';')
     tags = tags.split(',')
 
-    if 'irc_privmsg' in tags:
-        message = transform_message(message)
-    elif 'irc_notice' in tags:
-        target, msg = re.search(NOTICE_PATTERN, message).groups()
-        msg = transform_message(msg)
-        message = target+msg
+    if 'irc_privmsg' in tags or 'irc_notice' in tags:
+        if ICON_PATTERN.search(message):
+            message = ICON_PATTERN.sub(icon, message)
 
     return message
-
 
 def list_icons_cb(data, buf, args):
     global ICONS
@@ -147,12 +132,11 @@ def list_icons_cb(data, buf, args):
             l[val] = key
 
     weechat.prnt(buf, "%s - list of supported emoticons:" % SCRIPT_NAME)
-    [weechat.prnt(buf, " %s  = %s" % (key.encode('utf-8'), l[key])) for key in l.keys()]
+    [weechat.prnt(buf, " %s  = %s" % (key.encode("utf-8"), l[key])) for key in l.keys()]
 
     return weechat.WEECHAT_RC_OK
 
-
 if __name__ == "__main__" and import_ok:
     if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, "", ""):
-        weechat.hook_modifier('weechat_print', 'convert_icon_cb', '')
+        weechat.hook_modifier("weechat_print", "convert_icon_cb", "")
         weechat.hook_command(SCRIPT_COMMAND, "List supported emoticons", "", "", "", "list_icons_cb", "")
