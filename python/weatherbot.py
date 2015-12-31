@@ -1,5 +1,7 @@
+#!/usr/bin/python
+# -*- encoding: utf-8 -*-
 #
-# Copyright (c) 2014 by deflax <daniel@deflax.net>
+# Copyright (c) 2014-2015 by deflax <daniel@deflax.net>
 #
 #       Weechat WeatherBot using WUnderground API
 #
@@ -17,7 +19,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 SCRIPT_NAME = "weatherbot"
-VERSION = "0.3"
+VERSION = "0.4"
 
 helptext = """
 Get your own API key from http://www.wunderground.com/weather/api/
@@ -34,6 +36,11 @@ script_options = {
     "trigger" : "!weather",
     "apikey" : "0000000000000" }
 
+def weebuffer(reaction_buf):
+    rtnbuf = kserver + "," + kchannel
+    buffer = weechat.info_get("irc_buffer", rtnbuf)
+    weechat.command(buffer, "/msg " + kchannel + " " + reaction_buf)
+
 def wu_autoc(data, command, return_code, out, err):
     global jname
     if return_code == weechat.WEECHAT_HOOK_PROCESS_ERROR:
@@ -45,15 +52,20 @@ def wu_autoc(data, command, return_code, out, err):
         weechat.prnt("", "stderr: %s" % err)
     if out != "":
         i = ast.literal_eval(out)
+        loc_id = ""
         try:
             loc_id = i['RESULTS'][0]['l']
         except:
             reaction = 'Invalid query. Try again.'
-            rtnbuf = kserver + "," + kchannel
-            buffer = weechat.info_get("irc_buffer", rtnbuf)
-            weechat.command(buffer, "/msg " + kchannel + " " + reaction)
+            weebuffer(reaction)
             return weechat.WEECHAT_RC_OK
         jname = i['RESULTS'][0]['name']
+        if jname == "":
+            reaction = 'Unable to locate query.'
+            weebuffer(reaction)
+            return weechat.WEECHAT_RC_OK
+        else:
+            pass
         cond_url = 'url:http://api.wunderground.com/api/' + apikey + '/conditions' + loc_id + '.json'
         cond_hook = weechat.hook_process(cond_url, 30 * 1000, "wu_cond", "")
     return weechat.WEECHAT_RC_OK
@@ -72,9 +84,7 @@ def wu_cond(data, command, return_code, out, err):
             jcheck = j['response']['error']['type']
             if j['response']['error']['type'] == "invalidquery":
                 reaction = "Error. Try again."
-                rtnbuf = kserver + "," + kchannel
-                buffer = weechat.info_get("irc_buffer", rtnbuf)
-                weechat.command(buffer, "/msg " + kchannel + " " + reaction)
+                weebuffer(reaction)
                 return weechat.WEECHAT_RC_OK
             if j['response']['error']['type'] == "keynotfound":
                 weechat.prnt("", "Invalid API key.")
@@ -90,9 +100,9 @@ def wu_cond(data, command, return_code, out, err):
             temp = j[co]['temp_c']
             like = j[co]['feelslike_c']
             if str(temp) == str(like):
-                reaction += str(temp) + "*C"
+                reaction += str(temp) + "°C"
             else:
-                reaction += str(temp) + "*C but feels like " + str(like) + "*C"
+                reaction += str(temp) + "°C but feels like " + str(like) + "°C"
             if windspeed > 0:
                 reaction += '. '
                 reaction += str(j[co]['wind_dir']) + ' wind: ' + str(windspeed) + ' kph'
@@ -101,9 +111,9 @@ def wu_cond(data, command, return_code, out, err):
             temp = j[co]['temp_f']
             like = j[co]['feelslike_f']
             if str(temp) == str(like):
-                reaction += str(temp) + "*F"
+                reaction += str(temp) + "°F"
             else:
-                reaction += str(temp) + "*F but feels like " + str(like) + "*F"
+                reaction += str(temp) + "°F but feels like " + str(like) + "°F"
             if windspeed > 0:
                 reaction += '. '
                 reaction += str(j[co]['wind_dir']) + ' wind: ' + str(windspeed) + ' mph'
@@ -113,9 +123,7 @@ def wu_cond(data, command, return_code, out, err):
             reaction += '. Humidity: ' + j[co]['relative_humidity']
         reaction += '.'
 
-        rtnbuf = kserver + "," + kchannel
-        buffer = weechat.info_get("irc_buffer", rtnbuf)
-        weechat.command(buffer, "/msg " + kchannel + " " + reaction)
+        weebuffer(reaction)
     return weechat.WEECHAT_RC_OK
 
 def triggerwatch(data, server, args):
@@ -125,10 +133,12 @@ def triggerwatch(data, server, args):
             null, srvmsg = args.split(" PRIVMSG ", 1)#
             kchannel, query = srvmsg.split(" :" + trigger + " ", 1)
         except ValueError, e:
-            #print e
+            #weechat.prnt(e)
             return weechat.WEECHAT_RC_OK
         kserver = str(server.split(",",1)[0])
+        query = query.replace(" ", "%20")
         autoc_url = 'url:http://autocomplete.wunderground.com/aq?query=' + query + '&format=JSON'
+        #print(autoc_url) #debug
         autoc_hook = weechat.hook_process(autoc_url, 30 * 1000, "wu_autoc", "")
     else:
         pass
