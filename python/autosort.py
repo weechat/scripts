@@ -25,6 +25,8 @@
 
 #
 # Changelog:
+# 2.6:
+#   * Ignore case in rules when doing case insensitive sorting.
 # 2.5:
 #   * Fix handling unicode buffer names.
 #   * Add hint to set irc.look.server_buffer to independent and buffers.look.indenting to on.
@@ -49,7 +51,7 @@ import json
 
 SCRIPT_NAME     = 'autosort'
 SCRIPT_AUTHOR   = 'Maarten de Vries <maarten@de-vri.es>'
-SCRIPT_VERSION  = '2.5'
+SCRIPT_VERSION  = '2.6'
 SCRIPT_LICENSE  = 'GPL3'
 SCRIPT_DESC     = 'Automatically or manually keep your buffers sorted and grouped by server.'
 
@@ -73,7 +75,7 @@ def parse_int(arg, arg_name = 'argument'):
 class Pattern:
 	''' A simple glob-like pattern for matching buffer names. '''
 
-	def __init__(self, pattern):
+	def __init__(self, pattern, case_sensitive):
 		''' Construct a pattern from a string. '''
 		escaped    = False
 		char_class = 0
@@ -112,7 +114,10 @@ class Pattern:
 		if escaped:
 			raise ValueError("unexpected trailing '\\'")
 
-		self.regex   = re.compile('^' + regex + '$')
+		if case_sensitive:
+			self.regex   = re.compile('^' + regex + '$')
+		else:
+			self.regex   = re.compile('^' + regex + '$', flags = re.IGNORECASE)
 		self.pattern = pattern
 
 	def match(self, input):
@@ -175,7 +180,7 @@ class RuleList(FriendlyList):
 		super(RuleList, self).__init__()
 		for rule in rules: self.append(rule)
 
-	def get_score(self, name, rules):
+	def get_score(self, name):
 		''' Get the sort score of a partial name according to a rule list. '''
 		for rule in self:
 			if rule[0].match(name): return rule[1]
@@ -186,7 +191,7 @@ class RuleList(FriendlyList):
 		return json.dumps(list(map(lambda x: (x[0].pattern, x[1]), self)))
 
 	@staticmethod
-	def decode(blob):
+	def decode(blob, case_sensitive):
 		''' Parse rules from a string blob. '''
 		result = []
 
@@ -204,7 +209,7 @@ class RuleList(FriendlyList):
 
 			# Rules must have a valid pattern.
 			try:
-				pattern = Pattern(rule[0])
+				pattern = Pattern(rule[0], case_sensitive)
 			except ValueError as e:
 				log('Invalid pattern: {0} in "{1}". Rule ignored.'.format(e, rule[0]))
 				continue
@@ -221,7 +226,7 @@ class RuleList(FriendlyList):
 		return RuleList(result)
 
 	@staticmethod
-	def parse_rule(arg):
+	def parse_rule(arg, case_sensitive):
 		''' Parse a rule argument. '''
 		arg = arg.strip()
 		match = RuleList.rule_regex.match(arg)
@@ -230,7 +235,7 @@ class RuleList(FriendlyList):
 
 		pattern = match.group(1).strip()
 		try:
-			pattern = Pattern(pattern)
+			pattern = Pattern(pattern, case_sensitive)
 		except ValueError as e:
 			raise HumanReadableError('Invalid pattern: {0} in "{1}".'.format(e, pattern))
 
@@ -376,7 +381,7 @@ class Config:
 		replacements_blob   = weechat.config_string(self.__replacements)
 		signals_blob        = weechat.config_string(self.__signals)
 
-		self.rules          = RuleList.decode(rules_blob)
+		self.rules          = RuleList.decode(rules_blob, self.case_sensitive)
 		self.replacements   = decode_replacements(replacements_blob)
 		self.signals        = signals_blob.split()
 		self.sort_on_config = weechat.config_boolean(self.__sort_on_config)
@@ -442,7 +447,7 @@ def buffer_sort_key(rules):
 		name    = ''
 		for word in preprocess(buffer.decode('utf-8'), config):
 			name += ('.' if name else '') + word
-			result.append((rules.get_score(name, rules), word))
+			result.append((rules.get_score(name), word))
 		return result
 
 	return key
@@ -483,7 +488,7 @@ def command_rule_list(buffer, command, args):
 
 def command_rule_add(buffer, command, args):
 	''' Add a rule to the rule list. '''
-	rule = RuleList.parse_rule(args)
+	rule = RuleList.parse_rule(args, config.case_sensitive)
 
 	config.rules.append(rule)
 	config.save_rules()
@@ -496,7 +501,7 @@ def command_rule_insert(buffer, command, args):
 	''' Insert a rule at the desired position in the rule list. '''
 	index, rule = split_args(args, 2)
 	index = parse_int(index, 'index')
-	rule  = RuleList.parse_rule(rule)
+	rule  = RuleList.parse_rule(rule, config.case_sensitive)
 
 	config.rules.insert(index, rule)
 	config.save_rules()
@@ -508,7 +513,7 @@ def command_rule_update(buffer, command, args):
 	''' Update a rule in the rule list. '''
 	index, rule = split_args(args, 2)
 	index = parse_int(index, 'index')
-	rule  = RuleList.parse_rule(rule)
+	rule  = RuleList.parse_rule(rule, config.case_sensitive)
 
 	config.rules[index] = rule
 	config.save_rules()
