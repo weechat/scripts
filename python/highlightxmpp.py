@@ -1,7 +1,8 @@
-# HighlightXMPP 0.4 for IRC. Requires WeeChat >= 0.3.0 and Python >= 2.6.
+# HighlightXMPP 0.5 for IRC. Requires WeeChat >= 0.3.0,
+# Python >= 2.6, and sleekxmpp.
 # Repo: https://github.com/jpeddicord/weechat-highlightxmpp
 # 
-# Copyright (c) 2009-2012 Jacob Peddicord <jpeddicord@ubuntu.com>
+# Copyright (c) 2009-2015 Jacob Peddicord <jacob@peddicord.net>
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,19 +32,18 @@
 #   JID messages are sent *to* (if not set, defaults to the same jid as above):
 #     /set plugins.var.python.highlightxmpp.to myid@jabber.org
 
-from time import sleep
-import warnings
+import sys
 import weechat as w
+import sleekxmpp
 
-# the XMPP module currently has a lot of deprecations
-with warnings.catch_warnings():
-    warnings.simplefilter("ignore")
-    import xmpp
+if sys.version_info < (3, 0):
+    from sleekxmpp.util.misc_ops import setdefaultencoding
+    setdefaultencoding('utf8')
 
 info = (
     'highlightxmpp',
-    'Jacob Peddicord <jpeddicord@ubuntu.com>',
-    '0.4',
+    'Jacob Peddicord <jacob@peddicord.net>',
+    '0.5',
     'GPL3',
     "Relay highlighted & private IRC messages over XMPP (Jabber)",
     '',
@@ -56,58 +56,36 @@ settings = {
     'to': '',
 }
 
-client = None
+class SendMsgBot(sleekxmpp.ClientXMPP):
+    def __init__(self, jid, password, recipient, message):
+        sleekxmpp.ClientXMPP.__init__(self, jid, password)
+        self.jid = jid
+        self.recipient = recipient
+        self.msg = message
+        self.add_event_handler("session_start", self.start, threaded=True)
+    def start(self, event):
+        self.send_presence()
+        self.get_roster()
+        self.send_message(mto=self.recipient,
+                          mbody=self.msg,
+                          mtype='chat')
+        self.disconnect(wait=True)
 
-def connect_xmpp():
-    global client
-    # connected if not connected
-    # & if we were disconnected, try to connect again
-    if client and client.isConnected():
-        return True
-    w.prnt('', "XMPP: Connecting")
-    jid_name = w.config_get_plugin('jid')
+
+def send_xmpp(data, signal, message, trial=1):
+    jid = w.config_get_plugin('jid')
+    jid_to = w.config_get_plugin('to')
+    if not jid_to:
+        jid_to = jid
     password = w.config_get_plugin('password')
-    try:
-        jid = xmpp.protocol.JID(jid_name)
-        client = xmpp.Client(jid.getDomain(), debug=[])
-        client.connect()
-        client.auth(jid.getNode(), password)
-    except:
-        w.prnt('', "XMPP: Could not connect or authenticate to server.")
-        client = None
-        return False
-    return True
 
-def send_xmpp(data, signal, msgtxt, trial=1):
-    global client
-
-    # ignore XMPP's deprecation warnings
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-
-        # connect to xmpp if we need to
-        if not connect_xmpp():
-            return w.WEECHAT_RC_OK
-        jid_to = w.config_get_plugin('to')
-
-        # send to self if no target set
-        if not jid_to:
-            jid_to = w.config_get_plugin('jid')
-
-        # send the message
-        msg = xmpp.protocol.Message(jid_to, msgtxt, typ='chat')
-        try:
-            client.send(msg)
-        except IOError:
-            # every now and then the connection will still exist but a send will
-            # fail. catch that here and try to reconnect. isConnected() should
-            # start to realize that once this exception is triggered.
-            if trial > 3:
-                w.prnt('', "XMPP: Could not send to server.")
-            else:
-                sleep(0.5)
-                send_xmpp(data, signal, msgtxt, trial + 1)
+    xmpp = SendMsgBot(jid, password, jid_to, message)
+    if not xmpp.connect():
+        w.prnt('', "Unable to connect to XMPP server.")
         return w.WEECHAT_RC_OK
+    xmpp.process(block=True)
+    return w.WEECHAT_RC_OK
+
 
 # register with weechat
 if w.register(*info):
