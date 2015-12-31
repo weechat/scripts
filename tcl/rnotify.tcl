@@ -1,10 +1,12 @@
-# Remote Notification Script v1.3
+# Remote Notification Script v1.4
 # by Gotisch <gotisch@gmail.com>
 #
 # With help of this script you can make weechat create notification bubbles
 # in ubuntu or any other distribution that supports libnotify.
 #
 # Changelog:
+# 1.4
+#		fixed problem with reserved characters preventing notification (see http://wiki.tcl.tk/1353) (thanks Ongy)
 # 1.3
 #       fixed yet more typos and a possible problem with notifications not showing when they should.
 # 1.2
@@ -60,7 +62,7 @@ exec tclsh "$0" ${1+"$@"}
 if {[namespace exists ::weechat]} {
 	# We have been called inside weechat
 	namespace eval weechat::script::rnotify {
-		weechat::register "rnotify" {Gotisch gotisch@gmail.com} 1.3 GPL3 {Sends highlights to (remote) client} {} {}
+		weechat::register "rnotify" {Gotisch gotisch@gmail.com} 1.4 GPL3 {Sends highlights to (remote) client} {} {}
 		proc highlight { data buffer date tags displayed highlight prefix message } {
 			set buffername [weechat::buffer_get_string $buffer short_name]
 			if {$buffername != $prefix} {
@@ -78,6 +80,8 @@ if {[namespace exists ::weechat]} {
 			return $::weechat::WEECHAT_RC_OK
 		}
 		proc notify {title text} {
+			set title "\u200B$title"
+			set text "\u200B$text"
 			if {[weechat::config_get_plugin port] == "local"} {
 				catch {
 					exec notify-send -u normal -c IRC -i gtk-help "$title" "$text"
