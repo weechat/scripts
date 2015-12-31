@@ -6,11 +6,13 @@
 #
 #  Licence     : GPL v2
 #  Description : Permits to auto-authenticate when changing nick
-#  Syntax      : try /auth help to get help on this script
+#  Syntax      : try /autoauth help to get help on this script
 #
 #
 # ### changelog ###
 #
+#  * version 1.0 (Simmo Saan <simmo.saan@gmail.com>)
+#      - rename command /auth to /autoauth
 #  * version 0.10 (Felix Eckhofer <felix@tribut.de>)
 #      - fix "/auth cmd" commandline parsing
 #  * version 0.9 (Felix Eckhofer <felix@tribut.de>)
@@ -41,7 +43,7 @@
 # =============================================================================
 
 
-VERSION="0.10"
+VERSION="1.0"
 NAME="autoauth"
 AUTHOR="Kolter"
 
@@ -60,7 +62,7 @@ weechat.register (NAME, AUTHOR, VERSION, "GPL2", "Auto authentification while ch
 
 weechat.hook_signal("*,irc_in2_notice", "auth_notice_check", "")
 weechat.hook_command(
-    "auth",
+    "autoauth",
     "Auto authentification while changing nick",
     "{ add $nick $pass [$server=current] | del $nick [$server=current] | list | cmd [$command [$server=current]] }",
     "  add : add authorization for $nick with password $pass for $server\n"
@@ -248,9 +250,9 @@ def auth_command(data, buffer, args):
     l_servers = weechat.hdata_get_list(h_servers, "irc_servers")
 
     if len(list_args) ==  0:
-        weechat.command(buffer, "/help auth")
+        weechat.command(buffer, "/help autoauth")
     elif list_args[0] not in ["add", "del", "list", "cmd"]:
-        weechat.prnt(buffer, "[%s] bad option while using /auth command, try '/help auth' for more info" % (NAME))
+        weechat.prnt(buffer, "[%s] bad option while using /autoauth command, try '/help autoauth' for more info" % (NAME))
     elif list_args[0] == "cmd":
         if len(list_args[1:]) == 1 and weechat.hdata_search(h_servers, l_servers, "${irc_server.name} == "+list_args[1], 1):
             auth_cmd("", list_args[1])
@@ -267,7 +269,7 @@ def auth_command(data, buffer, args):
         auth_list()
     elif list_args[0] == "add":
         if len(list_args) < 3 or (len(list_args) == 3 and server == ''):
-            weechat.prnt(buffer, "[%s] bad option while using /auth command, try '/help auth' for more info" % (NAME))
+            weechat.prnt(buffer, "[%s] bad option while using /autoauth command, try '/help autoauth' for more info" % (NAME))
         else:
             if len(list_args) == 3:
                 auth_add(list_args[1], list_args[2], server)
@@ -275,7 +277,7 @@ def auth_command(data, buffer, args):
                 auth_add(list_args[1], list_args[2], list_args[3])
     elif list_args[0] == "del":
        if len(list_args) < 2:
-           weechat.prnt(buffer, "[%s] bad option while using /auth command, try '/help auth' for more info" % (NAME))
+           weechat.prnt(buffer, "[%s] bad option while using /autoauth command, try '/help autoauth' for more info" % (NAME))
        else:
             if len(list_args) == 2:
                 auth_del(list_args[1], server)
