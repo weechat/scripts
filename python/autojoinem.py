@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2013-2014 by nils_2 <weechatter@arcor.de>
+# Copyright (c) 2013-2015 by nils_2 <weechatter@arcor.de>
 #
 # add/del channel(s) to/from autojoin option
 #
@@ -19,6 +19,8 @@
 #
 # idea by azizLIGHTS
 #
+# 2015-11-14: nils_2, (freenode.#weechat)
+#       0.3 : fix: problem with (undef) option
 # 2014-01-19: nils_2, (freenode.#weechat)
 #       0.2 : fix: adding keys to already existing keys failed
 # 2013-12-22: nils_2, (freenode.#weechat)
@@ -39,7 +41,7 @@ except Exception:
 
 SCRIPT_NAME     = "autojoinem"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.2"
+SCRIPT_VERSION  = "0.3"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "add/del channel(s) to/from autojoin option"
 
@@ -80,8 +82,11 @@ def add_autojoin_cmd_cb(data, buffer, args):
                 weechat.prnt(buffer,"%s%s: current buffer is not a channel buffer." % (weechat.prefix('error'),SCRIPT_NAME))
                 return weechat.WEECHAT_RC_OK
             list_of_channels, list_of_current_keys = get_autojoin_list(server)
-            if not list_of_channels:
-                weechat.prnt(buffer,"%s%s: server '%s' does not exist." % (weechat.prefix('error'),SCRIPT_NAME,server))
+            # no channels in option!
+            if list_of_channels == 1 and list_of_current_keys == 1:
+                ptr_config_autojoin = weechat.config_get('irc.server.%s.autojoin' % server)
+                rc = weechat.config_option_set(ptr_config_autojoin,channel,1)
+                return weechat.WEECHAT_RC_OK
             if channel in list_of_channels:
                 weechat.prnt(buffer,"%s%s: channel '%s' already in autojoin for server '%s'" % (weechat.prefix("error"),SCRIPT_NAME,channel,server))
             else:
@@ -157,8 +162,8 @@ def add_autojoin_cmd_cb(data, buffer, args):
                 weechat.prnt(buffer,"%s%s: current buffer is not a channel buffer." % (weechat.prefix('error'),SCRIPT_NAME))
                 return weechat.WEECHAT_RC_OK
             list_of_channels, list_of_keys = get_autojoin_list(server)
-            if not list_of_channels:
-                weechat.prnt(buffer,"%s%s: server '%s' does not exist." % (weechat.prefix('error'),SCRIPT_NAME,server))
+            # no channels in option, nothing to delete
+            if list_of_channels == 1 and list_of_current_keys == 1:
                 return weechat.WEECHAT_RC_OK
             if channel not in list_of_channels:
                 weechat.prnt(buffer,"%s%s: channel '%s' not found in autojoin for server '%s'" % (weechat.prefix("error"),SCRIPT_NAME,channel,server))
@@ -262,11 +267,13 @@ def get_autojoin_list(server):
 
     # option not found! server does not exist
     if not ptr_config_autojoin:
-        return 0,0
+        weechat.prnt(buffer,"%s%s: server '%s' does not exist." % (weechat.prefix('error'),SCRIPT_NAME,server))
+        return weechat.WEECHAT_RC_OK
+
+    # get value from autojoin option
     channels = weechat.config_string(ptr_config_autojoin)
-    # no values for this option
     if not channels:
-        return 0,0
+        return 1,1
 
     # check for keys
     if len(re.findall(r" ", channels)) == 0:
@@ -357,14 +364,16 @@ if __name__ == "__main__":
                              'del <server> <channel>: del channel from irc.server.<servername>.autojoin\n'
                              '\n'
                              'Examples:\n'
-                             ' add current buffer to corresponding server option:\n'
+                             ' add current channel to corresponding server option:\n'
                              '  /' + SCRIPT_NAME + ' add\n'
+                             ' add all channels from all server to corresponding server option:\n'
+                             '  /allchan /' + SCRIPT_NAME + ' add\n'
                              ' add channel #weechat to autojoin option on server freenode:\n'
                              '  /' + SCRIPT_NAME + ' add freenode #weechat\n'
                              ' add channel #weechat and #weechat-de to autojoin option on server freenode, with channel key for channel #weechat:\n'
                              '  /' + SCRIPT_NAME + ' add freenode #weechat #weechat-de -key my_channel_key\n'
                              ' del channels #weechat and #weechat-de from autojoin option on server freenode:\n'
-                             '  /' + SCRIPT_NAME + ' del freenode #weechat #weechat-de\n',
+                             '  /' + SCRIPT_NAME + ' del freenode #weechat #weechat-de',
                              'add %(irc_servers) %(irc_server_channels)|%*||'
                              'del %(irc_servers) %(plugin_autojoinem)|%*',
                              'add_autojoin_cmd_cb', '')
