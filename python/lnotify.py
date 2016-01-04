@@ -33,13 +33,16 @@
 # Note: This will check whether X is running first and whether xdotool
 # is installed. If anybody knows a better way to do this, please let me know.
 #
+# 0.3.1
+# Fix https://github.com/weechat/scripts/issues/114 - where we would get
+# notifications for messages that we sent
 
 import weechat as weechat
 import subprocess
 from os import environ, path
 
 lnotify_name = "lnotify"
-lnotify_version = "0.3.0"
+lnotify_version = "0.3.1"
 lnotify_license = "GPL3"
 
 # convenient table checking for bools
@@ -86,6 +89,7 @@ def handle_msg(data, pbuffer, date, tags, displayed, highlight, prefix, message)
     away = weechat.buffer_get_string(pbuffer, "localvar_away")
     x_focus = False
     window_name = ""
+    my_nickname = "nick_" + weechat.buffer_get_string(pbuffer, "localvar_nick")
 
     # Check to make sure we're in X and xdotool exists.
     # This is kinda crude, but I'm no X master.
@@ -99,6 +103,9 @@ def handle_msg(data, pbuffer, date, tags, displayed, highlight, prefix, message)
         return weechat.WEECHAT_RC_OK
 
     if away and not notify_away:
+        return weechat.WEECHAT_RC_OK
+
+    if my_nickname in tags:
         return weechat.WEECHAT_RC_OK
 
     buffer_name = weechat.buffer_get_string(pbuffer, "short_name")
