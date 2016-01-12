@@ -18,6 +18,8 @@
 # Requires Weechat >= 0.3.7, openssl
 # Released under GNU GPL v3
 #
+# 2016-01-11, dbendit <david@ibendit.com>
+#     version 0.7: - ignore_nicks option
 # 2014-05-10, Sébastien Helleu <flashcode@flashtux.org>
 #     version 0.6.3: - change hook_print callback argument type of
 #                      displayed/highlight (WeeChat >= 1.0)
@@ -52,7 +54,7 @@ from subprocess import Popen, PIPE
 
 weechat.register("irssinotifier",
                  "Caspar Clemens Mierau <ccm@screenage.de>",
-                 "0.6.3",
+                 "0.7",
                  "GPL3",
                  "irssinotifier: Send push notifications to Android's IrssiNotifier about your private message and highligts.",
                  "",
@@ -64,6 +66,7 @@ settings = {
     "only_away": "Only send notifications when set as away.",
     "ignore_buffers": "Comma separated list of buffers to ignore.",
     "ignore_servers": "Comma separated list of servers to ignore.",
+    "ignore_nicks": "Comma separated list of nicks to ignore.",
 }
 
 required_settings = ["api_token", "encryption_password"]
@@ -106,7 +109,8 @@ def notify_show(data, bufferp, uber_empty, tagsn, isdisplayed,
 
     # ignore buffers on ignorelists
     if not (server in weechat.config_get_plugin("ignore_servers").split(",") or
-        name in weechat.config_get_plugin("ignore_buffers").split(",")):
+        name in weechat.config_get_plugin("ignore_buffers").split(",") or
+        prefix in weechat.config_get_plugin("ignore_nicks").split(",")):
 
         # only notify if the message was not sent by myself
         if (weechat.buffer_get_string(bufferp, "localvar_type") == "private") and (prefix!=mynick):
