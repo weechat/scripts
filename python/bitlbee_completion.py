@@ -1,10 +1,19 @@
+# -*- coding: utf-8 -*-
+# Add tab completion to bitlbee commands
 # based on http://scripts.irssi.org/scripts/bitlbee_tab_completion.pl
+#
+# History:
+#
+# 2015-11-02, Mickaël Thomas <mickael9@gmail.com>:
+#     version 0.2: strip color attributes for topic detection
+# 2015-03-22, Roger Duran <rogerduran@gmail.com>:
+#     version 0.1: initial version
 
 import weechat
 
 SCRIPT_NAME = "bitlbee_completion"
 SCRIPT_AUTHOR = "Roger Duran <rogerduran@gmail.com>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Add tab completion to bitlbee commands"
 
@@ -14,7 +23,7 @@ OPTS = {
     }
 
 TOPIC = "Welcome to the control channel. "\
-    "Type \x02help\x02 for help information."
+    "Type help for help information."
 
 commands = []
 
@@ -65,7 +74,7 @@ def find_buffer():
     infolist = weechat.infolist_get("buffer", "", "")
     while weechat.infolist_next(infolist):
         topic = weechat.infolist_string(infolist, "title")
-        if topic == TOPIC:
+        if weechat.string_remove_color(topic, "") == TOPIC:
             name = weechat.infolist_string(infolist, "name")
             set_options(name)
             request_completion()
@@ -83,7 +92,7 @@ def print_332(data, buffer, time, tags, displayed, highlight, prefix, message):
     """
     Find the buffer when a new one is open
     """
-    if message == TOPIC:
+    if weechat.string_remove_color(message, "") == TOPIC:
         name = weechat.buffer_get_string(buffer, "name")
         set_options(name)
         request_completion()
