@@ -1,3 +1,5 @@
+# coding: utf-8
+
 """
     lastfm.py
 
@@ -9,8 +11,12 @@
    license: GPLv3
 
    history:
-	   0.5   2014-05-07, Kromonos <weechat@kromonos.net>
-			 fixed some simple bugs
+       0.6 - 2016-01-14, Lukas Martini <lutoma@ohai.su>
+             Use Last.fm API as RSS feeds are broken
+
+       0.5 - 2014-05-07, Kromonos <weechat@kromonos.net>
+             fixed some simple bugs
+
        0.4 - 2011-11-21, Jimmy Zelinskie <jimmyzelinskie@gmail.com>:
              changed default encoding to utf-8
 
@@ -26,9 +32,9 @@
 """
 
 import weechat
-import feedparser
+import requests
 
-weechat.register("lastfm", "Adam Saponara", "0.5", "GPL3", "Sends your latest Last.fm track to the current buffer", "", "")
+weechat.register("lastfm", "Adam Saponara", "0.6", "GPL3", "Sends your latest Last.fm track to the current buffer", "", "")
 
 defaults = {
         "lastfm_username" : "yourusername",
@@ -55,15 +61,13 @@ def lastfm_cmd(data, buffer, args):
         python2_bin = weechat.info_get("python2_bin", "") or "python"
         cmd_hook_process = weechat.hook_process(
                 python2_bin + " -c \"\n"
-                "import sys, feedparser\n"
-                "feed = None\n"
-                "feed = feedparser.parse('http://ws.audioscrobbler.com/1.0/user/%(username)s/recenttracks.rss?limit=1')\n"
-                "if not feed or feed.bozo:\n"
+                "import sys, requests\n"
+                "r = requests.get('https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=%(username)s&api_key=618f9ef38b3d0fed172a88c45ae67f33&format=json&limit=1&extended=0')\n"
+                "if not r.status_code == requests.codes.ok:\n"
                 "	print >>sys.stderr, 'Could not fetch Last.fm RSS feed.',\n"
-                "elif not 'items' in feed or len(feed['items']) < 1:\n"
-                "	print >>sys.stderr, 'No tracks found in Last.fm RSS feed.',\n"
-                "else:\n" 
-                "	print feed['items'][0]['title'].replace(u'\u2013', '-').encode('utf-8', 'replace'),\n"
+                "	exit()\n"
+                "json = r.json()['recenttracks']['track'][0]\n"
+                "print('{} – {}'.format(json['artist']['#text'], json['name'])),\n"
                 "\"" % {"username" : weechat.config_get_plugin('lastfm_username')},
                 10000, "lastfm_cb", "")
         return weechat.WEECHAT_RC_OK
