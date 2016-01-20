@@ -16,7 +16,7 @@
 
 import weechat
 
-weechat.register("weestreamer", "Miblo", "0.4", "GPL3", "Livestreamer companion for WeeChat", "", "")
+weechat.register("weestreamer", "Miblo", "0.4.1", "GPL3", "Livestreamer companion for WeeChat", "", "")
 
 def stream(data, buffer, args):
     bufserver = weechat.buffer_get_string(weechat.current_buffer(), "localvar_server")
@@ -39,7 +39,9 @@ def stream(data, buffer, args):
         return weechat.WEECHAT_RC_ERROR
 
     # NOTE(matt): http://docs.livestreamer.io/plugin_matrix.html
-    servers = {"twitch":"http://www.twitch.tv/%s" % (channel),
+    servers = { "afreeca":"http://play.afreeca.com/%s" % (channel),
+                "hitbox":"http://www.hitbox.tv/%s" % (channel),
+                "twitch":"http://www.twitch.tv/%s" % (channel),
                 "ustream":"http://www.ustream.tv/%s" % (channel.replace("-", ""))}
 
     streamurl = ""
@@ -81,6 +83,8 @@ weechat.hook_command("weestreamer", "Livestreamer companion for WeeChat",
         "    /weestreamer handmade_hero\n"
         "\n"
         "Currently supported servers:\n"
+        "   afreeca\n"
+        "   hitbox\n"
         "   twitch\n"
         "   ustream\n"
         "\n"
@@ -94,6 +98,8 @@ weechat.hook_command("weestreamer", "Livestreamer companion for WeeChat",
         "\"Currently supported servers\" (above), weestreamer will not recognise it.",
 
         # NOTE(matt): list of valid parameters
-        "twitch"
+        "afreeca"
+        " || hitbox"
+        " || twitch"
         " || ustream",
         "stream", "")
