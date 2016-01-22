@@ -24,6 +24,8 @@
 # 
 #
 # History:
+# 2016-01-22, creadak
+#   version 0.7: Updated for the new spotify API
 # 2011-03-11, Sebastien Helleu <flashcode@flashtux.org>
 #   version 0.6: get python 2.x binary for hook_process (fix problem when
 #                python 3.x is default python version)
@@ -39,136 +41,97 @@
 #     version 0.1: initial
 #
 
-import weechat
-w = weechat
+import weechat as w
 import re
-import urllib2
+import json
+import urllib
+import datetime
 
 SCRIPT_NAME    = "spotify"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.6"
+SCRIPT_VERSION = "0.7"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Look up spotify urls"
-
-import_ok = True
-try:
-    from BeautifulSoup import BeautifulSoup # install package python-beautifulsoup
-except:
-    print "Package python-beautifulsoup must be installed for script '%s'." % SCRIPT_NAME
-    import_ok = False
 
 settings = {
     "buffers"        : 'freenode.#mychan,',     # comma separated list of buffers
     "emit_notice"    : 'off',                   # on or off, use notice or msg
 }
 
-gateway =  'http://ws.spotify.com/lookup/1/'  # http spotify gw address
+settings_help = {
+    "buffers": 'A comma separated list of buffers the script should check',
+    "emit_notice": 'If on, this script will use /notice, if off, it will use /msg to post info'
+}
 
-spotify_track_res = ( re.compile(r'spotify:(?P<type>\w+):(?P<track_id>\w{22})'),
-            re.compile(r'http://open.spotify.com/(?P<type>\w+)/(?P<track_id>\w{22})') )
+gateway = "https://api.spotify.com"
 
+endpoints = {
+    "track": 'v1/tracks',
+    "album": 'v1/albums',
+    "artist": 'v1/artists'
+}
 
-spotify_hook_process = ''
-buffer_name = ''
-
-
-def get_buffer_name(bufferp):
-    bufferd = weechat.buffer_get_string(bufferp, "name")
-    return bufferd
-
+spotify_track_res = (re.compile(r'spotify:(?P<type>\w+):(?P<id>\w{22})'),
+                     re.compile(r'https?://open.spotify.com/(?P<type>\w+)/(?P<id>\w{22})'))
 
 def get_spotify_ids(s):
     for r in spotify_track_res:
         for type, track in r.findall(s):
             yield type, track
 
+def parse_response(data, type):
+    if type == 'track':
+        name = data['name']
+        album = data['album']['name']
+        artist = data['artists'][0]['name']
+        duration = str(datetime.timedelta(milliseconds=data['duration_ms'])).split('.')[0]
+        popularity = data['popularity']
+        return "%s - %s / %s %s %d%%" % (artist, name, album, duration, popularity)
+    elif type == 'album':
+        name = data['name']
+        artist = data['artists'][0]['name']
+        tracks = data['tracks']['total']
+        released = data['release_date'].split('-')[0]
+        length = 0
+        for track in data['tracks']['items']:
+            length += track['duration_ms']
+        duration = str(datetime.timedelta(milliseconds=length)).split('.')[0]
+        return "%s - %s (%s) - %d tracks (%s)" % (artist, name, released, tracks, duration)
+    elif type == 'artist':
+        name = data['name']
+        followers = data['followers']['total']
+        return "%s - %s followers" % (name, followers)
 
 def spotify_print_cb(data, buffer, time, tags, displayed, highlight, prefix, message):
+    notice = w.config_get_plugin('emit_notice')
+    buffer_name = w.buffer_get_string(buffer, "name")
+    server, channel = buffer_name.split('.')
+    buffers_to_check = w.config_get_plugin('buffers').split(',')
 
-    global spotify_hook_process, buffer_name
+    command = "msg"
+    if notice == "on":
+        command = "notice"
 
-    msg_buffer_name = get_buffer_name(buffer)
-    # Skip ignored buffers
-    found = False
-    for active_buffer in weechat.config_get_plugin('buffers').split(','):
-        if active_buffer.lower() == msg_buffer_name.lower():
-            found = True
-            buffer_name = msg_buffer_name
-            break
+    if buffer_name.lower() not in [buffer.lower() for buffer in buffers_to_check]:
+        return w.WEECHAT_RC_OK
 
-    if not found:
-        return weechat.WEECHAT_RC_OK
+    for type, id in get_spotify_ids(message):
+        data = json.load(urllib.urlopen('%s/%s/%s' % (gateway, endpoints[type], id)))
+        reply = parse_response(data, type)
+        w.command('', "/%s -server %s %s %s" % (command, server, channel, reply))
 
-       
-    for type, spotify_id in get_spotify_ids(message):
-        url = '%s?uri=spotify:%s:%s' %(gateway, type, spotify_id)
-        if spotify_hook_process != "":
-            weechat.unhook(spotify_hook_process)
-            spotify_hook_process = ""
-        python2_bin = weechat.info_get("python2_bin", "") or "python"
-        spotify_hook_process = weechat.hook_process(
-            python2_bin + " -c \"import urllib2; print urllib2.urlopen('" + url + "').read()\"",
-            30 * 1000, "spotify_process_cb", "")
+    return w.WEECHAT_RC_OK
 
-    return weechat.WEECHAT_RC_OK
-
-def spotify_process_cb(data, command, rc, stdout, stderr):
-    """ Callback reading XML data from website. """
-
-    global spotify_hook_process, buffer_name
-
-    spotify_hook_process = ""
-
-    #if int(rc) >= 0:
-    if stdout.strip():
-        #stdout = stdout.decode('UTF-8').encode('UTF-8')
-        soup = BeautifulSoup(stdout)
-        lookup_type = soup.contents[2].name
-        if lookup_type == 'track':
-            name = soup.find('name').string
-            album_name = soup.find('album').find('name').string
-            artist_name = soup.find('artist').find('name').string
-            popularity = soup.find('popularity')
-            if popularity:
-                popularity = float(popularity.string)*100
-            length = float(soup.find('length').string)
-            minutes = int(length)/60
-            seconds =  int(length)%60
-
-            reply = '%s - %s / %s %s:%.2d %2d%%' %(artist_name, name,
-                    album_name, minutes, seconds, popularity)
-        elif lookup_type == 'album':
-            album_name = soup.find('album').find('name').string
-            artist_name = soup.find('artist').find('name').string
-            released = soup.find('released').string
-            reply = '%s - %s - %s' %(artist_name, album_name, released)
-        else:
-            # Unsupported lookup type
-            return weechat.WEECHAT_RC_OK
-
-
-        reply = reply.replace('&amp;', '&')
-        reply = reply.encode('UTF-8')
-
-        splits = buffer_name.split('.') #FIXME bad code
-        server = splits[0]
-        buffer = '.'.join(splits[1:])
-        emit_command = 'msg'
-        if weechat.config_get_plugin('emit_notice') == 'on':
-            emit_command = 'notice'
-        w.command('', '/%s -server %s %s %s' %(emit_command, server, buffer, reply))
-
-    return weechat.WEECHAT_RC_OK
-
-
-
-
-if __name__ == "__main__" and import_ok:
-    if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
+if __name__ == "__main__":
+    if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
                         SCRIPT_DESC, "", ""):
         # Set default settings
-        for option, default_value in settings.iteritems():
-            if not weechat.config_is_set_plugin(option):
-                weechat.config_set_plugin(option, default_value)
+        for option, default in settings.iteritems():
+            if not w.config_is_set_plugin(option):
+                w.config_set_plugin(option, default)
 
-        weechat.hook_print("", "", "spotify", 1, "spotify_print_cb", "")
+        # Set help text
+        for option, description in settings_help.iteritems():
+            w.config_set_desc_plugin(option, description)
+                
+        w.hook_print("", "", "spotify", 1, "spotify_print_cb", "")
