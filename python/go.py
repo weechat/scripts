@@ -325,7 +325,7 @@ def go_matching_buffers(strinput):
         if not matching and strinput[-1] == ' ':
             matching = name.lower().endswith(strinput.strip())
         if not matching and go_option_enabled('fuzzy_search'):
-            matching = go_match_fuzzy(name, strinput)
+            matching = go_match_fuzzy(name.lower(), strinput)
         if not matching and strinput.isdigit():
             matching = str(number).startswith(strinput)
         if len(strinput) == 0 or matching:
@@ -408,8 +408,8 @@ def go_buffers_to_string(listbuf, pos, strinput):
         elif go_option_enabled("fuzzy_search"):
           name = ""
           prev_index = -1
-          for char in strinput:
-              index = buffer_name.find(char, prev_index+1)
+          for char in strinput.lower():
+              index = buffer_name.lower().find(char, prev_index+1)
               if prev_index < 0:
                   name += buffer_name[:index]
                   name += weechat.color(weechat.config_get_plugin(
