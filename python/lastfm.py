@@ -11,6 +11,9 @@
    license: GPLv3
 
    history:
+       0.7 - 2016-01-29, timss <timsateroy@gmail.com>
+             Fix UnicodeEncodeError
+
        0.6 - 2016-01-14, Lukas Martini <lutoma@ohai.su>
              Use Last.fm API as RSS feeds are broken
 
@@ -34,7 +37,7 @@
 import weechat
 import requests
 
-weechat.register("lastfm", "Adam Saponara", "0.6", "GPL3", "Sends your latest Last.fm track to the current buffer", "", "")
+weechat.register("lastfm", "Adam Saponara", "0.7", "GPL3", "Sends your latest Last.fm track to the current buffer", "", "")
 
 defaults = {
         "lastfm_username" : "yourusername",
@@ -67,7 +70,7 @@ def lastfm_cmd(data, buffer, args):
                 "	print >>sys.stderr, 'Could not fetch Last.fm RSS feed.',\n"
                 "	exit()\n"
                 "json = r.json()['recenttracks']['track'][0]\n"
-                "print('{} – {}'.format(json['artist']['#text'], json['name'])),\n"
+                "print('{} – {}'.format(json['artist']['#text'].encode('utf-8'), json['name'].encode('utf-8'))),\n"
                 "\"" % {"username" : weechat.config_get_plugin('lastfm_username')},
                 10000, "lastfm_cb", "")
         return weechat.WEECHAT_RC_OK
