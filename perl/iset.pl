@@ -19,6 +19,8 @@
 #
 # History:
 #
+# 2016-02-06, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 4.1: remove debug print
 # 2015-12-24, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 4.0: add support of parent options (inherited values in irc servers)
 #                  with WeeChat >= 1.4
@@ -126,7 +128,7 @@
 use strict;
 
 my $PRGNAME = "iset";
-my $VERSION = "4.0";
+my $VERSION = "4.1";
 my $DESCR   = "Interactive Set for configuration options";
 my $AUTHOR  = "Sebastien Helleu <flashcode\@flashtux.org>";
 my $LICENSE = "GPL3";
@@ -815,7 +817,6 @@ sub iset_config_cb
             {
                 if ($options_parent_names[$i] eq $option_name)
                 {
-                    weechat::print("", "refresh: ".$options_names[$i]);
                     iset_refresh_option($options_names[$i], $i);
                 }
             }
