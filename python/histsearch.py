@@ -24,6 +24,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2016-02-20, Simmo Saan <simmo.saan@gmail.com>
+#     version 0.3: add option to only display selected command
 # 2010-01-19, xt <xt@bash.no>
 #     version 0.2: return max 9 commands
 # 2009-06-10, xt <xt@bash.no>
@@ -35,7 +37,7 @@ weechat = w
 
 SCRIPT_NAME    = "histsearch"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Quick search in command history (think ctrl-r in bash)"
 SCRIPT_COMMAND = 'histsearch'
@@ -49,6 +51,7 @@ settings = {
     "color_name_highlight"         : "red,cyan",
     "color_name_highlight_selected": "red,brown",
     "message"                      : "Command: ",
+    "display_selected_only"        : "false",
 }
 
 
@@ -160,6 +163,11 @@ def get_command_string(commands, pos, input):
         selected = ''
         if i == pos:
             selected = "_selected"
+
+        if weechat.config_string_to_boolean(weechat.config_get_plugin("display_selected_only")):
+            if not selected:
+                continue
+
         index = command.find(input)
         index2 = index + len(input)
         returnstr += ' ' + \
