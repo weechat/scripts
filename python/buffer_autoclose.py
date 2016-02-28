@@ -20,6 +20,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2016-02-05, ixti
+#  version 0.4: Add Python3 support
 # 2009-12-15, xt
 #  version 0.3: moved around some control structures to not be as noisy
 # 2009-12-02, xt
@@ -32,7 +34,7 @@ import time
 
 SCRIPT_NAME    = "buffer_autoclose"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.3"
+SCRIPT_VERSION = "0.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Automatically close inactive private message buffers"
 
@@ -44,7 +46,7 @@ settings = {
 
 if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
                     SCRIPT_DESC, "", ""):
-    for option, default_value in settings.iteritems():
+    for option, default_value in settings.items():
         if not w.config_is_set_plugin(option):
             w.config_set_plugin(option, default_value)
     w.hook_timer(\
@@ -119,7 +121,7 @@ def close_time_cb(buffer, args):
                 # Don't close buffers with text on input line
                 #w.prnt('', '%s: Not closing buffer: %s: it has input' %(SCRIPT_NAME, name))
                 continue
-                
+
             w.prnt('', '%s: Closing buffer: %s' %(SCRIPT_NAME, name))
             w.command(buffer, '/buffer close')
         #else:
