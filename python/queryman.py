@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2013 by nils_2 <weechatter@arcor.de>
+# Copyright (c) 2013-2016 by nils_2 <weechatter@arcor.de>
 #
 # save and restore query buffers after /quit
 #
@@ -18,6 +18,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # idea by lasers@freenode.#weechat
+#
+# 2016-02-27: nils_2, (freenode.#weechat)
+#       0.3 : make script consistent with "buffer_switch_autojoin" option (idea haasn)
 #
 # 2013-11-07: nils_2, (freenode.#weechat)
 #       0.2 : fix file not found error (reported by calcifea)
@@ -42,7 +45,7 @@ except Exception:
 
 SCRIPT_NAME     = 'queryman'
 SCRIPT_AUTHOR   = 'nils_2 <weechatter@arcor.de>'
-SCRIPT_VERSION  = '0.2'
+SCRIPT_VERSION  = '0.3'
 SCRIPT_LICENSE  = 'GPL'
 SCRIPT_DESC     = 'save and restore query buffers after /quit'
 
@@ -75,7 +78,11 @@ def load_query_buffer_irc_server_opened(server_connected):
         for line in f:
             servername,nick = line.split(' ')
             if servername == server_connected:
-                weechat.command('','/query -server %s %s' % ( servername,nick ))
+                noswitch = ""
+                switch_autojoin = weechat.config_get("irc.look.buffer_switch_autojoin")
+                if not weechat.config_boolean(switch_autojoin):
+                    noswitch = "-noswitch"
+                weechat.command('','/query %s -server %s %s' % ( noswitch, servername, nick ))
         f.close()
     else:
         weechat.prnt('','%s%s: Error loading query buffer from "%s"' % (weechat.prefix('error'), SCRIPT_NAME, filename))
