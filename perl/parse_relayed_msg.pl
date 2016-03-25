@@ -8,6 +8,7 @@
 #
 # thanks to darrob for hard beta-testing
 #
+# 1.9: Add Gitter support
 # 1.8: fix: regex on tags
 # 1.7: add support of colors with format "${color:xxx}" (>= WeeChat 0.4.2)
 # 1.6: add wildcard "*" for supported_bot_names.
@@ -61,13 +62,13 @@
 
 use strict;
 my $SCRIPT_NAME         = "parse_relayed_msg";
-my $SCRIPT_VERSION      = "1.8";
+my $SCRIPT_VERSION      = "1.9";
 my $SCRIPT_DESCR        = "proper integration of remote users' nicknames in channel and nicklist";
 my $SCRIPT_AUTHOR       = "w8rabbit";
 my $SCRIPT_LICENCE      = "GPL3";
 
 # =============== options ===============
-my %option = (  "supported_bot_names" => "cloudrelay*,MultiRelay*,FLIPRelayBot*,i2pRelay,u2,uuu,RelayBot,lll,iRelay,fox,wolf,hawk,muninn,gribble,vulpine",
+my %option = (  "supported_bot_names" => "cloudrelay*,MultiRelay*,FLIPRelayBot*,i2pRelay,u2,uuu,RelayBot,lll,iRelay,fox,wolf,hawk,muninn,gribble,vulpine,*GitterBot",
                 "debug"                 => "off",
                 "blacklist"             => "",
                 "servername"            => "i2p,freenet",
@@ -177,8 +178,8 @@ sub parse_relayed_msg_cb
             weechat::print_date_tags($buf_ptr,0,$modifier_data,$string);
             return "";
         }
-        # message from FLIP
-        elsif ( $line =~ m/^\[(.+?)\] (.+)$/ )
+        # message from FLIP & Gitter
+        elsif ( $line =~ m/^[\(\[`](.+?)[\)\]`] (.+)$/ )
         {
             my ($relaynick,$relaymsg) = ($1,$2);
             if ( grep /^$servername.$relaynick$/, @blacklist )              # check for ignored relay nicks
@@ -198,7 +199,7 @@ sub parse_relayed_msg_cb
         }
         # message from cloudc2sd
         # :u2!u@irc2p PRIVMSG #relaytest :/botname/nickname> here comes the message
-        elsif ( $line =~ m/^\/([^\/]+)\/([^\>]+)\>\s(.+)$/ )
+        elsif ( $line =~ m/^([^\/]+)\/([^\>]+)\>\s(.+)$/ )
         {
             my ($relaynet,$relaynick,$relaymsg) = ($1,$2,$3);
 

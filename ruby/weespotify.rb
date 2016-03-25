@@ -5,7 +5,7 @@
 
 SCRIPT_NAME = "weespotify".freeze
 SCRIPT_AUTHOR = "Paweł Pogorzelski <pawelpogorzelski@gmail.com>".freeze
-SCRIPT_VERSION = "1.0".freeze
+SCRIPT_VERSION = "1.1".freeze
 SCRIPT_LICENSE = "GLP3".freeze
 DESCRIPTION = "Now playing script for spotify (*nix only)".freeze
 
@@ -18,7 +18,7 @@ class SpotifyTrack
   SPLITTER = "♫"
 
   def print_output
-    return "/me is listening to #{SPLITTER} #{self.title} #{SPLITTER} by #{self.artist} from album #{self.album} on spotify"
+    return "/me is listening to #{SPLITTER} #{self.title} #{SPLITTER} by #{self.artist} from the album #{self.album} on Spotify."
   end
 end
 
@@ -43,7 +43,7 @@ def weespotify_command(data, buffer,args)
   if spotify_data!= "SPOTIFY_NOT_RUNNING"
     spotify_array = spotify_data.to_s.split('dict entry')
     spotify_array.each {|spotify_info|
-      ["title","artist","album"].any? { |tested_info|
+      ["title","albumArtist","album"].any? { |tested_info|
         if spotify_info.include? tested_info
           data = spotify_info.split('variant')[1]
           start_position = data.index('"')
@@ -51,7 +51,7 @@ def weespotify_command(data, buffer,args)
           content = data[start_position+1..end_position-1]
           tested_info == 'title' ? spotify_object.title=content : nil
           tested_info == 'album' ? spotify_object.album=content : nil
-          tested_info == 'artist' ? spotify_object.artist=content : nil
+          tested_info == 'albumArtist' ? spotify_object.artist=content : nil
         end
       }
     }
