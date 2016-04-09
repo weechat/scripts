@@ -2,7 +2,7 @@
 #
 # The MIT License (MIT)
 #
-# Copyright (c) 2015 - 2016 Jos Ahrens <zarthus@zarth.us>
+# Copyright (c) 2015 - 2016 Jos Ahrens <zarthus@lovebytes.me>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -89,7 +89,7 @@ import re
 
 
 SCRIPT_NAME = "chancomp"
-SCRIPT_AUTHOR = "Zarthus <zarthus@zarth.us>"
+SCRIPT_AUTHOR = "Zarthus <zarthus@lovebytes.me>"
 SCRIPT_VERSION = "1.1"
 SCRIPT_LICENSE = "MIT"
 SCRIPT_DESC = "List shared channels with user on command or WHOIS"
