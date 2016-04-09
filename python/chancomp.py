@@ -2,7 +2,7 @@
 #
 # The MIT License (MIT)
 #
-# Copyright (c) 2015 Jos Ahrens <zarthus@zarth.us>
+# Copyright (c) 2015 - 2016 Jos Ahrens <zarthus@zarth.us>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -66,6 +66,8 @@
 # History:
 #  version 1.0 - 2015-10-29
 #    Script creation
+#  version 1.1 - 2015-12-16
+#    Honour irc.look.msgbuffer_fallback
 #
 # TODOs:
 #  - Possibly support a verbose output of "sharing all their channels"
@@ -88,7 +90,7 @@ import re
 
 SCRIPT_NAME = "chancomp"
 SCRIPT_AUTHOR = "Zarthus <zarthus@zarth.us>"
-SCRIPT_VERSION = "1.0"
+SCRIPT_VERSION = "1.1"
 SCRIPT_LICENSE = "MIT"
 SCRIPT_DESC = "List shared channels with user on command or WHOIS"
 SCRIPT_COMMAND = "chancomp"
@@ -252,6 +254,9 @@ def find_target_buffer(server, nick):
     }
 
     opt = w.config_string(w.config_get("irc.msgbuffer.whois"))
+    if not opt:
+        opt = w.config_string(w.config_get("irc.look.msgbuffer_fallback"))
+
     target = ""
 
     if opt.lower() in targets:
@@ -305,8 +310,8 @@ def create_whois_regex_from_isupport(server):
 def fmt_nick(nick):
     """Format nick in colours for output colouring"""
 
-    green = w.color('green')
-    reset = w.color('reset')
+    green = w.color("green")
+    reset = w.color("reset")
     nick_col = w.color(w.info_get("irc_nick_color_name", nick))
 
     return "{}[{}{}{}]{}".format(green, nick_col, nick, green, reset)
