@@ -19,6 +19,8 @@
 #
 # History:
 #
+# 2015-10-04, Simmo Saan <simmo.saan@gmail.com>
+#   version 0.9: fix text search imitation in filter
 # 2015-08-27, Simmo Saan <simmo.saan@gmail.com>
 #   version 0.8: add documentation
 # 2015-08-25, Simmo Saan <simmo.saan@gmail.com>
@@ -45,7 +47,7 @@ from __future__ import print_function
 
 SCRIPT_NAME = "grep_filter"
 SCRIPT_AUTHOR = "Simmo Saan <simmo.saan@gmail.com>"
-SCRIPT_VERSION = "0.8"
+SCRIPT_VERSION = "0.9"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Filter buffers automatically while searching them"
 
@@ -63,6 +65,8 @@ except ImportError:
 	print("This script must be run under WeeChat.")
 	print("Get WeeChat now at: http://www.weechat.org/")
 	IMPORT_OK = False
+
+import re # re.escape
 
 SETTINGS = {
 	"enable": (
@@ -153,19 +157,23 @@ def buffer_build_regex(buffer):
 	input = weechat.hdata_string(hdata, buffer, "input_buffer")
 	exact = weechat.hdata_integer(hdata, buffer, "text_search_exact")
 	where = weechat.hdata_integer(hdata, buffer, "text_search_where")
+	regex = weechat.hdata_integer(hdata, buffer, "text_search_regex")
+
+	if not regex:
+		input = re.escape(input)
 
 	if exact:
 		input = "(?-i)%s" % input
 
-	regex = None
+	filter_regex = None
 	if where == 1: # message
-		regex = input
+		filter_regex = input
 	elif where == 2: # prefix
-		regex = "%s\\t" % input
+		filter_regex = "%s\\t" % input
 	else: # prefix | message
-		regex = input # TODO: impossible with current filter regex
+		filter_regex = input # TODO: impossible with current filter regex
 
-	return "!%s" % regex
+	return "!%s" % filter_regex
 
 def buffer_update(buffer):
 	"""
@@ -178,7 +186,7 @@ def buffer_update(buffer):
 	name = "%s_%s" % (SCRIPT_NAME, buffers)
 
 	if buffer_searching(buffer):
-		if buffer_filtering(buffer) and not filter_exists(name):
+		if buffer_filtering(buffer):
 			filter_addreplace(name, buffers, "*", buffer_build_regex(buffer))
 		elif not buffer_filtering(buffer) and filter_exists(name):
 			filter_del(name)
