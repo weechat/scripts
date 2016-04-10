@@ -8,45 +8,47 @@
 #
 # thanks to darrob for hard beta-testing
 #
-# 1.9: Add Gitter support
-# 1.8: fix: regex on tags
-# 1.7: add support of colors with format "${color:xxx}" (>= WeeChat 0.4.2)
-# 1.6: add wildcard "*" for supported_bot_names.
-# 1.5: cleaned up code and make it more readable
-# 1.4: fix: problem with tag "prefix_nick_ccc"
-#      improved: Nicks will be displayed the same way in Nicklist like in channel buffer.
-# 1.3: fix: action message (/me) was printed twice for some remote server
+# 1.9.1: fix: uninitialized value (by arza)
+#        fix: indentation
+# 1.9:   add: Gitter support
+# 1.8:   fix: regex on tags
+# 1.7:   add: support of colors with format "${color:xxx}" (>= WeeChat 0.4.2)
+# 1.6:   add: wildcard "*" for supported_bot_names.
+# 1.5:   cleaned up code and make it more readable
+# 1.4:   fix: problem with tag "prefix_nick_ccc"
+#        improved:  Nicks will be displayed the same way in Nicklist like in channel buffer.
+# 1.3:   fix: action message (/me) was printed twice for some remote server
 # 1.2.1: fix: add_relay_nick_to_nicklist()
-# 1.2: add: a warning will be displayed if a wrecked message was received
-#      add: debug mode (especially for darrob :-)
-#      improved: whitespaces will be removed in front of message-text
-# 1.1: cleaned up code and made it more readable!!!
-#       add: ACTION messages for "uuu" will be displayed now
-#       improved: relaynet_color option (read online help)
-#       fix: quoted "relaynet/relaynick" in cloudc2sd
-# 1.0.1:add: new option "relaynet_color" and "relaynet_to_nicklist"
-#       fix: network for cloudc2sd relaybot wasn't displayed
-# 1.0: add: cloudc2sd relaybot. (thanks to killyourtv for beta-testing)
-# 0.9: improved: tag-regex for latest weechat version (v0.3.8)
-#      add: option "blacklist" to ignore relaynicks (suggested by darrob)
-#      fix: regex for FLIP (by operhiem1)
-#      improved: nick-modes from relaynicks will not be displayed in nicklist/nickname anymore(for nick auto-completion)
-#      NOTE: weechat can handle more than one nick-mode internally, but it will only display the highest rated nick-mode in nicklist.
-# 0.8: regex for FLIP bot improved (reported by user)
-#      fix: problem with nicks in nicklist (thanks to KillYourTV and user)
-#      fix: weechat crash when closing buffer with relay nicks in nicklist
-#      fix: problem with not displaying first relay nick in nicklist
-#      improved: support of colorize_lines script.
-# 0.7: relay nicks will be displayed in nicklist (in its own group)
-#      new option "unexpected_msg_handling".
-# 0.6: FLIPRelayBot implemented (suggested by darrob)
-# 0.5: relay indicator for actions added
-# 0.4: hardcoded code removed (weechat 0.3.4 and higher required)
-# 0.3: option suppress_relaynet and suppress_relaynet_channels added.
-#      multi-server support added.
-# 0.2: scriptname changed from parse_bot_msg to parse_relayed_msg (suggested by darrob)
-#      added version check to use prio for hook_modifier()
-# 0.1: - initial release -
+# 1.2:   add: a warning will be displayed if a wrecked message was received
+#        add:  debug mode (especially for darrob :-)
+#        improved:  whitespaces will be removed in front of message-text
+# 1.1:   cleaned up code and made it more readable!!!
+#        add: ACTION messages for "uuu" will be displayed now
+#        improved:  relaynet_color option (read online help)
+#        fix:  quoted "relaynet/relaynick" in cloudc2sd
+# 1.0.1: add: new option "relaynet_color" and "relaynet_to_nicklist"
+#        fix: network for cloudc2sd relaybot wasn't displayed
+# 1.0:   add: cloudc2sd relaybot. (thanks to killyourtv for beta-testing)
+# 0.9:   improved: tag-regex for latest weechat version (v0.3.8)
+#        add: option "blacklist" to ignore relaynicks (suggested by darrob)
+#        fix: regex for FLIP (by operhiem1)
+#        improved: nick-modes from relaynicks will not be displayed in nicklist/nickname anymore (for nick auto-completion)
+#        NOTE: weechat can handle more than one nick-mode internally, but it will only display the highest rated nick-mode in nicklist.
+# 0.8:   improved: regex for FLIP bot (reported by user)
+#        fix: problem with nicks in nicklist (thanks to KillYourTV and user)
+#        fix: weechat crash when closing buffer with relay nicks in nicklist
+#        fix: problem with not displaying first relay nick in nicklist
+#        improved: support of colorize_lines script.
+# 0.7:   relay nicks will be displayed in nicklist (in its own group)
+#        new option "unexpected_msg_handling".
+# 0.6:   FLIPRelayBot implemented (suggested by darrob)
+# 0.5:   relay indicator for actions added
+# 0.4:   hardcoded code removed (weechat 0.3.4 and higher required)
+# 0.3:   option suppress_relaynet and suppress_relaynet_channels added.
+#        multi-server support added.
+# 0.2:   scriptname changed from parse_bot_msg to parse_relayed_msg (suggested by darrob)
+#        added version check to use prio for hook_modifier()
+# 0.1:   - initial release -
 
 
 # http://w8rabbit.i2p/parse_relayed_msg.html
@@ -62,13 +64,13 @@
 
 use strict;
 my $SCRIPT_NAME         = "parse_relayed_msg";
-my $SCRIPT_VERSION      = "1.9";
+my $SCRIPT_VERSION      = "1.9.1";
 my $SCRIPT_DESCR        = "proper integration of remote users' nicknames in channel and nicklist";
 my $SCRIPT_AUTHOR       = "w8rabbit";
 my $SCRIPT_LICENCE      = "GPL3";
 
 # =============== options ===============
-my %option = (  "supported_bot_names" => "cloudrelay*,MultiRelay*,FLIPRelayBot*,i2pRelay,u2,uuu,RelayBot,lll,iRelay,fox,wolf,hawk,muninn,gribble,vulpine,*GitterBot",
+my %option = (  "supported_bot_names"   => "cloudrelay*,MultiRelay*,FLIPRelayBot*,i2pRelay,u2,uuu,RelayBot,lll,iRelay,fox,wolf,hawk,muninn,gribble,vulpine,*GitterBot",
                 "debug"                 => "off",
                 "blacklist"             => "",
                 "servername"            => "i2p,freenet",
@@ -86,8 +88,8 @@ my %script_desc = ( "blacklist"           => "Comma-separated list of relayed ni
                     "supported_bot_names" => "Comma-separated list of relay bots.",
                     "debug"               => "Enable output of raw IRC messages. This is a developer feature and should generally be turned off. The format is:  <servername>:<botname> (default: off)",
                     "servername"          => "Comma-separated list of internal servers to enable $SCRIPT_NAME for. (default: i2p,freenet)",
-                    "nick_mode"           => "Prefix character used to mark relayed nicknames. (default: ⇅). Since WeeChat 0.4.2 you can use format \${color:xxx}, eg: \${color:yellow}⇅",
-                    "nick_mode_color"     => "Color of the prefix character. (default: yellow). This option is obsolet since WeeChat 0.4.2 (see option nick_mode)",
+                    "nick_mode"           => "Prefix character used to mark relayed nicknames. (default: ⇅). Since WeeChat 0.4.2 you can use format \${color:xxx} but this doesn't affect nicklist.",
+                    "nick_mode_color"     => "Color of the prefix character. (default: yellow)",
                     "suppress_relaynet"   => "Hide nicknames' network part (if applicable). (default: off)",
                     "suppress_relaynet_channels" => "Comma-separated list of channels to activate suppress_relaynet in. Format: \"servername.channel\", e.g. \"i2p.#i2p-dev,freenode.#weechat\". (default: \"\" (i.e. global))",
                     "relaynet_color"      => "Color of nicknames' network part. Leave blank for altering colors. (default: \"\")",
@@ -599,7 +601,7 @@ sub check_own_nicklist
             # delete nick from %hash and from nicklist
             my ($buf_ptr, $relaynick) = split( /\./, $name );
             my $ptr_group = weechat::nicklist_search_group($buf_ptr,"",$group_name);
-            return if ( $ptr_group eq "" );
+            next if ( $ptr_group eq "" );
             my $ptr_nick_gui = weechat::nicklist_search_nick($buf_ptr, $ptr_group, $relaynick);
             if ( $ptr_nick_gui ne "" )
             {
@@ -630,12 +632,12 @@ sub init_config
             $option{$opt} = weechat::config_get_plugin($opt);
         }
     }
-
-@bot_nicks = split( /,/, $option{supported_bot_names} );                                # read bot names
-@list_of_server = split( /,/, $option{servername} );                                    # read server
-@suppress_relaynet_channels = split( /,/, $option{suppress_relaynet_channels} );        # read channels
-@blacklist = split( /,/, $option{blacklist} );                                          # read blacklist of relay nicks
-
+    
+    @bot_nicks = split( /,/, $option{supported_bot_names} );                                # read bot names
+    @list_of_server = split( /,/, $option{servername} );                                    # read server
+    @suppress_relaynet_channels = split( /,/, $option{suppress_relaynet_channels} );        # read channels
+    @blacklist = split( /,/, $option{blacklist} );                                          # read blacklist of relay nicks
+    
     if (($weechat_version ne "") && ($weechat_version >= 0x00030500))
     {
         foreach my $option ( keys %script_desc )
