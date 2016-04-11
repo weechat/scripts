@@ -5,12 +5,12 @@
 #
 # Inserts some statistics into your input field about the buffers/windows
 #  you have open.
-# Example: 9 windows used. 70 (of which 12 merged) buffers open: 1 core, 
-#  1 xfer, 2 python, 3 perl, 47 irc channels, 7 irc servers, 9 irc queries
+# Example: 151 buffers (46 merged): 135 channels, 9 servers, 3 queries,
+#  1 script, 1 python, 1 perl, 1 core; 3 windows
 #
 ## History:
+#
 ### 2012-03-29: FiXato:
-# 
 # * version 0.1: initial release.
 #     * Display a count of all the different buffers you have open.
 #     * Display a count of all the open windows.
@@ -18,12 +18,18 @@
 #     * Displays the how many vertical and horizontal windows.
 #       (not quite sure if my approximation is correct though..)
 #     * Fixed possible memleak (forgot to free an infolist)
+### 2015-05-02: arza:
+# * version 0.3:
+#     * handle non-#-channels
+#     * numerical sort for buffer info
+#     * moved window split info to option -split
+#     * simplified the output
 #
 ## Acknowledgements:
 # * Sebastien "Flashcode" Helleu, for developing the kick-ass chat/IRC
 #    client WeeChat
 #
-## TODO: 
+## TODO:
 #   - Add more statistics, such as:
 #     - average and total history lines.
 #     - average and total topic/title lengths
@@ -54,7 +60,7 @@
 #
 SCRIPT_NAME     = "weestats"
 SCRIPT_AUTHOR   = "Filip H.F. 'FiXato' Slagter <fixato [at] gmail [dot] com>"
-SCRIPT_VERSION  = "0.2"
+SCRIPT_VERSION  = "0.3"
 SCRIPT_LICENSE  = "MIT"
 SCRIPT_DESC     = "Useless statistics about your open buffers and windows"
 SCRIPT_COMMAND  = "weestats"
@@ -83,20 +89,22 @@ def command_main(data, buffer, args):
     bname = w.infolist_string(infolist, "name")
     bpointer = w.infolist_pointer(infolist, "pointer")
     bnumber = w.infolist_integer(infolist, "number")
+    btype = w.buffer_get_string(bpointer, 'localvar_type')
     if not bnumber in numbers:
       numbers.add(bnumber)
     else:
       merge_count += 1
-    btype = bplugin
-    if bplugin == 'irc':
-      if  'server.' in bname:
-        btype = '%s servers' % btype
-      elif '#' in bname:
-        btype = '%s channels' % btype
-      else:
-        btype = '%s queries' % btype
-      
-    buffer_groups.setdefault(btype,[]).append({'name': bname, 'pointer': bpointer})
+
+    if btype == 'server':
+      bdesc = 'servers'
+    elif btype == 'channel':
+      bdesc = 'channels'
+    elif btype == 'private':
+      bdesc = 'queries'
+    else:
+      bdesc = bplugin
+
+    buffer_groups.setdefault(bdesc,[]).append({'name': bname, 'pointer': bpointer})
 
   w.infolist_free(infolist)
 
@@ -115,15 +123,17 @@ def command_main(data, buffer, args):
       windows_h.add(window)
     #else: #both 100%, thus no splits
   w.infolist_free(infolist)
-    
+
   window_count = len(windows)
 
-  for bplugin, buffers in buffer_groups.iteritems():
+  for desc, buffers in buffer_groups.iteritems():
     buffer_count += len(buffers)
-    results.append('%i %s' % (len(buffers), bplugin))
+    results.append('%i %s' % (len(buffers), desc))
 
-  buffer_stats = ', '.join(sorted(results))
-  stats_string = '%i windows used (%i vertically / %i horizontally split). %i (of which %i merged) buffers open: %s' % (window_count, len(windows_v), len(windows_h), buffer_count, merge_count, buffer_stats)
+  buffer_stats = ', '.join(sorted(results, key = lambda item: (int(item.partition(' ')[0]) if item[0].isdigit() else float('inf'), item),reverse=True)) # descending numerical sort of strings
+  stats_string = '%i buffers (%i merged): %s; %i windows' % (buffer_count, merge_count, buffer_stats, window_count)
+  if '-split' in args:
+    stats_string += ": %i vertically / %i horizontally split" % (len(windows_v), len(windows_h))
   w.command("", "/input insert %s" % stats_string)
   return w.WEECHAT_RC_OK
 
@@ -131,11 +141,10 @@ if __name__ == "__main__" and import_ok:
   if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION,
                       SCRIPT_LICENSE, SCRIPT_DESC, SCRIPT_CLOSE_CB, ""):
 
-    w.hook_command(SCRIPT_COMMAND, 
+    w.hook_command(SCRIPT_COMMAND,
                           SCRIPT_DESC,
-                          "",
-                          "Inserts useless statistics about your open windows and buffers into your input line.\n",
-
-                          "",
-
+                          "-split",
+                          "Inserts useless statistics about your open buffers and windows into your input line.\n"
+                          "-split: Include information about window splits.",
+                          "-split",
                           "command_main", "")
