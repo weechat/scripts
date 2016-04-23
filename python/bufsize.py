@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2012-2013 by nils_2 <weechatter@arcor.de>
+# Copyright (c) 2012-2016 by nils_2 <weechatter@arcor.de>
 #                         and nesthib <nesthib@gmail.com>
 #
 # scroll indicator; displaying number of lines below last line, overall lines in buffer, number of current line and percent displayed
@@ -18,6 +18,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2016-04-23: wdbw <tuturu@tutanota.com>
+#     0.6.2 : fix: type of filters_enabled
 # 2014-02-24: nesthib (freenode.#weechat)
 #     0.6.1 : fix: color tags for default format
 # 2013-11-19: nils_2 (freenode.#weechat)
@@ -52,7 +54,7 @@ except Exception:
 
 SCRIPT_NAME     = "bufsize"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.6.1"
+SCRIPT_VERSION  = "0.6.2"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "scroll indicator; displaying number of lines below last line, overall lines in buffer, number of current line and percent displayed"
 
@@ -220,7 +222,7 @@ if __name__ == "__main__":
         version = weechat.info_get("version_number", "") or 0
 
         if int(version) >= 0x00030600:
-            filter_status = weechat.info_get('filters_enabled','')
+            filter_status = int(weechat.info_get('filters_enabled',''))
             bar_item = weechat.bar_item_new(SCRIPT_NAME, 'show_item','')
             weechat.bar_item_update(SCRIPT_NAME)
             weechat.hook_signal('buffer_line_added','update_cb','')
