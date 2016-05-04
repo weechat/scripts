@@ -20,6 +20,8 @@
 #
 # History:
 #
+# 2016-05-04, Saleem Rashid <spudowiar@outlook.com>:
+#     v5.5: allow moving between lines using '/buffer'
 # 2016-05-01, mumixam <mumixam@gmail.com>:
 #     v5.4: added option "detach_buffer_immediately_level"
 # 2015-08-21, Matthew Cox <matthewcpcox@gmail.com>
@@ -170,9 +172,10 @@
 
 use strict;
 use Encode qw( decode encode );
+use POSIX  qw( floor ceil );
 # -----------------------------[ internal ]-------------------------------------
 my $SCRIPT_NAME = "buffers";
-my $SCRIPT_VERSION = "5.4";
+my $SCRIPT_VERSION = "5.5";
 
 my $BUFFERS_CONFIG_FILE_NAME = "buffers";
 my $buffers_config_file;
@@ -192,6 +195,8 @@ my @immune_detach_buffers= ();
 my @detach_buffer_immediately= ();
 my @buffers_focus = ();
 my %buffers_timer = ();
+my %sorted_buffers = ();
+my $current_key = 0;
 my %Hooks = ();
 
 # --------------------------------[ init ]--------------------------------------
@@ -264,6 +269,7 @@ weechat::hook_command($cmd_buffers_detach,
                       "del %-||".
                       "reset %-",
                       "buffers_cmd_detach", "");
+weechat::hook_command_run("/buffer *", "buffers_command", "");
 
 if ($weechat_version >= 0x00030800)
 {
@@ -1128,7 +1134,7 @@ sub build_buffers
     weechat::infolist_free($infolist);
 
     # sort buffers by number, name or shortname
-    my %sorted_buffers;
+    %sorted_buffers = ();
     if (1)
     {
         my $number = 0;
@@ -1297,6 +1303,7 @@ sub build_buffers
 
         if ($buffer->{"current_buffer"})
         {
+            $current_key = $key;
             $color = weechat::config_color( $options{"color_current_fg"} );
             $bg = weechat::config_color( $options{"color_current_bg"} );
         }
@@ -1582,6 +1589,64 @@ $str .= $col_number_char. ")";
 
 $str = "" if (weechat::string_remove_color($str, "") eq " ()");         # remove color and check for buffer with no messages
 return $str;
+}
+
+sub buffers_command
+{
+    my ($data, $buffer, $command) = @_;
+    if ($command !~ m/^\/buffer\s+(|\+|-)L([0-9]+)\s*$/)
+    {
+        return weechat::WEECHAT_RC_OK;
+    }
+    my ($type, $number) = ($1, int($2));
+
+    my $option_filling = weechat::config_string( weechat::config_get( "weechat.bar.buffers.filling_top_bottom" ) );
+    if ($option_filling !~ m/^columns_/)
+    {
+        return weechat::WEECHAT_RC_ERROR;
+    }
+
+    my $hdata = weechat::hdata_get("bar_window");
+    my $bar_window = weechat::hdata_pointer (weechat::hdata_get("bar"), weechat::bar_search($SCRIPT_NAME), "bar_window");
+    my $width = weechat::hdata_integer ($hdata, $bar_window, "width");
+    my $screen_col_size = weechat::hdata_integer ($hdata, $bar_window, "screen_col_size");
+    if ($screen_col_size == 0)
+    {
+        return weechat::WEECHAT_RC_ERROR;
+    }
+
+    my $columns = floor($width / $screen_col_size);
+
+    my $target_key = 0;
+    my $row = $current_key % $columns;
+    my $rows = ceil((keys %sorted_buffers) / $columns);
+
+    if ($option_filling eq "columns_vertical")
+    {
+        ($columns, $rows) = ($rows, $columns);
+    }
+
+    if ($type eq "")
+    {
+        $target_key = $columns * $number + $row;
+    }
+    elsif ($type eq "+")
+    {
+        $target_key = $current_key + $number * $columns;
+    }
+    elsif ($type eq "-")
+    {
+        $target_key = $current_key - $number * $columns;
+    }
+
+    if ($row >= ((keys %sorted_buffers) % $columns || $columns))
+    {
+        $rows--;
+    }
+
+    my $target = $sorted_buffers{sprintf("%08d", $target_key % ($rows * $columns))}{"number"};
+    weechat::command("", "/buffer $target");
+    return weechat::WEECHAT_RC_OK_EAT;
 }
 
 sub buffers_signal_buffer
