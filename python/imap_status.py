@@ -3,6 +3,10 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2016-05-07, Sebastien Helleu <flashcode@flashtux.org>:
+#   version 0.8: add options "mailbox_color", "separator", "separator_color",
+#                remove extra colon in bar item content, use hook_process
+#                to prevent any freeze in WeeChat >= 1.5
 # 2015-01-09, nils_2
 #   version 0.7: use eval_expression()
 # 2010-07-12, TenOfTen
@@ -35,60 +39,68 @@
 '''
 Usage: put [imap] in your status bar items.  (Or any other bar to your liking)
 "/set weechat.bar.status.items".
-
-Warning: If you have a slow imap server, weechat might "freeze" while doing operations against remove server as this script does not do any background processing and weechat is single threaded.
 '''
 
-import weechat as w
 import imaplib as i
-from time import time as now
 import re
+import weechat as w
 
-SCRIPT_NAME    = "imap_status"
-SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.7"
+SCRIPT_NAME = "imap_status"
+SCRIPT_AUTHOR = "xt <xt@bash.no>"
+SCRIPT_VERSION = "0.8"
 SCRIPT_LICENSE = "GPL3"
-SCRIPT_DESC    = "Bar item with unread imap messages count"
+SCRIPT_DESC = "Bar item with unread imap messages count"
 
 
-LAST_RUN = 0
-LAST_MESSAGE = ''
+WEECHAT_VERSION = 0
+IMAP_UNREAD = ''
 
 # script options
 settings = {
-    "username"          : '',
-    "password"          : '',
-    "hostname"          : '', # gmail uses imap.gmail.com
-    "port"              : '993',
-    'mailboxes'         : 'INBOX', #comma separated list of mailboxes. "Inbox" works fine too with gmail.
-    'message'           : 'Mail: ',
-    'message_color'     : 'default',
-    'count_color'       : 'default',
-    'interval'          : '5',
+    'username': '',
+    'password': '',
+    'hostname': '',  # gmail uses imap.gmail.com
+    'port': '993',
+    'mailboxes': 'INBOX',  # comma separated list of mailboxes (gmail: "Inbox")
+    'message': 'Mail: ',
+    'message_color': 'default',
+    'mailbox_color': 'default',
+    'separator': ', ',
+    'separator_color': 'default',
+    'count_color': 'default',
+    'interval': '5',
 }
 
-class Imap(object):
-    ''' Simple helper class for interfacing with IMAP server '''
 
-    iRe = re.compile("UNSEEN (\d+)")
+def string_eval_expression(text):
+    if WEECHAT_VERSION >= 0x00040200:
+        return w.string_eval_expression(text, {}, {}, {})
+    return text
+
+
+class Imap(object):
+    """Simple helper class for interfacing with IMAP server."""
+
+    iRe = re.compile(r"UNSEEN (\d+)")
     conn = False
 
     def __init__(self):
-        ''' Connect and login'''
-        username = string_eval_expression( w.config_get_plugin('username') )
-        password = string_eval_expression( w.config_get_plugin('password') )
-        hostname = string_eval_expression( w.config_get_plugin('hostname') )
+        '''Connect and login.'''
+        username = string_eval_expression(w.config_get_plugin('username'))
+        password = string_eval_expression(w.config_get_plugin('password'))
+        hostname = string_eval_expression(w.config_get_plugin('hostname'))
         port = int(w.config_get_plugin('port'))
 
         if username and password and hostname and port:
-             M = i.IMAP4_SSL(hostname, port)
-             M.login(username, password)
-             self.conn = M
+            M = i.IMAP4_SSL(hostname, port)
+            M.login(username, password)
+            self.conn = M
 
     def unreadCount(self, mailbox='INBOX'):
         if self.conn:
-            unreadCount = int(self.iRe.search(\
-                self.conn.status(mailbox, "(UNSEEN)")[1][0]).group(1))
+            unreadCount = int(
+                self.iRe.search(
+                    self.conn.status(mailbox, "(UNSEEN)")[1][0]).group(1))
             return unreadCount
         else:
             w.prnt('', 'Problem with IMAP connection. Please check settings.')
@@ -99,73 +111,83 @@ class Imap(object):
             return
         try:
             self.conn.close()
-        except Exception, e:
+        except Exception:
             self.conn.logout()
 
 
-def imap_cb(*kwargs):
-    ''' Callback for the bar item with unread count '''
-
-    global LAST_RUN, LAST_MESSAGE
-
-    # Check LAST RUN if we need to run again
-    if (now() - LAST_RUN) < int(w.config_get_plugin('interval'))*60:
-        return LAST_MESSAGE
+def imap_get_unread(data):
+    """Return the unread count."""
 
     imap = Imap()
 
     if not w.config_get_plugin('message'):
         output = ""
     else:
-        output = '%s%s: ' % (\
+        output = '%s%s' % (
             w.color(w.config_get_plugin('message_color')),
             w.config_get_plugin('message'))
     any_with_unread = False
     mailboxes = w.config_get_plugin('mailboxes').split(',')
+    count = []
     for mailbox in mailboxes:
         mailbox = mailbox.strip()
         unreadCount = imap.unreadCount(mailbox)
         if unreadCount > 0:
             any_with_unread = True
-            output += '%s%s: %s%s ' %(w.color(w.config_get_plugin('message_color')),
+            count.append('%s%s: %s%s' % (
+                w.color(w.config_get_plugin('mailbox_color')),
                 mailbox,
                 w.color(w.config_get_plugin('count_color')),
-                unreadCount)
+                unreadCount))
     imap.logout()
-    if output:
-        output = output[:-1]
-    output += w.color('reset')
+    sep = '%s%s' % (
+        w.color(w.config_get_plugin('separator_color')),
+        w.config_get_plugin('separator'))
+    output = output + sep.join(count) + w.color('reset')
 
-    LAST_RUN = now()
-    LAST_MESSAGE = ''
+    return output if any_with_unread else ''
 
-    if any_with_unread:
-        LAST_MESSAGE = output
 
-    return LAST_MESSAGE
+def imap_item_cb(data, item, window):
+    return IMAP_UNREAD
 
-def imap_update(*kwargs):
-    w.bar_item_update('imap')
 
+def imap_update_content(content):
+    global IMAP_UNREAD
+    if content != IMAP_UNREAD:
+        IMAP_UNREAD = content
+        w.bar_item_update('imap')
+
+
+def imap_process_cb(data, command, rc, out, err):
+    if rc == 0:
+        imap_update_content(out)
     return w.WEECHAT_RC_OK
 
-def string_eval_expression(text):
-    if int(version) >= 0x00040200:
-        return w.string_eval_expression(text,{},{},{})
-    return text
+
+def imap_timer_cb(data, remaining_calls):
+    """Timer callback to update imap bar item."""
+    if WEECHAT_VERSION >= 0x01050000:
+        w.hook_process('func:imap_get_unread', 30 * 1000,
+                       'imap_process_cb', '')
+    else:
+        imap_update_content(imap_get_unread(None))  # this can block WeeChat!
+    return w.WEECHAT_RC_OK
+
 
 if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
-        SCRIPT_DESC, '', ''):
+              SCRIPT_DESC, '', ''):
     for option, default_value in settings.iteritems():
         if not w.config_is_set_plugin(option):
             w.config_set_plugin(option, default_value)
 
-    version = w.info_get("version_number", "") or 0
+    WEECHAT_VERSION = int(w.info_get("version_number", "") or 0)
 
-    w.bar_item_new('imap', 'imap_cb', '')
-    w.hook_timer(\
-            int(w.config_get_plugin('interval'))*1000*60,
-            0,
-            0,
-            'imap_update',
-            '')
+    w.bar_item_new('imap', 'imap_item_cb', '')
+    imap_timer_cb(None, None)
+    w.hook_timer(
+        int(w.config_get_plugin('interval'))*1000*60,
+        0,
+        0,
+        'imap_timer_cb',
+        '')
