@@ -131,6 +131,8 @@ def redirect_isonhandler(data, signal, hashtable):
                 t = Template(OPTIONS['nickserv'])
                 run_msg = t.safe_substitute(server=hashtable['server'], passwd=password)
                 weechat.command('',run_msg)
+
+            return weechat.WEECHAT_RC_OK
     return weechat.WEECHAT_RC_OK
 
 # ================================[ functions ]===============================
