@@ -10,4 +10,4 @@ They are also displayed on https://weechat.org/scripts/
 
 == Add/update a script
 
-See the file https://github.com/weechat/scripts/blob/master/Contributing.asciidoc[Contributing.asciidoc].
+See the file https://github.com/weechat/scripts/blob/master/Contributing.adoc[Contributing.adoc].
