@@ -65,9 +65,11 @@ class InputLock
 		'',
 		''
 	]
-
+# Set variables here so you can change them in Weechat
 	DEFAULT_OPTIONS = {
-		:enabled => 'off'
+		:enabled => 'off',
+		:channel_blocks => '#oftc',
+		:timer => 'on'
 	}
 
 
@@ -108,14 +110,19 @@ class InputLock
 	### added future options.)
 	###
 	def config_changed( data, option, new_value )
+		self.print_info "data: '%s', option: %s new_value: %s" % [ data, option, new_value ] if DEBUG
 		option = option.match( /\.(\w+)$/ )[1]
 		new_value.extend( Truthy )
 
 		case option
+			when 'channel_blocks'
+				self.channel_blocks = new_value
+			when 'timer'
+				self.timer = new_value
 			when 'enabled'
 				self.enabled = new_value
 				self.update_bar
-				self.print_info "Setting enabled to %p" % [ new_value ] if DEBUG
+			self.print_info "Setting enabled to %p" % [ new_value ] if DEBUG
 		end
 
 		return WEECHAT_RC_OK
@@ -128,18 +135,34 @@ class InputLock
 		# do nothing if not enabled
 		return string unless self.enabled.true?
 
-		# text in the weechat buffer is always allowed
+		# text in the weechat buffer is always allowed. To see what values a buffer has, navigate to it and type "/buffer localvar"
 		buf_plugin = Weechat.buffer_get_string( buffer, "localvar_plugin" );
 		buf_name   = Weechat.buffer_get_string( buffer, "localvar_name" );
+		buf_channel    = Weechat.buffer_get_string( buffer, "localvar_channel" ); 
 		return string if buf_plugin == 'core' && buf_name == 'weechat'
 
 		go_running = Weechat.info_get( "go_running", "" );
 		return string if go_running == '1'
 
-		# allow commands to get through, everything else is squashed!
-		return string.index('/').nil? ? '' : string
+		# If you're in a buffer listed in channel_blocks, everything's squashed. If not, return.
+		self.print_info "List: '%s', buffer: %p" % [ self.channel_blocks, buf_channel ] if DEBUG
+		if self.channel_blocks.include? buf_channel
+			return string.index('/').nil? ? '' : string
+		else
+			return string
+		end
 	end
 
+
+	def timer_cb(data, remaining_calls)
+		self.print_info "timer ran at %s, truth value is %s" % [ Time.now.sec, self.timer ] if DEBUG
+		#If timer evalutes to true ('on'), then set the instance variable, and inform config_changed
+		if self.timer.true?
+			self.enabled = 'on'
+			self.config_changed('','plugins.var.ruby.input_lock.enabled','on')
+		end
+		return WEECHAT_RC_OK
+	end
 
 	### Refresh the lock state in the input bar.
 	###
@@ -178,10 +201,15 @@ end
 def weechat_init
 	Weechat::register *InputLock::SIGNATURE
 	$lock = InputLock.new
+# hook_timer parameter Legend. 1="run every nth millisecond (60000 = 1 minute)", 2="???" 3="times to run. -1 for infinity" 4="the function" 5="???")
+	#Hooks for when a buffer or input changes
+	Weechat.hook_timer(60000, 0, -1, 'timer_cb', 'test')
 	Weechat.hook_signal( 'input_text_changed', 'update_bar', '' )
 	Weechat.hook_signal( 'buffer_switch', 'update_bar', '' )
 	Weechat.hook_modifier( 'input_text_content', 'input_lock', '' )
 	Weechat.hook_config( 'plugins.var.ruby.input_lock.*', 'config_changed', '' )
+
+
 	return Weechat::WEECHAT_RC_OK
 end
 
@@ -190,7 +218,7 @@ end
 ###
 require 'forwardable'
 extend Forwardable
-def_delegators :$lock, :config_changed, :input_lock, :update_bar, :il_bar_item
+def_delegators :$lock, :config_changed, :input_lock, :timer_cb, :update_bar, :il_bar_item
 
 
 __END__
