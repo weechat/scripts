@@ -64,9 +64,9 @@ try:
         import_ok = False
 except:
     if weechat_call:
-        weechat.prnt("", "You need the have pkg_resources installed for version checking")
+        weechat.prnt("", "You need to have pkg_resources installed for version checking")
     else:
-        print("You need the have pkg_resources installed for version checking")
+        print("You need to have pkg_resources installed for version checking")
 
 # These two keys is what identifies this twitter client as "weechat twitter"
 # If you want to change it you can register your own keys at:
@@ -90,12 +90,12 @@ script_options = {
 #TODO have a dict for each buffer
 tweet_dict = {'cur_index': "a0"}
 #Mega command dict
-command_dict = dict(user="u",replies="r",view_tweet="v",thread="th",
+command_dict = dict(user="u",replies="r",view_tweet="v",thread="th",link="l",
         retweet="rt",delete="d",tweet="t",reply="re",new_tweets="new",
         follow_user="follow",unfollow_user="unfollow",following="f",
         followers="fo",about="a",block="b",unblock="ub",
         blocked_users="blocks",favorite="fav",unfavorite="unfav",
-        favorites="favs", rate_limits="limits",home_timeline="home",
+        favorites="favs",fav_retweet="fart",rate_limits="limits",home_timeline="home",
         clear_nicks="cnicks",clear_buffer="clear",create_stream="stream",
         restart_home_stream="re_home")
 desc_dict = dict(
@@ -108,6 +108,7 @@ desc_dict = dict(
         view_tweet="<id>, View/get tweet with <id>",
         thread="<id>, View/get the reply chain of tweets (the thread) where " +
         "<id> is the last tweet in the thread.",
+        link="<id>, Get a link to tweet with <id>",
         retweet="<id>, Retweet <id>",
         delete="<id>, Delete tweet <id>. You can only delete your own tweets...",
         tweet="<text>Tweet the text following this command",
@@ -136,6 +137,7 @@ desc_dict = dict(
         "if <user> is not given get your own favs. " +
         "If <id> is given it will get tweets older than <id>, " +
         "<count> is how many tweets to get, valid number is 1-200",
+        fav_retweet="<id>, favorites and retweets <id>",
         rate_limits="[|<sub_group>], get the current status of the twitter " +
         "api limits. It prints how much you have left/used. " +
         " if <sub_group> is supplied it will only get/print that sub_group.",
@@ -277,12 +279,16 @@ def trim_tweet_data(tweet_data, screen_name, alt_rt_style):
 
     output = []
     for message in tweet_data:
-        if alt_rt_style and message.get('retweeted_status'):
-            if message['user']['screen_name'] == screen_name:
-                #escape highlighting
-                message['user']['screen_name'] = "<you>"
-            message['text'] = message['retweeted_status']['text'] + " (retweeted by " + message['user']['screen_name'] + ")"
-            message['user'] = message['retweeted_status']['user']
+        if message.get('retweeted_status'):
+            if alt_rt_style:
+                if message['user']['screen_name'] == screen_name:
+                    #escape highlighting
+                    message['user']['screen_name'] = "<you>"
+                message['text'] = message['retweeted_status']['text'] + " (retweeted by " + message['user']['screen_name'] + ")"
+                message['user'] = message['retweeted_status']['user']
+            else:
+                message['text'] = "RT @{}: {}".format(message['retweeted_status']['user']['screen_name'],
+                                                      message['retweeted_status']['text'])
         mes_list = [calendar.timegm(time.strptime(message['created_at'],'%a %b %d %H:%M:%S +0000 %Y')),
             message['user']['screen_name'],
             message['id_str'],
@@ -306,6 +312,26 @@ def stream_message(buffer,tweet):
         id_str = arrow_col +  "<" + reset_col + dict_id + arrow_col + "> " + reset_col
         weechat.prnt(buffer, "%s%s" % (weechat.prefix("network"),
         "Got request to delete: " + id_str))
+    elif 'event' in tweet:
+        event_str = tweet['event']
+
+        if event_str[-1] == "e":
+            event_str += "d"
+        elif event_str[-1] != "d":
+            event_str += "ed"
+
+        extra_str = ""
+
+        if 'target_object' in tweet:
+            if 'id_str' in tweet['target_object']:
+                arrow_col = weechat.color('chat_prefix_suffix')
+                reset_col = weechat.color('reset')
+                dict_id = dict_tweet(tweet['target_object']['id_str'])
+                extra_str = "'s tweet " + arrow_col +  "<" + reset_col + dict_id + arrow_col + "> " + reset_col
+
+        #TODO make the event printing better
+        weechat.prnt_date_tags(buffer, 0, "no_highlight", "%s%s" % (weechat.prefix("network"),
+            tweet['source']['screen_name'] + " " + event_str + " " + tweet['target']['screen_name'] + extra_str))
     else:
         weechat.prnt(buffer, "%s%s" % (weechat.prefix("network"),
         "recv stream data: " + str(tweet)))
@@ -327,7 +353,7 @@ def twitter_stream_cb(buffer,fd):
     try:
         tweet = ast.literal_eval(tweet)
     except:
-        weechat.prnt(buffer, "Error resv stream message")
+        weechat.prnt(buffer, "Error recv stream message")
         return weechat.WEECHAT_RC_OK
     #Is this a text message (normal tweet)?
     if isinstance(tweet,list):
@@ -672,6 +698,11 @@ def get_twitter_data(cmd_args):
                     tweet_id = temp_tweet["in_reply_to_status_id_str"]
                 else:
                     break;
+        elif cmd_args[3] == "l":
+            tweet_data = [twitter.statuses.show._(cmd_args[4])()]
+            output = "Link for tweet: https://twitter.com/{}/status/{}".format(tweet_data[0]['user']['screen_name'],
+                                                                               tweet_data[0]['id_str'])
+            return output
         elif cmd_args[3] == "rt":
             tweet_data = [twitter.statuses.retweet._(cmd_args[4])()]
             #The home stream prints you messages as well...
@@ -764,6 +795,10 @@ def get_twitter_data(cmd_args):
                 tweet_data = twitter.favorites.list(**kwargs)
             else:
                 tweet_data = twitter.favorites.list()
+        elif cmd_args[3] == "fart":
+            twitter.favorites.create(_id=cmd_args[4])
+            tweet_data = [twitter.statuses.retweet._(cmd_args[4])()]
+            tweet_data = []
         elif cmd_args[3] == "limits":
             output = ""
             if len(cmd_args) >= 5:
@@ -792,6 +827,13 @@ def get_twitter_data(cmd_args):
                 tweet_data = twitter.statuses.home_timeline(exclude_replies = no_home_replies)
         else:
             return "Invalid command: " + cmd_args[3]
+    except TwitterHTTPError as err:
+        #See if we can print a pretty error message first
+        data = err.response_data
+        if "errors" in data and "message" in data["errors"][0]:
+            return "Error: " + data["errors"][0]["message"]
+        else:
+            return "Unexpected error in get_twitter_data:%s\n Call: %s" % (sys.exc_info(), cmd_args[3])
     except:
         return "Unexpected error in get_twitter_data:%s\n Call: %s" % (sys.exc_info(), cmd_args[3])
 
@@ -824,6 +866,8 @@ def buffer_input_cb(data, buffer, input_data):
         elif command == 'th' and tweet_dict.get(input_args[1]):
             input_data = 'th ' + tweet_dict[input_args[1]]
             end_message = "Done"
+        elif command == 'l' and tweet_dict.get(input_args[1]):
+            input_data = 'l ' + tweet_dict[input_args[1]]
         elif command == 'rt' and tweet_dict.get(input_args[1]):
             end_message = "id"
             input_data = 'rt ' + tweet_dict[input_args[1]]
@@ -909,6 +953,10 @@ def buffer_input_cb(data, buffer, input_data):
         elif command == 'unfav' and tweet_dict.get(input_args[1]):
             input_data = 'unfav ' + tweet_dict[input_args[1]]
             weechat.prnt(buffer, "%sYou unfave'd the following tweet:" % weechat.prefix("network"))
+        elif command == 'fart' and tweet_dict.get(input_args[1]):
+            end_message = "id"
+            input_data = 'fart ' + tweet_dict[input_args[1]]
+            weechat.prnt(buffer, "%sYou fave'd and retweeted the following tweet:" % weechat.prefix("network"))
         elif command == 'cnicks':
             global tweet_nicks_group
             if tweet_nicks_group[buffer] != "":
@@ -1157,7 +1205,7 @@ def finish_init():
            "f " + script_options['screen_name'] + " []", 10 * 1000, "oauth_proc_cb", "friends")
 
 if __name__ == "__main__" and weechat_call:
-    weechat.register( SCRIPT_NAME , "DarkDefender", "1.2.2", "GPL3", "Weechat twitter client", "", "")
+    weechat.register( SCRIPT_NAME , "DarkDefender", "1.2.4", "GPL3", "Weechat twitter client", "", "")
 
     if not import_ok:
         weechat.prnt("", "Can't load twitter python lib >= " + required_twitter_version)
