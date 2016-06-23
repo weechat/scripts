@@ -66,6 +66,9 @@
 #
 #   History:
 #
+#   2016-06-23, mickael9
+#   version 0.7.7: fix get_home function
+#
 #   2015-11-26
 #   version 0.7.6: fix a typo
 #
@@ -203,7 +206,7 @@ except ImportError:
 
 SCRIPT_NAME    = "grep"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.7.6"
+SCRIPT_VERSION = "0.7.7"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Search in buffers and logs"
 SCRIPT_COMMAND = "grep"
@@ -417,8 +420,9 @@ def get_config_log_filter():
 
 def get_home():
     home = weechat.config_string(weechat.config_get('logger.file.path'))
+    home = home.replace('%h', weechat.info_get('weechat_dir', ''))
     home = path.abspath(path.expanduser(home))
-    return home.replace('%h', weechat.info_get('weechat_dir', ''))
+    return home
 
 def strip_home(s, dir=''):
     """Strips home dir from the begging of the log path, this makes them sorter."""
