@@ -17,12 +17,14 @@
 ; (this script requires WeeChat 0.4.1 or newer)
 ;
 ; History:
+; 2016-06-03, nycatelos <nycatelos@gmail.com>
+;   version 0.2: added additional emotes
 ; 2014-05-03, csmith <caleb.smithnc@gmail.com>
-;  version 0.1: initial release
+;   version 0.1: initial release
 
 (use-modules (srfi srfi-69))
 
-(weechat:register "emote" "Caleb Smith" "0.1" "GPL" "Emote" "" "")
+(weechat:register "emote" "Caleb Smith" "0.2" "GPL" "Emote" "" "")
 
 ; Mappings of words with their emoticons
 (define patterns (alist->hash-table '(
@@ -34,6 +36,10 @@
     ("kitaa" . "キタ━━━(゜∀゜)━━━!!!!!")
     ("joy" . "◕‿◕")
     ("nyancat" . "~=[,,_,,]:3")
+    ("lennyface" . "( ͡° ͜ʖ ͡°)")
+    ("shrug" . "¯\\_(ツ)_/¯")
+    ("denko" . "(・ω・)")
+    ("tableplace" . "┬─┬ ノ( ゜-゜ノ)")
 )))
 
 
