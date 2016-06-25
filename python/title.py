@@ -22,6 +22,9 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2016-05-01, Ferus
+#     version 0.8, Add ability to prefix and suffix the title, current
+#     buffer, and hotlist buffers. As well as specify hotlist separator
 # 2016-02-05, ixti
 #     version 0.7, Add Python3 support
 # 2015-06-07, t3chguy
@@ -41,7 +44,7 @@ import weechat as w
 
 SCRIPT_NAME    = "title"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.7"
+SCRIPT_VERSION = "0.8"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Set screen title to current buffer name + hotlist items with configurable priority level"
 
@@ -49,6 +52,15 @@ SCRIPT_DESC    = "Set screen title to current buffer name + hotlist items with c
 settings = {
     "title_priority"       : '2',
     "short_name"           : 'on',
+    "hotlist_separator"    : ':',
+    "title_prefix"         : '[WeeChat ${info:version}] ',
+    "title_suffix"         : '',
+    "hotlist_number_prefix": '',
+    "hotlist_number_suffix": '',
+    "hotlist_buffer_prefix": '',
+    "hotlist_buffer_suffix": '',
+    "current_buffer_prefix": '',
+    "current_buffer_suffix": '',
 }
 
 hooks = (
@@ -61,23 +73,38 @@ hooks = (
 def update_title(data, signal, signal_data):
     ''' The callback that adds title. '''
 
-    if w.config_get_plugin('short_name') == 'on':
-        title = w.buffer_get_string(w.current_buffer(), 'short_name')
-    else:
-        title = w.buffer_get_string(w.current_buffer(), 'name')
+    # prefix
+    title = w.config_get_plugin('title_prefix')
 
-    title = w.string_remove_color(title, '')
+    # current buffer
+    title += w.config_get_plugin('current_buffer_prefix')
+    if w.config_get_plugin('short_name') == 'on':
+        title += w.buffer_get_string(w.current_buffer(), 'short_name')
+    else:
+        title += w.buffer_get_string(w.current_buffer(), 'name')
+    title += w.config_get_plugin('current_buffer_suffix')
+
+    # hotlist buffers
     hotlist = w.infolist_get('hotlist', '', '')
+    pnumber = w.config_get_plugin('hotlist_number_prefix')
+    snumber = w.config_get_plugin('hotlist_number_suffix')
+    pname = w.config_get_plugin('hotlist_buffer_prefix')
+    sname = w.config_get_plugin('hotlist_buffer_suffix')
+    separator = w.config_get_plugin('hotlist_separator')
     while w.infolist_next(hotlist):
         priority = w.infolist_integer(hotlist, 'priority')
         if priority >= int(w.config_get_plugin('title_priority')):
             number = w.infolist_integer(hotlist, 'buffer_number')
             thebuffer = w.infolist_pointer(hotlist, 'buffer_pointer')
             name = w.buffer_get_string(thebuffer, 'short_name')
-
-            title += ' %s:%s' % (number, name)
+            title += ' {0}{1}{2}{3}{4}{5}{6}'.format(pnumber, \
+                number, snumber, separator, pname, name, sname)
     w.infolist_free(hotlist)
 
+    # suffix
+    title += w.config_get_plugin('title_suffix')
+
+    title = w.string_remove_color(title, '')
     w.window_set_title(title)
 
     return w.WEECHAT_RC_OK
