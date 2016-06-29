@@ -36,11 +36,13 @@
 #   2014-04-15
 #   version 0.1.2: fix bug where mode commands weren't sent properly
 #
+#   2016-06-28
+#   version 0.1.3: support extended-join messages
 ###
 
 SCRIPT_NAME    = "automode"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.1.2"
+SCRIPT_VERSION = "0.1.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Script for auto op/voice users when they join."
 
@@ -158,7 +160,7 @@ def get_patterns_in_config(filter):
 
 def join_cb(data, signal, signal_data):
     #debug('JOIN: %s %s', signal, signal_data)
-    prefix, _, channel = signal_data.split()
+    prefix, _, channel = signal_data.split()[:3]
     prefix = prefix[1:].lower()
     if channel[0] == ':':
         channel = channel[1:]
