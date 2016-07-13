@@ -21,6 +21,9 @@
 #
 # History:
 #
+# 2016-07-13, Bryan Gilbert <gilbertw1@gmail.com>
+#     version 2.2: add multiple sequential term matching to uniquely identify
+#                  channels
 # 2015-11-12, nils_2 <weechatter@arcor.de>
 #     version 2.1: fix problem with buffer short_name "weechat", using option
 #                  "use_core_instead_weechat", see:
@@ -84,7 +87,7 @@ from __future__ import print_function
 
 SCRIPT_NAME = 'go'
 SCRIPT_AUTHOR = 'Sébastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '2.1'
+SCRIPT_VERSION = '2.2'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC = 'Quick jump to buffers'
 
@@ -294,7 +297,16 @@ def go_matching_buffers(strinput):
                 weechat.infolist_string(infolist, 'plugin_name'),
                 weechat.infolist_string(infolist, 'name'))
         pointer = weechat.infolist_pointer(infolist, 'pointer')
-        matching = name.lower().find(strinput) >= 0
+
+        matchers = strinput.split()
+        matches = []
+        matching = True
+        for i in range(len(matchers)):
+            matches.append(name.lower().find(matchers[i]))
+            if matches[i] < 0 or (i > 0 and matches[i] < matches[i-1]):
+               matching = False
+               break
+
         if not matching and strinput[-1] == ' ':
             matching = name.lower().endswith(strinput.strip())
         if not matching and strinput.isdigit():
@@ -468,9 +480,9 @@ def go_main():
         return
     weechat.hook_command(
         SCRIPT_COMMAND,
-        'Quick jump to buffers', '[name]',
-        'name: directly jump to buffer by name (without argument, list is '
-        'displayed)\n\n'
+        'Quick jump to buffers', '[term(s)]',
+        'term(s): directly jump to buffer matching the provided term(s) single'
+        'or space dilimited list (without argument, list is displayed)\n\n'
         'You can bind command to a key, for example:\n'
         '  /key bind meta-g /go\n\n'
         'You can use completion key (commonly Tab and shift-Tab) to select '
