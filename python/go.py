@@ -373,31 +373,47 @@ def go_matching_buffers(strinput):
 def go_buffers_to_string(listbuf, pos, strinput):
     """Return string built with list of buffers found (matching user input)."""
     string = ''
-    strinput = strinput.lower()
+    matchers = strinput.lower().split()
+
     for i in range(len(listbuf)):
-        selected = '_selected' if i == pos else ''
-        index = listbuf[i]['name'].lower().find(strinput)
-        if index >= 0:
-            index2 = index + len(strinput)
-            name = '%s%s%s%s%s' % (
-                listbuf[i]['name'][:index],
-                weechat.color(weechat.config_get_plugin(
-                    'color_name_highlight' + selected)),
-                listbuf[i]['name'][index:index2],
-                weechat.color(weechat.config_get_plugin(
-                    'color_name' + selected)),
-                listbuf[i]['name'][index2:])
-        else:
-            name = listbuf[i]['name']
-        string += ' %s%s%s%s%s' % (
-            weechat.color(weechat.config_get_plugin(
-                'color_number' + selected)),
-            str(listbuf[i]['number']),
-            weechat.color(weechat.config_get_plugin(
-                'color_name' + selected)),
-            name,
-            weechat.color('reset'))
+        string += color_buffer_matching_chars(listbuf[i], matchers, i == pos)
+
     return '  ' + string if string else ''
+
+def color_buffer_matching_chars(buf, matchers, selected):
+    """Return a buffer with properly colored matching characters"""
+
+    string = ' '
+    name = buf['name']
+    number = buf['number']
+    color_suffix = '_selected' if selected else ''
+    curr_idx = 0
+
+    string += '%s%s' % (get_color('color_number', color_suffix), number)
+
+    for i in range(len(matchers)):
+        idx = curr_idx + name[curr_idx:].lower().find(matchers[i])
+        if idx >= curr_idx:
+            matcher_len = len(matchers[i])
+            string += '%s%s%s%s' % (
+                get_color('color_name', color_suffix),
+                name[curr_idx:idx],
+                get_color('color_name_highlight', color_suffix),
+                name[idx:idx+matcher_len])
+            curr_idx = idx + matcher_len
+        else:
+            break
+
+    string += '%s%s%s' % (
+        get_color('color_name', color_suffix),
+        name[curr_idx:],
+        weechat.color('reset'))
+
+    return string
+
+def get_color(color, suffix = ''):
+    """Return a weechat color using provided color and suffix"""
+    return weechat.color(weechat.config_get_plugin(color + suffix))
 
 
 def go_input_modifier(data, modifier, modifier_data, string):
