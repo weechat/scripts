@@ -19,6 +19,8 @@
 #
 # History:
 #
+# 2016-07-08, nils_2 <weechatter@arcor.de>
+#     version 4.2: add diff function
 # 2016-02-06, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 4.1: remove debug print
 # 2015-12-24, Sebastien Helleu <flashcode@flashtux.org>:
@@ -128,7 +130,7 @@
 use strict;
 
 my $PRGNAME = "iset";
-my $VERSION = "4.1";
+my $VERSION = "4.2";
 my $DESCR   = "Interactive Set for configuration options";
 my $AUTHOR  = "Sebastien Helleu <flashcode\@flashtux.org>";
 my $LICENSE = "GPL3";
@@ -152,7 +154,7 @@ my $filter = "*";
 my $description = "";
 my $options_name_copy = "";
 my $iset_filter_title = "";
-# search modes: 0 = index() on value, 1 = grep() on value, 2 = grep() on option, 3 = grep on option & value
+# search modes: 0 = index() on value, 1 = grep() on value, 2 = grep() on option, 3 = grep on option & value, 4 = diff all, 5 = diff parts
 my $search_mode = 2;
 my $search_value = "";
 my $help_text_keys = "alt + space: toggle, +/-: increase/decrease, enter: change, ir: reset, iu: unset, v: toggle help bar";
@@ -201,6 +203,12 @@ sub iset_title
             $iset_filter_title = "";
             $filter = "*" if ($filter eq "");
             $show_filter = $filter;
+        }
+        elsif ($search_mode == 4 or $search_mode == 5)
+        {
+            $iset_filter_title = "diff: ";
+            $show_filter = "all";
+            $show_filter = $search_value if $search_mode == 5;
         }
         elsif ($search_mode eq 3)
         {
@@ -274,10 +282,27 @@ sub iset_buffer_input
             weechat::buffer_set($iset_buffer, "localvar_set_iset_search_value", $search_value);
         }
     }
+    # show all diff values
+    elsif ($string eq "d")
+    {
+        $search_mode = 4;
+#        iset_title();
+        iset_create_filter("*");
+        iset_get_options("*");
+    }
+    elsif ( $array_count >= 2 and $cmd_array[0] eq "d")
+    {
+        $search_mode = 5;
+        $search_value = substr($cmd_array[1], 0);  # cut value_search_char
+        $search_value = substr($cmd_array[2], 0) if ( $array_count > 2);  # cut value_search_char
+        iset_create_filter($search_value);
+        iset_get_options($search_value);
+
+    }
     else
     {
         $search_mode = 2;
-        if ( $array_count >= 2 and $cmd_array[0] ne "f" or $cmd_array[0] ne "s")
+        if ( $array_count >= 2 and $cmd_array[0] ne "f" or $cmd_array[0] ne "s" )
         {
             if ( defined $cmd_array[1] and substr($cmd_array[1], 0, 1) eq weechat::config_string($options_iset{"value_search_char"})
             or defined $cmd_array[2] and substr($cmd_array[2], 0, 1) eq weechat::config_string($options_iset{"value_search_char"}) )
@@ -291,7 +316,8 @@ sub iset_buffer_input
         {
             iset_create_filter($string);
             iset_get_options($search_value);
-        }else
+        }
+        else
         {
             iset_create_filter($string);
             iset_get_options("");
@@ -391,10 +417,27 @@ sub iset_get_options
             $parent_value = weechat::infolist_string($infolist, "parent_value");
         }
         my $is_null = weechat::infolist_integer($infolist, "value_is_null");
+
         if ($search_mode == 3)
         {
             my $value = weechat::infolist_string($infolist, "value");
             if ( grep /\Q$var_value/,lc($value) )
+            {
+                $options_internal{$name}{"parent_name"} = $parent_name;
+                $options_internal{$name}{"type"} = $type;
+                $options_internal{$name}{"value"} = $value;
+                $options_internal{$name}{"default_value"} = $default_value;
+                $options_internal{$name}{"parent_value"} = $parent_value;
+                $options_internal{$name}{"is_null"} = $is_null;
+                $option_max_length = length($name) if (length($name) > $option_max_length);
+                $iset_struct{$key} = $options_internal{$name};
+                push(@iset_focus, $iset_struct{$key});
+            }
+        }
+        # search for diff?
+        elsif ( $search_mode == 4 or $search_mode == 5)
+        {
+            if ($value ne $default_value )
             {
                 $options_internal{$name}{"parent_name"} = $parent_name;
                 $options_internal{$name}{"type"} = $type;
@@ -893,20 +936,37 @@ sub iset_cmd_cb
         {
             # f/s option =value
             # option =value
-            $search_mode = 2;
+            $search_mode = 2; # grep on option
             if ( $array_count >= 2 and $cmd_array[0] ne "f" or $cmd_array[0] ne "s")
             {
                 if ( defined $cmd_array[1] and substr($cmd_array[1], 0, 1) eq weechat::config_string($options_iset{"value_search_char"})
                 or defined $cmd_array[2] and substr($cmd_array[2], 0, 1) eq weechat::config_string($options_iset{"value_search_char"}) )
                 {
-                    $search_mode = 3;
+                    $search_mode = 3; # grep on option and value
                     $search_value = substr($cmd_array[1], 1);  # cut value_search_char
                     $search_value = substr($cmd_array[2], 1) if ( $array_count > 2);  # cut value_search_char
                 }
             }
+
+            # show all diff values
+            if ( $args eq "d")
+            {
+                $search_mode = 4;
+                $search_value = "*";
+                $args = $search_value;
+            }
+            if ( $array_count >= 2 and $cmd_array[0] eq "d")
+            {
+                $search_mode = 5;
+                $search_value = substr($cmd_array[1], 0);  # cut value_search_char
+                $search_value = substr($cmd_array[2], 0) if ( $array_count > 2);  # cut value_search_char
+                $args = $search_value;
+            }
+
             iset_create_filter($args);
             $filter_set = 1;
             my $ptrbuf = weechat::buffer_search($LANG, $PRGNAME);
+
             if ($ptrbuf eq "")
             {
                 iset_init();
@@ -1497,7 +1557,8 @@ $wee_version_number = weechat::info_get("version_number", "") || 0;
 iset_config_init();
 iset_config_read();
 
-weechat::hook_command($PRGNAME, "Interactive set", "f <file> || s <section> || [=][=]<text>",
+weechat::hook_command($PRGNAME, "Interactive set", "d <text> || f <file> || s <section> || [=][=]<text>",
+                      "d <text> : show only changed options\n".
                       "f file   : show options for a file\n".
                       "s section: show options for a section\n".
                       "text     : show options with 'text' in name\n".
@@ -1518,6 +1579,7 @@ weechat::hook_command($PRGNAME, "Interactive set", "f <file> || s <section> || [
                       "text,enter     : set a new filter using command line (use '*' to see all options)\n".
                       "alt+'v'        : toggle help bar on/off\n".
                       "alt+'p'        : toggle option \"show_plugin_description\" on/off\n".
+                      "q              : as input in iset buffer to close it\n".
                       "\n".
                       "Mouse actions:\n".
                       "wheel up/down                 : move cursor up/down\n".
@@ -1526,8 +1588,8 @@ weechat::hook_command($PRGNAME, "Interactive set", "f <file> || s <section> || [
                       "right button + drag left/right: increase/decrease value (for integer or color)\n".
                       "\n".
                       "Examples:\n".
-                      "  show options for file 'weechat'\n".
-                      "    /iset f weechat\n".
+                      "  show changed options in 'aspell' plugin\n".
+                      "    /iset d aspell\n".
                       "  show options for file 'irc'\n".
                       "    /iset f irc\n".
                       "  show options for section 'look'\n".
