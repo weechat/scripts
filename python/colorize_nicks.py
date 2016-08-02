@@ -21,6 +21,8 @@
 #
 #
 # History:
+# 2016-05-01, Simmo Saan <simmo.saan@gmail.com>
+#   version 22: invalidate cached colors on hash algorithm change
 # 2015-07-28, xt
 #   version 21: fix problems with nicks with commas in them
 # 2015-04-19, xt
@@ -75,7 +77,7 @@ w = weechat
 
 SCRIPT_NAME    = "colorize_nicks"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "21"
+SCRIPT_VERSION = "22"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Use the weechat nick colors in the chat area"
 
@@ -339,6 +341,7 @@ if __name__ == "__main__":
         w.hook_modifier('weechat_print', 'colorize_cb', '')
         # Hook config for changing colors
         w.hook_config('weechat.color.chat_nick_colors', 'populate_nicks', '')
+        w.hook_config('weechat.look.nick_color_hash', 'populate_nicks', '')
         # Hook for working togheter with other scripts (like colorize_lines)
         w.hook_modifier('colorize_nicks', 'colorize_cb', '')
         # Hook for modifying input
