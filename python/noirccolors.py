@@ -2,9 +2,9 @@ import weechat as w
 
 SCRIPT_NAME    = "noirccolors"
 SCRIPT_AUTHOR  = "Fredrick Brennan <fredrick.brennan1@gmail.com>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "Public domain"
-SCRIPT_DESC    = "Remove IRC colors from buffers with the localvar 'noirccolors' set. To disable IRC colors in the current buffer, type /buffer set localvar_noirccolors true. You can also set this with autosetbuffer. :)"
+SCRIPT_DESC    = "Remove IRC colors from buffers with the localvar 'noirccolors' set. To disable IRC colors in the current buffer, type /buffer set localvar_set_noirccolors true. You can also set this with autosetbuffer. :)"
 
 w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, '', '')
 
