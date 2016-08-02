@@ -20,6 +20,8 @@
 #
 # History:
 #
+# 2016-05-01, mumixam <mumixam@gmail.com>:
+#     v5.4: added option "detach_buffer_immediately_level"
 # 2015-08-21, Matthew Cox <matthewcpcox@gmail.com>
 #     v5.3: add option "indenting_amount", to adjust the indenting of channel buffers
 # 2015-05-02, arza <arza@arza.us>:
@@ -170,7 +172,7 @@ use strict;
 use Encode qw( decode encode );
 # -----------------------------[ internal ]-------------------------------------
 my $SCRIPT_NAME = "buffers";
-my $SCRIPT_VERSION = "5.3";
+my $SCRIPT_VERSION = "5.4";
 
 my $BUFFERS_CONFIG_FILE_NAME = "buffers";
 my $buffers_config_file;
@@ -793,11 +795,23 @@ my %default_options_look =
  ],
  "detach_buffer_immediately" => [
      "detach_buffer_immediately", "string",
-     "comma separated list of buffers to detach immediately. A query and ".
-     "highlight message will attach buffer again. Allows \"*\" wildcard. ".
+     "comma separated list of buffers to detach immediately. Buffers ".
+     "will attach again based on notify level set in ".
+     "\"detach_buffer_immediately_level\". Allows \"*\" wildcard. ".
      "Ex: \"BitlBee,freenode.*\"",
      "", 0, 0, "", "", 0,
      "", "", "buffers_signal_config_detach_buffer_immediately", "", "", ""
+ ],
+ "detach_buffer_immediately_level" => [
+     "detach_buffer_immediately_level", "integer",
+     "The value determines what notify level messages are reattached from activity. ".
+     " This option works in conjunction with \"detach_buffer_immediately\" ".
+     "0: low priority (like join/part messages), ".
+     "1: message, ".
+     "2: private, ".
+     "3: highlight",
+     "", 0, 3, 2, 2, 0,
+     "", "", "buffers_signal_config", "", "", ""
  ],
  "detach_free_content" => [
      "detach_free_content", "boolean",
@@ -1008,10 +1022,10 @@ sub build_buffers
         }
 
         my $result = check_immune_detached_buffers($buffer->{"name"});          # checking for wildcard
-
+        my $maxlevel = weechat::config_integer($options{"detach_buffer_immediately_level"});
         next if ( check_detach_buffer_immediately($buffer->{"name"}) eq 1
                  and $buffer->{"current_buffer"} eq 0
-                 and ( not exists $hotlist{$buffer->{"pointer"}} or $hotlist{$buffer->{"pointer"}} < 2) );          # checking for buffer to immediately detach
+                 and ( not exists $hotlist{$buffer->{"pointer"}} or $hotlist{$buffer->{"pointer"}} < $maxlevel) );          # checking for buffer to immediately detach
 
         unless ($result)
         {
