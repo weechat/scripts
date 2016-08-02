@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2013 Ruben van Os (TheLastProject) <rubenvanos@gmx.com>
+# Copyright (C) 2013 TheLastProject <TheLastProject@users.noreply.github.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@ except ImportError:
     print "Get WeeChat now at: http://www.weechat.org/"
     exit()
 
-weechat.register("triggerbot_helper", "Ruben van Os (TheLastProject)", "0.2", "GPL3", "Register nicknames relayed to in triggerbot's triggersafe channels nicklist", "shutdown", "")
+weechat.register("triggerbot_helper", "TheLastProject", "0.2.1", "GPL3", "Register nicknames relayed to in triggerbot's triggersafe channels nicklist", "shutdown", "")
 
 # Check WeeChat version and only register hook if not too outdated
 version = weechat.info_get("version_number", "") or 0
