@@ -22,6 +22,7 @@
 #
 # Script inspirated and tested by LaoLang_cool
 #
+# 0.8	: escape special characters in hotlist (arza)
 # 0.7	: using %h for weechat-dir instead of hardcoded path in script (flashcode)
 # 0.6	: new option "use_title" to print hotlist in screen title.
 # 0.5	: lot of internal changes
@@ -47,7 +48,7 @@
 # /set plugins.var.perl.hotlist2extern.hotlist_format  "%H%N:%S"
 #
 # Output (for example: "WeeChat Act: %H%N:%S"):
-# /set plugins.var.perl.hotlist2extern.external_command_hotlist "echo \'WeeChat Act: %X\' >%h/hotlist_output.txt"
+# /set plugins.var.perl.hotlist2extern.external_command_hotlist "echo WeeChat Act: %X >%h/hotlist_output.txt"
 #
 # Output if there is no activity (for example: "WeeChat: no activity"):
 # /set plugins.var.perl.hotlist2extern.external_command_hotlist_empty "echo 'WeeChat: no activity ' >%h/hotlist_output.txt"
@@ -75,7 +76,7 @@
 use strict;
 my $hotlist_format		= "%H%N:%S";
 my $hotlist_remove_format	= ":%S";
-my $external_command_hotlist	= "echo \'WeeChat Act: %X\' >%h/hotlist_output.txt";
+my $external_command_hotlist	= "echo WeeChat Act: %X >%h/hotlist_output.txt";
 my $external_command_hotlist_empty	= "echo \'WeeChat: no activity \' >%h/hotlist_output.txt";
 my $highlight_char		= "*";
 my $lowest_priority		= 0;
@@ -84,7 +85,7 @@ my $delimiter			= ",";
 my $use_title			= "on";
 
 my $prgname	= "hotlist2extern";
-my $version	= "0.7";
+my $version	= "0.8";
 my $description	= "Give hotlist to an external file/program/screen title";
 my $current_buffer = "";
 
@@ -179,6 +180,7 @@ sub create_output{
 	    $res=qq(\Q$res);								# kill metachars first
 	    if (grep /^$res$/, @table){							# does we have added $res to @table?
 	      my $export = join("$delimiter", sort_routine(@table));
+	      $export = qq(\Q$export);							# escape special characters
 	      if (grep (/\%X/,$external_command_hotlist)){				# check for %X option.
 		$res2 =~ s/%X/$export/;
 
