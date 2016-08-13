@@ -19,6 +19,8 @@
 #
 # idea by azizLIGHTS
 #
+# 2016-06-05: nils_2, (freenode.#weechat)
+#       0.4 : make script python3 compatible
 # 2015-11-14: nils_2, (freenode.#weechat)
 #       0.3 : fix: problem with (undef) option
 # 2014-01-19: nils_2, (freenode.#weechat)
@@ -35,13 +37,13 @@ try:
     import weechat,re
 
 except Exception:
-    print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print("This script must be run under WeeChat.")
+    print("Get WeeChat now at: http://www.weechat.org/")
     quit()
 
 SCRIPT_NAME     = "autojoinem"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.3"
+SCRIPT_VERSION  = "0.4"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "add/del channel(s) to/from autojoin option"
 
