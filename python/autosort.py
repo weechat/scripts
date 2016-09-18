@@ -25,6 +25,8 @@
 
 #
 # Changelog:
+# 2.7:
+#   * Fix sorting of buffers with spaces in their name.
 # 2.6:
 #   * Ignore case in rules when doing case insensitive sorting.
 # 2.5:
@@ -51,7 +53,7 @@ import json
 
 SCRIPT_NAME     = 'autosort'
 SCRIPT_AUTHOR   = 'Maarten de Vries <maarten@de-vri.es>'
-SCRIPT_VERSION  = '2.6'
+SCRIPT_VERSION  = '2.7'
 SCRIPT_LICENSE  = 'GPL3'
 SCRIPT_DESC     = 'Automatically or manually keep your buffers sorted and grouped by server.'
 
@@ -417,7 +419,7 @@ def get_buffers():
 		# Buffer is merged with one we already have in the list, skip it.
 		if number <= len(buffers):
 			continue
-		buffers.append(name)
+		buffers.append((name, number - 1))
 
 	weechat.infolist_free(buffer_list)
 	return buffers
@@ -445,7 +447,7 @@ def buffer_sort_key(rules):
 	def key(buffer):
 		result  = []
 		name    = ''
-		for word in preprocess(buffer.decode('utf-8'), config):
+		for word in preprocess(buffer[0].decode('utf-8'), config):
 			name += ('.' if name else '') + word
 			result.append((rules.get_score(name), word))
 		return result
@@ -453,10 +455,20 @@ def buffer_sort_key(rules):
 	return key
 
 
-def apply_buffer_order(buffers):
-	''' Sort the buffers in weechat according to the order in the input list.  '''
-	for i, buffer in enumerate(buffers):
-		weechat.command('', '/buffer swap {0} {1}'.format(buffer, i + 1))
+def apply_buffer_order(order):
+	''' Sort the buffers in weechat according to the given order. '''
+	indices = list(order)
+	reverse = [0] * len(indices)
+	for i, index in enumerate(indices):
+		reverse[index] = i
+
+	for i in range(len(indices)):
+		wanted = indices[i]
+		if wanted == i: continue
+		# Weechat buffers are 1-indexed, but our indices aren't.
+		weechat.command('', '/buffer swap {0} {1}'.format(i + 1, wanted + 1))
+		indices[reverse[i]] = wanted
+		reverse[wanted]     = reverse[i]
 
 
 def split_args(args, expected, optional = 0):
@@ -661,7 +673,7 @@ def on_buffers_changed(*args, **kwargs):
 	''' Called whenever the buffer list changes. '''
 	buffers = get_buffers()
 	buffers.sort(key=buffer_sort_key(config.rules))
-	apply_buffer_order(buffers)
+	apply_buffer_order([i for _, i in buffers])
 	return weechat.WEECHAT_RC_OK
 
 
