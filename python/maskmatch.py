@@ -118,13 +118,24 @@
 #    Script creation
 #  version 1.1 - 2015-12-19
 #    cmd_maskmatch: Validate if existing buffer is a channel
-#    match_against_nicklist: 
+#    match_against_nicklist:
 #      Fix wrong comparison.
-#      Optimize iterating through the nicklist by not constantly reperforming some 
-#        calculations, and instead storing them into boolean values.   
+#      Optimize iterating through the nicklist by not constantly reperforming some
+#        calculations, and instead storing them into boolean values.
 #    Code formatting fixes
 #  version 1.2 - 2015-12-31
 #    bug fix: Add missing parenthesis to ensure proper .format() calls.
+#  version 1.3 - 2016-09-21
+#    consistency: honour weechat.look.prefix_same_nick in print_as_list(), also now
+#      use the name in both messages of print_as_list(). This change is slightly
+#      backwards-incompatible. You will need to edit either
+#      weechat.look.prefix_same_nick with a space (" ") to get the old behaviour,
+#      or set the script option prefix to a space (also not ideal.)
+#
+#      Feel free to provide feedback on this change if you liked the old behaviour
+#      and don't find the alternate solutions acceptable. Considering the size of
+#      this change you could easily revert back to 1.2. Future releases will provide
+#      a solution if the old behaviour was liked.
 
 try:
     import weechat as w
@@ -137,7 +148,7 @@ except ImportError:
 
 SCRIPT_NAME = "maskmatch"
 SCRIPT_AUTHOR = "Zarthus <zarthus@lovebytes.me>"
-SCRIPT_VERSION = "1.2"
+SCRIPT_VERSION = "1.3"
 SCRIPT_LICENSE = "MIT"
 SCRIPT_DESC = "Display who got banned (quieted, excepted, etc.) when a mode with a hostmask argument is set"
 SCRIPT_COMMAND = "maskmatch"
@@ -153,10 +164,10 @@ def cmd_maskmatch(data, buffer, mask):
     except ValueError:
         is_channel = False
         w.prnt(buffer, "error: Active buffer does not appear to be a channel.")
-    
+
     if not is_channel:
         return w.WEECHAT_RC_OK
-    
+
     matches = match_against_nicklist(server, channel, mask)
 
     print_matches(buffer, matches, {"setter": "maskmatch", "mode": "special", "set": True, "mask": mask})
@@ -316,7 +327,7 @@ def match_against_nicklist(server, channel, hostmask):
         else:
             host = w.infolist_string(infolist, field)
 
-        if ((extban_unreg and host == "*") or 
+        if ((extban_unreg and host == "*") or
             (not extban_unreg and w.string_match(host, hostmask, 0))):
             matches.append(name)
 
@@ -376,10 +387,16 @@ def print_as_list(target, matches, data, limit, total):
        if i >= limit:
            break
 
+    if w.config_string(w.config_get("weechat.look.prefix_same_nick")):
+        pf = (w.color(w.config_get_plugin("prefix_color")) +
+          w.config_string(w.config_get("weechat.look.prefix_same_nick")) +
+          w.color("reset"))
+
+    printstr = "{}\t{}".format(pf, ", ".join(nicks))
     if remainder > 0:
-        w.prnt(target, ", ".join(nicks) + ", and {} more..".format(remainder))
-    else:
-        w.prnt(target, ", ".join(nicks))
+        printstr += ", and {} more..".format(remainder)
+    w.prnt(target, printstr)
+
 
 def print_as_lines(target, matches, data, limit, total):
     """Prints the output as a line-separated list of nicks."""
