@@ -28,7 +28,7 @@ except:
 
 SCRIPT_NAME = "slack"
 SCRIPT_AUTHOR = "Ryan Huber <rhuber@gmail.com>"
-SCRIPT_VERSION = "0.99.9"
+SCRIPT_VERSION = "0.99.10"
 SCRIPT_LICENSE = "MIT"
 SCRIPT_DESC = "Extends weechat for typing notification/search/etc on slack.com"
 
@@ -78,7 +78,7 @@ def dbg(message, fout=False, main_buffer=False):
     if fout:
         file('/tmp/debug.log', 'a+').writelines(message + '\n')
     if main_buffer:
-            w.prnt("", message)
+            w.prnt("", "slack: " + message)
     else:
         if slack_debug is not None:
             w.prnt(slack_debug, message)
@@ -93,7 +93,7 @@ class SearchList(list):
         super(SearchList, self).__init__(self)
 
     def find(self, name):
-        if name in self.hashtable.keys():
+        if name in self.hashtable:
             return self.hashtable[name]
         #this is a fallback to __eq__ if the item isn't in the hashtable already
         if self.count(name) > 0:
@@ -148,6 +148,7 @@ class SlackServer(object):
         self.channels = SearchList()
         self.connecting = False
         self.connected = False
+        self.connection_attempt_time = 0
         self.communication_counter = 0
         self.message_buffer = {}
         self.ping_hook = None
@@ -209,10 +210,24 @@ class SlackServer(object):
         request = {"type": "ping"}
         self.send_to_websocket(request)
 
+    def should_connect(self):
+        """
+        If we haven't tried to connect OR we tried and never heard back and it
+        has been 125 seconds consider the attempt dead and try again
+        """
+        if self.connection_attempt_time == 0 or self.connection_attempt_time + 125 < int(time.time()):
+            return True
+        else:
+            return False
+
     def connect_to_slack(self):
         t = time.time()
+        #Double check that we haven't exceeded a long wait to connect and try again.
+        if self.connecting and self.should_connect():
+            self.connecting = False
         if not self.connecting:
             async_slack_api_request("slack.com", self.token, "rtm.start", {"ts": t})
+            self.connection_attempt_time = int(time.time())
             self.connecting = True
 
     def connected_to_slack(self, login_data):
@@ -256,7 +271,15 @@ class SlackServer(object):
                             self.message_buffer.pop(message_id)
             return True
         else:
-            w.prnt("", "\n!! slack.com login error: " + login_data["error"] + "\n Please check your API token with\n \"/set plugins.var.python.slack.slack_api_token (token)\"\n\n ")
+            token_start = self.token[:10]
+            error = """
+!! slack.com login error: {}
+ The problematic token starts with {}
+ Please check your API token with
+ "/set plugins.var.python.slack_extension.slack_api_token (token)"
+
+""".format(login_data["error"], token_start)
+            w.prnt("", error)
             self.connected = False
 
     def print_connection_info(self, login_data):
@@ -439,7 +462,7 @@ class Channel(object):
         if channel_buffer != main_weechat_buffer:
             self.channel_buffer = channel_buffer
             w.buffer_set(self.channel_buffer, "localvar_set_nick", self.server.nick)
-#            w.buffer_set(self.channel_buffer, "highlight_words", self.server.nick)
+            w.buffer_set(self.channel_buffer, "highlight_words", self.server.nick)
         else:
             self.channel_buffer = None
         channels.update_hashtable()
@@ -539,22 +562,23 @@ class Channel(object):
     def linkify_text(self, message):
         message = message.split(' ')
         for item in enumerate(message):
-            if item[1].startswith('@') and len(item[1]) > 1:
-                named = re.match('.*[@#]([\w.]+\w)(\W*)', item[1]).groups()
-                if named[0] in ["group", "channel", "here"]:
-                    message[item[0]] = "<!{}>".format(named[0])
-                if self.server.users.find(named[0]):
-                    message[item[0]] = "<@{}>{}".format(self.server.users.find(named[0]).identifier, named[1])
-            if item[1].startswith('#') and self.server.channels.find(item[1]):
-                named = re.match('.*[@#](\w+)(\W*)', item[1]).groups()
-                if self.server.channels.find(named[0]):
-                    message[item[0]] = "<#{}|{}>{}".format(self.server.channels.find(named[0]).identifier, named[0], named[1])
+            targets = re.match('.*([@#])([\w.]+\w)(\W*)', item[1])
+            if targets and targets.groups()[0] == '@':
+                named = targets.groups()
+                if named[1] in ["group", "channel", "here"]:
+                    message[item[0]] = "<!{}>".format(named[1])
+                if self.server.users.find(named[1]):
+                    message[item[0]] = "<@{}>{}".format(self.server.users.find(named[1]).identifier, named[2])
+            if targets and targets.groups()[0] == '#':
+                named = targets.groups()
+                if self.server.channels.find(named[1]):
+                    message[item[0]] = "<#{}|{}>{}".format(self.server.channels.find(named[1]).identifier, named[1], named[2])
         dbg(message)
         return " ".join(message)
 
     def set_topic(self, topic):
-        topic = topic.encode('utf-8')
-        w.buffer_set(self.channel_buffer, "title", topic)
+        self.topic = topic.encode('utf-8')
+        w.buffer_set(self.channel_buffer, "title", self.topic)
 
     def open(self, update_remote=True):
         self.create_buffer()
@@ -634,13 +658,13 @@ class Channel(object):
         elif message.find(self.server.nick.encode('utf-8')) > -1:
             tags = ",notify_highlight,log1"
         elif user != self.server.nick and self.name in self.server.users:
-            tags = ",notify_private,notify_message,log1"
+            tags = ",notify_private,notify_message,log1,irc_privmsg"
         elif self.muted:
             tags = ",no_highlight,notify_none,logger_backlog_end"
         elif user in [x.strip() for x in w.prefix("join"), w.prefix("quit")]:
             tags = ",irc_smart_filter"
         else:
-            tags = ",notify_message,log1"
+            tags = ",notify_message,log1,irc_privmsg"
         #don't write these to local log files
         #tags += ",no_log"
         time_int = int(time_float)
@@ -981,6 +1005,16 @@ class Message(object):
     def __lt__(self, other):
         return self.ts < other.ts
 
+# Only run this function if we're in a slack buffer, else ignore
+def slack_buffer_or_ignore(f):
+    @wraps(f)
+    def wrapper(current_buffer, *args, **kwargs):
+        server = servers.find(current_domain_name())
+        if not server:
+            return w.WEECHAT_RC_OK
+        return f(current_buffer, *args, **kwargs)
+    return wrapper
+
 
 def slack_command_cb(data, current_buffer, args):
     a = args.split(' ', 1)
@@ -996,6 +1030,7 @@ def slack_command_cb(data, current_buffer, args):
     return w.WEECHAT_RC_OK
 
 
+@slack_buffer_or_ignore
 def me_command_cb(data, current_buffer, args):
     if channels.find(current_buffer):
         channel = channels.find(current_buffer)
@@ -1005,6 +1040,7 @@ def me_command_cb(data, current_buffer, args):
     return w.WEECHAT_RC_OK
 
 
+@slack_buffer_or_ignore
 def join_command_cb(data, current_buffer, args):
     args = args.split()
     if len(args) < 2:
@@ -1015,6 +1051,7 @@ def join_command_cb(data, current_buffer, args):
     else:
         return w.WEECHAT_RC_OK
 
+@slack_buffer_or_ignore
 def part_command_cb(data, current_buffer, args):
     if channels.find(current_buffer) or servers.find(current_buffer):
         args = args.split()
@@ -1035,12 +1072,42 @@ def slack_buffer_required(f):
         server = servers.find(current_domain_name())
         if not server:
             w.prnt(current_buffer, "This command must be used in a slack buffer")
-            return
+            return w.WEECHAT_RC_ERROR
         return f(current_buffer, *args, **kwargs)
     return wrapper
 
+def command_register(current_buffer, args):
+    CLIENT_ID="2468770254.51917335286"
+    CLIENT_SECRET="dcb7fe380a000cba0cca3169a5fe8d70" #this is not really a secret
+    if not args:
+        message = """
+#### Retrieving a Slack token via OAUTH ####
 
-@slack_buffer_required
+1) Paste this into a browser: https://slack.com/oauth/authorize?client_id=2468770254.51917335286&scope=client
+2) Select the team you wish to access from wee-slack in your browser.
+3) Click "Authorize" in the browser **IMPORTANT: the redirect will fail, this is expected**
+4) Copy the "code" portion of the URL to your clipboard
+5) Return to weechat and run `/slack register [code]`
+6) Add the returned token per the normal wee-slack setup instructions
+
+
+"""
+        w.prnt(current_buffer, message)
+    else:
+        aargs = args.split(None, 2)
+        if len(aargs) <> 1:
+            w.prnt(current_buffer, "ERROR: invalid args to register")
+        else:
+            #w.prnt(current_buffer, "https://slack.com/api/oauth.access?client_id={}&client_secret={}&code={}".format(CLIENT_ID, CLIENT_SECRET, aargs[0]))
+            ret = urllib.urlopen("https://slack.com/api/oauth.access?client_id={}&client_secret={}&code={}".format(CLIENT_ID, CLIENT_SECRET, aargs[0])).read()
+            d = json.loads(ret)
+            if d["ok"] == True:
+                w.prnt(current_buffer, "Success! Access token is: " + d['access_token'])
+            else:
+                w.prnt(current_buffer, "Failed! Error is: " + d['error'])
+
+
+@slack_buffer_or_ignore
 def msg_command_cb(data, current_buffer, args):
     dbg("msg_command_cb")
     aargs = args.split(None, 2)
@@ -1314,11 +1381,18 @@ def command_openweb(current_buffer, args):
             w.buffer_set(channel_buffer, "title", data["topic"])
     return w.WEECHAT_RC_OK
 
+@slack_buffer_or_ignore
 def topic_command_cb(data, current_buffer, args):
-    if command_topic(current_buffer, args.split(None, 1)[1]):
+    n = len(args.split())
+    if n < 2:
+        channel = channels.find(current_buffer)
+        if channel:
+            w.prnt(current_buffer, 'Topic for {} is "{}"'.format(channel.name, channel.topic))
+        return w.WEECHAT_RC_OK_EAT
+    elif command_topic(current_buffer, args.split(None, 1)[1]):
         return w.WEECHAT_RC_OK_EAT
     else:
-        return w.WEECHAT_RC_OK
+        return w.WEECHAT_RC_ERROR
 
 def command_topic(current_buffer, args):
     """
@@ -1674,6 +1748,9 @@ def render_message(message_json, force=False):
 
         text = text.lstrip()
         text = text.replace("\t", "    ")
+        text = text.replace("&lt;", "<")
+        text = text.replace("&gt;", ">")
+        text = text.replace("&amp;", "&")
         text = text.encode('utf-8')
 
         if "reactions" in message_json:
@@ -2125,6 +2202,9 @@ def cache_load():
                 j = json.loads(line)
                 message_cache[j["channel"]].append(line)
             dbg("Completed loading messages from cache.", main_buffer=True)
+    except ValueError:
+        w.prnt("", "Failed to load cache file, probably illegal JSON.. Ignoring")
+        pass
     except IOError:
         w.prnt("", "cache file not found")
         pass
