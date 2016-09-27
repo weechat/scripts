@@ -1,7 +1,36 @@
 # -*- coding: utf-8 -*-
-# Copyright (c) 2013 Bit Shift <bitshift@bigmacintosh.net>
 # Licensed under the MIT license:
+# Copyright (c) 2013 Bit Shift <bitshift@bigmacintosh.net>
+# Copyright (c) 2016 Pol Van Aubel <dev@polvanaubel.com>
+#
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and associated documentation files (the
+# "Software"), to deal in the Software without restriction, including
+# without limitation the rights to use, copy, modify, merge, publish,
+# distribute, sublicense, and/or sell copies of the Software, and to
+# permit persons to whom the Software is furnished to do so, subject to
+# the following conditions:
+
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+#
 # http://www.opensource.org/licenses/mit-license.php
+#
+# Revision log:
+# 0.2.3 Changed weechat.prnt to weechat.prnt_date_tags where messages
+#       are not a direct result from user input; errors get tagged with
+#       irc_error and notify_message, messages get tagged with
+#       notify_message.
+#
+# 0.2.2 Version from Bit Shift
 
 import weechat
 import string
@@ -10,7 +39,7 @@ import feedparser
 weechat.register(
         "weemustfeed",
         "Bit Shift <bitshift@bigmacintosh.net>",
-        "0.2.2",
+        "0.2.3",
         "MIT",
         "RSS/Atom/RDF aggregator for weechat",
         "",
@@ -215,16 +244,24 @@ def weemustfeed_update_single_feed_cb(feed, command, return_code, out, err):
         partial_feeds[feed] += out
         return weechat.WEECHAT_RC_OK
     elif return_code == 1:
-        weechat.prnt(weemustfeed_buffer, weechat.prefix("error") + "Invalid URL for feed '" + feed + "'.")
+        weechat.prnt_date_tags(weemustfeed_buffer, 0,
+                "irc_error,notify_message",
+                weechat.prefix("error") + "Invalid URL for feed '" + feed + "'.")
         status = weechat.WEECHAT_RC_ERROR
     elif return_code == 2:
-        weechat.prnt(weemustfeed_buffer, weechat.prefix("error") + "Transfer error while fetching feed '" + feed + "'.")
+        weechat.prnt_date_tags(weemustfeed_buffer, 0,
+                "irc_error,notify_message",
+                weechat.prefix("error") + "Transfer error while fetching feed '" + feed + "'.")
         status = weechat.WEECHAT_RC_ERROR
     elif return_code == 3:
-        weechat.prnt(weemustfeed_buffer, weechat.prefix("error") + "Out of memory while fetching feed '" + feed + "'.")
+        weechat.prnt_date_tags(weemustfeed_buffer, 0,
+                "irc_error,notify_message",
+                weechat.prefix("error") + "Out of memory while fetching feed '" + feed + "'.")
         status = weechat.WEECHAT_RC_ERROR
     elif return_code == 4:
-        weechat.prnt(weemustfeed_buffer, weechat.prefix("error") + "Error with a file while fetching feed '" + feed + "'.")
+        weechat.prnt_date_tags(weemustfeed_buffer, 0,
+                "irc_error,notify_message",
+                weechat.prefix("error") + "Error with a file while fetching feed '" + feed + "'.")
         status = weechat.WEECHAT_RC_ERROR
     else:  # all good, and we have a complete feed
         if not weechat.config_is_set_plugin("feed." + feed.lower() + ".last_id"):
@@ -251,7 +288,7 @@ def weemustfeed_update_single_feed_cb(feed, command, return_code, out, err):
 
             for entry in entries:
                 if only_new:
-                    weechat.prnt(weemustfeed_buffer, "{feed}\t{title} {url}".format(**{
+                    weechat.prnt_date_tags(weemustfeed_buffer, 0, "notify_message", "{feed}\t{title} {url}".format(**{
                         "feed": feed,
                         "title": entry.title.encode("utf-8"),
                         "url": entry.link.encode("utf-8")
@@ -287,7 +324,9 @@ def weemustfeed_update_feeds_cb(data, remaining_calls):
                         "weemustfeed_update_single_feed_cb", feed
                         )
         elif feed != "":
-            weechat.prnt(weemustfeed_buffer, weechat.prefix("error") + "Feed '" + feed + "' has no URL set.")
+            weechat.prnt_date_tags(weemustfeed_buffer, 0,
+                    "irc_error,notify_message",
+                    weechat.prefix("error") + "Feed '" + feed + "' has no URL set.")
     return weechat.WEECHAT_RC_OK
 
 
