@@ -18,7 +18,7 @@ import weechat
 weechat.register(
     "emoji_aliases",   # name
     "Mike Reinhardt",  # author
-    "1.0.0",           # version
+    "1.0.2",           # version
     "BSD",             # license
     "Convert emoji aliases to unicode emoji.",  # description
     "",                # shutdown function
@@ -1447,7 +1447,8 @@ EMOJI_ALIASES = {
     u':zipper_mouth_face:': u'\U0001F910',
     u':zzz:': u'\U0001F4A4',
 }
-ALIAS_RE = re.compile(r'(:[^: ]+:)', flags=re.DOTALL)
+ALIAS_RE = re.compile(r':[+-]?[\w-]+:', flags=re.DOTALL)
+NEEDSPLIT = ('irc_in_PRIVMSG', 'irc_in_NOTICE', 'irc_in_PART', 'irc_in_QUIT', 'irc_in_KNOCK', 'irc_in_AWAY')
 
 HOOKS = (
     "away",
@@ -1464,10 +1465,13 @@ HOOKS = (
 
 
 def convert_aliases_to_emoji(data, modifier, modifier_data, string):
-    aliases_found = ALIAS_RE.findall(string)
+    if modifier in NEEDSPLIT:
+        aliases_found = ALIAS_RE.findall(string.split(':', 1)[1])
+    else:
+        aliases_found = ALIAS_RE.findall(string)
     for alias in aliases_found:
         if alias in EMOJI_ALIASES:
-            string = string.replace(alias, EMOJI_ALIASES[alias] + u' ')
+            string = string.replace(alias, '{} '.format(EMOJI_ALIASES[alias].encode('utf-8')))
     return string
 
 
