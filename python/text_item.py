@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2012-2014 by nils_2 <weechatter@arcor.de>
+# Copyright (c) 2012-2016 by nils_2 <weechatter@arcor.de>
 #
 # add a plain text or evaluated content to item bar
 #
@@ -17,6 +17,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2016-09-15: nils_2, (freenode.#weechat)
+#       0.5 : add /help text (suggested by gb)
+#
 # 2014-05-19: nils_2, (freenode.#weechat)
 #       0.4 : evaluate content of item (suggested by FlashCode)
 #
@@ -31,34 +34,6 @@
 #
 # requires: WeeChat version 0.3.0
 #
-# How to use:
-# ===========
-#
-# Template:
-#  /set plugins.var.python.text_item.<item_name> <type>|<signal> <${color}><text>
-#
-#  type : all, channel, server, private
-#  (use /buffer localvar)
-#
-# signal (eg.): buffer_switch
-# (for a list of all possible signals, see API doc weechat_hook_signal())
-#
-#
-# Example:
-# =======
-# creates an option for a text item (nick_text), to use in all "channel" buffers:
-# /set plugins.var.python.text_item.nick_text "channel ${yellow}Nicks:"
-#
-# add the item "nick_text" to the bar.items (use auto-completion or iset.pl!)
-# /set weechat.bar.status.items nick_text
-#
-# The text "Nicks:" will be displayed in the status bar (yellow colored!).
-#
-#
-# will display the terminal width and height in an item bar. item will be updated on signal "signal_sigwinch"
-# /set plugins.var.python.text_item.dimension "all|signal_sigwinch width: ${info:term_width} height: ${info:term_height}"
-#
-#
 # Development is currently hosted at
 # https://github.com/weechatter/weechat-scripts
 
@@ -72,7 +47,7 @@ except Exception:
 
 SCRIPT_NAME     = "text_item"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.4"
+SCRIPT_VERSION  = "0.5"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "add a plain text or evaluated content to item bar"
 
@@ -208,7 +183,29 @@ def check_buffer_type(window, data, value):
 
 # ================================[ main ]===============================
 if __name__ == "__main__":
-    if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, '', ''):
-        version = weechat.info_get("version_number", "") or 0
-        create_bar_items()
-        weechat.hook_config( 'plugins.var.python.' + SCRIPT_NAME + '.*', 'toggle_refresh', '' )
+    if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC,'',''):
+            weechat.hook_command(SCRIPT_NAME,SCRIPT_DESC,
+                        '',
+                        'How to use:\n'
+                        '===========\n'
+                        'Template:\n'
+                        '/set plugins.var.python.text_item.<item_name> <type>|<signal> <${color:name/number}><text>\n\n'
+                        '   type : all, channel, server, private\n'
+                        '   (you can use: /buffer localvar)\n\n'
+                        '   signal (eg.): buffer_switch, buffer_closing, print, \n'
+                        '   (for a list of all possible signals, see API doc weechat_hook_signal())\n\n'
+                        'Example:\n'
+                        '=======\n'
+                        'creates an option for a text item named "nick_text". The item will be created for "channel" buffers. '
+                        'The text displayed in the status-bar is "Nicks:" (yellow colored!):\n'
+                        '   /set plugins.var.python.text_item.nick_text "channel ${color:yellow}Nicks:"\n\n'
+                        'now you have to add the item "nick_text" to the bar.items (use auto-completion or iset.pl!)\n'
+                        '   /set weechat.bar.status.items nick_text\n\n'
+                        'creates an option to display the terminal width and height in an item bar. item will be updated on signal "signal_sigwinch"\n'
+                        '   /set plugins.var.python.text_item.dimension "all|signal_sigwinch width: ${info:term_width} height: ${info:term_height}"\n',
+                        '',
+                        '',
+                        '')
+            version = weechat.info_get("version_number", "") or 0
+            create_bar_items()
+            weechat.hook_config( 'plugins.var.python.' + SCRIPT_NAME + '.*', 'toggle_refresh', '' )
