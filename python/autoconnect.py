@@ -2,6 +2,8 @@
 #
 # Copyright (C) 2011 Arnaud Renevier <arno@renevier.net>
 #
+# > updated by kbdkode <kbdkode@protonmail.com>
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 3 of the License, or
@@ -17,7 +19,7 @@
 
 SCRIPT_NAME    = "autoconnect"
 SCRIPT_AUTHOR  = "arno <arno@renevier.net>"
-SCRIPT_VERSION = "0.3.0"
+SCRIPT_VERSION = "0.3.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "reopens servers and channels opened last time weechat closed"
 SCRIPT_COMMAND = "autoconnect"
@@ -56,11 +58,9 @@ def joinpart_cb(data, signal, signal_data):
     if signal.endswith("irc_in2_JOIN"):
         weechat.command("", "/mute /set irc.server.%s.autoconnect on" % (server,))
 
-        channel = signal_data.split()[-1][1:]
-        # Fix up prefixless channels, : prefixed channels
-        channel = channel if channel[0] != ':' else channel[1:]
-        channel = '#' + channel if channel[0] != '#' else channel
-        autojoin_channels.add(channel)
+        # get all channels joined (without passphrases)
+        chans = [j.split()[0].strip() for j in signal_data.split(None, 2)[2].split(',')]
+        autojoin_channels.add(','.join(chans))
 
     elif signal.endswith("irc_in2_PART"):
         channel = signal_data.split(' PART ')[1].split()[0]
