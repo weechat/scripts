@@ -136,6 +136,11 @@
 #      and don't find the alternate solutions acceptable. Considering the size of
 #      this change you could easily revert back to 1.2. Future releases will provide
 #      a solution if the old behaviour was liked.
+#  version 1.4 - 2016-10-11
+#    bug fix: works around a problem where modes with arguments are not being filtered out,
+#      and instead maskmatch starts matching against the wrong argument.
+#      This is a bit of a cheesy hack. Anyone is welcome to improve the logic on this.
+#      relevant: https://github.com/Zarthus/weechat-scripts/issues/3
 
 try:
     import weechat as w
@@ -148,7 +153,7 @@ except ImportError:
 
 SCRIPT_NAME = "maskmatch"
 SCRIPT_AUTHOR = "Zarthus <zarthus@lovebytes.me>"
-SCRIPT_VERSION = "1.3"
+SCRIPT_VERSION = "1.4"
 SCRIPT_LICENSE = "MIT"
 SCRIPT_DESC = "Display who got banned (quieted, excepted, etc.) when a mode with a hostmask argument is set"
 SCRIPT_COMMAND = "maskmatch"
@@ -246,7 +251,7 @@ def parse_modes(text):
             continue
 
         if c not in chars:
-            if c in ["I", "k", "e", "b", "q"]:  # TODO: look in isupport CHANMODES
+            if c in ["I", "k", "e", "b", "q"] or not is_maskmatch_mask(masks[i]):  # TODO: look in isupport CHANMODES and PREFIX
                 del masks[i]
             continue
 
@@ -290,6 +295,15 @@ def should_match(server, channel):
             if match_list_item(server, channel, item):
                 return False
         return True
+
+def is_maskmatch_mask(mask):
+    """Validate if a mask is a valid IRC mask we support"""
+
+    # author comment: if we ever need regex for more than just
+    # this, this statement could be replaced with a regex
+    # that is more accurate. /\$~a|\$a:[^ ]+|[^! ]+![^@ ]+@/ or the likes.
+
+    return "$~a" in mask or "$a:" in mask or ("!" in mask and "@" in mask)
 
 
 def is_mask_ignored(mask):
