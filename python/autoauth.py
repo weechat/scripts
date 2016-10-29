@@ -11,6 +11,8 @@
 #
 # ### changelog ###
 #
+#  * version 1.1 (CrazyCat <crazycat@c-p-f.org>)
+#      - add a way to manage NickServ nick and host
 #  * version 1.0 (Simmo Saan <simmo.saan@gmail.com>)
 #      - rename command /auth to /autoauth
 #  * version 0.10 (Felix Eckhofer <felix@tribut.de>)
@@ -43,7 +45,7 @@
 # =============================================================================
 
 
-VERSION="1.0"
+VERSION="1.1"
 NAME="autoauth"
 AUTHOR="Kolter"
 
@@ -64,12 +66,13 @@ weechat.hook_signal("*,irc_in2_notice", "auth_notice_check", "")
 weechat.hook_command(
     "autoauth",
     "Auto authentification while changing nick",
-    "{ add $nick $pass [$server=current] | del $nick [$server=current] | list | cmd [$command [$server=current]] }",
+    "{ add $nick $pass [$server=current] | del $nick [$server=current] | list | cmd [$command [$server=current]] | ns [$Nick[!username[@host]]] [$server=current] }",
     "  add : add authorization for $nick with password $pass for $server\n"
     "  del : del authorization for $nick for $server\n"
     " list : list all authorization settings\n"
     "  cmd : command(s) (separated by '|') to run when identified for $server\n"
-    "         %n will be replaced by current nick in each command",
+    "         %n will be replaced by current nick in each command\n"
+    "   ns : set NickServ mask (or part of mask) for $server, the NickServ nick is mandatory",
     "add|del|list|cmd %- %S %S",
     "auth_command",
     ""
@@ -159,11 +162,13 @@ def auth_list():
 
 def auth_notice_check(data, buffer, args):
     server = buffer.split(',')[0]
-    if args.startswith(":NickServ!NickServ@services") and \
-      args.find("If this is your nickname, type /msg NickServ") != -1 or args.find("This nickname is registered") != -1 :
+    nickserv = auth_nsget(server)
+    (nnick, nhost) = nickserv.split("!")
+    if args.startswith(":"+nickserv) and args.find("/msg NickServ IDENTIFY") != -1:
+      #args.find("If this is your nickname, type /msg NickServ") != -1 or args.find("This nickname is registered") != -1 :
         passwd = auth_get(weechat.info_get("irc_nick", server), server)
         if passwd != None:
-            weechat.command(server, "/quote -server %s nickserv identify %s" % (server, passwd))
+            weechat.command(server, "/quote -server %s %s identify %s" % (server, nnick, passwd))
             commands = auth_cmdget(server)
             if commands != '':
                 for c in commands.split("|"):
@@ -225,17 +230,17 @@ def auth_get(the_nick, the_server):
     return None
 
 def get_channel_from_buffer_args(buffer, args):
-  server_name = weechat.buffer_get_string(buffer, "localvar_server")
-  channel_name = args
-  if not channel_name:
-    channel_name = weechat.buffer_get_string(buffer, "localvar_channel")
+    server_name = weechat.buffer_get_string(buffer, "localvar_server")
+    channel_name = args
+    if not channel_name:
+        channel_name = weechat.buffer_get_string(buffer, "localvar_channel")
 
-  match_data = re.match('\A(irc.)?([^.]+)\.(#\S+)\Z', channel_name)
-  if match_data:
-    channel_name = match_data.group(3)
-    server_name = match_data.group(2)
+    match_data = re.match('\A(irc.)?([^.]+)\.(#\S+)\Z', channel_name)
+    if match_data:
+        channel_name = match_data.group(3)
+        server_name = match_data.group(2)
 
-  return server_name, channel_name
+    return server_name, channel_name
 
 def auth_command(data, buffer, args):
     list_args = args.split(" ")
@@ -251,7 +256,7 @@ def auth_command(data, buffer, args):
 
     if len(list_args) ==  0:
         weechat.command(buffer, "/help autoauth")
-    elif list_args[0] not in ["add", "del", "list", "cmd"]:
+    elif list_args[0] not in ["add", "del", "list", "cmd", "ns"]:
         weechat.prnt(buffer, "[%s] bad option while using /autoauth command, try '/help autoauth' for more info" % (NAME))
     elif list_args[0] == "cmd":
         if len(list_args[1:]) == 1 and weechat.hdata_search(h_servers, l_servers, "${irc_server.name} == "+list_args[1], 1):
@@ -265,6 +270,18 @@ def auth_command(data, buffer, args):
                 auth_cmd(" ".join(list_args[1:]), server)
         else:
             auth_cmd(" ".join(list_args[1:]), server)
+    elif list_args[0] == "ns":
+        if len(list_args[1:]) == 1 and weechat.hdata_search(h_servers, l_servers, "${irc_server.name} == "+list_args[1], 1):
+            auth_ns("", list_args[1])
+        elif len(list_args[1:]) == 1:
+            auth_ns(list_args[1], server)
+        elif len(list_args[1:]) == 2:
+            if weechat.hdata_search(h_servers, l_servers, "${irc_server.name} == "+list_args[-1], 1):
+                auth_ns(" ".join(list_args[1:-1]), list_args[-1])
+            else:
+                auth_ns(" ".join(list_args[1:]), server)
+        else:
+            auth_ns(" ".join(list_args[1:]), server)
     elif list_args[0] == "list":
         auth_list()
     elif list_args[0] == "add":
@@ -286,3 +303,71 @@ def auth_command(data, buffer, args):
     else:
         pass
     return weechat.WEECHAT_RC_OK
+
+def auth_nslist():
+    ns = 'NickServ!services@services'
+    nss = weechat.config_get_plugin("nickservs")
+    if nss == '':
+        weechat.prnt("", "[%s] NickServ : NickServ!services@services" % (NAME))
+    else:
+        weechat.prnt("", "[%s] NickServ (list)" % (NAME))
+        for n in nss.split("####"):
+            weechat.prnt("", "  --> %s : '%s' " % (n.split(":::")[0], n.split(":::")[1]))
+
+def auth_nsget(server):
+    ns = 'NickServ!services@services'
+    nss = weechat.config_get_plugin("nickservs")
+    if nss != '':
+        for n in nss.split("####"):
+            if n.find(":::") != -1:
+                if n.split(":::")[0] == server:
+                    ns = ":::".join(n.split(":::")[1:])
+                    break
+    return ns
+
+def auth_nsset(server, nickserv):
+    nss = weechat.config_get_plugin("nickservs")
+
+    found = False
+    conf = []
+    if nss != '':
+        for n in nss.split("####"):
+            if n.find(":::") != -1:
+                if n.split(":::")[0] == server:
+                    found = True
+                    conf.append("%s:::%s" % (server, nickserv))
+                else:
+                    conf.append(n)
+    if not found:
+        conf.append("%s:::%s" % (server, nickserv))
+
+    weechat.config_set_plugin("nickservs", "####".join(conf))
+    weechat.prnt("", "[%s] NickServ '%s' successfully added for server %s" % (NAME, nickserv, server))
+
+def auth_nsunset(server):
+    nss = weechat.config_get_plugin("nickservs")
+
+    found = False
+    conf = []
+    if nss != '':
+        for n in nss.split("####"):
+            if n.find(":::") != -1:
+                if n.split(":::")[0] != server:
+                    conf.append(n)
+                else:
+                    found = True
+    if found:
+        weechat.prnt("", "[%s] NickServ for server '%s' successfully removed" % (NAME, server))
+        weechat.config_set_plugin("nickservs", "####".join(conf))
+
+def auth_ns(args, server):
+    if server == '':
+        if args == '':
+            auth_nslist()
+        else:
+            weechat.prnt("", "[%s] error while setting NickServ, can't find a server" % (NAME))
+    else:
+        if args == '':
+            auth_nsunset(server)
+        else:
+            auth_nsset(server, args)
