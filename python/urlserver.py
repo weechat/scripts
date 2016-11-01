@@ -44,6 +44,8 @@
 #
 # History:
 #
+# 2016-11-01, Sébastien Helleu <flashcode@flashtux.org>:
+#     v2.1: add option "msg_filtered"
 # 2016-01-20, Yves Stadler <yves.stadler@gmail.com>:
 #     v2.0: add option "http_open_in_new_page"
 # 2015-05-16, Sébastien Helleu <flashcode@flashtux.org>:
@@ -108,7 +110,7 @@
 
 SCRIPT_NAME = 'urlserver'
 SCRIPT_AUTHOR = 'Sébastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '2.0'
+SCRIPT_VERSION = '2.1'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC = 'Shorten URLs with own HTTP server'
 
@@ -249,6 +251,9 @@ urlserver_settings_default = {
     'msg_ignore_dup_urls': (
         'off',
         'ignore duplicated URLs (do not add an URL in list if it is already)'),
+    'msg_filtered': (
+        'off',
+        'shorten URLs in filtered messages (with /filter)'),
     # display settings
     'color': (
         'darkgray',
@@ -901,6 +906,9 @@ def urlserver_print_cb(data, buffer, time, tags, displayed, highlight, prefix,
     Callback for message printed in buffer: display short URLs after message.
     """
     global urlserver, urlserver_settings
+
+    if not displayed and urlserver_settings['msg_filtered'] != 'on':
+        return weechat.WEECHAT_RC_OK
 
     if urlserver_settings['display_urls'] == 'on':
         buffer_full_name = '%s.%s' % (
