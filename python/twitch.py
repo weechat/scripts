@@ -26,10 +26,19 @@
 # settings:
 # plugins.var.python.twitch.servers (default: twitch)
 # plugins.var.python.twitch.prefix_nicks (default: 1)
+#
+# # History:
+#
+# 2016-11-03, mumixam
+#     v0.2: added detailed /help
+# 2016-10-30, mumixam
+#     v0.1: script added to weechat.org
+
+
 
 SCRIPT_NAME = "twitch"
 SCRIPT_AUTHOR = "mumixam"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "twitch.tv Chat Integration"
 OPTIONS={ 
@@ -448,7 +457,40 @@ def config_change(pointer, name, value):
 
 if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
                     SCRIPT_DESC, "", ""):
-    weechat.hook_command("twitch", SCRIPT_DESC, "", "", "", "twitch_main", "")
+    weechat.hook_command("twitch", SCRIPT_DESC, "",
+        "  settings:\n"
+        "    plugins.var.python.twitch.servers (default: twitch)\n"
+        "    plugins.var.python.twitch.prefix_nicks (default: 1)\n"
+        "\n\n"
+        "  This script checks stream status of any channel on any servers listed\n"
+        "  in the \"plugins.var.python.twitch.servers\" setting. When you switch\n"
+        "  to a buffer it will display updated infomation about the stream in the\n"
+        "  title bar. Typing '/twitch' in a buffer will also fetch updated infomation.\n"
+        "  '/whois nick' will lookup user info and display it in current buffer.\n\n"
+        "  Option \"plugins.var.python.twitch.servers\" controls\n"
+        "  what server this script will work on. The default is twitch\n"
+        "  but you can have multiples separated by a space.\n"
+        "  /set plugins.var.python.twitch.servers twitch twitchcopy\n"
+        "\n\n"
+        "  This script also will prefix users nicks (@ for mod, % for sub,\n"
+        "  and ~ for broadcaster). This will break the traditional function\n"
+        "  of /ignore add nightbot and will require you to prefix nicks if you\n"
+        "  want to ignore someone /ignore add re:[~@%]{0,3}nightbot should ignore\n"
+        "  a nick with all or none of the prefixes used by this script.\n"
+        "  NOTE: This may cause high cpu usage in very active chat and/or on slower cpus.\n"
+        "  This can also be disabled by setting\n    /set plugins.var.python.twitch.prefix_nicks off\n"
+        "\n\n"
+        "  Required server settings:\n"
+        "    /server add twitch irc.twitch.tv\n"
+        "    /set irc.server.twitch.capabilities \"twitch.tv/membership,twitch.tv/commands,twitch.tv/tags\"\n"
+        "    /set irc.server.twitch.nicks \"My Twitch Username\"\n"
+        "    /set irc.server.twitch.password \"oauth:My Oauth Key\"\n"
+        "\n"
+        "  If you do not have a oauth token one can be generated for your account here\n"
+        "    https://twitchapps.com/tmi/\n"
+        "\n"
+        "  This script also has whisper support that works like a standard query. \"/query user\"\n\n",
+        "", "twitch_main", "")
     weechat.hook_signal('buffer_switch', 'twitch_buffer_switch', '')
     weechat.hook_config('plugins.var.python.' + SCRIPT_NAME + '.*', 'config_change', '')
     config_setup()
