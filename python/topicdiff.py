@@ -4,11 +4,13 @@
 
 import re
 
+from itertools import izip_longest
+
 import weechat
 
 SCRIPT_NAME    = "topicdiff"
 SCRIPT_AUTHOR  = "Dafydd Harries <daf@rhydd.org>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Show differences between old and new topics."
 
@@ -16,20 +18,25 @@ pending_change_buffer = None
 topics = {}
 
 def topic_chunks(s):
-    return re.split(r'\s+\|\|?\s+', s)
+    return re.split(r'\s+[-~|]+\s+', s)
 
 def topic_changed(buffer, new_topic):
     if buffer in topics:
-        old_chunks = set(topic_chunks(topics[buffer]))
-        new_chunks = set(topic_chunks(new_topic))
-        removed_chunks = old_chunks - new_chunks
-        added_chunks = new_chunks - old_chunks
+        old_chunks = topic_chunks(topics[buffer])
+        new_chunks = topic_chunks(new_topic)
 
-        for chunk in removed_chunks:
-            weechat.prnt(buffer, ' -: %s' % chunk)
+        for old_chunk, new_chunk in izip_longest(old_chunks, new_chunks):
+            if old_chunk and old_chunk not in new_chunks:
+                weechat.prnt(buffer, '%s-\t%s' % (
+                    weechat.color('red'),
+                    old_chunk
+                ))
 
-        for chunk in added_chunks:
-            weechat.prnt(buffer, ' +: %s' % chunk)
+            if new_chunk and new_chunk not in old_chunks:
+                weechat.prnt(buffer, '%s+\t%s' % (
+                    weechat.color('green'),
+                    new_chunk
+                ))
 
     topics[buffer] = new_topic
 
