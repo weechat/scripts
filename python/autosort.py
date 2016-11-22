@@ -25,6 +25,8 @@
 
 #
 # Changelog:
+# 2.8:
+#   * Fix compatibility with python 3 regarding unicode handling.
 # 2.7:
 #   * Fix sorting of buffers with spaces in their name.
 # 2.6:
@@ -53,7 +55,7 @@ import json
 
 SCRIPT_NAME     = 'autosort'
 SCRIPT_AUTHOR   = 'Maarten de Vries <maarten@de-vri.es>'
-SCRIPT_VERSION  = '2.7'
+SCRIPT_VERSION  = '2.8'
 SCRIPT_LICENSE  = 'GPL3'
 SCRIPT_DESC     = 'Automatically or manually keep your buffers sorted and grouped by server.'
 
@@ -429,6 +431,12 @@ def preprocess(buffer, config):
 	'''
 	Preprocess a buffers names.
 	'''
+
+	# Make sure the name is a unicode string.
+	# On python3 this is a NOP since the string type is already decoded as UTF-8.
+	if isinstance(buffer, bytes):
+		buffer = buffer.decode('utf-8')
+
 	if not config.case_sensitive:
 		buffer = buffer.lower()
 
@@ -447,7 +455,7 @@ def buffer_sort_key(rules):
 	def key(buffer):
 		result  = []
 		name    = ''
-		for word in preprocess(buffer[0].decode('utf-8'), config):
+		for word in preprocess(buffer[0], config):
 			name += ('.' if name else '') + word
 			result.append((rules.get_score(name), word))
 		return result
