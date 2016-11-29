@@ -1,31 +1,73 @@
 (use-modules ((srfi srfi-1)
               #:select (any)))
-(use-modules (srfi srfi-26))
+(use-modules ((srfi srfi-26)
+              #:select (cut)))
 (use-modules (ice-9 regex))
+(use-modules (ice-9 hash-table))
+(use-modules (ice-9 match))
 
 (if (defined? 'weechat:register)
-    (begin
-      (weechat:register "gateway-nickconverter"
+    (weechat:register "gateway-nickconverter"
                       "zv <zv@nxvr.org>"
-                      "1.0"
+                      "1.1"
                       "GPL3"
-                      "Convert usernames of gateway connections to their real names"
+                      "Convert usernames of gateway connections their real names"
                       ""
-                      "")
-      (weechat:print "" "Initialize Gateway Nickconverter")))
+                      ""))
+
+;; `user-prefix' is a distinguishing username prefix for 'fake' users
+(define *user-prefix* "^")
+
+(define (print . msgs)
+  (if (defined? 'weechat:print)
+      (weechat:print "" (apply format (cons #f msgs)))))
 
 ;; A regular expression must have the gateway username in the first matchgroup,
 ;; the "real" username in the 3rd, and the real-username along with it's enclosing
 ;; brackets in the 2nd
 (define *gateway-regexps*
-  (list
-    (make-regexp ":(r2tg)!\\S* PRIVMSG #radare :(<(.*?)>) .*")           ; r2tg
-    (make-regexp ":(zv-test)!\\S* PRIVMSG #test-channel :(<(.*?)>) .*"))) ; test
+  (alist->hash-table
+   `(("freenode" .
+      (;; r2tg
+       ,(make-regexp ":(r2tg)!\\S* PRIVMSG #radare :(<(\\S*?)>) .*")
+       ;; slack-irc-bot
+       ,(make-regexp ":(slack-irc-bot(1\\|2)?)!\\S* PRIVMSG #\\S* :(<(\\S*?)>) .*")
+       ;; test
+       ,(make-regexp ":(zv-test)!\\S* PRIVMSG #test-channel :(<(\\S*?)>) .*"))))))
 
-(define (replace-privmsg msg)
+(define (process-network-infolist)
+  "Convert the internal user-defined servername to the 'true' servername
+returned during /version"
+  (define il (weechat:infolist_get "irc_server" "" ""))
+
+  ;; pull the network field out of the list of /VERSION results
+  (define (extract-network result)
+    (if (null? result) #f
+        (match (string-split (car result) #\=)
+          [("NETWORK" network) network]
+          [_ (extract-network (cdr result))])))
+
+  ;; pull out a '(name network-name) pair from an infolist str
+  (define (process return-code)
+    (if (= return-code 0) '()
+        (let* ((name      (weechat:infolist_string il "name"))
+               (isupport  (weechat:infolist_string il "isupport"))
+               (reply     (string-split isupport #\space))
+               (network   (or (extract-network reply)
+                              ;; if no network, use local name
+                              name)))
+          (cons
+           (cons name network)
+           (process (weechat:infolist_next il))))))
+
+  (process (weechat:infolist_next il)))
+
+(define *hostname-table* (alist->hash-table (process-network-infolist)))
+
+(define (replace-privmsg msg gateways)
   "A function to replace the privmsg sent by by a gateway "
   (let* ((match? (cut regexp-exec <> msg))
-         (result (any match? *gateway-regexps*)))
+         (result (any match? gateways)))
     (if result
         (let* ([nth-match (cut match:substring result <>)]
                ;; take everything after username before message
@@ -40,20 +82,21 @@
                [hostmask (string-copy msg
                                       (match:end result 1)
                                       (match:start result 2))])
-          (string-append ":" real-username hostmask message))
+          (string-append ":" *user-prefix* real-username hostmask message))
         msg)))
 
+(define (server->gateways server)
+  (hash-ref *gateway-regexps*
+             (hash-ref *hostname-table* server)))
+
 (define (privmsg-modifier data modifier-type server msg)
-  ;; everything we want is on freenode right now
-  (if (equal? server "freenode")
-      ;; keep it in a `let' block in case we want to do more processing
-      (let ((new-msg (replace-privmsg msg)))
-        new-msg)
-      msg))
+  ;; fetch the appropriate gateway by server
+  (let ((gateways (server->gateways server)))
+    (if gateways
+        (replace-privmsg msg gateways)
+        msg)))
 
 (if (defined? 'weechat:hook_modifier)
     (weechat:hook_modifier "irc_in_privmsg" "privmsg-modifier" ""))
 
-(define test-msg ":r2tg!~user@static.213-239-215-115.clients.your-server.de PRIVMSG #radare :<Maijin> Just build using ./sys/asan.sh and paste log caused by your issue")
-(define test-nonmsg ":aiju!~aiju@unaffiliated/aiju PRIVMSG #cat-v :branch_: a large part of modern human intelligence is learned through culture :)")
-(define test-zv ":zv-test!43a46046@gateway/web/freenode/ip.67.164.96.70 PRIVMSG #test-channel :<Maijin> adfasfaf")
+;;(print "Gateway Nickconverter by zv <zv@nxvr.org>")
