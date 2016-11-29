@@ -21,6 +21,9 @@
 #
 # History:
 #
+# 2016-07-13, Bryan Gilbert <gilbertw1@gmail.com>
+#     version 2.2: add multiple sequential term matching to uniquely identify
+#                  channels
 # 2015-11-12, nils_2 <weechatter@arcor.de>
 #     version 2.1: fix problem with buffer short_name "weechat", using option
 #                  "use_core_instead_weechat", see:
@@ -84,7 +87,7 @@ from __future__ import print_function
 
 SCRIPT_NAME = 'go'
 SCRIPT_AUTHOR = 'Sébastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '2.1'
+SCRIPT_VERSION = '2.2'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC = 'Quick jump to buffers'
 
@@ -294,7 +297,16 @@ def go_matching_buffers(strinput):
                 weechat.infolist_string(infolist, 'plugin_name'),
                 weechat.infolist_string(infolist, 'name'))
         pointer = weechat.infolist_pointer(infolist, 'pointer')
-        matching = name.lower().find(strinput) >= 0
+
+        matchers = strinput.split()
+        matches = []
+        matching = True
+        for i in range(len(matchers)):
+            matches.append(name.lower().find(matchers[i]))
+            if matches[i] < 0 or (i > 0 and matches[i] < matches[i-1]):
+               matching = False
+               break
+
         if not matching and strinput[-1] == ' ':
             matching = name.lower().endswith(strinput.strip())
         if not matching and strinput.isdigit():
@@ -361,31 +373,47 @@ def go_matching_buffers(strinput):
 def go_buffers_to_string(listbuf, pos, strinput):
     """Return string built with list of buffers found (matching user input)."""
     string = ''
-    strinput = strinput.lower()
+    matchers = strinput.lower().split()
+
     for i in range(len(listbuf)):
-        selected = '_selected' if i == pos else ''
-        index = listbuf[i]['name'].lower().find(strinput)
-        if index >= 0:
-            index2 = index + len(strinput)
-            name = '%s%s%s%s%s' % (
-                listbuf[i]['name'][:index],
-                weechat.color(weechat.config_get_plugin(
-                    'color_name_highlight' + selected)),
-                listbuf[i]['name'][index:index2],
-                weechat.color(weechat.config_get_plugin(
-                    'color_name' + selected)),
-                listbuf[i]['name'][index2:])
-        else:
-            name = listbuf[i]['name']
-        string += ' %s%s%s%s%s' % (
-            weechat.color(weechat.config_get_plugin(
-                'color_number' + selected)),
-            str(listbuf[i]['number']),
-            weechat.color(weechat.config_get_plugin(
-                'color_name' + selected)),
-            name,
-            weechat.color('reset'))
+        string += color_buffer_matching_chars(listbuf[i], matchers, i == pos)
+
     return '  ' + string if string else ''
+
+def color_buffer_matching_chars(buf, matchers, selected):
+    """Return a buffer with properly colored matching characters"""
+
+    string = ' '
+    name = buf['name']
+    number = buf['number']
+    color_suffix = '_selected' if selected else ''
+    curr_idx = 0
+
+    string += '%s%s' % (get_color('color_number', color_suffix), number)
+
+    for i in range(len(matchers)):
+        idx = curr_idx + name[curr_idx:].lower().find(matchers[i])
+        if idx >= curr_idx:
+            matcher_len = len(matchers[i])
+            string += '%s%s%s%s' % (
+                get_color('color_name', color_suffix),
+                name[curr_idx:idx],
+                get_color('color_name_highlight', color_suffix),
+                name[idx:idx+matcher_len])
+            curr_idx = idx + matcher_len
+        else:
+            break
+
+    string += '%s%s%s' % (
+        get_color('color_name', color_suffix),
+        name[curr_idx:],
+        weechat.color('reset'))
+
+    return string
+
+def get_color(color, suffix = ''):
+    """Return a weechat color using provided color and suffix"""
+    return weechat.color(weechat.config_get_plugin(color + suffix))
 
 
 def go_input_modifier(data, modifier, modifier_data, string):
@@ -468,9 +496,9 @@ def go_main():
         return
     weechat.hook_command(
         SCRIPT_COMMAND,
-        'Quick jump to buffers', '[name]',
-        'name: directly jump to buffer by name (without argument, list is '
-        'displayed)\n\n'
+        'Quick jump to buffers', '[term(s)]',
+        'term(s): directly jump to buffer matching the provided term(s) single'
+        'or space dilimited list (without argument, list is displayed)\n\n'
         'You can bind command to a key, for example:\n'
         '  /key bind meta-g /go\n\n'
         'You can use completion key (commonly Tab and shift-Tab) to select '
