@@ -21,6 +21,8 @@
 #
 # History:
 #
+# 2016-01-28, ylambda <ylambda@koalabeast.com>
+#     version 2.2: add option fuzzy_search
 # 2015-11-12, nils_2 <weechatter@arcor.de>
 #     version 2.1: fix problem with buffer short_name "weechat", using option
 #                  "use_core_instead_weechat", see:
@@ -84,7 +86,7 @@ from __future__ import print_function
 
 SCRIPT_NAME = 'go'
 SCRIPT_AUTHOR = 'Sébastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '2.1'
+SCRIPT_VERSION = '2.2'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC = 'Quick jump to buffers'
 
@@ -142,6 +144,9 @@ SETTINGS = {
     'auto_jump': (
         'off',
         'automatically jump to buffer when it is uniquely selected'),
+    'fuzzy_search': (
+        'off',
+        'search buffer matches using approximation'),
 }
 
 # hooks management
@@ -239,6 +244,29 @@ def go_match_beginning(buf, string):
     return False
 
 
+def go_match_fuzzy(name, string):
+    """Check if string matches name using approximation."""
+    if not string:
+        return False
+
+    name_len = len(name)
+    string_len = len(string)
+
+    if string_len > name_len:
+        return False
+    if name_len == string_len:
+        return name == string
+
+    # Attempt to match all chars somewhere in name
+    prev_index = -1
+    for i, char in enumerate(string):
+        index = name.find(char, prev_index+1)
+        if index == -1:
+            return False
+        prev_index = index
+    return True
+
+
 def go_now(buf, args):
     """Go to buffer specified by args."""
     listbuf = go_matching_buffers(args)
@@ -297,6 +325,8 @@ def go_matching_buffers(strinput):
         matching = name.lower().find(strinput) >= 0
         if not matching and strinput[-1] == ' ':
             matching = name.lower().endswith(strinput.strip())
+        if not matching and go_option_enabled('fuzzy_search'):
+            matching = go_match_fuzzy(name.lower(), strinput)
         if not matching and strinput.isdigit():
             matching = str(number).startswith(strinput)
         if len(strinput) == 0 or matching:
@@ -364,19 +394,41 @@ def go_buffers_to_string(listbuf, pos, strinput):
     strinput = strinput.lower()
     for i in range(len(listbuf)):
         selected = '_selected' if i == pos else ''
-        index = listbuf[i]['name'].lower().find(strinput)
+        buffer_name = listbuf[i]['name']
+        index = buffer_name.lower().find(strinput)
         if index >= 0:
             index2 = index + len(strinput)
             name = '%s%s%s%s%s' % (
-                listbuf[i]['name'][:index],
+                buffer_name[:index],
                 weechat.color(weechat.config_get_plugin(
                     'color_name_highlight' + selected)),
-                listbuf[i]['name'][index:index2],
+                buffer_name[index:index2],
                 weechat.color(weechat.config_get_plugin(
                     'color_name' + selected)),
-                listbuf[i]['name'][index2:])
+                buffer_name[index2:])
+        elif go_option_enabled("fuzzy_search"):
+            name = ""
+            prev_index = -1
+            for char in strinput.lower():
+                index = buffer_name.lower().find(char, prev_index+1)
+                if prev_index < 0:
+                    name += buffer_name[:index]
+                    name += weechat.color(weechat.config_get_plugin(
+                        'color_name_highlight' + selected))
+                if prev_index >= 0 and index > prev_index+1:
+                    name += weechat.color(weechat.config_get_plugin(
+                        'color_name' + selected))
+                    name += buffer_name[prev_index+1:index]
+                    name += weechat.color(weechat.config_get_plugin(
+                        'color_name_highlight' + selected))
+                name += buffer_name[index]
+                prev_index = index
+
+            name += weechat.color(weechat.config_get_plugin(
+                'color_name' + selected))
+            name += buffer_name[prev_index+1:]
         else:
-            name = listbuf[i]['name']
+            name = buffer_name
         string += ' %s%s%s%s%s' % (
             weechat.color(weechat.config_get_plugin(
                 'color_number' + selected)),
