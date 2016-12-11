@@ -4,7 +4,7 @@
 #
 # -----------------------------------------------------------------------------
 # Copyright (c) 2009-2014 by rettub <rettub@gmx.net>
-# Copyright (c) 2011-2014 by nils_2 <weechatter@arcor.de>
+# Copyright (c) 2011-2016 by nils_2 <weechatter@arcor.de>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -38,6 +38,10 @@
 #
 # -----------------------------------------------------------------------------
 # History:
+# 2016-12-11, mumixam :
+#     version 1.0:
+#   FIX: message starting with color not caught
+#
 # 2014-05-22, nils_2:
 #     version 0.9:
 #     IMPROVED: use NOTICE instead of PRIVMSG for auto-response (suggested by Mkaysi)
@@ -98,7 +102,7 @@ use strict;
 
 my $SCRIPT      = 'query_blocker';
 my $AUTHOR      = 'rettub <rettub@gmx.net>';
-my $VERSION     = '0.9';
+my $VERSION     = '1.0';
 my $LICENSE     = 'GPL3';
 my $DESCRIPTION = 'Simple blocker for private message (i.e. spam)';
 my $COMMAND     = "query_blocker";             # new command name
@@ -375,7 +379,7 @@ sub modifier_irc_in_privmsg {
     my $my_nick = weechat::info_get( 'irc_nick', $server );
 
     # check for query message
-    if ( $arg =~ m/:(.+?)\!.+? PRIVMSG $my_nick :(\w.*)/ ) {
+    if ( $arg =~ m/:(.+?)!.+? PRIVMSG $my_nick :(.*)/i ) {
         my $query_nick = $1;
         my $query_msg  = $2;
 
