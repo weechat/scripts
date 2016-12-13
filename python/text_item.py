@@ -17,6 +17,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2016-12-12: nils_2, (freenode.#weechat)
+#       0.6 : fix problem with multiple windows (reported by Ram-Z)
+#
 # 2016-09-15: nils_2, (freenode.#weechat)
 #       0.5 : add /help text (suggested by gb)
 #
@@ -47,7 +50,7 @@ except Exception:
 
 SCRIPT_NAME     = "text_item"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.5"
+SCRIPT_VERSION  = "0.6"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "add a plain text or evaluated content to item bar"
 
@@ -128,7 +131,7 @@ def update_item (data, item, window):
     if not value:
         return ""
 
-    return substitute_colors(value)
+    return substitute_colors(value,window)
 
 # update item
 def bar_item_update(signal, callback, callback_data):
@@ -150,9 +153,11 @@ def bar_item_update(signal, callback, callback_data):
 
 
 # ================================[ subroutines ]===============================
-def substitute_colors(text):
+def substitute_colors(text,window):
     if int(version) >= 0x00040200:
-        return weechat.string_eval_expression(text,{},{},{})
+        bufpointer = weechat.window_get_pointer(window,"buffer")
+        return weechat.string_eval_expression(text, {"buffer": bufpointer}, {}, {})
+#        return weechat.string_eval_expression(text,{},{},{})
     # substitute colors in output
     return re.sub(regex_color, lambda match: weechat.color(match.group(1)), text)
 
