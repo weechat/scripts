@@ -19,6 +19,8 @@
 #
 # idea by azizLIGHTS
 #
+# 2016-12-19: nils_2, (freenode.#weechat)
+#       0.5 : fix problem with empty autojoin (reported by Caelum)
 # 2016-06-05: nils_2, (freenode.#weechat)
 #       0.4 : make script python3 compatible
 # 2015-11-14: nils_2, (freenode.#weechat)
@@ -43,7 +45,7 @@ except Exception:
 
 SCRIPT_NAME     = "autojoinem"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.4"
+SCRIPT_VERSION  = "0.5"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "add/del channel(s) to/from autojoin option"
 
@@ -118,13 +120,14 @@ def add_autojoin_cmd_cb(data, buffer, args):
 
             list_of_current_channels,list_of_current_keys = get_autojoin_list(server)
             # autojoin option is empty
-            if not list_of_current_channels:
+            if list_of_current_channels == 1:
+                # no channel -> no key!
+                list_of_current_keys = ""
                 if '-key' in args:
                     list_of_current_keys = ','.join(key_words)
                     # strip leading ','
                     if list_of_current_keys[0] == ',':
                         list_of_current_keys = list_of_current_keys.lstrip(',')
-
                 if not set_autojoin_list(server,list_of_channels, list_of_current_keys):
                     weechat.prnt(buffer,"%s%s: set new value for option failed..." % (weechat.prefix('error'),SCRIPT_NAME))
             else:
@@ -211,7 +214,7 @@ def add_autojoin_cmd_cb(data, buffer, args):
             server = argv[1]
             list_of_current_channels,list_of_current_keys = get_autojoin_list(server)
             # autojoin option is empty
-            if not list_of_current_channels:
+            if list_of_current_channels == 1:
                 weechat.prnt(buffer,"%s%s: nothing to delete..." % (weechat.prefix('error'),SCRIPT_NAME))
                 return weechat.WEECHAT_RC_OK
             else:
@@ -326,7 +329,7 @@ def autojoinem_completion_cb(data, completion_item, buffer, completion):
         server = argv[2]
 
     list_of_channels,list_of_keys = get_autojoin_list(server)
-    if not list_of_channels:
+    if list_of_channels == 1:
         return weechat.WEECHAT_RC_OK
 
     if (len(argv) >= 4 and argv[1] == 'del'):
