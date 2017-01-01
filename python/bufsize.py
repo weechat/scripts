@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2012-2016 by nils_2 <weechatter@arcor.de>
+# Copyright (c) 2012-2017 by nils_2 <weechatter@arcor.de>
 #                         and nesthib <nesthib@gmail.com>
 #
 # scroll indicator; displaying number of lines below last line, overall lines in buffer, number of current line and percent displayed
@@ -18,6 +18,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2016-12-16: nils_2 (freenode.#weechat)
+#       0.7: add option show_scroll (idea by earnestly)
 # 2016-04-23: wdbw <tuturu@tutanota.com>
 #     0.6.2 : fix: type of filters_enabled
 # 2014-02-24: nesthib (freenode.#weechat)
@@ -54,7 +56,7 @@ except Exception:
 
 SCRIPT_NAME     = "bufsize"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.6.2"
+SCRIPT_VERSION  = "0.7"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "scroll indicator; displaying number of lines below last line, overall lines in buffer, number of current line and percent displayed"
 
@@ -62,6 +64,7 @@ OPTIONS         = { 'format'            : ('${color:yellow}%P${color:default}⋅
                                            'format for items to display in bar, possible items: %P = percent indicator, %A = number of lines below last line, %L = lines counter, %C = current line %F = number of filtered lines (note: using WeeChat >= 0.4.2, content is evaluated, so you can use colors with format \"${color:xxx}\", see /help eval)'),
                     'count_filtered_lines': ('on',
                                            'filtered lines will be count in item.'),
+                    'show_scroll':('on','always show the scroll indicator number,even if its 0 (item %A), if option is off the scroll indicator will be hidden like the item "scroll"'),
                    }
 # ================================[ weechat item ]===============================
 # regexp to match ${color} tags
@@ -86,12 +89,16 @@ def show_item (data, item, window):
           return ''
 
     lines_after, lines_count, percent, current_line, filtered, filtered_before, filtered_after = count_lines(window,ptr_buffer)
+    lines_after_bak = lines_after
 
     if lines_count == 0:                                                                  # buffer empty?
         return ''
 
     if filtered == 0:
         filtered = ''
+
+    if lines_after == 0 and (OPTIONS['show_scroll'].lower() == 'off'):
+        lines_after = ''
 
     tags = {'%C': str(current_line),
             '%A': str(lines_after),
@@ -108,7 +115,7 @@ def show_item (data, item, window):
 
     # replace optional tags
     # %{…} only if lines after (e.g. %A > 0)
-    if lines_after > 0:
+    if lines_after_bak > 0:
         for regex_tag in regex_optional_tags.findall(bufsize_item):
             bufsize_item = bufsize_item.replace(regex_tag, regex_tag.lstrip('%{').rstrip('}'))
     else:
