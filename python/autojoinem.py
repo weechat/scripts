@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2013-2015 by nils_2 <weechatter@arcor.de>
+# Copyright (c) 2013-2017 by nils_2 <weechatter@arcor.de>
 #
 # add/del channel(s) to/from autojoin option
 #
@@ -19,6 +19,8 @@
 #
 # idea by azizLIGHTS
 #
+# 2017-01-06: nils_2, (freenode.#weechat)
+#       0.6 : fix problem with non existing server (reported by Niols)
 # 2016-12-19: nils_2, (freenode.#weechat)
 #       0.5 : fix problem with empty autojoin (reported by Caelum)
 # 2016-06-05: nils_2, (freenode.#weechat)
@@ -45,11 +47,11 @@ except Exception:
 
 SCRIPT_NAME     = "autojoinem"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.5"
+SCRIPT_VERSION  = "0.6"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "add/del channel(s) to/from autojoin option"
 
-OPTIONS         = { 'sorted'        : ('off','channels will be sorted in autojoin option. if options contains channel-keys, this option will be ignored.'),
+OPTIONS         = { 'sorted'        : ('off','channels will be sorted in autojoin-option. if autojoin-option contains channel-keys, this option will be ignored.'),
                   }
 
 def add_autojoin_cmd_cb(data, buffer, args):
@@ -85,7 +87,7 @@ def add_autojoin_cmd_cb(data, buffer, args):
             if server == "" or channel == "" or server == channel or buf_type == "" or buf_type != 'channel':
                 weechat.prnt(buffer,"%s%s: current buffer is not a channel buffer." % (weechat.prefix('error'),SCRIPT_NAME))
                 return weechat.WEECHAT_RC_OK
-            list_of_channels, list_of_current_keys = get_autojoin_list(server)
+            list_of_channels, list_of_current_keys = get_autojoin_list(buffer,server)
             # no channels in option!
             if list_of_channels == 1 and list_of_current_keys == 1:
                 ptr_config_autojoin = weechat.config_get('irc.server.%s.autojoin' % server)
@@ -118,7 +120,7 @@ def add_autojoin_cmd_cb(data, buffer, args):
                 weechat.prnt(buffer,"%s%s: too many key(s) for given channel(s) " % (weechat.prefix('error'),SCRIPT_NAME))
                 return weechat.WEECHAT_RC_OK
 
-            list_of_current_channels,list_of_current_keys = get_autojoin_list(server)
+            list_of_current_channels,list_of_current_keys = get_autojoin_list(buffer,server)
             # autojoin option is empty
             if list_of_current_channels == 1:
                 # no channel -> no key!
@@ -166,7 +168,7 @@ def add_autojoin_cmd_cb(data, buffer, args):
             if server == "" or channel == "" or server == channel or buf_type == "" or buf_type != 'channel':
                 weechat.prnt(buffer,"%s%s: current buffer is not a channel buffer." % (weechat.prefix('error'),SCRIPT_NAME))
                 return weechat.WEECHAT_RC_OK
-            list_of_channels, list_of_keys = get_autojoin_list(server)
+            list_of_channels, list_of_keys = get_autojoin_list(buffer,server)
             # no channels in option, nothing to delete
             if list_of_channels == 1 and list_of_current_keys == 1:
                 return weechat.WEECHAT_RC_OK
@@ -212,7 +214,8 @@ def add_autojoin_cmd_cb(data, buffer, args):
         # server and channels given by user
         elif (len(argv) >= 3):
             server = argv[1]
-            list_of_current_channels,list_of_current_keys = get_autojoin_list(server)
+            list_of_current_channels,list_of_current_keys = get_autojoin_list(buffer,server)
+
             # autojoin option is empty
             if list_of_current_channels == 1:
                 weechat.prnt(buffer,"%s%s: nothing to delete..." % (weechat.prefix('error'),SCRIPT_NAME))
@@ -267,13 +270,13 @@ def get_difference(list1, list2):
     return list(set(list1).difference(set(list2)))
 
 # returns a list of channels and a list of keys
-def get_autojoin_list(server):
+# 1 = something failed, 0 = channel found
+def get_autojoin_list(buffer,server):
     ptr_config_autojoin = weechat.config_get('irc.server.%s.autojoin' % server)
-
     # option not found! server does not exist
     if not ptr_config_autojoin:
-        weechat.prnt(buffer,"%s%s: server '%s' does not exist." % (weechat.prefix('error'),SCRIPT_NAME,server))
-        return weechat.WEECHAT_RC_OK
+        weechat.prnt("","%s%s: server '%s' does not exist." % (weechat.prefix('error'),SCRIPT_NAME,server))
+        return 1,1
 
     # get value from autojoin option
     channels = weechat.config_string(ptr_config_autojoin)
@@ -289,7 +292,7 @@ def get_autojoin_list(server):
         list_of_channels = list_of_channels2.split(",")
     else:
         weechat.prnt("","%s%s: irc.server.%s.autojoin not valid..." % (weechat.prefix('error'),SCRIPT_NAME,server))
-        return 0,0
+        return 1,1
 
     return list_of_channels, list_of_keys
 
@@ -319,7 +322,6 @@ def set_autojoin_list(server,list_of_channels, list_of_keys):
     return 1
 
 def autojoinem_completion_cb(data, completion_item, buffer, completion):
-
 #    server = weechat.buffer_get_string(buffer, 'localvar_server')                               # current buffer
     input_line = weechat.buffer_get_string(buffer, 'input')
 
@@ -328,7 +330,7 @@ def autojoinem_completion_cb(data, completion_item, buffer, completion):
     if (len(argv) >= 3 and argv[1] == 'del'):
         server = argv[2]
 
-    list_of_channels,list_of_keys = get_autojoin_list(server)
+    list_of_channels,list_of_keys = get_autojoin_list(buffer,server)
     if list_of_channels == 1:
         return weechat.WEECHAT_RC_OK
 
