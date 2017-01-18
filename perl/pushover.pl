@@ -24,7 +24,7 @@ my %SCRIPT = (
 	author => 'stfn <stfnmd@gmail.com>',
 	version => '1.3',
 	license => 'GPL3',
-	desc => 'Send push notifications to your mobile devices using Pushover, NMA or Pushbullet',
+	desc => 'Send push notifications to your mobile devices using Pushover, NMA, Pushbullet or Free Mobile',
 	opt => 'plugins.var.perl',
 );
 my %OPTIONS_DEFAULT = (
@@ -46,6 +46,8 @@ my %OPTIONS_DEFAULT = (
 	'verbose' => ['1', 'Verbosity level (0 = silently ignore any errors, 1 = display brief error, 2 = display full server response)'],
 	'rate_limit' => ['0', 'Rate limit in seconds (0 = unlimited), will send a maximum of 1 notification per time limit'],
 	'short_name' => ['off', 'Use short buffer name in notification'],
+	'free_user' => ['', 'Free Mobile User ID (see your account)'],
+	'free_pass' => ['', 'Automatic generated Free key'],
 );
 my %OPTIONS = ();
 my $TIMEOUT = 30 * 1000;
@@ -268,6 +270,9 @@ sub notify($)
 	if (grep_list("pushbullet", $OPTIONS{service})) {
 		notify_pushbullet(eval_expr($OPTIONS{pb_apikey}), eval_expr($OPTIONS{pb_device_iden}), "weechat", $message);
 	}
+	if (grep_list("freemobile", $OPTIONS{service})) {
+		notify_freemobile(eval_expr($OPTIONS{free_pass}), eval_expr($OPTIONS{free_user}), $message);
+	}
 }
 
 #
@@ -357,3 +362,17 @@ sub notify_pushbullet($$$$)
 
 	return weechat::WEECHAT_RC_OK;
 }
+
+#
+# Free Mobile
+#
+sub notify_freemobile($$$)
+{
+	my ($token, $user, $message) = @_;
+
+	# Not very clean but it works
+	system "curl \"https://smsapi.free-mobile.fr/sendmsg?user=" . url_escape($user) . "&pass=" . url_escape($token) . "&msg=" . url_escape($message) . "\"";
+
+	return weechat::WEECHAT_RC_OK;
+}
+
