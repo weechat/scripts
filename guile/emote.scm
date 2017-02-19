@@ -17,29 +17,39 @@
 ; (this script requires WeeChat 0.4.1 or newer)
 ;
 ; History:
-; 2016-06-03, nycatelos <nycatelos@gmail.com>
+; 2017-02-18, nycatelos <nycatelos@riseup.net>
+;   version 0.3: added more emotes
+; 2016-06-03, nycatelos <nycatelos@riseup.net>
 ;   version 0.2: added additional emotes
 ; 2014-05-03, csmith <caleb.smithnc@gmail.com>
 ;   version 0.1: initial release
 
 (use-modules (srfi srfi-69))
 
-(weechat:register "emote" "Caleb Smith" "0.2" "GPL" "Emote" "" "")
+(weechat:register "emote" "Caleb Smith" "0.3" "GPL" "Emote" "" "")
 
 ; Mappings of words with their emoticons
 (define patterns (alist->hash-table '(
     ("tableflip" . "(╯° °）╯︵ ┻━┻)")
     ("rageflip" . "(ノಠ益ಠ)ノ彡┻━┻")
     ("doubleflip" . "┻━┻ ︵ヽ(`Д´)ﾉ︵ ┻━┻")
-    ("lookofdisapproval" . "ಠ_ಠ")
+    ("disapproval" . "ಠ_ಠ")
     ("sun" . "☼")
     ("kitaa" . "キタ━━━(゜∀゜)━━━!!!!!")
     ("joy" . "◕‿◕")
     ("nyancat" . "~=[,,_,,]:3")
-    ("lennyface" . "( ͡° ͜ʖ ͡°)")
+    ("lenny" . "( ͡° ͜ʖ ͡°)")
     ("shrug" . "¯\\_(ツ)_/¯")
     ("denko" . "(・ω・)")
     ("tableplace" . "┬─┬ ノ( ゜-゜ノ)")
+    ("gface" . "( ≖‿≖)")
+    ("facepalm" . "(－‸ლ)")
+    ("tehe" . "☆~(◡﹏◕✿)")
+    ("angry" . "(╬ ಠ益ಠ)")
+    ("umu" . "(￣ー￣)")
+    ("toast" . "（ ^_^）o自自o（^_^ ）")
+    ("yay" . "ヽ(´ー｀)ﾉ")
+
 )))
 
 
