@@ -20,15 +20,20 @@
 #
 # History:
 #
+# 2017-02-21, arza <arza@arza.us>:
+#     v5.5: fix memory leak in perl 5.23.7-5.24.1
+#           fix truncation and crop_suffix when truncating to 1-4 characters
+#           fix prefix_empty for inactive buffers
+#           tidy code
 # 2016-05-01, mumixam <mumixam@gmail.com>:
-#     v5.4: added option "detach_buffer_immediately_level"
+#     v5.4: add option "detach_buffer_immediately_level"
 # 2015-08-21, Matthew Cox <matthewcpcox@gmail.com>
 #     v5.3: add option "indenting_amount", to adjust the indenting of channel buffers
 # 2015-05-02, arza <arza@arza.us>:
 #     v5.2: truncate long names (name_size_max) more when mark_inactive adds parenthesis
 # 2015-03-29, Ed Santiago <ed@edsantiago.com>:
 #     v5.1: merged buffers: always indent, except when filling is horizontal
-# 2014-12-12
+# 2014-12-12, oakkitten
 #     v5.0: fix cropping non-latin buffer names
 # 2014-08-29, Patrick Steinhardt <ps@pks.im>:
 #     v4.9: add support for specifying custom buffer names
@@ -46,8 +51,8 @@
 #           weechat.look.buffer_auto_renumber is off
 # 2013-12-10, nils_2@freenode.#weechat:
 #     v4.3: add options "prefix_bufname" and "suffix_bufname (idea by silverd)
-#         : fix hook_timer() for show_lag wasn't disabled
-#         : improved signal handling (less updating of buffers list)
+#           fix hook_timer() for show_lag wasn't disabled
+#           improve signal handling (less updating of buffers list)
 # 2013-11-07, Sebastien Helleu <flashcode@flashtux.org>:
 #     v4.2: use default filling "columns_vertical" when bar position is top/bottom
 # 2013-10-31, nils_2@freenode.#weechat:
@@ -56,11 +61,11 @@
 #     v4.0: add options "detach_displayed_buffers", "detach_display_window_number"
 # 2013-09-27, nils_2@freenode.#weechat:
 #     v3.9: add option "toggle_bar" and option "show_prefix_query" (idea by IvarB)
-#         : fix problem with linefeed at end of list of buffers (reported by grawity)
+#           fix problem with linefeed at end of list of buffers (reported by grawity)
 # 2012-10-18, nils_2@freenode.#weechat:
 #     v3.8: add option "mark_inactive", to mark buffers you are not in (idea by xrdodrx)
-#         : add wildcard "*" for immune_detach_buffers (idea by StarWeaver)
-#         : add new options "detach_query" and "detach_free_content" (idea by StarWeaver)
+#           add wildcard "*" for immune_detach_buffers (idea by StarWeaver)
+#           add new options "detach_query" and "detach_free_content" (idea by StarWeaver)
 # 2012-10-06, Nei <anti.teamidiot.de>:
 #     v3.7: call menu on right mouse if menu script is loaded.
 # 2012-10-06, nils_2 <weechatter@arcor.de>:
@@ -104,7 +109,7 @@
 # 2011-08-24, Sebastien Helleu <flashcode@flashtux.org>:
 #     v2.4: add mouse support
 # 2011-06-06, nils_2 <weechatter@arcor.de>:
-#     v2.3: added: missed option "color_whitelist_default"
+#     v2.3: add missing option "color_whitelist_default"
 # 2011-03-23, Sebastien Helleu <flashcode@flashtux.org>:
 #     v2.2: fix color of nick prefix with WeeChat >= 0.3.5
 # 2011-02-13, nils_2 <weechatter@arcor.de>:
@@ -172,14 +177,12 @@ use strict;
 use Encode qw( decode encode );
 # -----------------------------[ internal ]-------------------------------------
 my $SCRIPT_NAME = "buffers";
-my $SCRIPT_VERSION = "5.4";
+my $SCRIPT_VERSION = "5.5";
 
 my $BUFFERS_CONFIG_FILE_NAME = "buffers";
 my $buffers_config_file;
 my $cmd_buffers_whitelist= "buffers_whitelist";
 my $cmd_buffers_detach   = "buffers_detach";
-
-my $maxlength;
 
 my %mouse_keys = ("\@item(buffers):button1*" => "hsignal:buffers_mouse",
                   "\@item(buffers):button2*" => "hsignal:buffers_mouse",
@@ -323,6 +326,7 @@ my ( $data, $buffer, $args ) = @_;
     }
     return weechat::WEECHAT_RC_OK;
 }
+
 sub buffers_cmd_detach
 {
     my ( $data, $buffer, $args ) = @_;
@@ -367,12 +371,12 @@ sub create_whitelist
 {
     my @buffers_list = @{$_[0]};
     my $buffers_list = "";
-        foreach (@buffers_list)
-        {
-            $buffers_list .= $_ .",";
-        }
-        # remove last ","
-        chop $buffers_list;
+    foreach (@buffers_list)
+    {
+        $buffers_list .= $_ .",";
+    }
+    # remove last ","
+    chop $buffers_list;
     return $buffers_list;
 }
 
@@ -388,7 +392,7 @@ sub hook_timer_detach
     else
     {
         weechat::unhook($Hooks{timer_detach}) if $Hooks{timer_detach};
-        $Hooks{timer_detach} = weechat::hook_timer( weechat::config_integer( $options{"detach"}) * 1000, 60, 0, "buffers_signal_hotlist", "");
+        $Hooks{timer_detach} = weechat::hook_timer( weechat::config_integer($options{"detach"}) * 1000, 60, 0, "buffers_signal_hotlist", "");
     }
     weechat::bar_item_update($SCRIPT_NAME);
     return weechat::WEECHAT_RC_OK;
@@ -415,15 +419,18 @@ sub buffers_config_read
 {
     return weechat::config_read($buffers_config_file) if ($buffers_config_file ne "");
 }
+
 sub buffers_config_write
 {
     return weechat::config_write($buffers_config_file) if ($buffers_config_file ne "");
 }
+
 sub buffers_config_reload_cb
 {
     my ($data, $config_file) = ($_[0], $_[1]);
     return weechat::config_reload($config_file)
 }
+
 sub buffers_config_init
 {
     $buffers_config_file = weechat::config_new($BUFFERS_CONFIG_FILE_NAME,
@@ -859,6 +866,7 @@ my %default_options_look =
      "", "", "buffers_signal_config", "", "", ""
  ],
 );
+
     # section "color"
     my $section_color = weechat::config_new_section(
         $buffers_config_file,
@@ -923,6 +931,297 @@ my %default_options_look =
     }
 }
 
+# get sort key of buffer
+sub key_of_buffer
+{
+    my ($buffer, $number) = @_;
+    my $key = "";
+
+    if (weechat::config_integer($options{"sort"}) eq 1) # number = 0; name = 1
+    {
+        my $name = weechat::buffer_get_string($buffer->{"pointer"}, "localvar_custom_name");
+        if (not defined $name or $name eq "")
+        {
+            if (weechat::config_boolean( $options{"short_names"} ) eq 1)
+            {
+                $name = $buffer->{"short_name"};
+            }
+            else
+            {
+                $name = $buffer->{"name"};
+            }
+        }
+        if ( weechat::config_boolean($options{"core_to_front"}) eq 1)
+        {
+            if ( weechat::buffer_get_string($buffer->{"pointer"}, "localvar_type") ne "channel"  and
+                 weechat::buffer_get_string($buffer->{"pointer"}, "localvar_type") ne "private" )
+            {
+                my $type = weechat::buffer_get_string($buffer->{"pointer"}, "localvar_type");
+                if ( $type eq "" and $name ne "weechat")
+                {
+                    $name = " " . $name;
+                }
+                else
+                {
+                    $name = "  " . $name;
+                }
+            }
+        }
+        $key = sprintf("%s%08d", lc($name), $buffer->{"number"});
+    }
+    else
+    {
+        $key = sprintf("%08d", $number);
+    }
+
+    return $key;
+}
+
+# whether to skip this buffer
+sub skip_buffer
+{
+    my ($buffer) = @_;
+    return 0 if $buffer->{"active"};
+
+    if ( weechat::config_string($options{"hide_merged_buffers"}) eq "server" and
+       ($buffer->{"type"} eq "server" or $buffer->{"plugin_name"} eq "core") )
+    {
+        return 1;
+    }
+    if ( weechat::config_string($options{"hide_merged_buffers"}) eq "channel" and
+       ($buffer->{"type"} eq "channel" or $buffer->{"plugin_name"} eq "core") )
+    {
+        return 1;
+    }
+    if ( weechat::config_string($options{"hide_merged_buffers"}) eq "private" and
+       ($buffer->{"type"} eq "private" or $buffer->{"plugin_name"} eq "core") )
+    {
+        return 1;
+    }
+    if ( weechat::config_string($options{"hide_merged_buffers"}) eq "keepserver" and
+       ($buffer->{"type"} ne "server" or $buffer->{"plugin_name"} eq "core") )
+    {
+        return 1;
+    }
+    if ( weechat::config_string($options{"hide_merged_buffers"}) eq "all" )
+    {
+        return 1;
+    }
+
+    return 0;
+}
+
+# truncate string from the end to $maxlength, 0 = don't truncate
+sub truncate_end
+{
+    my ($name, $maxlength) = @_;
+    if ($maxlength == 0)
+    {
+        return $name;
+    }
+    my $str = decode("UTF-8", $name);
+    $str = substr($str, 0, $maxlength);
+    $str = encode("UTF-8", $str);
+    return $str;
+}
+
+# format one buffer name in buffers bar: truncate and add parentheses
+sub format_name
+{
+    my ($buffer, $fg, $bg) = @_;
+    my $output = "";
+    my $crop_suffix = weechat::color( weechat::config_color($options{"color_number_char"}) ) . weechat::config_string($options{"name_crop_suffix"});
+    my $maxlength = weechat::config_integer($options{"name_size_max"});
+
+    my $name = weechat::buffer_get_string($buffer->{"pointer"}, "localvar_custom_name");
+    if (not defined $name or $name eq "")
+    {
+        if (weechat::config_boolean( $options{"short_names"} ) eq 1)
+        {
+            $name = $buffer->{"short_name"};
+        }
+        else
+        {
+            $name = $buffer->{"name"};
+        }
+    }
+
+    if ( $buffer->{"type"} eq "channel" &&
+         weechat::config_boolean($options{"mark_inactive"}) eq 1 &&
+         $buffer->{"nicks_count"} == 0 &&
+         $maxlength > 2 )
+    {
+        $output = weechat::color( weechat::config_color($options{"color_number_char"}) ).
+                  "(".
+                  weechat::color($fg).
+                  weechat::color(",$bg").
+                  truncate_end($name, $maxlength-2).
+                  (length($name) > $maxlength-2 ? $crop_suffix : "").
+                  weechat::color( weechat::config_color($options{"color_number_char"}) ).
+                  ")";
+    }
+    else
+    {
+        $output = weechat::color($fg).
+                  weechat::color(",$bg").
+                  truncate_end($name, $maxlength).
+                  (length($name) > $maxlength && $maxlength > 0 ? $crop_suffix : "");
+    }
+
+    return $output;
+}
+
+# get fg and bg for a buffer
+sub get_colors
+{
+    my ($buffer, %hotlist) = @_;
+    my $fg = weechat::config_color( $options{"color_default_fg"} );
+    my $bg = weechat::config_color( $options{"color_default_bg"} );
+
+    if ( weechat::buffer_get_string($buffer->{"pointer"}, "localvar_type") eq "private" )
+    {
+        if ( weechat::config_color($options{"queries_default_bg"}) ne "default" || weechat::config_color($options{"queries_default_fg"}) ne "default" )
+        {
+            $fg = weechat::config_color( $options{"queries_default_fg"} );
+            $bg = weechat::config_color( $options{"queries_default_bg"} );
+        }
+    }
+    # check for core and buffer with free content
+    elsif ( weechat::buffer_get_string($buffer->{"pointer"}, "localvar_type") ne "channel" and
+            weechat::buffer_get_string($buffer->{"pointer"}, "localvar_type") ne "private" )
+    {
+        $fg = weechat::config_color( $options{"color_none_channel_fg"} );
+        $bg = weechat::config_color( $options{"color_none_channel_bg"} );
+    }
+    # default whitelist buffer?
+    if (grep {$_ eq $buffer->{"name"}} @whitelist_buffers)
+    {
+        $fg = weechat::config_color( $options{"color_whitelist_default_fg"} );
+        $bg = weechat::config_color( $options{"color_whitelist_default_bg"} );
+    }
+
+    $fg = "default" if ($fg eq "");
+    $bg = "default" if ($bg eq "");
+
+    # color for channel and query buffer
+    if (exists $hotlist{$buffer->{"pointer"}})
+    {
+        delete $buffers_timer{$buffer->{"pointer"}};
+        # check if buffer is in whitelist buffer
+        if (grep {$_ eq $buffer->{"name"}} @whitelist_buffers)
+        {
+            $fg = weechat::config_color( $options{"color_whitelist_".$hotlist_level{$hotlist{$buffer->{"pointer"}}}."_fg"} );
+            $bg = weechat::config_color( $options{"color_whitelist_".$hotlist_level{$hotlist{$buffer->{"pointer"}}}."_bg"} );
+        }
+        elsif ( weechat::buffer_get_string($buffer->{"pointer"}, "localvar_type") eq "private" )
+        {
+            # queries_default_fg/bg and buffers.color.queries_message_fg/bg
+            if ( weechat::config_color($options{"queries_highlight_fg"}) ne "default" ||
+                 weechat::config_color($options{"queries_highlight_bg"}) ne "default" ||
+                 weechat::config_color($options{"queries_message_fg"}) ne "default" ||
+                 weechat::config_color($options{"queries_message_bg"}) ne "default" )
+            {
+                if ( ($hotlist{$buffer->{"pointer"}}) == 2 )
+                {
+                    $fg = weechat::config_color( $options{"queries_message_fg"} );
+                    $bg = weechat::config_color( $options{"queries_message_bg"} );
+                }
+
+                elsif ( ($hotlist{$buffer->{"pointer"}}) == 3 )
+                {
+                    $fg = weechat::config_color( $options{"queries_highlight_fg"} );
+                    $bg = weechat::config_color( $options{"queries_highlight_bg"} );
+                }
+            }
+            else
+            {
+                $fg = weechat::config_color( $options{"color_hotlist_".$hotlist_level{$hotlist{$buffer->{"pointer"}}}."_fg"} );
+                $bg = weechat::config_color( $options{"color_hotlist_".$hotlist_level{$hotlist{$buffer->{"pointer"}}}."_bg"} );
+            }
+        }
+        else
+        {
+            $fg = weechat::config_color( $options{"color_hotlist_".$hotlist_level{$hotlist{$buffer->{"pointer"}}}."_fg"} );
+            $bg = weechat::config_color( $options{"color_hotlist_".$hotlist_level{$hotlist{$buffer->{"pointer"}}}."_bg"} );
+        }
+    }
+
+    if ($buffer->{"current_buffer"})
+    {
+        $fg = weechat::config_color( $options{"color_current_fg"} );
+        $bg = weechat::config_color( $options{"color_current_bg"} );
+    }
+    return ($fg, $bg);
+}
+
+# get nick prefix of channel
+sub nick_prefix
+{
+    my ($buffer) = @_;
+    my $output = "";
+
+    my $nickname = weechat::buffer_get_string($buffer->{"pointer"}, "localvar_nick");
+    if ($nickname eq "")
+    {
+        return "";
+    }
+
+    # with version >= 0.3.2, this infolist will return only nick
+    # with older versions, whole nicklist is returned for buffer, and this can be very slow
+    my $infolist_nick = weechat::infolist_get("nicklist", $buffer->{"pointer"}, "nick_".$nickname);
+    if ($infolist_nick eq "")
+    {
+        return weechat::config_boolean($options{"show_prefix_empty"}) eq 1 && $buffer->{"type"} eq "channel" ? " " : "";
+    }
+    while (weechat::infolist_next($infolist_nick))
+    {
+        if ( (weechat::infolist_string($infolist_nick, "type") eq "nick")
+            && (weechat::infolist_string($infolist_nick, "name") eq $nickname) )
+        {
+            my $prefix = weechat::infolist_string($infolist_nick, "prefix");
+            if ( ($prefix eq " ") and (weechat::config_boolean($options{"show_prefix_empty"}) eq 0) )
+            {
+                last;
+            }
+
+            # with version >= 0.3.5, it is now a color name (for older versions: option name with color)
+            if ($weechat_version >= 0x00030500)
+            {
+                $output .= weechat::color(weechat::infolist_string($infolist_nick, "prefix_color"));
+            }
+            else
+            {
+                $output .= weechat::color(weechat::config_color(
+                                           weechat::config_get(
+                                            weechat::infolist_string($infolist_nick, "prefix_color"))));
+            }
+            $output .= $prefix;
+            last;
+        }
+    }
+    weechat::infolist_free($infolist_nick);
+    return $output;
+}
+
+# get all hotlist counts for a buffer
+sub hotlist_counts
+{
+    my ($buffer, %hotlist) = @_;
+    my $delim_color = weechat::color( weechat::config_color($options{"color_number_char"}) );
+    my $counters = "";
+
+    foreach my $counter ("low", "message", "private", "highlight")
+    {
+        if ($hotlist{$buffer."_count_${counter}"})
+        {
+            $counters =~ s/([0-9])$/$1,/;
+            $counters .= weechat::color( weechat::config_color($options{"color_hotlist_${counter}_fg"}) ) . $hotlist{$buffer."_count_${counter}"};
+        }
+    }
+    return " $delim_color($counters$delim_color)";
+}
+
+# buffers item
 sub build_buffers
 {
     my $str = "";
@@ -942,15 +1241,15 @@ sub build_buffers
     {
         $hotlist{weechat::infolist_pointer($infolist, "buffer_pointer")} =
             weechat::infolist_integer($infolist, "priority");
-        if ( weechat::config_boolean( $options{"hotlist_counter"} ) eq 1 and $weechat_version >= 0x00030500)
+        if ( weechat::config_boolean( $options{"hotlist_counter"} ) eq 1 and $weechat_version >= 0x00030500 )
         {
-            $hotlist{weechat::infolist_pointer($infolist, "buffer_pointer")."_count_00"} =
+            $hotlist{weechat::infolist_pointer($infolist, "buffer_pointer")."_count_low"} =
                 weechat::infolist_integer($infolist, "count_00");   # low message
-            $hotlist{weechat::infolist_pointer($infolist, "buffer_pointer")."_count_01"} =
+            $hotlist{weechat::infolist_pointer($infolist, "buffer_pointer")."_count_message"} =
                 weechat::infolist_integer($infolist, "count_01");   # channel message
-            $hotlist{weechat::infolist_pointer($infolist, "buffer_pointer")."_count_02"} =
+            $hotlist{weechat::infolist_pointer($infolist, "buffer_pointer")."_count_private"} =
                 weechat::infolist_integer($infolist, "count_02");   # private message
-            $hotlist{weechat::infolist_pointer($infolist, "buffer_pointer")."_count_03"} =
+            $hotlist{weechat::infolist_pointer($infolist, "buffer_pointer")."_count_highlight"} =
                 weechat::infolist_integer($infolist, "count_03");   # highlight message
         }
     }
@@ -965,13 +1264,15 @@ sub build_buffers
     my $max_number = 0;
     my $max_number_digits = 0;
     my $active_seen = 0;
+    my $current_time = time();
+
     $infolist = weechat::infolist_get("buffer", "", "");
     while (weechat::infolist_next($infolist))
     {
         # ignore hidden buffers (WeeChat >= 0.4.4)
-        if ($weechat_version >= 0x00040400)
+        if ($weechat_version >= 0x00040400 and weechat::infolist_integer($infolist, "hidden"))
         {
-            next if (weechat::infolist_integer($infolist, "hidden"));
+            next;
         }
         my $buffer;
         my $number = weechat::infolist_integer($infolist, "number");
@@ -1002,35 +1303,44 @@ sub build_buffers
         $buffer->{"short_name"} = weechat::infolist_string($infolist, "short_name");
         $buffer->{"full_name"} = $buffer->{"plugin_name"}.".".$buffer->{"name"};
         $buffer->{"type"} = weechat::buffer_get_string($buffer->{"pointer"}, "localvar_type");
-        #weechat::print("", $buffer->{"type"});
 
         # check if buffer is active (or maybe a /part, /kick channel)
         if ($buffer->{"type"} eq "channel" and weechat::config_boolean( $options{"mark_inactive"} ) eq 1)
         {
             my $server = weechat::buffer_get_string($buffer->{"pointer"}, "localvar_server");
             my $channel = weechat::buffer_get_string($buffer->{"pointer"}, "localvar_channel");
-            my $infolist_channel = weechat::infolist_get("irc_channel", "", $server.",".$channel);
+            my $infolist_channel = weechat::infolist_get("irc_channel", "", "$server,$channel");
             if ($infolist_channel)
             {
                 weechat::infolist_next($infolist_channel);
                 $buffer->{"nicks_count"} = weechat::infolist_integer($infolist_channel, "nicks_count");
-            }else
+            }
+            else
             {
                 $buffer->{"nicks_count"} = 0;
             }
             weechat::infolist_free($infolist_channel);
         }
 
-        my $result = check_immune_detached_buffers($buffer->{"name"});          # checking for wildcard
         my $maxlevel = weechat::config_integer($options{"detach_buffer_immediately_level"});
         next if ( check_detach_buffer_immediately($buffer->{"name"}) eq 1
                  and $buffer->{"current_buffer"} eq 0
                  and ( not exists $hotlist{$buffer->{"pointer"}} or $hotlist{$buffer->{"pointer"}} < $maxlevel) );          # checking for buffer to immediately detach
 
-        unless ($result)
+        if (check_immune_detached_buffers($buffer->{"name"}))
         {
-            my $detach_time = weechat::config_integer( $options{"detach"});
-            my $current_time = time();
+            if ($active_seen)
+            {
+                push(@current2, $buffer);
+            }
+            else
+            {
+                push(@current1, $buffer);
+            }
+        }
+        else
+        {
+            my $detach_time = weechat::config_integer($options{"detach"});
             # set timer for buffers with no hotlist action
             $buffers_timer{$buffer->{"pointer"}} = $current_time
              if ( not exists $hotlist{$buffer->{"pointer"}}
@@ -1039,37 +1349,40 @@ sub build_buffers
              and $detach_time > 0);
 
             $buffers_timer{$buffer->{"pointer"}} = $current_time
-            if (weechat::config_boolean($options{"detach_query"}) eq 1
-            and not exists $hotlist{$buffer->{"pointer"}}
-            and $buffer->{"type"} eq "private"
-            and not exists $buffers_timer{$buffer->{"pointer"}}
-            and $detach_time > 0);
+             if (weechat::config_boolean($options{"detach_query"}) eq 1
+             and not exists $hotlist{$buffer->{"pointer"}}
+             and $buffer->{"type"} eq "private"
+             and not exists $buffers_timer{$buffer->{"pointer"}}
+             and $detach_time > 0);
 
             $detach_time = 0
-            if (weechat::config_boolean($options{"detach_query"}) eq 0
-            and $buffer->{"type"} eq "private");
+             if (weechat::config_boolean($options{"detach_query"}) eq 0
+             and $buffer->{"type"} eq "private");
 
             # free content buffer
             $buffers_timer{$buffer->{"pointer"}} = $current_time
-            if (weechat::config_boolean($options{"detach_free_content"}) eq 1
-            and not exists $hotlist{$buffer->{"pointer"}}
-            and $buffer->{"type"} eq ""
-            and not exists $buffers_timer{$buffer->{"pointer"}}
-            and $detach_time > 0);
-            $detach_time = 0
-            if (weechat::config_boolean($options{"detach_free_content"}) eq 0
-            and $buffer->{"type"} eq "");
+             if (weechat::config_boolean($options{"detach_free_content"}) eq 1
+             and not exists $hotlist{$buffer->{"pointer"}}
+             and $buffer->{"type"} eq ""
+             and not exists $buffers_timer{$buffer->{"pointer"}}
+             and $detach_time > 0);
 
-            $detach_time = 0 if (weechat::config_boolean($options{"mark_inactive"}) eq 1 and defined $buffer->{"nicks_count"} and $buffer->{"nicks_count"} == 0);
+            $detach_time = 0
+             if (weechat::config_boolean($options{"detach_free_content"}) eq 0
+             and $buffer->{"type"} eq "");
+
+            $detach_time = 0
+             if (weechat::config_boolean($options{"mark_inactive"}) eq 1
+             and defined $buffer->{"nicks_count"}
+             and $buffer->{"nicks_count"} == 0);
 
             # check for detach
             unless ( $buffer->{"current_buffer"} eq 0
-            and not exists $hotlist{$buffer->{"pointer"}}
-#            and $buffer->{"type"} eq "channel"
-            and exists $buffers_timer{$buffer->{"pointer"}}
-            and $detach_time > 0
-            and $weechat_version >= 0x00030800
-            and $current_time - $buffers_timer{$buffer->{"pointer"}} >= $detach_time)
+             and not exists $hotlist{$buffer->{"pointer"}}
+             and exists $buffers_timer{$buffer->{"pointer"}}
+             and $detach_time > 0
+             and $weechat_version >= 0x00030800
+             and $current_time - $buffers_timer{$buffer->{"pointer"}} >= $detach_time)
             {
                 if ($active_seen)
                 {
@@ -1081,102 +1394,42 @@ sub build_buffers
                 }
             }
             elsif ( $buffer->{"current_buffer"} eq 0
-            and not exists $hotlist{$buffer->{"pointer"}}
-#            and $buffer->{"type"} eq "channel"
-            and exists $buffers_timer{$buffer->{"pointer"}}
-            and $detach_time > 0
-            and $weechat_version >= 0x00030800
-            and $current_time - $buffers_timer{$buffer->{"pointer"}} >= $detach_time)
-            {   # check for option detach_displayed_buffers and if buffer is displayed in a split window
-                if ( $buffer->{"num_displayed"} eq 1
-                    and weechat::config_boolean($options{"detach_displayed_buffers"}) eq 0 )
+             and not exists $hotlist{$buffer->{"pointer"}}
+             and exists $buffers_timer{$buffer->{"pointer"}}
+             and $detach_time > 0
+             and $weechat_version >= 0x00030800
+             and $current_time - $buffers_timer{$buffer->{"pointer"}} >= $detach_time
+             and $buffer->{"num_displayed"} eq 1 # check for option detach_displayed_buffers and if buffer is displayed in a split window
+             and weechat::config_boolean($options{"detach_displayed_buffers"}) eq 0 )
+            {
+                my $infolist_window = weechat::infolist_get("window", "", "");
+                while (weechat::infolist_next($infolist_window))
                 {
-                    my $infolist_window = weechat::infolist_get("window", "", "");
-                    while (weechat::infolist_next($infolist_window))
+                    my $buffer_ptr = weechat::infolist_pointer($infolist_window, "buffer");
+                    if ($buffer_ptr eq $buffer->{"pointer"})
                     {
-                        my $buffer_ptr = weechat::infolist_pointer($infolist_window, "buffer");
-                        if ($buffer_ptr eq $buffer->{"pointer"})
-                        {
-                            $buffer->{"window"} = weechat::infolist_integer($infolist_window, "number");
-                        }
+                        $buffer->{"window"} = weechat::infolist_integer($infolist_window, "number");
                     }
-                    weechat::infolist_free($infolist_window);
-
-                    push(@current2, $buffer);
                 }
+                weechat::infolist_free($infolist_window);
+                push(@current2, $buffer);
             }
         }
-        else    # buffer in "immune_detach_buffers"
-        {
-                if ($active_seen)
-                {
-                    push(@current2, $buffer);
-                }
-                else
-                {
-                    push(@current1, $buffer);
-                }
-        }
-    }   # while end
 
+    } # end of while
 
-    if ($max_number >= 1)
-    {
-        $max_number_digits = length(int($max_number));
-    }
+    $max_number_digits = length($max_number);
     @buffers = (@buffers, @current2, @current1);
     weechat::infolist_free($infolist);
 
     # sort buffers by number, name or shortname
     my %sorted_buffers;
-    if (1)
+
+    my $number = 0;
+    for my $buffer (@buffers)
     {
-        my $number = 0;
-        for my $buffer (@buffers)
-        {
-            my $key;
-            if (weechat::config_integer( $options{"sort"} ) eq 1) # number = 0; name = 1
-            {
-                my $name = weechat::buffer_get_string($buffer->{"pointer"}, "localvar_custom_name");
-                if (not defined $name or $name eq "") {
-                    if (weechat::config_boolean( $options{"short_names"} ) eq 1) {
-                        $name = $buffer->{"short_name"};
-                    } else {
-                        $name = $buffer->{"name"};
-                    }
-                }
-                if (weechat::config_integer($options{"name_size_max"}) >= 1)
-                {
-                    $maxlength = weechat::config_integer($options{"name_size_max"});
-                    if($buffer->{"type"} eq "channel" and weechat::config_boolean( $options{"mark_inactive"} ) eq 1 and $buffer->{"nicks_count"} == 0)
-                    {
-                        $maxlength -= 2;
-                    }
-                    $name = encode("UTF-8", substr(decode("UTF-8", $name), 0, $maxlength));
-                }
-                if ( weechat::config_boolean($options{"core_to_front"}) eq 1)
-                {
-                    if ( (weechat::buffer_get_string($buffer->{"pointer"}, "localvar_type") ne "channel" ) and ( weechat::buffer_get_string($buffer->{"pointer"}, "localvar_type") ne "private") )
-                    {
-                        my $type = weechat::buffer_get_string($buffer->{"pointer"}, "localvar_type");
-                        if ( $type eq "" and $name ne "weechat")
-                        {
-                            $name = " " . $name
-                        }else
-                        {
-                            $name = "  " . $name;
-                        }
-                    }
-                }
-                $key = sprintf("%s%08d", lc($name), $buffer->{"number"});
-            }
-            else
-            {
-                $key = sprintf("%08d", $number);
-            }
-            $sorted_buffers{$key} = $buffer;
-            $number++;
-        }
+        $sorted_buffers{key_of_buffer($buffer, $number)} = $buffer;
+        $number++;
     }
 
     # build string with buffers
@@ -1185,274 +1438,84 @@ sub build_buffers
     {
         my $buffer = $sorted_buffers{$key};
 
-        if ( weechat::config_string($options{"hide_merged_buffers"}) eq "server" )
+        if (skip_buffer($buffer))
         {
-            # buffer type "server" or merged with core?
-            if ( ($buffer->{"type"} eq "server" or $buffer->{"plugin_name"} eq "core") && (! $buffer->{"active"}) )
-            {
-                next;
-            }
-        }
-        if ( weechat::config_string($options{"hide_merged_buffers"}) eq "channel" )
-        {
-            # buffer type "channel" or merged with core?
-            if ( ($buffer->{"type"} eq "channel" or $buffer->{"plugin_name"} eq "core") && (! $buffer->{"active"}) )
-            {
-                next;
-            }
-        }
-        if ( weechat::config_string($options{"hide_merged_buffers"}) eq "private" )
-        {
-            # buffer type "private" or merged with core?
-            if ( ($buffer->{"type"} eq "private" or $buffer->{"plugin_name"} eq "core") && (! $buffer->{"active"}) )
-            {
-                next;
-            }
-        }
-        if ( weechat::config_string($options{"hide_merged_buffers"}) eq "keepserver" )
-        {
-            if ( ($buffer->{"type"} ne "server" or $buffer->{"plugin_name"} eq "core") && (! $buffer->{"active"}) )
-            {
-                next;
-            }
-        }
-        if ( weechat::config_string($options{"hide_merged_buffers"}) eq "all" )
-        {
-            if ( ! $buffer->{"active"} )
-            {
-                next;
-            }
+            next;
         }
 
         push(@buffers_focus, $buffer);                                          # buffer > buffers_focus, for mouse support
-        my $color = "";
-        my $bg = "";
 
-        $color = weechat::config_color( $options{"color_default_fg"} );
-        $bg = weechat::config_color( $options{"color_default_bg"} );
+        my ($fg, $bg) = get_colors($buffer, %hotlist);
+        my $color_bg = weechat::color(",$bg");
 
-        if ( weechat::buffer_get_string($buffer->{"pointer"}, "localvar_type") eq "private" )
+        if ( weechat::config_string($options{"show_prefix_bufname"}) ne "" )
         {
-            if ( (weechat::config_color($options{"queries_default_bg"})) ne "default" || (weechat::config_color($options{"queries_default_fg"})) ne "default" )
-            {
-              $bg = weechat::config_color( $options{"queries_default_bg"} );
-              $color = weechat::config_color( $options{"queries_default_fg"} );
-            }
-        }
-        # check for core and buffer with free content
-        if ( (weechat::buffer_get_string($buffer->{"pointer"}, "localvar_type") ne "channel" ) and ( weechat::buffer_get_string($buffer->{"pointer"}, "localvar_type") ne "private") )
-        {
-            $color = weechat::config_color( $options{"color_none_channel_fg"} );
-            $bg = weechat::config_color( $options{"color_none_channel_bg"} );
-        }
-        # default whitelist buffer?
-        if (grep {$_ eq $buffer->{"name"}} @whitelist_buffers)
-        {
-                $color = weechat::config_color( $options{"color_whitelist_default_fg"} );
-                $bg = weechat::config_color( $options{"color_whitelist_default_bg"} );
-        }
-
-        $color = "default" if ($color eq "");
-
-        # color for channel and query buffer
-        if (exists $hotlist{$buffer->{"pointer"}})
-        {
-        delete $buffers_timer{$buffer->{"pointer"}};
-            # check if buffer is in whitelist buffer
-            if (grep {$_ eq $buffer->{"name"}} @whitelist_buffers)
-            {
-                $bg = weechat::config_color( $options{"color_whitelist_".$hotlist_level{$hotlist{$buffer->{"pointer"}}}."_bg"} );
-                $color = weechat::config_color( $options{"color_whitelist_".$hotlist_level{$hotlist{$buffer->{"pointer"}}}."_fg"} );
-            }
-            elsif ( weechat::buffer_get_string($buffer->{"pointer"}, "localvar_type") eq "private" )
-            {
-                # queries_default_fg/bg and buffers.color.queries_message_fg/bg
-                if ( (weechat::config_color($options{"queries_highlight_fg"})) ne "default" ||
-                      (weechat::config_color($options{"queries_highlight_bg"})) ne "default" ||
-                       (weechat::config_color($options{"queries_message_fg"})) ne "default" ||
-                        (weechat::config_color($options{"queries_message_bg"})) ne "default" )
-                {
-                  if ( ($hotlist{$buffer->{"pointer"}}) == 2 )
-                  {
-                      $bg = weechat::config_color( $options{"queries_message_bg"} );
-                      $color = weechat::config_color( $options{"queries_message_fg"} );
-                  }
-
-                  elsif ( ($hotlist{$buffer->{"pointer"}}) == 3 )
-                  {
-                      $bg = weechat::config_color( $options{"queries_highlight_bg"} );
-                      $color = weechat::config_color( $options{"queries_highlight_fg"} );
-                  }
-                }else
-                {
-                      $bg = weechat::config_color( $options{"color_hotlist_".$hotlist_level{$hotlist{$buffer->{"pointer"}}}."_bg"} );
-                      $color = weechat::config_color( $options{"color_hotlist_".$hotlist_level{$hotlist{$buffer->{"pointer"}}}."_fg"}  );
-                }
-            }else
-            {
-                      $bg = weechat::config_color( $options{"color_hotlist_".$hotlist_level{$hotlist{$buffer->{"pointer"}}}."_bg"} );
-                      $color = weechat::config_color( $options{"color_hotlist_".$hotlist_level{$hotlist{$buffer->{"pointer"}}}."_fg"}  );
-            }
-        }
-
-        if ($buffer->{"current_buffer"})
-        {
-            $color = weechat::config_color( $options{"color_current_fg"} );
-            $bg = weechat::config_color( $options{"color_current_bg"} );
-        }
-        my $color_bg = "";
-        $color_bg = weechat::color(",".$bg) if ($bg ne "");
-
-        # create channel number for output
-        if ( weechat::config_string( $options{"show_prefix_bufname"} ) ne "" )
-        {
-            $str .= $color_bg .
-                    weechat::color( weechat::config_color( $options{"color_prefix_bufname"} ) ).
+            $str .= $color_bg.
+                    weechat::color( weechat::config_color($options{"color_prefix_bufname"}) ).
                     weechat::config_string( $options{"show_prefix_bufname"} ).
                     weechat::color("default");
         }
 
-        if ( weechat::config_boolean( $options{"show_number"} ) eq 1 )   # on
+        if ( weechat::config_boolean($options{"show_number"}) eq 1 )   # on
         {
             if (( weechat::config_boolean( $options{"indenting_number"} ) eq 1)
                 && (($position eq "left") || ($position eq "right")))
             {
-                $str .= weechat::color("default").$color_bg
-                    .(" " x ($max_number_digits - length(int($buffer->{"number"}))));
+                $str .= weechat::color("default")
+                        . $color_bg
+                        . " " x ($max_number_digits - length($buffer->{"number"}));
             }
+
             if ($old_number ne $buffer->{"number"})
             {
-                $str .= weechat::color( weechat::config_color( $options{"color_number"} ) )
-                    .$color_bg
-                    .$buffer->{"number"}
-                    .weechat::color("default")
-                    .$color_bg
-                    .weechat::color( weechat::config_color( $options{"color_number_char"} ) )
-                    .weechat::config_string( $options{"show_number_char"} )
-                    .$color_bg;
+                $str .= weechat::color( weechat::config_color($options{"color_number"}) )
+                        .$color_bg
+                        .$buffer->{"number"}
+                        .weechat::color("default")
+                        .$color_bg
+                        .weechat::color( weechat::config_color($options{"color_number_char"}) )
+                        .weechat::config_string( $options{"show_number_char"} )
+                        .$color_bg;
             }
             else
             {
                 # Indentation aligns channels in a visually appealing way
                 # when viewing list top-to-bottom...
-                my $indent = (" " x length($buffer->{"number"}))." ";
+                my $indent = " " x length($buffer->{"number"}) . " ";
                 # ...except when list is top/bottom and channels left-to-right.
-                my $option_pos = weechat::config_string( weechat::config_get( "weechat.bar.buffers.position" ) );
-                if (($option_pos eq 'top') || ($option_pos eq 'bottom')) {
-                    my $option_filling = weechat::config_string( weechat::config_get( "weechat.bar.buffers.filling_top_bottom" ) );
-                    if ($option_filling =~ /horizontal/) {
-                        $indent = '';
-                    }
+                my $option_pos = weechat::config_string( weechat::config_get("weechat.bar.buffers.position") );
+                if ( ($option_pos eq 'top') || ($option_pos eq 'bottom')
+                    and weechat::config_string( weechat::config_get("weechat.bar.buffers.filling_top_bottom") ) =~ /horizontal/ )
+                {
+                    $indent = '';
                 }
-                $str .= weechat::color("default")
-                    .$color_bg
-                    .$indent;
+                $str .= weechat::color("default") . $color_bg . $indent;
             }
         }
 
-        if (( weechat::config_integer( $options{"indenting"} ) ne 0 )            # indenting NOT off
-            && (($position eq "left") || ($position eq "right")))
+        if ( ( weechat::config_integer( $options{"indenting"} ) ne 0 )            # indenting NOT off
+            && (($position eq "left") || ($position eq "right")) )
         {
             my $type = weechat::buffer_get_string($buffer->{"pointer"}, "localvar_type");
             if (($type eq "channel") || ($type eq "private"))
             {
-                if ( weechat::config_integer( $options{"indenting"} ) eq 1 )
+                if ( weechat::config_integer($options{"indenting"}) eq 2 # under_name
+                     and weechat::config_integer($options{"indenting_number"}) eq 0
+                     and weechat::config_boolean($options{"show_number"}) ne 0 )
                 {
-                    $str .= (" " x weechat::config_integer( $options{"indenting_amount"} ) );
+                    $str .= " " x ( $max_number_digits - length($buffer->{"number"}) );
                 }
-                elsif ( (weechat::config_integer($options{"indenting"}) eq 2) and (weechat::config_integer($options{"indenting_number"}) eq 0) )        #under_name
-                {
-                    if ( weechat::config_boolean( $options{"show_number"} ) eq 0 )
-                    {
-                      $str .= (" " x weechat::config_integer( $options{"indenting_amount"} ) );
-                    }
-                    else
-                    {
-                      $str .= ( (" " x ( $max_number_digits - length($buffer->{"number"}) )).(" " x weechat::config_integer( $options{"indenting_amount"} ) ) );
-                    }
-                }
+                $str .= " " x weechat::config_integer($options{"indenting_amount"});
             }
         }
 
-        $str .= weechat::config_string( $options{"show_prefix_query"}) if (weechat::config_string( $options{"show_prefix_query"} ) ne "" and  $buffer->{"type"} eq "private");
+        $str .= weechat::config_string($options{"show_prefix_query"}) if (weechat::config_string($options{"show_prefix_query"}) ne "" and $buffer->{"type"} eq "private");
+        $str .= nick_prefix($buffer) if (weechat::config_boolean($options{"show_prefix"}) eq 1);
+        $str .= format_name($buffer, $fg, $bg);
+        $str .= hotlist_counts($buffer->{"pointer"}, %hotlist)
+         if ( weechat::config_boolean($options{"hotlist_counter"}) eq 1 and $weechat_version >= 0x00030500 and defined $hotlist{$buffer->{"pointer"}});
 
-        if (weechat::config_boolean( $options{"show_prefix"} ) eq 1)
-        {
-            my $nickname = weechat::buffer_get_string($buffer->{"pointer"}, "localvar_nick");
-            if ($nickname ne "")
-            {
-                # with version >= 0.3.2, this infolist will return only nick
-                # with older versions, whole nicklist is returned for buffer, and this can be very slow
-                my $infolist_nick = weechat::infolist_get("nicklist", $buffer->{"pointer"}, "nick_".$nickname);
-                if ($infolist_nick ne "")
-                {
-                    while (weechat::infolist_next($infolist_nick))
-                    {
-                        if ((weechat::infolist_string($infolist_nick, "type") eq "nick")
-                            && (weechat::infolist_string($infolist_nick, "name") eq $nickname))
-                        {
-                            my $prefix = weechat::infolist_string($infolist_nick, "prefix");
-                            if (($prefix ne " ") or (weechat::config_boolean( $options{"show_prefix_empty"} ) eq 1))
-                            {
-                                # with version >= 0.3.5, it is now a color name (for older versions: option name with color)
-                                if (int($weechat_version) >= 0x00030500)
-                                {
-                                    $str .= weechat::color(weechat::infolist_string($infolist_nick, "prefix_color"));
-                                }
-                                else
-                                {
-                                    $str .= weechat::color(weechat::config_color(
-                                                               weechat::config_get(
-                                                                   weechat::infolist_string($infolist_nick, "prefix_color"))));
-                                }
-                                $str .= $prefix;
-                            }
-                            last;
-                        }
-                    }
-                    weechat::infolist_free($infolist_nick);
-                }
-            }
-        }
-        if ($buffer->{"type"} eq "channel" and weechat::config_boolean( $options{"mark_inactive"} ) eq 1 and $buffer->{"nicks_count"} == 0)
-        {
-            $str .= "(";
-        }
-
-        $str .= weechat::color($color) . weechat::color(",".$bg);
-
-        my $name = weechat::buffer_get_string($buffer->{"pointer"}, "localvar_custom_name");
-        if (not defined $name or $name eq "")
-        {
-            if (weechat::config_boolean( $options{"short_names"} ) eq 1) {
-                $name = $buffer->{"short_name"};
-            } else {
-                $name = $buffer->{"name"};
-            }
-        }
-
-        if (weechat::config_integer($options{"name_size_max"}) >= 1)                # check max_size of buffer name
-        {
-            $name = decode("UTF-8", $name);
-
-            $maxlength = weechat::config_integer($options{"name_size_max"});
-            if($buffer->{"type"} eq "channel" and weechat::config_boolean( $options{"mark_inactive"} ) eq 1 and $buffer->{"nicks_count"} == 0)
-            {
-                $maxlength -= 2;
-            }
-
-            $str .= encode("UTF-8", substr($name, 0, $maxlength));
-            $str .= weechat::color(weechat::config_color( $options{"color_number_char"})).weechat::config_string($options{"name_crop_suffix"}) if (length($name) > weechat::config_integer($options{"name_size_max"}));
-            $str .= add_inactive_parentless($buffer->{"type"}, $buffer->{"nicks_count"});
-            $str .= add_hotlist_count($buffer->{"pointer"}, %hotlist);
-        }
-        else
-        {
-            $str .= $name;
-            $str .= add_inactive_parentless($buffer->{"type"}, $buffer->{"nicks_count"});
-            $str .= add_hotlist_count($buffer->{"pointer"}, %hotlist);
-        }
-
+        # lag
         if ( weechat::buffer_get_string($buffer->{"pointer"}, "localvar_type") eq "server" and weechat::config_boolean($options{"show_lag"}) eq 1)
         {
             my $color_lag = weechat::config_color(weechat::config_get("irc.color.item_lag_finished"));
@@ -1467,26 +1530,32 @@ sub build_buffers
                 $str .= weechat::color("default") . " (" . weechat::color($color_lag) . $lag . weechat::color("default") . ")";
             }
         }
+
+        # window number
         if (weechat::config_boolean($options{"detach_displayed_buffers"}) eq 0
-            and weechat::config_boolean($options{"detach_display_window_number"}) eq 1)
+            and weechat::config_boolean($options{"detach_display_window_number"}) eq 1
+            and $buffer->{"window"})
         {
-            if ($buffer->{"window"})
-            {
-                $str .= weechat::color("default") . " (" . weechat::color(weechat::config_color( $options{"color_number"})) . $buffer->{"window"} . weechat::color("default") . ")";
-            }
+            $str .= weechat::color("default").
+                    " (".
+                    weechat::color( weechat::config_color($options{"color_number"}) ).
+                    $buffer->{"window"}.
+                    weechat::color("default").
+                    ")";
         }
         $str .= weechat::color("default");
 
-        if ( weechat::config_string( $options{"show_suffix_bufname"} ) ne "" )
+        # suffix
+        if ( weechat::config_string($options{"show_suffix_bufname"}) ne "" )
         {
-            $str .= weechat::color( weechat::config_color( $options{"color_suffix_bufname"} ) ).
+            $str .= weechat::color( weechat::config_color($options{"color_suffix_bufname"}) ).
                     weechat::config_string( $options{"show_suffix_bufname"} ).
                     weechat::color("default");
         }
 
         $str .= "\n";
         $old_number = $buffer->{"number"};
-    }
+    } # end of foreach
 
     # remove spaces and/or linefeed at the end
     $str =~ s/\s+$//;
@@ -1494,96 +1563,7 @@ sub build_buffers
     return $str;
 }
 
-sub add_inactive_parentless
-{
-my ($buf_type, $buf_nicks_count) = @_;
-my $str = "";
-    if ($buf_type eq "channel" and weechat::config_boolean( $options{"mark_inactive"} ) eq 1 and $buf_nicks_count == 0)
-    {
-        $str .= weechat::color(weechat::config_color( $options{"color_number_char"}));
-        $str .= ")";
-    }
-return $str;
-}
-
-sub add_hotlist_count
-{
-my ($bufpointer, %hotlist) = @_;
-
-return "" if ( weechat::config_boolean( $options{"hotlist_counter"} ) eq 0 or ($weechat_version < 0x00030500));   # off
-my $col_number_char = weechat::color(weechat::config_color( $options{"color_number_char"}) );
-my $str = " ".$col_number_char."(";
-
-# 0 = low level
-if (defined $hotlist{$bufpointer."_count_00"})
-{
-    my $bg = weechat::config_color( $options{"color_hotlist_low_bg"} );
-    my $color = weechat::config_color( $options{"color_hotlist_low_fg"} );
-    $str .= weechat::color($bg).
-            weechat::color($color).
-            $hotlist{$bufpointer."_count_00"} if ($hotlist{$bufpointer."_count_00"} ne "0");
-}
-
-# 1 = message
-if (defined $hotlist{$bufpointer."_count_01"})
-{
-    my $bg = weechat::config_color( $options{"color_hotlist_message_bg"} );
-    my $color = weechat::config_color( $options{"color_hotlist_message_fg"} );
-    if ($str =~ /[0-9]$/)
-    {
-        $str .= ",".
-                weechat::color($bg).
-                weechat::color($color).
-                $hotlist{$bufpointer."_count_01"} if ($hotlist{$bufpointer."_count_01"} ne "0");
-    }else
-    {
-        $str .= weechat::color($bg).
-                weechat::color($color).
-                $hotlist{$bufpointer."_count_01"} if ($hotlist{$bufpointer."_count_01"} ne "0");
-    }
-}
-# 2 = private
-if (defined $hotlist{$bufpointer."_count_02"})
-{
-    my $bg = weechat::config_color( $options{"color_hotlist_private_bg"} );
-    my $color = weechat::config_color( $options{"color_hotlist_private_fg"} );
-    if ($str =~ /[0-9]$/)
-    {
-        $str .= ",".
-                weechat::color($bg).
-                weechat::color($color).
-                $hotlist{$bufpointer."_count_02"} if ($hotlist{$bufpointer."_count_02"} ne "0");
-    }else
-    {
-        $str .= weechat::color($bg).
-                weechat::color($color).
-                $hotlist{$bufpointer."_count_02"} if ($hotlist{$bufpointer."_count_02"} ne "0");
-    }
-}
-# 3 = highlight
-if (defined $hotlist{$bufpointer."_count_03"})
-{
-    my $bg = weechat::config_color( $options{"color_hotlist_highlight_bg"} );
-    my $color = weechat::config_color( $options{"color_hotlist_highlight_fg"} );
-    if ($str =~ /[0-9]$/)
-    {
-        $str .= ",".
-                weechat::color($bg).
-                weechat::color($color).
-                $hotlist{$bufpointer."_count_03"} if ($hotlist{$bufpointer."_count_03"} ne "0");
-    }else
-    {
-        $str .= weechat::color($bg).
-                weechat::color($color).
-                $hotlist{$bufpointer."_count_03"} if ($hotlist{$bufpointer."_count_03"} ne "0");
-    }
-}
-$str .= $col_number_char. ")";
-
-$str = "" if (weechat::string_remove_color($str, "") eq " ()");         # remove color and check for buffer with no messages
-return $str;
-}
-
+# react to numerous signals
 sub buffers_signal_buffer
 {
     my ($data, $signal, $signal_data) = @_;
@@ -1604,12 +1584,12 @@ sub buffers_signal_buffer
                 delete $buffers_timer{$pointer};
             }
         }
-        if ($signal eq "buffer_opened")
+        elsif ($signal eq "buffer_opened")
         {
             my $current_time = time();
             $buffers_timer{$signal_data} = $current_time;
         }
-        if ($signal eq "buffer_closing")
+        elsif ($signal eq "buffer_closing")
         {
             delete $buffers_timer{$signal_data};
         }
@@ -1627,24 +1607,21 @@ sub buffers_signal_hotlist
 
 sub buffers_signal_config_whitelist
 {
-    @whitelist_buffers = ();
-    @whitelist_buffers = split( /,/, weechat::config_string( $options{"look_whitelist_buffers"} ) );
+    @whitelist_buffers = split( /,/, weechat::config_string($options{"look_whitelist_buffers"}) );
     weechat::bar_item_update($SCRIPT_NAME);
     return weechat::WEECHAT_RC_OK;
 }
 
 sub buffers_signal_config_immune_detach_buffers
 {
-    @immune_detach_buffers = ();
-    @immune_detach_buffers = split( /,/, weechat::config_string( $options{"immune_detach_buffers"} ) );
+    @immune_detach_buffers = split( /,/, weechat::config_string($options{"immune_detach_buffers"}) );
     weechat::bar_item_update($SCRIPT_NAME);
     return weechat::WEECHAT_RC_OK;
 }
 
 sub buffers_signal_config_detach_buffer_immediately
 {
-    @detach_buffer_immediately = ();
-    @detach_buffer_immediately = split( /,/, weechat::config_string( $options{"detach_buffer_immediately"} ) );
+    @detach_buffer_immediately = split( /,/, weechat::config_string($options{"detach_buffer_immediately"}) );
     weechat::bar_item_update($SCRIPT_NAME);
     return weechat::WEECHAT_RC_OK;
 }
@@ -1761,35 +1738,36 @@ sub buffers_hsignal_mouse
 
 sub move_buffer
 {
-  my %hash = @_;
-  my $number2 = $hash{"number2"};
-  if ($number2 eq "?")
-  {
-      # if number 2 is not known (end of gesture outside buffers list), then set it
-      # according to mouse gesture
-      $number2 = "1";
-      if (($hash{"_key"} =~ /gesture-right/) || ($hash{"_key"} =~ /gesture-down/))
-      {
-          $number2 = "999999";
-          if ($weechat_version >= 0x00030600)
-          {
-              my $hdata_buffer = weechat::hdata_get("buffer");
-              my $last_gui_buffer = weechat::hdata_get_list($hdata_buffer, "last_gui_buffer");
-              if ($last_gui_buffer)
-              {
-                  $number2 = weechat::hdata_integer($hdata_buffer, $last_gui_buffer, "number") + 1;
-              }
-          }
-      }
-  }
-  my $ptrbuf = weechat::current_buffer();
-  weechat::command($hash{"pointer"}, "/buffer move ".$number2);
+    my %hash = @_;
+    my $number2 = $hash{"number2"};
+    if ($number2 eq "?")
+    {
+        # if number 2 is not known (end of gesture outside buffers list), then set it
+        # according to mouse gesture
+        $number2 = "1";
+        if (($hash{"_key"} =~ /gesture-right/) || ($hash{"_key"} =~ /gesture-down/))
+        {
+            $number2 = "999999";
+            if ($weechat_version >= 0x00030600)
+            {
+                my $hdata_buffer = weechat::hdata_get("buffer");
+                my $last_gui_buffer = weechat::hdata_get_list($hdata_buffer, "last_gui_buffer");
+                if ($last_gui_buffer)
+                {
+                    $number2 = weechat::hdata_integer($hdata_buffer, $last_gui_buffer, "number") + 1;
+                }
+            }
+        }
+    }
+    my $ptrbuf = weechat::current_buffer();
+    weechat::command($hash{"pointer"}, "/buffer move ".$number2);
 }
 
 sub check_immune_detached_buffers
 {
     my ($buffername) = @_;
-    foreach ( @immune_detach_buffers ){
+    foreach ( @immune_detach_buffers )
+    {
         my $immune_buffer = weechat::string_mask_to_regex($_);
         if ($buffername =~ /^$immune_buffer$/i)
         {
@@ -1802,7 +1780,8 @@ sub check_immune_detached_buffers
 sub check_detach_buffer_immediately
 {
     my ($buffername) = @_;
-    foreach ( @detach_buffer_immediately ){
+    foreach ( @detach_buffer_immediately )
+    {
         my $detach_buffer = weechat::string_mask_to_regex($_);
         if ($buffername =~ /^$detach_buffer$/i)
         {
