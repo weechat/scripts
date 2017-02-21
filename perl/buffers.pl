@@ -1011,10 +1011,14 @@ sub skip_buffer
     return 0;
 }
 
-# truncate string from the end to $maxlength
+# truncate string from the end to $maxlength, 0 = don't truncate
 sub truncate_end
 {
     my ($name, $maxlength) = @_;
+    if ($maxlength == 0)
+    {
+        return $name;
+    }
     my $str = decode("UTF-8", $name);
     $str = substr($str, 0, $maxlength);
     $str = encode("UTF-8", $str);
