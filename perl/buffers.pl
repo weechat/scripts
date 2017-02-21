@@ -1065,7 +1065,7 @@ sub format_name
         $output = weechat::color($fg).
                   weechat::color(",$bg").
                   truncate_end($name, $maxlength).
-                  (length($name) > $maxlength ? $crop_suffix : "");
+                  (length($name) > $maxlength && $maxlength > 0 ? $crop_suffix : "");
     }
 
     return $output;
