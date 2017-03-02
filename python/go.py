@@ -21,6 +21,8 @@
 #
 # History:
 #
+# 2017-03-02, Sébastien Helleu <flashcode@flashtux.org>:
+#     version 2.4: fix syntax and indentation error
 # 2017-02-25, Simmo Saan <simmo.saan@gmail.com>
 #     version 2.3: fix fuzzy search breaking buffer number search display
 # 2016-01-28, ylambda <ylambda@koalabeast.com>
@@ -88,7 +90,7 @@ from __future__ import print_function
 
 SCRIPT_NAME = 'go'
 SCRIPT_AUTHOR = 'Sébastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '2.3'
+SCRIPT_VERSION = '2.4'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC = 'Quick jump to buffers'
 
@@ -408,8 +410,8 @@ def go_buffers_to_string(listbuf, pos, strinput):
                 weechat.color(weechat.config_get_plugin(
                     'color_name' + selected)),
                 buffer_name[index2:])
-        elif go_option_enabled("fuzzy_search") and
-             go_match_fuzzy(buffer_name.lower(), strinput):
+        elif go_option_enabled("fuzzy_search") and \
+                go_match_fuzzy(buffer_name.lower(), strinput):
             name = ""
             prev_index = -1
             for char in strinput.lower():
