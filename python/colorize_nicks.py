@@ -21,6 +21,8 @@
 #
 #
 # History:
+# 2017-03-01, arza <arza@arza.us>
+#   version 23: don't colorize nicklist group names
 # 2016-05-01, Simmo Saan <simmo.saan@gmail.com>
 #   version 22: invalidate cached colors on hash algorithm change
 # 2015-07-28, xt
@@ -77,7 +79,7 @@ w = weechat
 
 SCRIPT_NAME    = "colorize_nicks"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "22"
+SCRIPT_VERSION = "23"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Use the weechat nick colors in the chat area"
 
@@ -275,6 +277,9 @@ def populate_nicks(*args):
         while w.infolist_next(nicklist):
             if buffer_ptr not in colored_nicks:
                 colored_nicks[buffer_ptr] = {}
+
+            if w.infolist_string(nicklist, 'type') != 'nick':
+                continue
 
             nick = w.infolist_string(nicklist, 'name')
             nick_color = colorize_nick_color(nick, my_nick)
