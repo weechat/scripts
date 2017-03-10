@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2013-2015  stfn <stfnmd@gmail.com>
+# Copyright (C) 2013-2017  stfn <stfnmd@gmail.com>
 # https://github.com/stfnm/weechat-scripts
 #
 # This program is free software: you can redistribute it and/or modify
@@ -22,19 +22,15 @@ use warnings;
 my %SCRIPT = (
 	name => 'pushover',
 	author => 'stfn <stfnmd@gmail.com>',
-	version => '1.4',
+	version => '2.0',
 	license => 'GPL3',
-	desc => 'Send push notifications to your mobile devices using Pushover, NMA, Pushbullet or Free Mobile',
+	desc => 'Send push notifications to your mobile devices using Pushover',
 	opt => 'plugins.var.perl',
 );
 my %OPTIONS_DEFAULT = (
 	'enabled' => ['on', "Turn script on or off"],
-	'service' => ['pushover', 'Notification service to use. Multiple services may be supplied as comma separated list. (supported services: pushover, nma, pushbullet)'],
 	'token' => ['ajEX9RWhxs6NgeXFJxSK2jmpY54C9S', 'pushover API token/key (You may feel free to use your own token, so you get your own monthly quota of messages without being affected by other users. See also: https://pushover.net/faq#overview-distribution )'],
 	'user' => ['', "pushover user key"],
-	'nma_apikey' => ['', "nma API key"],
-	'pb_apikey' => ['', "Pushbullet API key"],
-	'pb_device_iden' => ['', "Device Iden of pushbullet device"],
 	'sound' => ['', "Sound (empty for default)"],
 	'priority' => ['', "priority (empty for default)"],
 	'show_highlights' => ['on', 'Notify on highlights'],
@@ -46,8 +42,6 @@ my %OPTIONS_DEFAULT = (
 	'verbose' => ['1', 'Verbosity level (0 = silently ignore any errors, 1 = display brief error, 2 = display full server response)'],
 	'rate_limit' => ['0', 'Rate limit in seconds (0 = unlimited), will send a maximum of 1 notification per time limit'],
 	'short_name' => ['off', 'Use short buffer name in notification'],
-	'free_user' => ['', 'Free Mobile User ID (see your account)'],
-	'free_pass' => ['', 'Automatic generated Free key'],
 );
 my %OPTIONS = ();
 my $TIMEOUT = 30 * 1000;
@@ -65,10 +59,20 @@ init_config();
 
 # Setup hooks
 weechat::hook_print("", "notify_message,notify_private,notify_highlight", "", 1, "print_cb", "");
-weechat::hook_command($SCRIPT{"name"}, "send custom push notification",
+weechat::hook_command($SCRIPT{"name"}, "send notification",
 	"<text>",
-	"text: notification text to send",
-	"", "pushover_cb", "");
+	"text: notification text to send\n" .
+	"\n" .
+	"Don't forget to configure your own Pushover user and token.\n" .
+	"\n" .
+	"You can also setup custom notifications (for any other services etc.) by using a /trigger on the hsignal \"pushover\".\n\nExamples:\n" .
+	"\n" .
+	"pushover.net using curl:\n" .
+	"/trigger add mynotify hsignal pushover \"\" \"\" \"/exec -bg curl -s --form-string 'token=abc123' --form-string 'user=user123' --form-string 'message=\${message_stripped}' https://api.pushover.net/1/messages.json\"\n" .
+	"\n" .
+	"free-mobile.fr using curl:\n" .
+	"/trigger add mynotify hsignal pushover \"\" \"\" \"/exec -bg curl -s 'https://smsapi.free-mobile.fr/sendmsg?user=USER&pass=TOKEN&msg=\${message_escaped}'\"\n",
+	"", "pushover_cmd_cb", "");
 
 #
 # Handle config stuff
@@ -200,7 +204,7 @@ sub print_cb
 #
 # /pushover
 #
-sub pushover_cb
+sub pushover_cmd_cb
 {
 	my ($data, $buffer, $args) = @_;
 
@@ -229,20 +233,19 @@ sub url_cb
 		$msg .= "@_";
 	}
 
-	# Check server response and display error message if NOT successful
-	if ($command =~ /pushover/ && $return_code == 0 && !($out =~ /\"status\":1/)) {
-		weechat::print("", $msg);
-	} elsif ($command =~ /notifymyandroid/ && $return_code == 0 && !($out =~ /success code=\"200\"/)) {
-		weechat::print("", $msg);
-	} elsif ($command =~ /pushbullet/ && $return_code == 0 && !($out =~ /\"iden\"/)) {
-		weechat::print("", $msg);
+	# Check if server response reported success
+	if ($command =~ /pushover/ && $return_code == 0 && $out =~ /\"status\":1/) {
+		return weechat::WEECHAT_RC_OK;
 	}
+
+	# Otherwise display error message
+	weechat::print("", $msg);
 
 	return weechat::WEECHAT_RC_OK;
 }
 
 #
-# Notify wrapper (decides which service to use)
+# Notify wrapper
 #
 sub notify($)
 {
@@ -260,19 +263,13 @@ sub notify($)
 		weechat::hook_timer($timer, 0, 1, "rate_limit_cb", "");
 	}
 
-	# Notify services
-	if (grep_list("pushover", $OPTIONS{service})) {
+	# Notify service
+	if ($OPTIONS{token} ne "" && $OPTIONS{user} ne "") {
 		notify_pushover(eval_expr($OPTIONS{token}), eval_expr($OPTIONS{user}), $message, "weechat", $OPTIONS{priority}, $OPTIONS{sound});
 	}
-	if (grep_list("nma", $OPTIONS{service})) {
-		notify_nma(eval_expr($OPTIONS{nma_apikey}), "weechat", "$SCRIPT{name}.pl", $message, $OPTIONS{priority});
-	}
-	if (grep_list("pushbullet", $OPTIONS{service})) {
-		notify_pushbullet(eval_expr($OPTIONS{pb_apikey}), eval_expr($OPTIONS{pb_device_iden}), "weechat", $message);
-	}
-	if (grep_list("freemobile", $OPTIONS{service})) {
-		notify_freemobile(eval_expr($OPTIONS{free_pass}), eval_expr($OPTIONS{free_user}), $message);
-	}
+
+	# Send hsignal (so triggers can pick up on it)
+	notify_hsignal($message);
 }
 
 #
@@ -295,7 +292,7 @@ sub notify_pushover($$$$$$)
 	push(@post, "sound=" . url_escape($sound)) if ($sound && length($sound) > 0);
 
 	# Send HTTP POST
-	my $hash = { "post"  => 1, "postfields" => join(";", @post) };
+	my $hash = { "post"  => 1, "postfields" => join("&", @post) };
 	if ($DEBUG) {
 		weechat::print("", "[$SCRIPT{name}] Debug: msg -> `$message' HTTP POST -> @post");
 	} else {
@@ -306,72 +303,14 @@ sub notify_pushover($$$$$$)
 }
 
 #
-# https://www.notifymyandroid.com/api.jsp
+# hsignal to use with /trigger
 #
-sub notify_nma($$$$$)
+sub notify_hsignal($)
 {
-	my ($apikey, $application, $event, $description, $priority) = @_;
+	my $message = $_[0];
+	my $message_escaped = url_escape($message);
+	my $message_stripped = $message;
+	$message_stripped =~ s/'//gi; # strip apostrophe
 
-	# Required API arguments
-	my @post = (
-		"apikey=" . url_escape($apikey),
-		"application=" . url_escape($application),
-		"event=" . url_escape($event),
-		"description=" . url_escape($description),
-	);
-
-	# Optional API arguments
-	push(@post, "priority=" . url_escape($priority)) if ($priority && length($priority) > 0);
-
-	# Send HTTP POST
-	my $hash = { "post"  => 1, "postfields" => join("&", @post) };
-	if ($DEBUG) {
-		weechat::print("", "[$SCRIPT{name}] Debug: msg -> `$description' HTTP POST -> @post");
-	} else {
-		weechat::hook_process_hashtable("url:https://www.notifymyandroid.com/publicapi/notify", $hash, $TIMEOUT, "url_cb", "");
-	}
-
-	return weechat::WEECHAT_RC_OK;
-}
-
-#
-# https://docs.pushbullet.com/v2/pushes/
-#
-sub notify_pushbullet($$$$)
-{
-	my ($apikey, $device_iden, $title, $body) = @_;
-
-	# Required API arguments
-	my $apiurl = "https://$apikey\@api.pushbullet.com/v2/pushes";
-	my @post = (
-		"type=note",
-	);
-
-	# Optional API arguments
-	push(@post, "device_iden=" . url_escape($device_iden)) if ($device_iden && length($device_iden) > 0);
-	push(@post, "title=" . url_escape($title)) if ($title && length($title) > 0);
-	push(@post, "body=" . url_escape($body)) if ($body && length($body) > 0);
-
-	# Send HTTP POST
-	my $hash = { "post"  => 1, "postfields" => join("&", @post) };
-	if ($DEBUG) {
-		weechat::print("", "$apiurl [$SCRIPT{name}] Debug: msg -> `$body' HTTP POST -> @post");
-	} else {
-		weechat::hook_process_hashtable("url:$apiurl", $hash, $TIMEOUT, "url_cb", "");
-	}
-
-	return weechat::WEECHAT_RC_OK;
-}
-
-#
-# Free Mobile
-#
-sub notify_freemobile($$$)
-{
-	my ($token, $user, $message) = @_;
-
-	# Not very clean but it works
-	system "curl \"https://smsapi.free-mobile.fr/sendmsg?user=" . url_escape($user) . "&pass=" . url_escape($token) . "&msg=" . url_escape($message) . "\"";
-
-	return weechat::WEECHAT_RC_OK;
+	weechat::hook_hsignal_send($SCRIPT{name}, { "message" => $message, "message_escaped" => $message_escaped, "message_stripped" => $message_stripped });
 }
