@@ -20,6 +20,8 @@
 #
 # History:
 #
+# 2017-03-17, arza <arza@arza.us>:
+#     v5.6: fix truncating buffer names that contain multibyte characters
 # 2017-02-21, arza <arza@arza.us>:
 #     v5.5: fix memory leak in perl 5.23.7-5.24.1
 #           fix truncation and crop_suffix when truncating to 1-4 characters
@@ -177,7 +179,7 @@ use strict;
 use Encode qw( decode encode );
 # -----------------------------[ internal ]-------------------------------------
 my $SCRIPT_NAME = "buffers";
-my $SCRIPT_VERSION = "5.5";
+my $SCRIPT_VERSION = "5.6";
 
 my $BUFFERS_CONFIG_FILE_NAME = "buffers";
 my $buffers_config_file;
@@ -1056,7 +1058,7 @@ sub format_name
                   weechat::color($fg).
                   weechat::color(",$bg").
                   truncate_end($name, $maxlength-2).
-                  (length($name) > $maxlength-2 ? $crop_suffix : "").
+                  (length(Encode::decode_utf8($name)) > $maxlength-2 ? $crop_suffix : "").
                   weechat::color( weechat::config_color($options{"color_number_char"}) ).
                   ")";
     }
@@ -1065,7 +1067,7 @@ sub format_name
         $output = weechat::color($fg).
                   weechat::color(",$bg").
                   truncate_end($name, $maxlength).
-                  (length($name) > $maxlength && $maxlength > 0 ? $crop_suffix : "");
+                  (length(Encode::decode_utf8($name)) > $maxlength && $maxlength > 0 ? $crop_suffix : "");
     }
 
     return $output;
