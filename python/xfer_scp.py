@@ -7,7 +7,10 @@ Settings:
     * plugins.var.python.xfer_scp.remote_host <string: ip/hostname>
     * plugins.var.python.xfer_scp.remote_user <string: ip/hostname>
     * plugins.var.python.xfer_scp.remote_port <int: port number>
+    * plugins.var.python.xfer_scp.remote_default_dir <string: path to a default directory for files received that don't match a pattern, must set send_only_matches to false>
     * plugins.var.python.xfer_scp.local_identity_key <string: path to RSA key to use for scp auth>
+    * plugins.var.python.xfer_scp.delete_after_send <string: true/false to delete file from filesystem after successful send>
+    * plugins.var.python.xfer_scp.send_only_matches <string: true/false to send files not found with matching pattern to remote_default_dir>
 
 Commands:
     * /scp add <regex> <remote_dir>
@@ -17,10 +20,10 @@ Commands:
     * /scp del <rule_number>
         Remove an existing rule
 
-Version: 1.0.1
+Version: 1.0.5
 Author: Grant Bacon <btnarg@gmail.com>
 License: GPL3
-Date: 05 May 2014
+Date: 17 Mar 2017
 """
 
 import_ok = True
@@ -38,7 +41,7 @@ except:
 #####
 SCRIPT_NAME = "xfer_scp"
 SCRIPT_AUTHOR = "Grant Bacon <btnarg@gmail.com>"
-SCRIPT_VERSION = "1.0.1"
+SCRIPT_VERSION = "1.0.5"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Send files via scp after xfer completes, optionally delete after"
 
@@ -53,8 +56,8 @@ configurations = {
         "remote_user" : "",
         "local_identity_key" : "",
         "remote_port" : "",
-#        "remote_default_dir" : "/mnt/abyss/weechat_xfer", # not yet implemented
-#        "only_send_matches" : "true",  # not yet implemented
+        "remote_default_dir" : "",
+        "only_send_matches" : "true",
         "patternlist" : ""
 }
 
@@ -64,11 +67,15 @@ def xfer_scp_process_cb(data, command, rc, out, err):
         weechat.prnt('', "xfer_scp: File " + data + " sent via SCP successfully")
         if configurations['delete_after_send'].lower() == "true":
             del_file(data)
+
+        weechat.hook_signal_send("xfer_scp_success", weechat.WEECHAT_HOOK_SIGNAL_STRING, data.rsplit("/", 1).pop())
         return weechat.WEECHAT_RC_OK
 
     elif rc > 0:
         # process terminated unsuccesfully
         weechat.prnt('', "xfer_scp: File " + data + " did not send successfully")
+
+        weechat.hook_signal_send("xfer_scp_failure", weechat.WEECHAT_HOOK_SIGNAL_STRING, data.rsplit("/", 1).pop())
         return weechat.WEECHAT_RC_ERROR
 
     else:
@@ -175,7 +182,10 @@ def xfer_ended_signal_cb(data, signal, signal_data):
             if re.match(pattern, filename):
                 scp_file(local_filename, patterns[pattern])
                 return weechat.WEECHAT_RC_OK
-        # check for a defualt dir and send there since for loop completed without returning
+        if configurations['only_send_matches'] == "false" and 'remote_default_dir' in configurations:
+            scp_file(local_filename, configurations['remote_default_dir'])
+            return weechat.WEECHAT_RC_OK
+
     return weechat.WEECHAT_RC_OK
 
 
