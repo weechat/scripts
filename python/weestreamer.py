@@ -16,7 +16,7 @@
 
 import weechat
 
-weechat.register("weestreamer", "Miblo", "0.4.1", "GPL3", "Livestreamer companion for WeeChat", "", "")
+weechat.register("weestreamer", "Miblo", "0.4.2", "GPL3", "Streamlink companion for WeeChat", "", "")
 
 def stream(data, buffer, args):
     bufserver = weechat.buffer_get_string(weechat.current_buffer(), "localvar_server")
@@ -38,7 +38,7 @@ def stream(data, buffer, args):
                 % (weechat.prefix("error"),(len(input))))
         return weechat.WEECHAT_RC_ERROR
 
-    # NOTE(matt): http://docs.livestreamer.io/plugin_matrix.html
+    # NOTE(matt): https://streamlink.github.io/plugin_matrix.html
     servers = { "afreeca":"http://play.afreeca.com/%s" % (channel),
                 "hitbox":"http://www.hitbox.tv/%s" % (channel),
                 "twitch":"http://www.twitch.tv/%s" % (channel),
@@ -56,7 +56,7 @@ def stream(data, buffer, args):
             weechat.prnt(weechat.current_buffer(), "    %s" % key)
         return weechat.WEECHAT_RC_ERROR
 
-    command = "livestreamer %s %s" % (streamurl, quality)
+    command = "streamlink %s %s" % (streamurl, quality)
 
     weechat.prnt(weechat.current_buffer(), "%sLAUNCHING: %s" % (weechat.prefix("action"), command))
     weechat.hook_process("%s" % (command), 0, "handle_output", "")
@@ -71,7 +71,7 @@ def handle_output(data, command, rc, out, err):
         weechat.prnt(weechat.current_buffer(), process_output)
     return weechat.WEECHAT_RC_OK
 
-weechat.hook_command("weestreamer", "Livestreamer companion for WeeChat",
+weechat.hook_command("weestreamer", "Streamlink companion for WeeChat",
         "server channel",
 
         "Run /weestreamer without any arguments while in a channel on a supported irc\n"
