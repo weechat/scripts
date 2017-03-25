@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2013-2015 by nils_2 <weechatter@arcor.de>
+# Copyright (c) 2013-2017 by nils_2 <weechatter@arcor.de>
 # Copyright (c) 2015 by Damien Bargiacchi <icymidnight@gmail.com>
 #
 # stick buffer to a window, irssi like
@@ -19,6 +19,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # idea by shad0VV@freenode.#weechat
+#
+# 2017-03-25: nils_2, (freenode.#weechat)
+#       0.4 : script did not work with /go script and buffer names (reported: squigz)
 #
 # 2015-05-12: Damien Bargiacchi <icymidnight@gmail.com>
 #       0.3 : Stop script from truncating localvar lookup to first character of the buffer number
@@ -46,7 +49,7 @@ except Exception:
 
 SCRIPT_NAME     = "stick_buffer"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.3"
+SCRIPT_VERSION  = "0.4"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "Stick buffers to particular windows, like irssi"
 
@@ -82,7 +85,7 @@ def get_default_stick_window_number():
     return None
 
 # ======================================[   buffer utils   ]====================================== #
-def infolist_get_buffer_name_and_ptr(str_buffer_number):
+def infolist_get_buffer_name_and_ptr_by_number(str_buffer_number):
     infolist = weechat.infolist_get('buffer', '', '')
     full_name = ''
     ptr_buffer = ''
@@ -92,7 +95,19 @@ def infolist_get_buffer_name_and_ptr(str_buffer_number):
                 full_name = weechat.infolist_string(infolist, 'full_name')
                 ptr_buffer = weechat.infolist_pointer(infolist, 'pointer')
                 break
-    weechat.infolist_free(infolist)
+        weechat.infolist_free(infolist)
+    return full_name, ptr_buffer
+
+def infolist_get_buffer_name_and_ptr_by_name(str_buffer_name):
+    infolist = weechat.infolist_get('buffer', '', '*%s*' % str_buffer_name)
+    full_name = ''
+    ptr_buffer = ''
+    if infolist:
+        while weechat.infolist_next(infolist):
+            full_name = weechat.infolist_string(infolist, 'full_name')
+            ptr_buffer = weechat.infolist_pointer(infolist, 'pointer')
+            break
+        weechat.infolist_free(infolist)
     return full_name, ptr_buffer
 
 def get_current_buffer_number():
@@ -129,14 +144,17 @@ def buffer_switch_cb(data, buffer, command):
     if len(args) != 1:
         return weechat.WEECHAT_RC_OK
 
+    ptr_buffer = ''
+    # check if argument is a buffer "number"
     destination_buffer = get_destination_buffer_number(args[0])
+    if destination_buffer:
+        if destination_buffer < 1:
+            destination_buffer = 1
+        buffer_name, ptr_buffer = infolist_get_buffer_name_and_ptr_by_number(destination_buffer)
+    else:
+        # search for buffer name
+        buffer_name, ptr_buffer = infolist_get_buffer_name_and_ptr_by_name(args[0])
 
-    if not destination_buffer:
-        return weechat.WEECHAT_RC_OK
-    if destination_buffer < 1:
-        destination_buffer = 1
-
-    buffer_name, ptr_buffer = infolist_get_buffer_name_and_ptr(destination_buffer)
     if not ptr_buffer:
         return weechat.WEECHAT_RC_OK
 
