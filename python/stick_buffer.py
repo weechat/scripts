@@ -20,6 +20,9 @@
 #
 # idea by shad0VV@freenode.#weechat
 #
+# 2017-04-02: nils_2, (freenode.#weechat)
+#       0.5 : support of "/input jump_smart" and "/buffer +/-" (reported: squigz)
+#
 # 2017-03-25: nils_2, (freenode.#weechat)
 #       0.4 : script did not work with /go script and buffer names (reported: squigz)
 #
@@ -49,7 +52,7 @@ except Exception:
 
 SCRIPT_NAME     = "stick_buffer"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.4"
+SCRIPT_VERSION  = "0.5"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "Stick buffers to particular windows, like irssi"
 
@@ -110,6 +113,16 @@ def infolist_get_buffer_name_and_ptr_by_name(str_buffer_name):
         weechat.infolist_free(infolist)
     return full_name, ptr_buffer
 
+def infolist_get_first_entry_from_hotlist():
+    infolist = weechat.infolist_get('hotlist', '', '')
+    if infolist:
+        weechat.infolist_next(infolist)         # go to first entry in hotlist
+        buffer_name = weechat.infolist_string(infolist, 'buffer_name')
+        buffer_number = weechat.infolist_integer(infolist, 'buffer_number')
+        ptr_buffer = weechat.infolist_pointer(infolist, 'buffer_pointer')
+        weechat.infolist_free(infolist)
+    return buffer_name, ptr_buffer, buffer_number
+
 def get_current_buffer_number():
     ptr_buffer = weechat.window_get_pointer(weechat.current_window(), 'buffer')
     return weechat.buffer_get_integer(ptr_buffer, 'number')
@@ -137,37 +150,48 @@ def get_destination_buffer_number(arg):
 
 # ======================================[    callbacks     ]====================================== #
 def buffer_switch_cb(data, buffer, command):
+#    weechat.prnt("","data: %s   buffer: %s  command: %s" % (data,buffer,command))
+    # command exist?
     if command == '':
         return weechat.WEECHAT_RC_OK
 
+    # get command without leading command char!
+    cmd = command[1:].strip().split(' ',)[0:1]
+    # get number from command /buffer
     args = command.strip().split(' ',)[1:]
-    if len(args) != 1:
-        return weechat.WEECHAT_RC_OK
-
     ptr_buffer = ''
-    # check if argument is a buffer "number"
-    destination_buffer = get_destination_buffer_number(args[0])
-    if destination_buffer:
-        if destination_buffer < 1:
-            destination_buffer = 1
-        buffer_name, ptr_buffer = infolist_get_buffer_name_and_ptr_by_number(destination_buffer)
-    else:
-        # search for buffer name
-        buffer_name, ptr_buffer = infolist_get_buffer_name_and_ptr_by_name(args[0])
+
+    if "input" in cmd and "jump_smart" in args:
+        buffer_name, ptr_buffer, buffer_number = infolist_get_first_entry_from_hotlist()
+
+    if "buffer" in cmd:
+        if len(args) != 1:
+            return weechat.WEECHAT_RC_OK
+
+        # check if argument is a buffer "number"
+        destination_buffer = get_destination_buffer_number(args[0])
+        if destination_buffer:
+            if destination_buffer < 1:
+                destination_buffer = 1
+            buffer_name, ptr_buffer = infolist_get_buffer_name_and_ptr_by_number(destination_buffer)
+        else:
+            # search for buffer name
+            buffer_name, ptr_buffer = infolist_get_buffer_name_and_ptr_by_name(args[0])
 
     if not ptr_buffer:
         return weechat.WEECHAT_RC_OK
 
     if ptr_buffer == weechat.window_get_pointer(weechat.current_window(), 'buffer'):
         return weechat.WEECHAT_RC_OK
-
     window_number = weechat.buffer_get_string(ptr_buffer, 'localvar_stick_buffer_to_window')
     if not window_number:
         window_number = get_default_stick_window_number()
     if window_number:
         weechat.command('', '/window %s' % window_number)
-    return weechat.WEECHAT_RC_OK
-
+        weechat.command('', '/buffer %s' % buffer_name)
+        return weechat.WEECHAT_RC_OK_EAT
+    else:
+        return weechat.WEECHAT_RC_OK
 
 def cmd_cb(data, buffer, args):
     args = args.strip().lower().split(' ')
@@ -229,6 +253,7 @@ Examples:
         weechat.hook_command(SCRIPT_NAME, SCRIPT_DESC, 'list', description, 'list %-', 'cmd_cb', '')
 
         weechat.hook_command_run('/buffer *', 'buffer_switch_cb', '')
+        weechat.hook_command_run('/input jump_smart', 'buffer_switch_cb', '')
 
 if __name__ == '__main__':
     if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC,
