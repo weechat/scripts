@@ -20,7 +20,7 @@
 ;; 0.8 - Barebones, contained list of translations
 
 (use-modules ((srfi srfi-1)
-              #:select (any)))
+              #:select (any fold)))
 (use-modules ((srfi srfi-26)
               #:select (cut)))
 (use-modules (ice-9 regex))
@@ -29,9 +29,10 @@
 
 (define *weechat/script-name* "gateway_rename")
 (define *weechat/script-author* "zv <zv@nxvr.org>")
-(define *weechat/script-version* "1.2")
+(define *weechat/script-version* "1.2.1")
 (define *weechat/script-license* "GPL3")
 (define *weechat/script-description* "Convert usernames of gateway connections their real names")
+
 
 ;; A test-harness for checking if we are inside weechat
 (define-syntax if-weechat
@@ -39,7 +40,7 @@
     ((_ conseq alt) (if (defined? 'weechat:register) conseq alt))
     ((_ conseq) (if (defined? 'weechat:register) conseq))))
 
-(if (defined? 'weechat:register)
+(if-weechat
  (weechat:register *weechat/script-name*
                    *weechat/script-author*
                    *weechat/script-version*
@@ -50,7 +51,7 @@
 ;; `user-prefix' is a distinguishing username prefix for 'fake' users
 (define *user-prefix* "^")
 (define *gateway-config* "gateways")
-(define *default-irc-gateways* "(freenode #radare r2tg <NICK>)(freenode #test-channel zv-test <NICK>)")
+(define *default-irc-gateways* "(freenode #radare r2tg <NICK>) (freenode #test-channel zv-test NICK:)")
 
 (define (print . msgs)
   (if (defined? 'weechat:print)
@@ -102,11 +103,12 @@ returned during /version"
                ;; take everything after username before message
                [username (nth-match 1)]
                [real-username (nth-match 3)]
-               ;; extract everything after the fake r2tg username
-               [message (string-copy msg
-                                     ;; skip the inserted space
-                                     (+ 1 (match:end result 2))
+               ;; Extract everything after the gateway-user mask
+               [raw-message (string-copy msg
+                                     (match:end result 2)
                                      (string-length msg))]
+               ;; .. and be sure to strip any preceding characters
+               [message (string-trim raw-message)]
                ;; extract everything before the message but after the username
                [hostmask (string-copy msg
                                       (match:end result 1)
@@ -128,7 +130,11 @@ returned during /version"
   "Build a regular expression that will match the nick, channel and \"<NICK>\"-style mask"
   (let* ([mask-regexp ;; replace <NICK> with <(\\S*?)>
           (regexp-substitute/global #f "NICK" mask 'pre "(\\S*?)" 'post "")]
-         [composed-str (format #f ":(~a)!\\S* PRIVMSG ~a :(~a)" gateway-nick channel mask-regexp)])
+         [composed-str (format #f
+                               ":(~a)!\\S* PRIVMSG ~a :(~a)"
+                               gateway-nick
+                               (if (equal? "*" channel) "\\S*" channel)
+                               mask-regexp)])
     (if emit-string composed-str (make-regexp composed-str))))
 
 (define (extract-gateway-fields str)
