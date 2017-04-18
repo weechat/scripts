@@ -12,7 +12,7 @@ end
 
 --hook #hook table contain
 hook={}
-name={}
+r_name={}
 
 function recordname(data, signal, signal_data)
   nick = weechat.info_get("irc_nick_from_host", signal_data)
@@ -25,13 +25,13 @@ function recordname(data, signal, signal_data)
   if __debug then	if ma_nick~=mynick then	print(ma_nick) return end
   end
   buffer = weechat.info_get("irc_buffer",server..","..channel)
-  if buffer then	name[buffer]=nick end
+  if buffer then	r_name[buffer]=nick end
   if __debug then	weechat.print(debug_buffer,"name table add "..buffer.." "..nick) end
 end
 
 function respond(data,buffer,args)
-  lastname=name[buffer]
-  if not lastname then	weechat.print(buffer,"You got no friend!haha") end
+  lastname=r_name[buffer]
+  if not lastname then	weechat.print(buffer,"You got no friend!haha") return weechat.WEECHAT_RC_OK end
   weechat.command(buffer,"/say "..lastname..":"..args)
 
   return weechat.WEECHAT_RC_OK
