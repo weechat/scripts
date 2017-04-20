@@ -163,7 +163,7 @@ This script supports only OTR protocol version 2.
 
 SCRIPT_AUTHOR = 'Matthew M. Boedicker'
 SCRIPT_LICENCE = 'GPL3'
-SCRIPT_VERSION = '1.8.0'
+SCRIPT_VERSION = '1.9.0'
 
 OTR_DIR_NAME = 'otr'
 
@@ -541,6 +541,14 @@ def read_private_key(key_file_path):
 
     with open(key_file_path, 'rb') as key_file:
         return potr.crypt.PK.parsePrivateKey(key_file.read())[0]
+
+def get_context(account_name, context_name):
+    """Return a context from an account."""
+    return ACCOUNTS[account_name].getContext(context_name)
+
+def get_server_context(server, peer_nick):
+    """Return the context for the current server user and peer."""
+    return get_context(current_user(server), irc_user(peer_nick, server))
 
 class AccountDict(collections.defaultdict):
     """Dictionary that adds missing keys as IrcOtrAccount instances."""
@@ -1182,10 +1190,7 @@ def message_in_cb(data, modifier, modifier_data, string):
 
     server = PYVER.to_unicode(modifier_data)
 
-    from_user = irc_user(parsed['from_nick'], server)
-    local_user = current_user(server)
-
-    context = ACCOUNTS[local_user].getContext(from_user)
+    context = get_server_context(server, parsed['from_nick'])
 
     context.in_assembler.add(parsed['text'])
 
@@ -1245,10 +1250,7 @@ def message_out_cb(data, modifier, modifier_data, string):
 
         server = PYVER.to_unicode(modifier_data)
 
-        to_user = irc_user(parsed['to_nick'], server)
-        local_user = current_user(server)
-
-        context = ACCOUNTS[local_user].getContext(to_user)
+        context = get_server_context(server, parsed['to_nick'])
         is_query = OTR_QUERY_RE.search(parsed['text'])
 
         parsed_text_bytes = to_bytes(parsed['text'])
@@ -1347,8 +1349,7 @@ def command_cb(data, buf, args):
         nick, server = default_peer_args(arg_parts[1:3], buf)
 
         if nick is not None and server is not None:
-            context = ACCOUNTS[current_user(server)].getContext(
-                irc_user(nick, server))
+            context = get_server_context(server, nick)
             # We need to wall disable_logging() here so that no OTR-related
             # buffer messages get logged at any point. disable_logging() will
             # be called again when effectively switching to encrypted, but
@@ -1372,8 +1373,7 @@ def command_cb(data, buf, args):
         nick, server = default_peer_args(arg_parts[1:3], buf)
 
         if nick is not None and server is not None:
-            context = ACCOUNTS[current_user(server)].getContext(
-                irc_user(nick, server))
+            context = get_server_context(server, nick)
             context.disconnect()
 
             result = weechat.WEECHAT_RC_OK
@@ -1382,8 +1382,7 @@ def command_cb(data, buf, args):
         nick, server = default_peer_args(arg_parts[1:3], buf)
 
         if nick is not None and server is not None:
-            context = ACCOUNTS[current_user(server)].getContext(
-                irc_user(nick, server))
+            context = get_server_context(server, nick)
             if context.is_encrypted():
                 context.print_buffer(
                     'This conversation is encrypted.', 'success')
@@ -1423,8 +1422,7 @@ def command_cb(data, buf, args):
             if secret:
                 secret = PYVER.to_str(secret)
 
-            context = ACCOUNTS[current_user(server)].getContext(
-                irc_user(nick, server))
+            context = get_server_context(server, nick)
             context.smpGotSecret(secret)
 
             result = weechat.WEECHAT_RC_OK
@@ -1455,8 +1453,7 @@ def command_cb(data, buf, args):
             else:
                 return weechat.WEECHAT_RC_ERROR
 
-            context = ACCOUNTS[current_user(server)].getContext(
-                irc_user(nick, server))
+            context = get_server_context(server, nick)
 
             if secret:
                 secret = PYVER.to_str(secret)
@@ -1487,8 +1484,7 @@ def command_cb(data, buf, args):
             else:
                 return weechat.WEECHAT_RC_ERROR
 
-            context = ACCOUNTS[current_user(server)].getContext(
-                irc_user(nick, server))
+            context = get_server_context(server, nick)
 
             if context.in_smp:
                 try:
@@ -1506,8 +1502,7 @@ def command_cb(data, buf, args):
         nick, server = default_peer_args(arg_parts[1:3], buf)
 
         if nick is not None and server is not None:
-            context = ACCOUNTS[current_user(server)].getContext(
-                irc_user(nick, server))
+            context = get_server_context(server, nick)
 
             if context.crypto.theirPubkey is not None:
                 context.setCurrentTrust('verified')
@@ -1525,8 +1520,7 @@ def command_cb(data, buf, args):
         nick, server = default_peer_args(arg_parts[1:3], buf)
 
         if nick is not None and server is not None:
-            context = ACCOUNTS[current_user(server)].getContext(
-                irc_user(nick, server))
+            context = get_server_context(server, nick)
 
             if context.crypto.theirPubkey is not None:
                 context.setCurrentTrust('')
@@ -1546,8 +1540,7 @@ def command_cb(data, buf, args):
         nick, server = default_peer_args([], buf)
         if len(arg_parts) == 1:
             if nick is not None and server is not None:
-                context = ACCOUNTS[current_user(server)].getContext(
-                    irc_user(nick, server))
+                context = get_server_context(server, nick)
 
                 if context.is_encrypted():
                     if context.is_logged():
@@ -1571,8 +1564,7 @@ def command_cb(data, buf, args):
 
         if len(arg_parts) == 2:
             if nick is not None and server is not None:
-                context = ACCOUNTS[current_user(server)].getContext(
-                    irc_user(nick, server))
+                context = get_server_context(server, nick)
 
                 if arg_parts[1] == 'start' and \
                         not context.is_logged() and \
@@ -1609,8 +1601,7 @@ def command_cb(data, buf, args):
             nick, server = default_peer_args([], buf)
 
             if nick is not None and server is not None:
-                context = ACCOUNTS[current_user(server)].getContext(
-                    irc_user(nick, server))
+                context = get_server_context(server, nick)
 
                 context.print_buffer(context.format_policies())
             else:
@@ -1622,8 +1613,7 @@ def command_cb(data, buf, args):
             nick, server = default_peer_args([], buf)
 
             if nick is not None and server is not None:
-                context = ACCOUNTS[current_user(server)].getContext(
-                    irc_user(nick, server))
+                context = get_server_context(server, nick)
 
                 context.print_buffer(format_default_policies())
             else:
@@ -1635,8 +1625,7 @@ def command_cb(data, buf, args):
             nick, server = default_peer_args([], buf)
 
             if nick is not None and server is not None:
-                context = ACCOUNTS[current_user(server)].getContext(
-                    irc_user(nick, server))
+                context = get_server_context(server, nick)
 
                 policy_var = context.policy_config_option(arg_parts[1].lower())
 
@@ -1660,8 +1649,7 @@ def command_cb(data, buf, args):
                 value=arg_parts[3]))
 
             if nick is not None and server is not None:
-                context = ACCOUNTS[current_user(server)].getContext(
-                    irc_user(nick, server))
+                context = get_server_context(server, nick)
 
                 context.print_buffer(format_default_policies())
             else:
@@ -1690,72 +1678,87 @@ def otr_statusbar_cb(data, item, window):
         # will be empty.
         buf = weechat.current_buffer()
 
-    result = ''
+    if not buffer_is_private(buf):
+        return ''
 
-    if buffer_is_private(buf):
-        local_user = irc_user(
-            buffer_get_string(buf, 'localvar_nick'),
-            buffer_get_string(buf, 'localvar_server'))
+    local_user = irc_user(
+        buffer_get_string(buf, 'localvar_nick'),
+        buffer_get_string(buf, 'localvar_server'))
 
-        remote_user = irc_user(
-            buffer_get_string(buf, 'localvar_channel'),
-            buffer_get_string(buf, 'localvar_server'))
+    remote_user = irc_user(
+        buffer_get_string(buf, 'localvar_channel'),
+        buffer_get_string(buf, 'localvar_server'))
 
-        context = ACCOUNTS[local_user].getContext(remote_user)
+    context = get_context(local_user, remote_user)
 
-        encrypted_str = config_string('look.bar.state.encrypted')
-        unencrypted_str = config_string('look.bar.state.unencrypted')
-        authenticated_str = config_string('look.bar.state.authenticated')
-        unauthenticated_str = config_string('look.bar.state.unauthenticated')
-        logged_str = config_string('look.bar.state.logged')
-        notlogged_str = config_string('look.bar.state.notlogged')
+    encrypted_str = config_string('look.bar.state.encrypted')
+    unencrypted_str = config_string('look.bar.state.unencrypted')
+    authenticated_str = config_string('look.bar.state.authenticated')
+    unauthenticated_str = config_string('look.bar.state.unauthenticated')
+    logged_str = config_string('look.bar.state.logged')
+    notlogged_str = config_string('look.bar.state.notlogged')
 
-        bar_parts = []
+    bar_parts = []
 
-        if context.is_encrypted():
-            if encrypted_str:
-                bar_parts.append(''.join([
-                            config_color('status.encrypted'),
-                            encrypted_str,
-                            config_color('status.default')]))
-
-            if context.is_verified():
-                if authenticated_str:
-                    bar_parts.append(''.join([
-                                config_color('status.authenticated'),
-                                authenticated_str,
-                                config_color('status.default')]))
-            elif unauthenticated_str:
-                bar_parts.append(''.join([
-                            config_color('status.unauthenticated'),
-                            unauthenticated_str,
-                            config_color('status.default')]))
-
-            if context.is_logged():
-                if logged_str:
-                    bar_parts.append(''.join([
-                                config_color('status.logged'),
-                                logged_str,
-                                config_color('status.default')]))
-            elif notlogged_str:
-                bar_parts.append(''.join([
-                            config_color('status.notlogged'),
-                            notlogged_str,
-                            config_color('status.default')]))
-
-        elif unencrypted_str:
+    if context.is_encrypted():
+        if encrypted_str:
             bar_parts.append(''.join([
-                        config_color('status.unencrypted'),
-                        unencrypted_str,
+                        config_color('status.encrypted'),
+                        encrypted_str,
                         config_color('status.default')]))
 
-        result = config_string('look.bar.state.separator').join(bar_parts)
+        if context.is_verified():
+            if authenticated_str:
+                bar_parts.append(''.join([
+                            config_color('status.authenticated'),
+                            authenticated_str,
+                            config_color('status.default')]))
+        elif unauthenticated_str:
+            bar_parts.append(''.join([
+                        config_color('status.unauthenticated'),
+                        unauthenticated_str,
+                        config_color('status.default')]))
 
-        if result:
-            result = '{color}{prefix}{result}'.format(
-                color=config_color('status.default'),
-                prefix=config_string('look.bar.prefix'),
-                result=result)
+        if context.is_logged():
+            if logged_str:
+                bar_parts.append(''.join([
+                            config_color('status.logged'),
+                            logged_str,
+                            config_color('status.default')]))
+        elif notlogged_str:
+            bar_parts.append(''.join([
+                        config_color('status.notlogged'),
+                        notlogged_str,
+                        config_color('status.default')]))
+
+    elif unencrypted_str:
+        bar_parts.append(''.join([
+                    config_color('status.unencrypted'),
+                    unencrypted_str,
+                    config_color('status.default')]))
+
+    result = config_string('look.bar.state.separator').join(bar_parts)
+
+    if result:
+        result = '{color}{prefix}{result}'.format(
+            color=config_color('status.default'),
+            prefix=config_string('look.bar.prefix'),
+            result=result)
+
+    if context.is_encrypted():
+        weechat.buffer_set(buf, 'localvar_set_otr_encrypted', 'true')
+    else:
+        weechat.buffer_set(buf, 'localvar_set_otr_encrypted', 'false')
+
+    if context.is_verified():
+        weechat.buffer_set(buf, 'localvar_set_otr_authenticated', 'true')
+    else:
+        weechat.buffer_set(buf, 'localvar_set_otr_authenticated', 'false')
+
+    if context.is_logged():
+        weechat.buffer_set(buf, 'localvar_set_otr_logged', 'true')
+    else:
+        weechat.buffer_set(buf, 'localvar_set_otr_logged', 'false')
 
     return result
 
@@ -1806,8 +1809,7 @@ def buffer_closing_cb(data, signal, signal_data):
     nick, server = default_peer_args([], signal_data)
 
     if nick is not None and server is not None:
-        context = ACCOUNTS[current_user(server)].getContext(
-            irc_user(nick, server))
+        context = get_server_context(server, nick)
         context.disconnect()
 
         result = weechat.WEECHAT_RC_OK
@@ -2030,7 +2032,7 @@ if weechat.register(
             'smp abort [NICK SERVER] || '
             'trust [NICK SERVER] || '
             'distrust [NICK SERVER] || '
-            'log [on|off] || '
+            'log [start|stop] || '
             'policy [POLICY on|off] || '
             'fingerprint [SEARCH|all]',
             '',
@@ -2043,7 +2045,7 @@ if weechat.register(
             'smp abort %(nick) %(irc_servers) %-||'
             'trust %(nick) %(irc_servers) %-||'
             'distrust %(nick) %(irc_servers) %-||'
-            'log on|off %-||'
+            'log start|stop %-||'
             'policy %(otr_policy) on|off %-||'
             'fingerprint all %-||',
             'command_cb',
