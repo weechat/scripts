@@ -4,7 +4,7 @@
 #
 # -----------------------------------------------------------------------------
 # Copyright (c) 2009-2014 by rettub <rettub@gmx.net>
-# Copyright (c) 2011-2016 by nils_2 <weechatter@arcor.de>
+# Copyright (c) 2011-2017 by nils_2 <weechatter@arcor.de>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -38,7 +38,11 @@
 #
 # -----------------------------------------------------------------------------
 # History:
-# 2016-12-11, mumixam :
+# 2017-04-14, nils_2:
+#     version 1.1:
+#   ADD: function to ignore server (https://github.com/weechat/scripts/issues/79)
+#
+# 2016-12-11, mumixam:
 #     version 1.0:
 #   FIX: message starting with color not caught
 #
@@ -102,7 +106,7 @@ use strict;
 
 my $SCRIPT      = 'query_blocker';
 my $AUTHOR      = 'rettub <rettub@gmx.net>';
-my $VERSION     = '1.0';
+my $VERSION     = '1.1';
 my $LICENSE     = 'GPL3';
 my $DESCRIPTION = 'Simple blocker for private message (i.e. spam)';
 my $COMMAND     = "query_blocker";             # new command name
@@ -158,6 +162,7 @@ By default all private messages (/query, /msg) from nicks not in the whitelist w
  - to allow private messages from certain nicks, put them into the whitelist, type '/$COMMAND add nick' (you can use nick-completion).
    if you start a query, the nick will be added as a temporary nick. the nick will be removed when you close query
  - to remove a nick from the whitelist, type '/$COMMAND del nick' (you can use nick-completion).
+ - you can add a localvar for a specific server to disable $COMMAND for this server: /buffer set localvar_set_query_blocker 1
 
 NOTE: If you load $SCRIPT the first time, blocking of private messages is disabled, you have to enable blocking, type '/$COMMAND on'.
 EO_HELP
@@ -377,6 +382,9 @@ sub fallback_buffer{
 sub modifier_irc_in_privmsg {
     my ( $data, $signal, $server, $arg ) = @_;
     my $my_nick = weechat::info_get( 'irc_nick', $server );
+
+    # by default, blocking is enabled for all server. except the one with a localvar
+    return $arg if (weechat::buffer_get_string(weechat::buffer_search("irc", "server.".$server), 'localvar_query_blocker'));
 
     # check for query message
     if ( $arg =~ m/:(.+?)!.+? PRIVMSG $my_nick :(.*)/i ) {
