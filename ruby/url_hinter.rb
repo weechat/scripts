@@ -27,6 +27,7 @@
 # see also
 # https://github.com/tkengo/weechat-url-hinter/blob/master/README.md
 #
+# v0.3 : add option "launcher"
 
 require 'singleton'
 
@@ -34,7 +35,7 @@ require 'singleton'
 # Register url-hinter plugin to weechat and do initialization.
 #
 def weechat_init
-  Weechat.register('url_hinter', 'Kengo Tateish', '0.2', 'GPL3', 'Open an url in the weechat buffer to type a hint', '', '')
+  Weechat.register('url_hinter', 'Kengo Tateish', '0.3', 'GPL3', 'Open an url in the weechat buffer to type a hint', '', '')
   Weechat.hook_command(
     'url_hinter',
     'Search url strings, and highlight them, and if you type a hint key, open the url related to hint key.',
@@ -45,6 +46,11 @@ def weechat_init
     'launch_url_hinter',
     ''
   );
+    option = 'launcher'
+    if Weechat.config_is_set_plugin(option) == 0
+      Weechat.config_set_plugin(option, 'open')
+    end
+    Weechat.config_get_plugin(option)
   Weechat::WEECHAT_RC_OK
 end
 
@@ -129,7 +135,9 @@ end
 # open specified url
 #
 def open_url(url)
-  Weechat.hook_process("open #{url}", 10000, '', '')
+  launcher = Weechat.config_get_plugin('launcher')
+
+  Weechat.hook_process("#{launcher} #{url}", 10000, '', '')
 end
 
 #----------------------------
@@ -173,7 +181,8 @@ class Hint
   end
 
   def open_all_reserved_url
-    Weechat.hook_process("open #{@open_target_urls.join(' ')}", 10000, '', '') if @open_target_urls.any?
+    launcher = Weechat.config_get_plugin('launcher')
+    Weechat.hook_process("#{launcher} #{@open_target_urls.join(' ')}", 10000, '', '') if @open_target_urls.any?
   end
 
   def has_key?(key)
