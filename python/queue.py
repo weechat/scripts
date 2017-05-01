@@ -165,7 +165,7 @@ SCRIPT_DESC		= "Command queuing"
 
 COMM_CMD		= "qu"
 COMM_DESC		= "Queuing commands in WeeChat"
-COMM_ARGS		= "[add [command] | del [index] | new [list] | dellist [list] | set [property] [on|off] |list | clear | exec | listview]"
+COMM_ARGS       = "[add [command] | del [index] | new [list] | dellist [list] | set [property] [on|off] |list | clear | exec | listview | save]"
 COMM_ARGS_DESC		= "Examples: \n\
    /qu add /msg chanserv op #foo bar \n\
    /qu del 1 \n\
