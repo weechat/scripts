@@ -40,6 +40,9 @@ required_twitter_version = "1.14.1"
 
 try:
     import weechat
+    #We need to import sys to see which python version weechat runs (2 or 3)
+    import sys
+    is_py3 = sys.version_info >= (3, 0)
 except:
     #import html parser so we can convert html strings to plain text
     try:
@@ -232,12 +235,8 @@ def remove_from_nicklist(buf, nick, group=""):
 def parse_for_nicks(text,buffer):
     #Parse text for twitter nicks and add them to nicklist
     regex = re.compile(r'@([A-Za-z0-9_]+)')
-    reset = weechat.color('reset')
-    for word in text.split():
-        match = re.search(regex,word)
-        if str(type(match)) == "<type '_sre.SRE_Match'>":
-            nick = word[match.start(1):match.end(0)]
-            add_to_nicklist(buffer,nick,tweet_nicks_group[buffer])
+    for nick in regex.findall(text):
+        add_to_nicklist(buffer,nick,tweet_nicks_group[buffer])
 
 def print_tweet_data(buffer,tweets,data):
 
@@ -274,7 +273,7 @@ def print_tweet_data(buffer,tweets,data):
         except:
             pass
 
-def trim_tweet_data(tweet_data, screen_name, alt_rt_style):
+def trim_tweet_data(tweet_data, screen_name, alt_rt_style, is_py3):
     # Because of the huge amount of data, we need to cut down on most of it because we only really want
     # a small subset of it. This also prevents the output buffer from overflowing when fetching many tweets
     # at once.
@@ -295,10 +294,12 @@ def trim_tweet_data(tweet_data, screen_name, alt_rt_style):
                                                       message['retweeted_status']['text'])
         mes_list = [calendar.timegm(time.strptime(message['created_at'],'%a %b %d %H:%M:%S +0000 %Y')),
             message['user']['screen_name'],
-            message['id_str'],
+            message['id_str']]
+        if is_py3:
+            mes_list.append(h.unescape(message['text']))
+        else:
             #convert text to bytes so python2 can read it correctly
-            #TODO remove the encode when weechat is running python3 as default
-            h.unescape(message['text']).encode('utf-8')]
+            mes_list.append(h.unescape(message['text']).encode('utf-8'))
         if message["in_reply_to_status_id_str"] != None:
             mes_list.append(message["in_reply_to_status_id_str"])
 
@@ -374,9 +375,13 @@ def twitter_stream_cb(buffer,fd):
                 alt_rt_style = int(script_options['alt_rt_style']),
                 home_replies = int(script_options['home_replies']),
                 token = script_options["oauth_token"],
-                secret = script_options["oauth_secret"])
+                secret = script_options["oauth_secret"],
+                is_py3 = is_py3)
 
-        conn.sendall(bytes(str(options)))
+        if is_py3:
+            conn.sendall(bytes(str(options),"utf-8"))
+        else:
+            conn.sendall(bytes(str(options)))
     else:
         #https://dev.twitter.com/docs/streaming-apis/messages
         #TODO handle stream events
@@ -426,6 +431,7 @@ def twitter_stream(cmd_args):
     alt_rt_style = option_dict['alt_rt_style']
     screen_name = option_dict['screen_name']
     name = option_dict['name']
+    is_py3 = option_dict['is_py3']
 
     if len(cmd_args) >= 4:
         stream_args = cmd_args[3:]
@@ -493,7 +499,7 @@ def twitter_stream(cmd_args):
             elif tweet is Hangup:
                 stream_end_message = "Hangup"
             elif tweet.get('text'):
-                tweet = trim_tweet_data([tweet],screen_name,alt_rt_style)
+                tweet = trim_tweet_data([tweet],screen_name,alt_rt_style,is_py3)
                 client = connect()
                 client.sendall(bytes(str(tweet),"utf-8"))
                 client.close()
@@ -648,6 +654,7 @@ def get_twitter_data(cmd_args):
     # Return the requested tweets
     no_home_replies = True
     alt_rt_style = False
+    is_py3 = False
     screen_name = ""
 
     h = html.parser.HTMLParser()
@@ -660,6 +667,8 @@ def get_twitter_data(cmd_args):
                 no_home_replies = False
             if "alt_rt_style" in option_list:
                 alt_rt_style = True
+            if "is_py3" in option_list:
+                is_py3 = True
             screen_name = option_list[0]
     except:
         pass
@@ -864,7 +873,7 @@ def get_twitter_data(cmd_args):
     except:
         return "Unexpected error in get_twitter_data:%s\n Call: %s" % (sys.exc_info(), cmd_args[3])
 
-    return trim_tweet_data(tweet_data,screen_name,alt_rt_style)
+    return trim_tweet_data(tweet_data,screen_name,alt_rt_style,is_py3)
 
 # callback for data received in input
 def buffer_input_cb(data, buffer, input_data):
@@ -875,6 +884,8 @@ def buffer_input_cb(data, buffer, input_data):
         options.append("alt_rt_style")
     if script_options['home_replies']:
         options.append("home_replies")
+    if is_py3:
+        options.append("is_py3")
 
     if input_data[0] == ':':
         if data != "silent":
@@ -1232,7 +1243,7 @@ def finish_init():
            "f " + script_options['screen_name'] + " []", 10 * 1000, "oauth_proc_cb", "friends")
 
 if __name__ == "__main__" and weechat_call:
-    weechat.register( SCRIPT_NAME , "DarkDefender", "1.2.5", "GPL3", "Weechat twitter client", "", "")
+    weechat.register( SCRIPT_NAME , "DarkDefender", "1.2.6", "GPL3", "Weechat twitter client", "", "")
 
     if not import_ok:
         weechat.prnt("", "Can't load twitter python lib >= " + required_twitter_version)
