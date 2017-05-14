@@ -20,6 +20,8 @@
 #
 # History:
 #
+# 2017-05-14, kellerfuchs <kellerfuchs@hashbang.sh>:
+#     v5.7: add option "buffers.look.hide_inactive"
 # 2017-03-17, arza <arza@arza.us>:
 #     v5.6: fix truncating buffer names that contain multibyte characters
 # 2017-02-21, arza <arza@arza.us>:
@@ -1456,7 +1458,7 @@ sub build_buffers
             next;
         }
 
-        push(@buffers_focus, $buffer);                                          # buffer > buffers_focus, for mouse support
+        push(@buffers_focus, $buffer);  # buffer > buffers_focus, for mouse support
 
         my ($fg, $bg) = get_colors($buffer, %hotlist);
         my $color_bg = weechat::color(",$bg");
