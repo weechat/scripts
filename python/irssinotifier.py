@@ -18,6 +18,9 @@
 # Requires Weechat >= 0.3.7, openssl
 # Released under GNU GPL v3
 #
+# 2017-05-11, paalka <paal@128.no>
+#     version 0.8: - add the ability to store the API token and
+#                    encryption key as secured data.
 # 2016-01-11, dbendit <david@ibendit.com>
 #     version 0.7: - ignore_nicks option
 # 2014-05-10, Sébastien Helleu <flashcode@flashtux.org>
@@ -54,7 +57,7 @@ from subprocess import Popen, PIPE
 
 weechat.register("irssinotifier",
                  "Caspar Clemens Mierau <ccm@screenage.de>",
-                 "0.7",
+                 "0.8",
                  "GPL3",
                  "irssinotifier: Send push notifications to Android's IrssiNotifier about your private message and highligts.",
                  "",
@@ -124,6 +127,11 @@ def notify_show(data, bufferp, uber_empty, tagsn, isdisplayed,
 
 def encrypt(text):
     encryption_password = weechat.config_get_plugin("encryption_password")
+
+    # decrypt the password if it is stored as secured data
+    if encryption_password.startswith("${sec."):
+        encryption_password = weechat.string_eval_expression(encryption_password, {}, {}, {})
+
     command="openssl enc -aes-128-cbc -salt -base64 -A -pass env:OpenSSLEncPW"
     opensslenv = os.environ.copy();
     opensslenv['OpenSSLEncPW'] = encryption_password
@@ -135,6 +143,11 @@ def encrypt(text):
 
 def show_notification(chan, nick, message):
     API_TOKEN = weechat.config_get_plugin("api_token")
+
+    # decrypt the API token if it is stored as secured data
+    if API_TOKEN.startswith("${sec."):
+        API_TOKEN = weechat.string_eval_expression(API_TOKEN, {}, {}, {})
+
     if API_TOKEN != "":
         url = "https://irssinotifier.appspot.com/API/Message"
         postdata = urllib.urlencode({'apiToken':API_TOKEN,'nick':encrypt(nick),'channel':encrypt(chan),'message':encrypt(message),'version':13})
