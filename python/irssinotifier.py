@@ -18,6 +18,9 @@
 # Requires Weechat >= 0.3.7, openssl
 # Released under GNU GPL v3
 #
+# 2017-05-17, das_aug <wct@fnanp.in-ulm.de>
+#     version 0.8.1 - change openssl commandline to how the android app uses it now
+#                     (add "-md md5")
 # 2017-05-11, paalka <paal@128.no>
 #     version 0.8: - add the ability to store the API token and
 #                    encryption key as secured data.
@@ -57,7 +60,7 @@ from subprocess import Popen, PIPE
 
 weechat.register("irssinotifier",
                  "Caspar Clemens Mierau <ccm@screenage.de>",
-                 "0.8",
+                 "0.8.1",
                  "GPL3",
                  "irssinotifier: Send push notifications to Android's IrssiNotifier about your private message and highligts.",
                  "",
@@ -132,7 +135,7 @@ def encrypt(text):
     if encryption_password.startswith("${sec."):
         encryption_password = weechat.string_eval_expression(encryption_password, {}, {}, {})
 
-    command="openssl enc -aes-128-cbc -salt -base64 -A -pass env:OpenSSLEncPW"
+    command="openssl enc -aes-128-cbc -salt -base64 -md md5 -A -pass env:OpenSSLEncPW"
     opensslenv = os.environ.copy();
     opensslenv['OpenSSLEncPW'] = encryption_password
     output,errors = Popen(shlex.split(command),stdin=PIPE,stdout=PIPE,stderr=PIPE,env=opensslenv).communicate(text+" ")
