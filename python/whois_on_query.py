@@ -24,6 +24,8 @@
 #
 # History:
 #
+# 2017-05-28, Jos Ahrens <buughost@gmail.com>:
+#     version 0.6.1: Corrected a typo in help description for option self_query
 # 2012-01-03, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.6: make script compatible with Python 3.x
 # 2011-10-17, Sebastien Helleu <flashcode@flashtux.org>:
@@ -52,13 +54,13 @@ except ImportError:
 
 SCRIPT_NAME    = 'whois_on_query'
 SCRIPT_AUTHOR  = 'Sebastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '0.6'
+SCRIPT_VERSION = '0.6.1'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC    = 'Whois on query'
 
 # script options
 woq_settings_default = {
-    'command'   : ('/whois $nick $nick', 'the command sent to do the whois ($nick is repladed by nick)'),
+    'command'   : ('/whois $nick $nick', 'the command sent to do the whois ($nick is replaced by nick)'),
     'self_query': ('off', 'if on, send whois for self queries'),
 }
 
