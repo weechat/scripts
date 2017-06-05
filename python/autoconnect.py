@@ -19,7 +19,7 @@
 
 SCRIPT_NAME    = "autoconnect"
 SCRIPT_AUTHOR  = "arno <arno@renevier.net>"
-SCRIPT_VERSION = "0.3.1"
+SCRIPT_VERSION = "0.3.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "reopens servers and channels opened last time weechat closed"
 SCRIPT_COMMAND = "autoconnect"
@@ -59,7 +59,7 @@ def joinpart_cb(data, signal, signal_data):
         weechat.command("", "/mute /set irc.server.%s.autoconnect on" % (server,))
 
         # get all channels joined (without passphrases)
-        chans = [j.split()[0].strip() for j in signal_data.split(None, 2)[2].split(',')]
+        chans = [j.split()[0].strip().lstrip(':') for j in signal_data.split(None, 2)[2].split(',')]
         autojoin_channels.add(','.join(chans))
 
     elif signal.endswith("irc_in2_PART"):
