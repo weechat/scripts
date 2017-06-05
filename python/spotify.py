@@ -21,9 +21,11 @@
 # If someone posts a spotify track URL in a configured channel
 # this script will post back which track it is using spotify.url.fi service
 
-# 
+#
 #
 # History:
+# 2017-06-02, butlerx
+#   version 0.8: add now required oauth support
 # 2016-01-22, creadak
 #   version 0.7: Updated for the new spotify API
 # 2011-03-11, Sebastien Helleu <flashcode@flashtux.org>
@@ -44,23 +46,25 @@
 import weechat as w
 import re
 import json
-import urllib
+import urllib2
 import datetime
 
 SCRIPT_NAME    = "spotify"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.7"
+SCRIPT_VERSION = "0.8"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Look up spotify urls"
 
 settings = {
     "buffers"        : 'freenode.#mychan,',     # comma separated list of buffers
     "emit_notice"    : 'off',                   # on or off, use notice or msg
+    "oauth_token"    : 'random_token_you_need_to _request' # spotify oauth token
 }
 
 settings_help = {
     "buffers": 'A comma separated list of buffers the script should check',
-    "emit_notice": 'If on, this script will use /notice, if off, it will use /msg to post info'
+    "emit_notice": 'If on, this script will use /notice, if off, it will use /msg to post info',
+    "oauth_token": 'required oauth token go to https://developer.spotify.com/web-api/console/get-search-item/ to generate your own'
 }
 
 gateway = "https://api.spotify.com"
@@ -107,6 +111,7 @@ def spotify_print_cb(data, buffer, time, tags, displayed, highlight, prefix, mes
     buffer_name = w.buffer_get_string(buffer, "name")
     server, channel = buffer_name.split('.')
     buffers_to_check = w.config_get_plugin('buffers').split(',')
+    auth = "Bearer %s" % w.config_get_plugin('oauth_token')
 
     command = "msg"
     if notice == "on":
@@ -116,7 +121,9 @@ def spotify_print_cb(data, buffer, time, tags, displayed, highlight, prefix, mes
         return w.WEECHAT_RC_OK
 
     for type, id in get_spotify_ids(message):
-        data = json.load(urllib.urlopen('%s/%s/%s' % (gateway, endpoints[type], id)))
+        req = urllib2.Request('%s/%s/%s' % (gateway, endpoints[type], id))
+        req.add_header('Authorization', auth)
+        data = json.load(urllib2.urlopen(req))
         reply = parse_response(data, type)
         w.command('', "/%s -server %s %s %s" % (command, server, channel, reply))
 
@@ -133,5 +140,5 @@ if __name__ == "__main__":
         # Set help text
         for option, description in settings_help.iteritems():
             w.config_set_desc_plugin(option, description)
-                
+
         w.hook_print("", "", "spotify", 1, "spotify_print_cb", "")
