@@ -47,7 +47,7 @@ SCRIPT_NAME = 'tts'
 SCRIPT_AUTHOR = 'raspbeguy'
 
 # Version of the script.
-SCRIPT_VERSION = '0.2.0'
+SCRIPT_VERSION = '0.2.1'
 
 # License under which the script is distributed.
 SCRIPT_LICENSE = 'MIT'
@@ -510,22 +510,27 @@ def tts(text):
     engine = weechat.config_get_plugin('tts_engine')
     lang = weechat.config_get_plugin('language')
     if engine == 'espeak':
-        command = 'espeak "%s" --stdout ' % text
+        args = {'arg1':text}
         if lang:
-            command += '-v %s ' % lang
-        command += '| paplay'
+            args['arg2'] = '-v'
+            args['arg3'] = lang
+        hook = weechat.hook_process_hashtable('espeak',args,0,'my_process_cb','')
     elif engine == 'festival':
-        command = 'echo "%s" | festival --tts ' % text
+        args = {'stdin':'1', 'arg1':'festival', 'arg2':'--tts'}
         if lang:
-            command += '--language %s' % lang
+            args['arg3'] = '--language'
+            args['arg4'] = lang
+        hook = weechat.hook_process_hashtable('festival',args,0,'my_process_cb','')
+        weechat.hook_set(hook, "stdin", text)
+        weechat.hook_set(hook, "stdin_close", "")
     elif engine == 'picospeaker':
-        command = 'echo "%s" | picospeaker ' % text
+        args = {'stdin':'1'}
         if lang:
-            command += '-l %s' % lang
-    hook = weechat.hook_process_hashtable("sh",
-                                          {"arg1": "-c",
-                                           "arg2": command},
-                                          0, "my_process_cb", "")
+            args['arg1'] = '-l'
+            args['arg2'] = lang
+        hook = weechat.hook_process_hashtable('picospeaker',args,0,'my_process_cb','')
+        weechat.hook_set(hook, "stdin", text)
+        weechat.hook_set(hook, "stdin_close", "")
 
 if __name__ == '__main__':
     # Registration.
