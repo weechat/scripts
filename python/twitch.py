@@ -29,6 +29,8 @@
 #
 # # History:
 #
+# 2017-06-10, mumixam
+#     v0.3: fixed whois output of utf8 display names
 # 2016-11-03, mumixam
 #     v0.2: added detailed /help
 # 2016-10-30, mumixam
@@ -38,7 +40,7 @@
 
 SCRIPT_NAME = "twitch"
 SCRIPT_AUTHOR = "mumixam"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "twitch.tv Chat Integration"
 OPTIONS={ 
@@ -53,6 +55,7 @@ from calendar import timegm
 from datetime import datetime, timedelta
 import time
 import string
+import ast
 
 clientid='awtv6n371jb7uayyc4jaljochyjbfxs'
 params = '?client_id='+clientid
@@ -100,15 +103,21 @@ def gameshort(game):
             return('<' + games.split(';')[-1] + '>')
     return '<' + game + '>'
 
+def makeutf8(data):
+    data = data.encode('utf8')
+    if not isinstance(data, str):
+        data=str(data,'utf8')
+    return data
 
 def channel_api(data, command, rc, stdout, stderr):
-    global name
+    data = ast.literal_eval(data)
     try:
         jsonDict = json.loads(stdout.strip())
     except Exception as e:
-        weechat.prnt(data, 'TWITCH: Error with twitch API')
+        weechat.prnt(data['buffer'], 'TWITCH: Error with twitch API')
         return weechat.WEECHAT_RC_OK
     currentbuf = weechat.current_buffer()
+    name = data['name']
     pcolor = weechat.color('chat_prefix_network')
     ccolor = weechat.color('chat')
     dcolor = weechat.color('chat_delimiters')
@@ -118,29 +127,28 @@ def channel_api(data, command, rc, stdout, stderr):
     pformat = weechat.config_string(
         weechat.config_get("weechat.look.prefix_network"))
     if len(jsonDict) == 22:
-        name = jsonDict['display_name']
+        dname = jsonDict['display_name']
         create = jsonDict['created_at'].split('T')[0]
         status = jsonDict['status']
         follows = jsonDict['followers']
         partner = str(jsonDict['partner'])
-        output = '%s%s %s[%s%s%s]%s %sAccount Created%s: %s' % (
+        output = '%s%s %s[%s%s%s]%s %sDisplay Name%s: %s' % (
+                            pcolor, pformat, dcolor, ncolor, name, dcolor, ccolor, ul, rul, dname)
+        output += '\n%s%s %s[%s%s%s]%s %sAccount Created%s: %s' % (
             pcolor, pformat, dcolor, ncolor, name, dcolor, ccolor, ul, rul, create)
         if status:
             output += '\n%s%s %s[%s%s%s]%s %sStatus%s: %s' % (
                 pcolor, pformat, dcolor, ncolor, name, dcolor, ccolor, ul, rul, status)
         output += '\n%s%s %s[%s%s%s]%s %sPartnered%s: %s %sFollowers%s: %s' % (
             pcolor, pformat, dcolor, ncolor, name, dcolor, ccolor, ul, rul, partner, ul, rul, follows)
-        output = output.encode('utf8')
-        if not isinstance(output, str):
-            output=str(output,'utf8')
-        weechat.prnt(data, output)
+        weechat.prnt(data['buffer'], makeutf8(output))
         url = 'https://api.twitch.tv/kraken/users/' + \
             name.lower() + '/follows/channels'
         urlh = weechat.hook_process(
-            "url:" + url+params, 7 * 1000, "channel_api", currentbuf)
+            "url:" + url+params, 7 * 1000, "channel_api", str({'buffer': currentbuf, 'name': name, 'dname': dname}))
 
     if len(jsonDict) == 18:
-        name = jsonDict['display_name']
+        dname = jsonDict['display_name']
         s64id = jsonDict['steam_id']
         if s64id:
             sid3 = int(s64id) - 76561197960265728
@@ -150,23 +158,23 @@ def channel_api(data, command, rc, stdout, stderr):
 
             output = '%s%s %s[%s%s%s]%s %ssteamID64%s: %s %ssteamID3%s: %s %ssteamID%s: %s' % (
                 pcolor, pformat, dcolor, ncolor, name, dcolor, ccolor, ul, rul, s64id, ul, rul, sid3, ul, rul, id32bit)
-            weechat.prnt(data, output)
+            weechat.prnt(data['buffer'], makeutf8(output))
 
     if len(jsonDict) == 3:
         if 'status' in jsonDict.keys():
             if jsonDict['status'] == 404 or jsonDict['status'] == 422:
                 user = jsonDict['message'].split()[1].replace("'", "")
-                weechat.prnt(data, '%s%s %s[%s%s%s]%s No such user' % (
+                weechat.prnt(data['buffer'], '%s%s %s[%s%s%s]%s No such user' % (
                     pcolor, pformat, dcolor, ncolor, user, dcolor, ccolor))
         else:
-            url = 'https://api.twitch.tv/api/channels/' + name.lower()
+            url = 'https://api.twitch.tv/api/channels/' + data['name'].lower()
             urlh = weechat.hook_process(
-                "url:" + url+params, 7 * 1000, "channel_api", currentbuf)
+                "url:" + url+params, 7 * 1000, "channel_api", str({'buffer': currentbuf, 'name': name, 'dname': data['name']}))
             count = jsonDict['_total']
             if count:
                 output = '%s%s %s[%s%s%s]%s %sFollowing%s: %s' % (
                     pcolor, pformat, dcolor, ncolor, name, dcolor, ccolor, ul, rul, count)
-                weechat.prnt(data, output)
+                weechat.prnt(data['buffer'], makeutf8(output))
     return weechat.WEECHAT_RC_OK
 
 
@@ -427,11 +435,11 @@ def twitch_whois(data, modifier, server_name, string):
     if not server_name in OPTIONS['servers'].split():
         return string
     msg = weechat.info_get_hashtable("irc_message_parse", {"message": string})
-    username = msg['nick']
+    username = msg['nick'].lower()
     currentbuf = weechat.current_buffer()
     url = 'https://api.twitch.tv/kraken/channels/' + username
     url_hook = weechat.hook_process(
-        "url:" + url+params, 7 * 1000, "channel_api", currentbuf)
+        "url:" + url+params, 7 * 1000, "channel_api", str({'buffer': currentbuf, 'name': username}))
     return ""
 
 def config_setup():
