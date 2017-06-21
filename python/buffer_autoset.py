@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2010-2015 Sébastien Helleu <flashcode@flashtux.org>
+# Copyright (C) 2010-2017 Sébastien Helleu <flashcode@flashtux.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2017-06-21, Sébastien Helleu <flashcode@flashtux.org>:
+#     version 1.0: rename command /autosetbuffer to /buffer_autoset
 # 2015-09-28, Simmo Saan <simmo.saan@gmail.com>:
 #     version 0.9: instantly apply properties
 # 2015-07-12, Sébastien Helleu <flashcode@flashtux.org>:
@@ -46,11 +48,11 @@
 
 SCRIPT_NAME = "buffer_autoset"
 SCRIPT_AUTHOR = "Sébastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.9"
+SCRIPT_VERSION = "1.0"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Auto-set buffer properties when a buffer is opened"
 
-SCRIPT_COMMAND = "autosetbuffer"
+SCRIPT_COMMAND = SCRIPT_NAME
 
 import_ok = True
 
@@ -143,7 +145,7 @@ def bas_config_write():
 # ================================[ command ]=================================
 
 def bas_cmd(data, buffer, args):
-    """Callback for /autosetbuffer command."""
+    """Callback for /buffer_autoset command."""
     args = args.strip()
     if args == "":
         weechat.command("", "/set %s.buffer.*" % CONFIG_FILE_NAME)
@@ -172,7 +174,7 @@ def bas_completion_current_buffer_cb(data, completion_item, buffer,
                                      completion):
     """
     Complete with current buffer name (plugin.name),
-    for command '/autosetbuffer'.
+    for command '/buffer_autoset'.
     """
     name = "%s.%s" % (weechat.buffer_get_string(buffer, "plugin"),
                       weechat.buffer_get_string(buffer, "name"))
@@ -182,7 +184,7 @@ def bas_completion_current_buffer_cb(data, completion_item, buffer,
 
 
 def bas_completion_options_cb(data, completion_item, buffer, completion):
-    """Complete with config options, for command '/autosetbuffer'."""
+    """Complete with config options, for command '/buffer_autoset'."""
     options = weechat.infolist_get("option", "",
                                    "%s.buffer.*" % CONFIG_FILE_NAME)
     if options:
@@ -240,11 +242,12 @@ def bas_signal_buffer_opened_cb(data, signal, signal_data):
                            weechat.buffer_get_string(buffer, "full_name"))
     return weechat.WEECHAT_RC_OK
 
+
 def bas_config_option_cb(data, option, value):
     if not weechat.config_boolean(bas_options["look_instant"]):
         return weechat.WEECHAT_RC_OK
 
-    if not weechat.config_get(option): # option was deleted
+    if not weechat.config_get(option):  # option was deleted
         return weechat.WEECHAT_RC_OK
 
     option = option[len("%s.buffer." % CONFIG_FILE_NAME):]
@@ -266,6 +269,7 @@ def bas_config_option_cb(data, option, value):
             weechat.infolist_free(buffers)
 
     return weechat.WEECHAT_RC_OK
+
 
 # ==================================[ main ]==================================
 
