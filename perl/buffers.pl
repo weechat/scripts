@@ -20,6 +20,8 @@
 #
 # History:
 #
+# 2017-05-14, kellerfuchs <kellerfuchs@hashbang.sh>:
+#     v5.7: add option "buffers.look.hide_inactive"
 # 2017-03-17, arza <arza@arza.us>:
 #     v5.6: fix truncating buffer names that contain multibyte characters
 # 2017-02-21, arza <arza@arza.us>:
@@ -650,6 +652,12 @@ my %default_options_color =
 
 my %default_options_look =
 (
+ "hide_inactive" => [
+     "hide_inactive", "boolean",
+     "Skip inactive buffers when on.",
+     "", 0, 0, "off", "off", 0,
+     "", "", "buffers_signal_config", "", "", ""
+ ],
  "hotlist_counter" => [
      "hotlist_counter", "boolean",
      "show number of message for the buffer (this option needs WeeChat >= ".
@@ -982,7 +990,12 @@ sub key_of_buffer
 # whether to skip this buffer
 sub skip_buffer
 {
-    my ($buffer) = @_;
+    my ($buffer, %hotlist) = @_;
+
+    if ( weechat::config_boolean($options{"hide_inactive"}) ) {
+       return 1 unless ( exists $hotlist{$buffer->{"pointer"}} or $buffer->{"current_buffer"} );
+    }
+
     return 0 if $buffer->{"active"};
 
     if ( weechat::config_string($options{"hide_merged_buffers"}) eq "server" and
@@ -1440,12 +1453,12 @@ sub build_buffers
     {
         my $buffer = $sorted_buffers{$key};
 
-        if (skip_buffer($buffer))
+        if (skip_buffer($buffer, %hotlist))
         {
             next;
         }
 
-        push(@buffers_focus, $buffer);                                          # buffer > buffers_focus, for mouse support
+        push(@buffers_focus, $buffer);  # buffer > buffers_focus, for mouse support
 
         my ($fg, $bg) = get_colors($buffer, %hotlist);
         my $color_bg = weechat::color(",$bg");
