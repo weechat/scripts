@@ -8,6 +8,8 @@
 # TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
 #
 # 0. You just DO WHAT THE FUCK YOU WANT TO.
+# 2017-06-28, Aoede <eevee@posteo.eu>
+#    v0.2.11: add -k switch to add black background
 # 2015-11-16, wowaname <wowaname@volatile.ch>
 #    v0.2.9, 0.2.10: wrote an actual parser rather than regex
 # 2014-09-03, Matthew Martin <phy1729@gmail.com>
@@ -34,7 +36,7 @@ import re
 
 SCRIPT_NAME    = "prism"
 SCRIPT_AUTHOR  = "Alex Barrett <al.barrett@gmail.com>"
-SCRIPT_VERSION = "0.2.10"
+SCRIPT_VERSION = "0.2.11"
 SCRIPT_LICENSE = "WTFPL"
 SCRIPT_DESC    = "Taste the rainbow."
 
@@ -59,12 +61,13 @@ if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION,
               SCRIPT_LICENSE, SCRIPT_DESC, "", ""):
     w.hook_command("prism",
                    SCRIPT_DESC,
-                   "[-rwmbe] text|-c[wbe] <sep> <command> <sep>text",
+                   "[-rwmbek] text|-c[wbe] <sep> <command> <sep>text",
                    "    -r: randomizes the order of the color sequence\n"
                    "    -w: color entire words instead of individual characters\n"
                    "    -m: append /me to beginning of output\n"
                    "    -b: backwards text (entire string is reversed)\n"
                    "    -e: eye-destroying colors (randomized background colors)\n"
+                   "    -k: add black background (note: -e overrides this)\n"
                    "    -c: specify a separator to turn on colorization\n"
                    "        eg. -c : /topic :howdy howdy howdy\n"
                    "  text: text to be colored",
@@ -103,6 +106,7 @@ def prism_cmd_cb(data, buffer, args):
     regex = regex_words if 'w' in opts else regex_chars
     inc = 'r' not in opts
     bs = 'e' in opts
+    k = 'k' in opts
     input = input[::-1] if 'b' in opts else input
 
     output = u""
@@ -112,6 +116,8 @@ def prism_cmd_cb(data, buffer, args):
         color_code = unicode(colors[color_index % color_count]).rjust(2, "0")
         if bs == 1:
             output += u'\x03' + color_code + ',' + find_another_color(color_code) + token
+        elif k == 1:
+            output += u'\x03' + color_code + ',' + '1'.rjust(2, "0") + token
         else:
             output += u"\x03" + color_code  + token
 
