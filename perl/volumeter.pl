@@ -70,8 +70,8 @@ return weechat::WEECHAT_RC_OK;
 sub get_stats
 {
   my $tmp = `cat "$procnetdev" | grep "$device"`;
-  $last_out = (($tmp =~ m/(\d+)/g)[9]);			# get last_out
-  $last_in = (($tmp =~ m/(\d+)/g)[1]);			# get last_in
+  $last_out = (($tmp =~ m/(\d+)/g)[10]);		# get last_out
+  $last_in = (($tmp =~ m/(\d+)/g)[2]);			# get last_in
   return;
 }
 
