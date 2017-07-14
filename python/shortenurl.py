@@ -14,6 +14,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # History
+# 2017-05-04, Jochen Saalfeld <privat@jochen-saalfeld.de>
+#   version 0.6.1: Fix support for is.gd, since the API changed
 # 2014-08-18, Ilkka Laukkanen <ilkka@fastmail.fm>
 #   version 0.6: Add support for bit.ly via Python Bitly
 #                (https://code.google.com/p/python-bitly/)
@@ -40,11 +42,11 @@ from urllib2 import urlopen
 
 SCRIPT_NAME = "shortenurl"
 SCRIPT_AUTHOR = "John Anderson <sontek@gmail.com>"
-SCRIPT_VERSION = "0.6.0"
+SCRIPT_VERSION = "0.6.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Shorten long incoming and outgoing URLs"
 
-ISGD = 'http://is.gd/api.php?%s'
+ISGD = 'https://is.gd/api.php?longurl=%s'
 TINYURL = 'http://tinyurl.com/api-create.php?%s'
 
 # script options
