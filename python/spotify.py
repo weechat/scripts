@@ -21,9 +21,11 @@
 # If someone posts a spotify track URL in a configured channel
 # this script will post back which track it is using spotify.url.fi service
 
-# 
+#
 #
 # History:
+# 2017-06-02, butlerx
+#   version 0.8: add now required oauth support
 # 2016-01-22, creadak
 #   version 0.7: Updated for the new spotify API
 # 2011-03-11, Sebastien Helleu <flashcode@flashtux.org>
@@ -41,34 +43,30 @@
 #     version 0.1: initial
 #
 
-import weechat as w
 import re
-import json
-import urllib
 import datetime
+import weechat as w
+import spotipy
+from spotipy.oauth2 import SpotifyClientCredentials
 
 SCRIPT_NAME    = "spotify"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.7"
+SCRIPT_VERSION = "0.8"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Look up spotify urls"
 
 settings = {
-    "buffers"        : 'freenode.#mychan,',     # comma separated list of buffers
-    "emit_notice"    : 'off',                   # on or off, use notice or msg
+    "buffers"       : 'freenode.#mychan,',     # comma separated list of buffers
+    "emit_notice"   : 'off',                   # on or off, use notice or msg
+    "client_id"     : 'client_id',
+    "client_secret" : 'client_secret'
 }
 
 settings_help = {
-    "buffers": 'A comma separated list of buffers the script should check',
-    "emit_notice": 'If on, this script will use /notice, if off, it will use /msg to post info'
-}
-
-gateway = "https://api.spotify.com"
-
-endpoints = {
-    "track": 'v1/tracks',
-    "album": 'v1/albums',
-    "artist": 'v1/artists'
+    "buffers"       : 'A comma separated list of buffers the script should check',
+    "emit_notice"   : 'If on, this script will use /notice, if off, it will use /msg to post info',
+    "client_id"     : 'required client id token go to https://developer.spotify.com/my-applications/#!/applications to generate your own',
+    "client_secret" : 'required client secret token go to https://developer.spotify.com/my-applications/#!/applications to generate your own'
 }
 
 spotify_track_res = (re.compile(r'spotify:(?P<type>\w+):(?P<id>\w{22})'),
@@ -107,6 +105,8 @@ def spotify_print_cb(data, buffer, time, tags, displayed, highlight, prefix, mes
     buffer_name = w.buffer_get_string(buffer, "name")
     server, channel = buffer_name.split('.')
     buffers_to_check = w.config_get_plugin('buffers').split(',')
+    client_credentials_manager = SpotifyClientCredentials(w.config_get_plugin('client_id'), w.config_get_plugin('client_secret'))
+    spotify = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
 
     command = "msg"
     if notice == "on":
@@ -116,15 +116,20 @@ def spotify_print_cb(data, buffer, time, tags, displayed, highlight, prefix, mes
         return w.WEECHAT_RC_OK
 
     for type, id in get_spotify_ids(message):
-        data = json.load(urllib.urlopen('%s/%s/%s' % (gateway, endpoints[type], id)))
-        reply = parse_response(data, type)
+        if type == 'album':
+            results = spotify.album(id)
+        elif type == 'track':
+            results = spotify.track(id)
+        elif type == 'artist':
+            results = spotify.artist(id)
+        reply = parse_response(results, type)
         w.command('', "/%s -server %s %s %s" % (command, server, channel, reply))
 
     return w.WEECHAT_RC_OK
 
 if __name__ == "__main__":
     if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
-                        SCRIPT_DESC, "", ""):
+                  SCRIPT_DESC, "", ""):
         # Set default settings
         for option, default in settings.iteritems():
             if not w.config_is_set_plugin(option):
@@ -133,5 +138,5 @@ if __name__ == "__main__":
         # Set help text
         for option, description in settings_help.iteritems():
             w.config_set_desc_plugin(option, description)
-                
+
         w.hook_print("", "", "spotify", 1, "spotify_print_cb", "")
