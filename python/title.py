@@ -22,6 +22,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2016-03-31, devkev
+#     version 0.9, Make hotlist optional
 # 2016-05-01, Ferus
 #     version 0.8, Add ability to prefix and suffix the title, current
 #     buffer, and hotlist buffers. As well as specify hotlist separator
@@ -44,7 +46,7 @@ import weechat as w
 
 SCRIPT_NAME    = "title"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.8"
+SCRIPT_VERSION = "0.9"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Set screen title to current buffer name + hotlist items with configurable priority level"
 
@@ -61,6 +63,7 @@ settings = {
     "hotlist_buffer_suffix": '',
     "current_buffer_prefix": '',
     "current_buffer_suffix": '',
+    "show_hotlist"         : 'on',
 }
 
 hooks = (
@@ -84,22 +87,23 @@ def update_title(data, signal, signal_data):
         title += w.buffer_get_string(w.current_buffer(), 'name')
     title += w.config_get_plugin('current_buffer_suffix')
 
-    # hotlist buffers
-    hotlist = w.infolist_get('hotlist', '', '')
-    pnumber = w.config_get_plugin('hotlist_number_prefix')
-    snumber = w.config_get_plugin('hotlist_number_suffix')
-    pname = w.config_get_plugin('hotlist_buffer_prefix')
-    sname = w.config_get_plugin('hotlist_buffer_suffix')
-    separator = w.config_get_plugin('hotlist_separator')
-    while w.infolist_next(hotlist):
-        priority = w.infolist_integer(hotlist, 'priority')
-        if priority >= int(w.config_get_plugin('title_priority')):
-            number = w.infolist_integer(hotlist, 'buffer_number')
-            thebuffer = w.infolist_pointer(hotlist, 'buffer_pointer')
-            name = w.buffer_get_string(thebuffer, 'short_name')
-            title += ' {0}{1}{2}{3}{4}{5}{6}'.format(pnumber, \
-                number, snumber, separator, pname, name, sname)
-    w.infolist_free(hotlist)
+    if w.config_get_plugin('show_hotlist') == 'on':
+        # hotlist buffers
+        hotlist = w.infolist_get('hotlist', '', '')
+        pnumber = w.config_get_plugin('hotlist_number_prefix')
+        snumber = w.config_get_plugin('hotlist_number_suffix')
+        pname = w.config_get_plugin('hotlist_buffer_prefix')
+        sname = w.config_get_plugin('hotlist_buffer_suffix')
+        separator = w.config_get_plugin('hotlist_separator')
+        while w.infolist_next(hotlist):
+            priority = w.infolist_integer(hotlist, 'priority')
+            if priority >= int(w.config_get_plugin('title_priority')):
+                number = w.infolist_integer(hotlist, 'buffer_number')
+                thebuffer = w.infolist_pointer(hotlist, 'buffer_pointer')
+                name = w.buffer_get_string(thebuffer, 'short_name')
+                title += ' {0}{1}{2}{3}{4}{5}{6}'.format(pnumber, \
+                    number, snumber, separator, pname, name, sname)
+        w.infolist_free(hotlist)
 
     # suffix
     title += w.config_get_plugin('title_suffix')
