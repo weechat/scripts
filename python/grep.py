@@ -66,6 +66,9 @@
 #
 #   History:
 #
+#   2017-07-23, Sébastien Helleu <flashcode@flashtux.org>
+#   version 0.7.8: fix modulo by zero when nick is empty string
+#
 #   2016-06-23, mickael9
 #   version 0.7.7: fix get_home function
 #
@@ -206,7 +209,7 @@ except ImportError:
 
 SCRIPT_NAME    = "grep"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.7.7"
+SCRIPT_VERSION = "0.7.8"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Search in buffers and logs"
 SCRIPT_COMMAND = "grep"
@@ -378,13 +381,15 @@ def color_nick(nick):
     else:
         mode = mode_color = ''
     # nick color
-    nick_color = weechat.info_get('irc_nick_color', nick)
-    if not nick_color:
-        # probably we're in WeeChat 0.3.0
-        #debug('no irc_nick_color')
-        color_nicks_number = config_int('weechat.look.color_nicks_number')
-        idx = (sum(map(ord, nick))%color_nicks_number) + 1
-        nick_color = wcolor(config_string('weechat.color.chat_nick_color%02d' %idx))
+    nick_color = ''
+    if nick:
+        nick_color = weechat.info_get('irc_nick_color', nick)
+        if not nick_color:
+            # probably we're in WeeChat 0.3.0
+            #debug('no irc_nick_color')
+            color_nicks_number = config_int('weechat.look.color_nicks_number')
+            idx = (sum(map(ord, nick))%color_nicks_number) + 1
+            nick_color = wcolor(config_string('weechat.color.chat_nick_color%02d' %idx))
     return ''.join((prefix_c, prefix, mode_color, mode, nick_color, nick, suffix_c, suffix))
 
 ### Config and value validation ###
