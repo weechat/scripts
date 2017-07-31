@@ -1,29 +1,32 @@
 # -*- coding: utf-8 -*-
-# otr - WeeChat script for Off-the-Record IRC messaging
-#
-# DISCLAIMER: To the best of my knowledge this script securely provides OTR
-# messaging in WeeChat, but I offer no guarantee. Please report any security
-# holes you find.
-#
-# Copyright (c) 2012-2015 Matthew M. Boedicker <matthewm@boedicker.org>
-#                         Nils Görs <weechatter@arcor.de>
-#                         Daniel "koolfy" Faucon <koolfy@koolfy.be>
-#                         Felix Eckhofer <felix@tribut.de>
-#
-# Report issues at https://github.com/mmb/weechat-otr
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
+"""otr - WeeChat script for Off-the-Record IRC messaging
 
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+DISCLAIMER: To the best of my knowledge this script securely provides OTR
+messaging in WeeChat, but I offer no guarantee. Please report any security
+holes you find.
 
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+Copyright (c) 2012-2015 Matthew M. Boedicker <matthewm@boedicker.org>
+                        Nils Görs <weechatter@arcor.de>
+                        Daniel "koolfy" Faucon <koolfy@koolfy.be>
+                        Felix Eckhofer <felix@tribut.de>
+
+Report issues at https://github.com/mmb/weechat-otr
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+"""
+
+# pylint: disable=too-many-lines
 
 from __future__ import unicode_literals
 
@@ -37,6 +40,9 @@ import traceback
 import shlex
 import shutil
 import sys
+
+import potr
+import weechat
 
 class PythonVersion2(object):
     """Python 2 version of code that must differ between Python 2 and 3."""
@@ -68,8 +74,7 @@ class PythonVersion2(object):
         """Convert a utf-8 encoded string to a Unicode."""
         if isinstance(strng, unicode):
             return strng
-        else:
-            return strng.decode('utf-8', 'replace')
+        return strng.decode('utf-8', 'replace')
 
     def to_str(self, strng):
         """Convert a Unicode to a utf-8 encoded string."""
@@ -87,7 +92,7 @@ class PythonVersion3(object):
         import html.parser
         self.html_parser = html.parser
         if self.minor >= 4:
-            self.html_parser_init_kwargs = { 'convert_charrefs' : True }
+            self.html_parser_init_kwargs = {'convert_charrefs' : True}
         else:
             self.html_parser_init_kwargs = {}
 
@@ -110,8 +115,7 @@ class PythonVersion3(object):
         """Convert a utf-8 encoded string to unicode."""
         if isinstance(strng, bytes):
             return strng.decode('utf-8', 'replace')
-        else:
-            return strng
+        return strng
 
     def to_str(self, strng):
         """Convert a Unicode to a utf-8 encoded string."""
@@ -121,10 +125,6 @@ if sys.version_info.major >= 3:
     PYVER = PythonVersion3(sys.version_info.minor)
 else:
     PYVER = PythonVersion2()
-
-import weechat
-
-import potr
 
 SCRIPT_NAME = 'otr'
 SCRIPT_DESC = 'Off-the-Record messaging for IRC'
@@ -163,7 +163,7 @@ This script supports only OTR protocol version 2.
 
 SCRIPT_AUTHOR = 'Matthew M. Boedicker'
 SCRIPT_LICENCE = 'GPL3'
-SCRIPT_VERSION = '1.9.0'
+SCRIPT_VERSION = '1.9.1'
 
 OTR_DIR_NAME = 'otr'
 
@@ -171,9 +171,9 @@ OTR_QUERY_RE = re.compile(r'\?OTR(\?|\??v[a-z\d]*\?)')
 
 POLICIES = {
     'allow_v2' : 'allow OTR protocol version 2, effectively enable OTR '
-        'since v2 is the only supported version',
+                 'since v2 is the only supported version',
     'require_encryption' : 'refuse to send unencrypted messages when OTR is '
-        'enabled',
+                           'enabled',
     'log' : 'enable logging of OTR conversations',
     'send_tag' : 'advertise your OTR capability using the whitespace tag',
     'html_escape' : 'escape HTML special characters in outbound messages',
@@ -190,9 +190,6 @@ PLAIN_ACTION_RE = re.compile('^'+ACTION_PREFIX+'(?P<text>.*)$')
 
 IRC_SANITIZE_TABLE = dict((ord(char), None) for char in '\n\r\x00')
 
-global otr_debug_buffer
-otr_debug_buffer = None
-
 # Patch potr.proto.TaggedPlaintext to not end plaintext tags in a space.
 #
 # When POTR adds OTR tags to plaintext it puts them at the end of the message.
@@ -204,6 +201,7 @@ otr_debug_buffer = None
 # The patched version also skips OTR tagging for CTCP messages because it
 # breaks the CTCP format.
 def patched__bytes__(self):
+    """Patched potr.proto.TaggedPlainText.__bytes__."""
     # Do not tag CTCP messages.
     if self.msg.startswith(b'\x01') and \
         self.msg.endswith(b'\x01'):
@@ -280,25 +278,19 @@ def get_prefix():
 
 def debug(msg):
     """Send a debug message to the OTR debug buffer."""
-    debug_option = weechat.config_get(config_prefix('general.debug'))
-    global otr_debug_buffer
+    debug_option = config_get_prefixed('general.debug')
 
-    if weechat.config_boolean(debug_option):
-        if not otr_debug_buffer:
-            otr_debug_buffer = weechat.buffer_new("OTR Debug", "", "",
-                "debug_buffer_close_cb", "")
-            weechat.buffer_set(otr_debug_buffer, 'title', 'OTR Debug')
-            weechat.buffer_set(otr_debug_buffer, 'localvar_set_no_log', '1')
-        prnt(otr_debug_buffer, ('{script} debug\t{text}'.format(
-            script=SCRIPT_NAME,
-            text=PYVER.unicode(msg)
-            )))
+    if not weechat.config_boolean(debug_option):
+        return
 
-def debug_buffer_close_cb(data, buf):
-    """Set the OTR debug buffer to None."""
-    global otr_debug_buffer
-    otr_debug_buffer = None
-    return weechat.WEECHAT_RC_OK
+    debug_buffer = weechat.buffer_search('python', 'OTR Debug')
+    if not debug_buffer:
+        debug_buffer = weechat.buffer_new('OTR Debug', '', '', '', '')
+        weechat.buffer_set(debug_buffer, 'title', 'OTR Debug')
+        weechat.buffer_set(debug_buffer, 'localvar_set_no_log', '1')
+
+    prnt(debug_buffer, ('{script} debug\t{text}'.format(
+        script=SCRIPT_NAME, text=PYVER.unicode(msg))))
 
 def current_user(server_name):
     """Get the nick and server of the current user on a server."""
@@ -307,8 +299,8 @@ def current_user(server_name):
 def irc_user(nick, server):
     """Build an IRC user string from a nick and server."""
     return '{nick}@{server}'.format(
-            nick=nick.lower(),
-            server=server)
+        nick=nick.lower(),
+        server=server)
 
 def isupport_value(server, feature):
     """Get the value of an IRC server feature."""
@@ -328,8 +320,8 @@ def is_a_channel(channel, server):
 
     return channel.startswith(prefixes)
 
-# Exception class for PRIVMSG parsing exceptions.
 class PrivmsgParseException(Exception):
+    """Exception class for PRIVMSG parsing exceptions."""
     pass
 
 def parse_irc_privmsg(message, server):
@@ -396,18 +388,26 @@ def first_instance(objs, klass):
 def config_prefix(option):
     """Add the config prefix to an option and return the full option name."""
     return '{script}.{option}'.format(
-            script=SCRIPT_NAME,
-            option=option)
+        script=SCRIPT_NAME,
+        option=option)
 
 def config_color(option):
     """Get the color of a color config option."""
-    return weechat.color(weechat.config_color(weechat.config_get(
-            config_prefix('color.{}'.format(option)))))
+    return weechat.color(weechat.config_color(config_get_prefixed(
+        'color.{}'.format(option))))
 
 def config_string(option):
     """Get the string value of a config option with utf-8 decode."""
     return PYVER.to_unicode(weechat.config_string(
-        weechat.config_get(config_prefix(option))))
+        config_get_prefixed(option)))
+
+def config_get(option):
+    """Get the value of a WeeChat config option."""
+    return weechat.config_get(PYVER.to_str(option))
+
+def config_get_prefixed(option):
+    """Get the value of a script prefixed WeeChat config option."""
+    return config_get(config_prefix(option))
 
 def buffer_get_string(buf, prop):
     """Wrap weechat.buffer_get_string() with utf-8 encode/decode."""
@@ -466,9 +466,9 @@ def format_default_policies():
 
     for policy, desc in sorted(POLICIES.items()):
         buf.write('  {policy} ({desc}) : {value}\n'.format(
-                policy=policy,
-                desc=desc,
-                value=config_string('policy.default.{}'.format(policy))))
+            policy=policy,
+            desc=desc,
+            value=config_string('policy.default.{}'.format(policy))))
 
     buf.write('Change default policies with: /otr policy default NAME on|off')
 
@@ -504,8 +504,8 @@ def show_account_fingerprints():
     table_formatter = TableFormatter()
     for account in accounts():
         table_formatter.add_row([
-          account.name,
-          str(account.getPrivkey())])
+            account.name,
+            str(account.getPrivkey())])
     print_buffer('', table_formatter.format())
 
 def show_peer_fingerprints(grep=None):
@@ -524,10 +524,10 @@ def show_peer_fingerprints(grep=None):
             for fingerprint, trust in sorted(peer_data.items()):
                 if grep is None or grep in peer:
                     table_formatter.add_row([
-                      peer,
-                      account.name,
-                      potr.human_hash(fingerprint),
-                      trust_descs[trust],
+                        peer,
+                        account.name,
+                        potr.human_hash(fingerprint),
+                        trust_descs[trust],
                     ])
     print_buffer('', table_formatter.format())
 
@@ -608,8 +608,8 @@ class IrcContext(potr.context.Context):
     def policy_config_option(self, policy):
         """Get the option name of a policy option for this context."""
         return config_prefix('.'.join([
-                    'policy', self.peer_server, self.user.nick, self.peer_nick,
-                    policy.lower()]))
+            'policy', self.peer_server, self.user.nick, self.peer_nick,
+            policy.lower()]))
 
     def getPolicy(self, key):
         """Get the value of a policy option for this context."""
@@ -620,20 +620,18 @@ class IrcContext(potr.context.Context):
         elif key_lower == 'send_tag' and self.no_send_tag():
             result = False
         else:
-            option = weechat.config_get(
-                PYVER.to_str(self.policy_config_option(key)))
+            option = config_get(self.policy_config_option(key))
 
             if option == '':
-                option = weechat.config_get(
-                    PYVER.to_str(self.user.policy_config_option(key)))
+                option = config_get(self.user.policy_config_option(key))
 
             if option == '':
-                option = weechat.config_get(config_prefix('.'.join(
-                    ['policy', self.peer_server, key_lower])))
+                option = config_get_prefixed('.'.join(
+                    ['policy', self.peer_server, key_lower]))
 
             if option == '':
-                option = weechat.config_get(
-                    config_prefix('policy.default.{}'.format(key_lower)))
+                option = config_get_prefixed(
+                    'policy.default.{}'.format(key_lower))
 
             result = bool(weechat.config_boolean(option))
 
@@ -733,14 +731,14 @@ class IrcContext(potr.context.Context):
         # add [nick] prefix if we have only a server buffer for the query
         if self.peer_nick and not buffer_is_private(buf):
             msg = '[{nick}] {msg}'.format(
-                    nick=self.peer_nick,
-                    msg=msg)
+                nick=self.peer_nick,
+                msg=msg)
 
         print_buffer(buf, msg, level)
 
     def hint(self, msg):
         """Print a message to the buffer but only when hints are enabled."""
-        hints_option = weechat.config_get(config_prefix('general.hints'))
+        hints_option = config_get_prefixed('general.hints')
 
         if weechat.config_boolean(hints_option):
             self.print_buffer(msg, 'hint')
@@ -782,7 +780,7 @@ Respond with: /otr smp respond <secret>""")
                 self.print_buffer(
                     """Peer has requested SMP verification: {msg}
 Respond with: /otr smp respond <answer>""".format(
-                        msg=PYVER.to_unicode(smp1q.msg)))
+    msg=PYVER.to_unicode(smp1q.msg)))
             elif first_instance(tlvs, potr.proto.SMP2TLV):
                 if not self.in_smp:
                     debug('Received unexpected SMP2')
@@ -799,23 +797,24 @@ Respond with: /otr smp respond <answer>""".format(
                 if self.smpIsSuccess():
 
                     if self.smp_question:
-                        self.smp_finish('SMP verification succeeded.',
-                            'success')
+                        self.smp_finish(
+                            'SMP verification succeeded.', 'success')
                         if not self.is_verified:
                             self.print_buffer(
-                            """You may want to authenticate your peer by asking your own question:
-/otr smp ask <'question'> 'secret'""")
-
+                                'You may want to authenticate your peer by '
+                                'asking your own question:\n'
+                                "/otr smp ask <'question'> 'secret'")
                     else:
-                        self.smp_finish('SMP verification succeeded.',
-                            'success')
+                        self.smp_finish(
+                            'SMP verification succeeded.', 'success')
 
                 else:
                     self.smp_finish('SMP verification failed.', 'error')
 
     def verify_instructions(self):
         """Generate verification instructions for user."""
-        return """You can verify that this contact is who they claim to be in one of the following ways:
+        return """You can verify that this contact is who they claim to be in
+one of the following ways:
 
 1) Verify each other's fingerprints using a secure channel:
   Your fingerprint : {your_fp}
@@ -832,13 +831,11 @@ Note: You can safely omit specifying the peer and server when
       executing these commands from the appropriate conversation
       buffer
 """.format(
-        your_fp=self.user.getPrivkey(),
-        peer=self.peer,
-        peer_nick=self.peer_nick,
-        peer_server=self.peer_server,
-        peer_fp=potr.human_hash(
-            self.crypto.theirPubkey.cfingerprint()),
-        )
+    your_fp=self.user.getPrivkey(),
+    peer=self.peer,
+    peer_nick=self.peer_nick,
+    peer_server=self.peer_server,
+    peer_fp=potr.human_hash(self.crypto.theirPubkey.cfingerprint()))
 
     def is_encrypted(self):
         """Return True if the conversation with this context's peer is
@@ -859,9 +856,9 @@ Note: You can safely omit specifying the peer and server when
 
         for policy, desc in sorted(POLICIES.items()):
             buf.write('  {policy} ({desc}) : {value}\n'.format(
-                    policy=policy,
-                    desc=desc,
-                    value='on' if self.getPolicy(policy) else 'off'))
+                policy=policy,
+                desc=desc,
+                value='on' if self.getPolicy(policy) else 'off'))
 
         buf.write('Change policies with: /otr policy NAME on|off')
 
@@ -892,7 +889,7 @@ Note: You can safely omit specifying the peer and server when
 
         buf = self.buffer()
 
-        if not weechat.config_get(self.get_logger_option_name(buf)):
+        if not config_get(self.get_logger_option_name()):
             result = -1
         else:
             result = 0
@@ -906,8 +903,9 @@ Note: You can safely omit specifying the peer and server when
 
         return result
 
-    def get_logger_option_name(self, buf):
-        """Returns the logger config option for the specified buffer."""
+    def get_logger_option_name(self):
+        """Returns the logger config option for this context's buffer."""
+        buf = self.buffer()
         name = buffer_get_string(buf, 'name')
         plugin = buffer_get_string(buf, 'plugin')
 
@@ -925,7 +923,8 @@ Note: You can safely omit specifying the peer and server when
             if self.is_logged():
                 weechat.command(self.buffer(), '/mute logger disable')
                 self.print_buffer(
-                    'Logs have been temporarily disabled for the session. They will be restored upon finishing the OTR session.')
+                    'Logs have been temporarily disabled for the session. '
+                    'They will be restored upon finishing the OTR session.')
 
             return previous_log_level
 
@@ -948,7 +947,7 @@ Note: You can safely omit specifying the peer and server when
                 previous_log_level))
 
         if previous_log_level == -1:
-            logger_option_name = self.get_logger_option_name(buf)
+            logger_option_name = self.get_logger_option_name()
             self.print_buffer(
                 'Restoring buffer logging value to default', 'warning')
             weechat.command(buf, '/mute unset {}'.format(
@@ -998,11 +997,11 @@ Note: You can safely omit specifying the peer and server when
         debug(('no_send_tag', no_send_tag_regex, self.peer_nick))
         if no_send_tag_regex:
             return re.match(no_send_tag_regex, self.peer_nick, re.IGNORECASE)
- 
+
     def __repr__(self):
-        return PYVER.to_str(('<{} {:x} peer_nick={c.peer_nick} '
-            'peer_server={c.peer_server}>').format(
-            self.__class__.__name__, id(self), c=self))
+        return PYVER.to_str((
+            '<{} {:x} peer_nick={c.peer_nick} peer_server={c.peer_server}>'
+            ).format(self.__class__.__name__, id(self), c=self))
 
 class IrcOtrAccount(potr.context.Account):
     """Account class for OTR over IRC."""
@@ -1075,8 +1074,7 @@ class IrcOtrAccount(potr.context.Account):
                     debug(('trust write', uid, self.name,
                            IrcOtrAccount.PROTOCOL, fpr, trust))
                     fpr_file.write(PYVER.to_str('\t'.join(
-                            (uid, self.name, IrcOtrAccount.PROTOCOL, fpr,
-                             trust))))
+                        (uid, self.name, IrcOtrAccount.PROTOCOL, fpr, trust))))
                     fpr_file.write('\n')
 
     def end_all_private(self):
@@ -1088,7 +1086,7 @@ class IrcOtrAccount(potr.context.Account):
     def policy_config_option(self, policy):
         """Get the option name of a policy option for this account."""
         return config_prefix('.'.join([
-                    'policy', self.server, self.nick, policy.lower()]))
+            'policy', self.server, self.nick, policy.lower()]))
 
 class IrcHTMLParser(PYVER.html_parser.HTMLParser):
     """A simple HTML parser that throws away anything but newlines and links"""
@@ -1161,7 +1159,7 @@ class TableFormatter(object):
     def add_row(self, row):
         """Add a row to the table."""
         self.rows.append(row)
-        row_widths = [ len(s) for s in row ]
+        row_widths = [len(s) for s in row]
         if self.max_widths is None:
             self.max_widths = row_widths
         else:
@@ -1169,12 +1167,12 @@ class TableFormatter(object):
 
     def format(self):
         """Return the formatted table as a string."""
-        return '\n'.join([ self.format_row(row) for row in self.rows ])
+        return '\n'.join([self.format_row(row) for row in self.rows])
 
     def format_row(self, row):
         """Format a single row as a string."""
         return ' |'.join(
-            [ s.ljust(self.max_widths[i]) for i, s in enumerate(row) ])
+            [s.ljust(self.max_widths[i]) for i, s in enumerate(row)])
 
 def message_in_cb(data, modifier, modifier_data, string):
     """Incoming message callback"""
@@ -1212,7 +1210,7 @@ def message_in_cb(data, modifier, modifier_data, string):
             context.handle_tlvs(tlvs)
         except potr.context.ErrorReceived as err:
             context.print_buffer('Received OTR error: {}'.format(
-                PYVER.to_unicode(err.args[0].error)), 'error')
+                PYVER.to_unicode(err.args[0])), 'error')
         except potr.context.NotEncryptedError:
             context.print_buffer(
                 'Received encrypted data but no private session established.',
@@ -1279,12 +1277,12 @@ def message_out_cb(data, modifier, modifier_data, string):
                 not is_query and \
                 context.getPolicy('require_encryption'):
                 context.print_buffer(
-                   'Your message will not be sent, because policy requires an '
-                   'encrypted connection.', 'error')
+                    'Your message will not be sent, because policy requires an '
+                    'encrypted connection.', 'error')
                 context.hint(
-                   'Wait for the OTR connection or change the policy to allow '
-                   'clear-text messages:\n'
-                   '/policy set require_encryption off')
+                    'Wait for the OTR connection or change the policy to allow '
+                    'clear-text messages:\n'
+                    '/otr policy require_encryption off')
 
             try:
                 ret = context.sendMessage(
@@ -1301,12 +1299,14 @@ def message_out_cb(data, modifier, modifier_data, string):
             except potr.context.NotEncryptedError as err:
                 if err.args[0] == potr.context.EXC_FINISHED:
                     context.print_buffer(
-                        """Your message was not sent. End your private conversation:\n/otr finish""",
+                        'Your message was not sent. End your private '
+                        'conversation:\n/otr finish',
                         'error')
                 else:
                     raise
 
         weechat.bar_item_update(SCRIPT_NAME)
+    # pylint: disable=bare-except
     except:
         try:
             print_buffer('', traceback.format_exc(), 'error')
@@ -1315,6 +1315,7 @@ def message_out_cb(data, modifier, modifier_data, string):
             context.print_buffer(
                 'Failed to send message. See core buffer for traceback.',
                 'error')
+        # pylint: disable=bare-except
         except:
             pass
 
@@ -1339,11 +1340,7 @@ def command_cb(data, buf, args):
     """Parse and dispatch WeeChat OTR commands."""
     result = weechat.WEECHAT_RC_ERROR
 
-    try:
-        arg_parts = [PYVER.to_unicode(arg) for arg in shlex.split(args)]
-    except:
-        debug("Command parsing error.")
-        return result
+    arg_parts = [PYVER.to_unicode(arg) for arg in shlex.split(args)]
 
     if len(arg_parts) in (1, 3) and arg_parts[0] in ('start', 'refresh'):
         nick, server = default_peer_args(arg_parts[1:3], buf)
@@ -1360,11 +1357,13 @@ def command_cb(data, buf, args):
             else:
                 context.previous_log_level = context.get_log_level()
 
-            context.hint('Sending OTR query... Please await confirmation of the OTR session being started before sending a message.')
+            context.hint(
+                'Sending OTR query... Please await confirmation of the OTR '
+                'session being started before sending a message.')
             if not context.getPolicy('send_tag'):
                 context.hint(
-                    'To try OTR on all conversations with {peer}: /otr policy send_tag on'.format(
-                    peer=context.peer))
+                    'To try OTR on all conversations with {peer}: /otr '
+                    'policy send_tag on'.format(peer=context.peer))
 
             privmsg(server, nick, '?OTR?')
 
@@ -1491,8 +1490,8 @@ def command_cb(data, buf, args):
                     context.smpAbort()
                 except potr.context.NotEncryptedError:
                     context.print_buffer(
-                        'There is currently no encrypted session with {}.'.format(
-                         context.peer), 'error')
+                        'There is currently no encrypted session with {}.'
+                        .format(context.peer), 'error')
                 else:
                     debug('SMP aborted')
                     context.smp_finish('SMP aborted.')
@@ -1512,8 +1511,9 @@ def command_cb(data, buf, args):
                 weechat.bar_item_update(SCRIPT_NAME)
             else:
                 context.print_buffer(
-                    'No fingerprint for {peer}. Start an OTR conversation first: /otr start'.format(
-                        peer=context.peer), 'error')
+                    'No fingerprint for {peer}. Start an OTR conversation '
+                    'first: /otr start'.format(peer=context.peer),
+                    'error')
 
             result = weechat.WEECHAT_RC_OK
     elif len(arg_parts) in (1, 3) and arg_parts[0] == 'distrust':
@@ -1531,8 +1531,8 @@ def command_cb(data, buf, args):
                 weechat.bar_item_update(SCRIPT_NAME)
             else:
                 context.print_buffer(
-                    'No fingerprint for {peer}. Start an OTR conversation first: /otr start'.format(
-                        peer=context.peer), 'error')
+                    'No fingerprint for {peer}. Start an OTR conversation '
+                    'first: /otr start'.format(peer=context.peer), 'error')
 
             result = weechat.WEECHAT_RC_OK
 
@@ -1571,7 +1571,13 @@ def command_cb(data, buf, args):
                         context.is_encrypted():
                     if context.previous_log_level is None:
                         context.previous_log_level = context.get_log_level()
-                    context.print_buffer('From this point on, this conversation will be logged. Please keep in mind that by doing so you are potentially putting yourself and your interlocutor at risk. You can disable this by doing /otr log stop', 'warning')
+                    context.print_buffer(
+                        'From this point on, this conversation will be '
+                        'logged. Please keep in mind that by doing so you '
+                        'are potentially putting yourself and your '
+                        'interlocutor at risk. You can disable this by doing '
+                        '/otr log stop',
+                        'warning')
                     weechat.command(buf, '/mute logger set 9')
                     result = weechat.WEECHAT_RC_OK
 
@@ -1581,7 +1587,9 @@ def command_cb(data, buf, args):
                     if context.previous_log_level is None:
                         context.previous_log_level = context.get_log_level()
                     weechat.command(buf, '/mute logger set 0')
-                    context.print_buffer('From this point on, this conversation will NOT be logged ANYMORE.')
+                    context.print_buffer(
+                        'From this point on, this conversation will NOT be '
+                        'logged ANYMORE.')
                     result = weechat.WEECHAT_RC_OK
 
                 elif not context.is_encrypted():
@@ -1703,39 +1711,39 @@ def otr_statusbar_cb(data, item, window):
     if context.is_encrypted():
         if encrypted_str:
             bar_parts.append(''.join([
-                        config_color('status.encrypted'),
-                        encrypted_str,
-                        config_color('status.default')]))
+                config_color('status.encrypted'),
+                encrypted_str,
+                config_color('status.default')]))
 
         if context.is_verified():
             if authenticated_str:
                 bar_parts.append(''.join([
-                            config_color('status.authenticated'),
-                            authenticated_str,
-                            config_color('status.default')]))
+                    config_color('status.authenticated'),
+                    authenticated_str,
+                    config_color('status.default')]))
         elif unauthenticated_str:
             bar_parts.append(''.join([
-                        config_color('status.unauthenticated'),
-                        unauthenticated_str,
-                        config_color('status.default')]))
+                config_color('status.unauthenticated'),
+                unauthenticated_str,
+                config_color('status.default')]))
 
         if context.is_logged():
             if logged_str:
                 bar_parts.append(''.join([
-                            config_color('status.logged'),
-                            logged_str,
-                            config_color('status.default')]))
+                    config_color('status.logged'),
+                    logged_str,
+                    config_color('status.default')]))
         elif notlogged_str:
             bar_parts.append(''.join([
-                        config_color('status.notlogged'),
-                        notlogged_str,
-                        config_color('status.default')]))
+                config_color('status.notlogged'),
+                notlogged_str,
+                config_color('status.default')]))
 
     elif unencrypted_str:
         bar_parts.append(''.join([
-                    config_color('status.unencrypted'),
-                    unencrypted_str,
-                    config_color('status.default')]))
+            config_color('status.unencrypted'),
+            unencrypted_str,
+            config_color('status.default')]))
 
     result = config_string('look.bar.state.separator').join(bar_parts)
 
@@ -1827,14 +1835,24 @@ def init_config():
         CONFIG_FILE, 'general', 0, 0, '', '', '', '', '', '', '', '', '', '')
 
     for option, typ, desc, default in [
-        ('debug', 'boolean', 'OTR script debugging', 'off'),
-        ('hints', 'boolean', 'Give helpful hints how to use this script and how to stay secure while using OTR (recommended)', 'on'),
-        ('defaultkey', 'string',
-         'default private key to use for new accounts (nick@server)', ''),
-        ('no_send_tag_regex', 'string',
-         'do not OTR whitespace tag messages to nicks matching this regex '
-         '(case insensitive)',
-         '^(alis|chanfix|global|.+serv|\*.+)$'),
+            ('debug',
+             'boolean',
+             'OTR script debugging',
+             'off'),
+            ('hints',
+             'boolean',
+             'Give helpful hints how to use this script and how to stay '
+             'secure while using OTR (recommended)',
+             'on'),
+            ('defaultkey',
+             'string',
+             'default private key to use for new accounts (nick@server)',
+             ''),
+            ('no_send_tag_regex',
+             'string',
+             'do not OTR whitespace tag messages to nicks matching this regex '
+             '(case insensitive)',
+             '^(alis|chanfix|global|.+serv|\*.+)$'),
         ]:
         weechat.config_new_option(
             CONFIG_FILE, CONFIG_SECTIONS['general'], option, typ, desc, '', 0,
@@ -1844,25 +1862,54 @@ def init_config():
         CONFIG_FILE, 'color', 0, 0, '', '', '', '', '', '', '', '', '', '')
 
     for option, desc, default, update_cb in [
-        ('status.default', 'status bar default color', 'default',
-         'bar_config_update_cb'),
-        ('status.encrypted', 'status bar encrypted indicator color', 'green',
-         'bar_config_update_cb'),
-        ('status.unencrypted', 'status bar unencrypted indicator color',
-         'lightred', 'bar_config_update_cb'),
-        ('status.authenticated', 'status bar authenticated indicator color',
-         'green', 'bar_config_update_cb'),
-        ('status.unauthenticated', 'status bar unauthenticated indicator color',
-         'lightred', 'bar_config_update_cb'),
-        ('status.logged', 'status bar logged indicator color', 'lightred',
-         'bar_config_update_cb'),
-        ('status.notlogged', 'status bar not logged indicator color',
-         'green', 'bar_config_update_cb'),
-        ('buffer.hint', 'text color for hints', 'lightblue', ''),
-        ('buffer.info', 'text color for informational messages', 'default', ''),
-        ('buffer.success', 'text color for success messages', 'lightgreen', ''),
-        ('buffer.warning', 'text color for warnings', 'yellow', ''),
-        ('buffer.error', 'text color for errors', 'lightred', ''),
+            ('status.default',
+             'status bar default color',
+             'default',
+             'bar_config_update_cb'),
+            ('status.encrypted',
+             'status bar encrypted indicator color',
+             'green',
+             'bar_config_update_cb'),
+            ('status.unencrypted',
+             'status bar unencrypted indicator color',
+             'lightred',
+             'bar_config_update_cb'),
+            ('status.authenticated',
+             'status bar authenticated indicator color',
+             'green',
+             'bar_config_update_cb'),
+            ('status.unauthenticated',
+             'status bar unauthenticated indicator color',
+             'lightred',
+             'bar_config_update_cb'),
+            ('status.logged',
+             'status bar logged indicator color',
+             'lightred',
+             'bar_config_update_cb'),
+            ('status.notlogged',
+             'status bar not logged indicator color',
+             'green',
+             'bar_config_update_cb'),
+            ('buffer.hint',
+             'text color for hints',
+             'lightblue',
+             ''),
+            ('buffer.info',
+             'text color for informational messages',
+             'default',
+             ''),
+            ('buffer.success',
+             'text color for success messages',
+             'lightgreen',
+             ''),
+            ('buffer.warning',
+             'text color for warnings',
+             'yellow',
+             ''),
+            ('buffer.error',
+             'text color for errors',
+             'lightred',
+             ''),
         ]:
         weechat.config_new_option(
             CONFIG_FILE, CONFIG_SECTIONS['color'], option, 'color', desc, '', 0,
@@ -1872,32 +1919,45 @@ def init_config():
         CONFIG_FILE, 'look', 0, 0, '', '', '', '', '', '', '', '', '', '')
 
     for option, desc, default, update_cb in [
-        ('bar.prefix', 'prefix for OTR status bar item', 'OTR:',
-         'bar_config_update_cb'),
-        ('bar.state.encrypted',
-         'shown in status bar when conversation is encrypted', 'SEC',
-         'bar_config_update_cb'),
-        ('bar.state.unencrypted',
-         'shown in status bar when conversation is not encrypted', '!SEC',
-         'bar_config_update_cb'),
-        ('bar.state.authenticated',
-         'shown in status bar when peer is authenticated', 'AUTH',
-         'bar_config_update_cb'),
-        ('bar.state.unauthenticated',
-         'shown in status bar when peer is not authenticated', '!AUTH',
-         'bar_config_update_cb'),
-        ('bar.state.logged',
-         'shown in status bar when peer conversation is being logged to disk',
-         'LOG',
-         'bar_config_update_cb'),
-        ('bar.state.notlogged',
-         'shown in status bar when peer conversation is not being logged to disk',
-         '!LOG',
-         'bar_config_update_cb'),
-        ('bar.state.separator', 'separator for states in the status bar', ',',
-         'bar_config_update_cb'),
-        ('prefix', 'prefix used for messages from otr (note: content is evaluated, see /help eval)',
-         '${color:default}:! ${color:brown}otr${color:default} !:', ''),
+            ('bar.prefix',
+             'prefix for OTR status bar item',
+             'OTR:',
+             'bar_config_update_cb'),
+            ('bar.state.encrypted',
+             'shown in status bar when conversation is encrypted',
+             'SEC',
+             'bar_config_update_cb'),
+            ('bar.state.unencrypted',
+             'shown in status bar when conversation is not encrypted',
+             '!SEC',
+             'bar_config_update_cb'),
+            ('bar.state.authenticated',
+             'shown in status bar when peer is authenticated',
+             'AUTH',
+             'bar_config_update_cb'),
+            ('bar.state.unauthenticated',
+             'shown in status bar when peer is not authenticated',
+             '!AUTH',
+             'bar_config_update_cb'),
+            ('bar.state.logged',
+             'shown in status bar when peer conversation is being logged to '
+             'disk',
+             'LOG',
+             'bar_config_update_cb'),
+            ('bar.state.notlogged',
+             'shown in status bar when peer conversation is not being logged '
+             'to disk',
+             '!LOG',
+             'bar_config_update_cb'),
+            ('bar.state.separator',
+             'separator for states in the status bar',
+             ',',
+             'bar_config_update_cb'),
+            ('prefix',
+             'prefix used for messages from otr (note: content is evaluated, '
+             'see /help eval)',
+             '${color:default}:! ${color:brown}otr${color:default} !:',
+             ''),
         ]:
         weechat.config_new_option(
             CONFIG_FILE, CONFIG_SECTIONS['look'], option, 'string', desc, '',
@@ -1908,13 +1968,24 @@ def init_config():
         'policy_create_option_cb', '', '', '')
 
     for option, desc, default in [
-        ('default.allow_v2', 'default allow OTR v2 policy', 'on'),
-        ('default.require_encryption', 'default require encryption policy',
-         'off'),
-        ('default.log', 'default enable logging to disk', 'off'),
-        ('default.send_tag', 'default send tag policy', 'off'),
-        ('default.html_escape', 'default HTML escape policy', 'off'),
-        ('default.html_filter', 'default HTML filter policy', 'on'),
+            ('default.allow_v2',
+             'default allow OTR v2 policy',
+             'on'),
+            ('default.require_encryption',
+             'default require encryption policy',
+             'off'),
+            ('default.log',
+             'default enable logging to disk',
+             'off'),
+            ('default.send_tag',
+             'default send tag policy',
+             'off'),
+            ('default.html_escape',
+             'default HTML escape policy',
+             'off'),
+            ('default.html_filter',
+             'default HTML filter policy',
+             'on'),
         ]:
         weechat.config_new_option(
             CONFIG_FILE, CONFIG_SECTIONS['policy'], option, 'boolean', desc, '',
@@ -1973,42 +2044,42 @@ def weechat_version_ok():
         error_message = (
             '{script_name} requires WeeChat version >= 0.4.2. The current '
             'version is {current_version}.').format(
-            script_name=SCRIPT_NAME,
-            current_version=weechat.info_get('version', ''))
+                script_name=SCRIPT_NAME,
+                current_version=weechat.info_get('version', ''))
         prnt('', error_message)
         return False
-    else:
-        return True
+    return True
 
 SCRIPT_VERSION = git_info() or SCRIPT_VERSION
 
 def dependency_versions():
     """Return a string containing the versions of all dependencies."""
     return ('weechat-otr {script_version}, '
-        'potr {potr_major}.{potr_minor}.{potr_patch}-{potr_sub}, '
-        'Python {python_version}, '
-        'WeeChat {weechat_version}'
-        ).format(
-        script_version=SCRIPT_VERSION,
-        potr_major=potr.VERSION[0],
-        potr_minor=potr.VERSION[1],
-        potr_patch=potr.VERSION[2],
-        potr_sub=potr.VERSION[3],
-        python_version=platform.python_version(),
-        weechat_version=weechat.info_get('version', ''))
+            'potr {potr_major}.{potr_minor}.{potr_patch}-{potr_sub}, '
+            'Python {python_version}, '
+            'WeeChat {weechat_version}'
+           ).format(
+               script_version=SCRIPT_VERSION,
+               potr_major=potr.VERSION[0],
+               potr_minor=potr.VERSION[1],
+               potr_patch=potr.VERSION[2],
+               potr_sub=potr.VERSION[3],
+               python_version=platform.python_version(),
+               weechat_version=weechat.info_get('version', ''))
 
-def excepthook(typ, value, traceback):
+def excepthook(typ, value, tracebak):
+    """Add dependency versions to tracebacks."""
     sys.stderr.write('Versions: ')
     sys.stderr.write(dependency_versions())
     sys.stderr.write('\n')
 
-    sys.__excepthook__(typ, value, traceback)
+    sys.__excepthook__(typ, value, tracebak)
 
 sys.excepthook = excepthook
 
 if weechat.register(
-    SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENCE, SCRIPT_DESC,
-    'shutdown', ''):
+        SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENCE, SCRIPT_DESC,
+        'shutdown', ''):
     if weechat_version_ok():
         init_config()
 
