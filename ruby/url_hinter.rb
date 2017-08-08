@@ -372,6 +372,6 @@ class Line
   end
 
   def urls
-    remove_color_message.scan(/https?:\/\/[^ 　\(\)\r\n]*/).uniq
+      remove_color_message.encode("UTF-8", invalid: :replace, undef: :replace).scan(/https?:\/\/[^ 　\(\)\r\n]*/).uniq
   end
 end
