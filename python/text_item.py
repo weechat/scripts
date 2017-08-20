@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2012-2016 by nils_2 <weechatter@arcor.de>
+# Copyright (c) 2012-2017 by nils_2 <weechatter@arcor.de>
 #
 # add a plain text or evaluated content to item bar
 #
@@ -16,6 +16,9 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# 2017-08-19: nils_2, (freenode.#weechat)
+#       0.7 : add type "!all", internal changes
 #
 # 2016-12-12: nils_2, (freenode.#weechat)
 #       0.6 : fix problem with multiple windows (reported by Ram-Z)
@@ -50,7 +53,7 @@ except Exception:
 
 SCRIPT_NAME     = "text_item"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.6"
+SCRIPT_VERSION  = "0.7"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "add a plain text or evaluated content to item bar"
 
@@ -65,6 +68,7 @@ def add_hook(signal, item):
     # signal already exists?
     if signal in hooks:
         return
+#    weechat.prnt("","signal_type: %s" % signal)
     hooks[item] = weechat.hook_signal(signal, "bar_item_update", "")
 
 def unhook(hook):
@@ -76,19 +80,15 @@ def unhook(hook):
 def toggle_refresh(pointer, name, value):
     option_name = name[len('plugins.var.python.' + SCRIPT_NAME + '.'):]      # get optionname
 
-    # option was removed? remove bar_item from struct!
+    # option was removed? remove bar_item from struct
     if not weechat.config_get_plugin(option_name):
         ptr_bar = weechat.bar_item_search(option_name)
         if ptr_bar:
             weechat.bar_item_remove(ptr_bar)
-            return weechat.WEECHAT_RC_OK
-        else:
-            return weechat.WEECHAT_RC_OK
+        return weechat.WEECHAT_RC_OK
 
-    # check if option is new or simply changed
-    if weechat.bar_item_search(option_name):
-        weechat.bar_item_update(option_name)
-    else:
+    # check if option is new or changed
+    if not weechat.bar_item_search(option_name):
         weechat.bar_item_new(option_name,'update_item',option_name)
 
     weechat.bar_item_update(option_name)
@@ -122,18 +122,14 @@ def update_item (data, item, window):
         window = weechat.current_window()
 
     value = weechat.config_get_plugin(data)
-
-    if value:
-        value = check_buffer_type(window, data, value)
-    else:
-        return ""
-
     if not value:
         return ""
 
+    value = check_buffer_type(window, data, value)
+
     return substitute_colors(value,window)
 
-# update item
+# update item from weechat.hook_signal()
 def bar_item_update(signal, callback, callback_data):
     ptr_infolist_option = weechat.infolist_get('option','','plugins.var.python.' + SCRIPT_NAME + '.*')
 
@@ -184,6 +180,10 @@ def check_buffer_type(window, data, value):
 
     if channel_type == 'all' or weechat.buffer_get_string(bufpointer,'localvar_type') == channel_type:
         return value
+    if channel_type == '!all':
+        a = ["channel","server","private"]
+        if weechat.buffer_get_string(bufpointer,'localvar_type') in a:
+            return value
     return ""
 
 # ================================[ main ]===============================
@@ -195,19 +195,20 @@ if __name__ == "__main__":
                         '===========\n'
                         'Template:\n'
                         '/set plugins.var.python.text_item.<item_name> <type>|<signal> <${color:name/number}><text>\n\n'
-                        '   type : all, channel, server, private\n'
-                        '   (you can use: /buffer localvar)\n\n'
-                        '   signal (eg.): buffer_switch, buffer_closing, print, \n'
+                        '   type : all, channel, server, private and !all (take effect on channel, server and private buffer)\n'
+                        '   (see: /buffer localvar)\n\n'
+                        '   signal (eg.): buffer_switch, buffer_closing, print, mouse_enabled\n'
                         '   (for a list of all possible signals, see API doc weechat_hook_signal())\n\n'
-                        'Example:\n'
-                        '=======\n'
+                        'Examples:\n'
                         'creates an option for a text item named "nick_text". The item will be created for "channel" buffers. '
                         'The text displayed in the status-bar is "Nicks:" (yellow colored!):\n'
                         '   /set plugins.var.python.text_item.nick_text "channel ${color:yellow}Nicks:"\n\n'
                         'now you have to add the item "nick_text" to the bar.items (use auto-completion or iset.pl!)\n'
                         '   /set weechat.bar.status.items nick_text\n\n'
-                        'creates an option to display the terminal width and height in an item bar. item will be updated on signal "signal_sigwinch"\n'
-                        '   /set plugins.var.python.text_item.dimension "all|signal_sigwinch width: ${info:term_width} height: ${info:term_height}"\n',
+                        'creates an option to display the terminal width and height in an item bar. item will be updated on signal "signal_sigwinch":\n'
+                        '   /set plugins.var.python.text_item.dimension "all|signal_sigwinch width: ${info:term_width} height: ${info:term_height}"\n'
+                        'creates an option to display the status from "/filter toggle" and "/filter toggle @" command, item name is "filter_item":\n'
+                        '   /set plugins.var.python.text_item.filter_item "!all|*filters* ${if:${info:filters_enabled}==1?${color:yellow}F:${color:243}F}${if:${buffer.filter}==1?${color:yellow}@:${color:243}@}"\n',
                         '',
                         '',
                         '')
