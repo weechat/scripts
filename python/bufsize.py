@@ -18,8 +18,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2017-08-17: nils_2 (freenode.#weechat)
+#        0.8: add support for buffer_filters_enabled and buffer_filters_disabled (WeeChat ≥ 2.0)
 # 2016-12-16: nils_2 (freenode.#weechat)
-#       0.7: add option show_scroll (idea by earnestly)
+#        0.7: add option show_scroll (idea by earnestly)
 # 2016-04-23: wdbw <tuturu@tutanota.com>
 #     0.6.2 : fix: type of filters_enabled
 # 2014-02-24: nesthib (freenode.#weechat)
@@ -56,7 +58,7 @@ except Exception:
 
 SCRIPT_NAME     = "bufsize"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.7"
+SCRIPT_VERSION  = "0.8"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "scroll indicator; displaying number of lines below last line, overall lines in buffer, number of current line and percent displayed"
 
@@ -235,7 +237,7 @@ if __name__ == "__main__":
             weechat.hook_signal('buffer_line_added','update_cb','')
             weechat.hook_signal('window_scrolled','update_cb','')
             weechat.hook_signal('buffer_switch','update_cb','')
-            weechat.hook_signal('filters_*','filtered_update_cb','')
+            weechat.hook_signal('*filters*','filtered_update_cb','')
             weechat.hook_command_run('/buffer clear*','update_cb','')
             weechat.hook_command_run('/window page*','update_cb','')
             weechat.hook_command_run('/input zoom_merged_buffer','update_cb','')
