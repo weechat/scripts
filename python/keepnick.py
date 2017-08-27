@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2012-2014 by nils_2 <weechatter@arcor.de>
+# Copyright (c) 2012-2017 by nils_2 <weechatter@arcor.de>
 # Copyright (c) 2006 by EgS <i@egs.name>
 #
 # script to keep your nick and recover it in case it's occupied
@@ -17,6 +17,11 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# 2017-08-17: nils_2 (freenode.#weechat)
+#       1.4 : eval_expression for nicks
+#           : use irc.server.<servername>.password
+#           ; add short /help
 #
 # 2016-05-12: picasso (freenode.#weechat)
 #       1.3 : monitor quits and nick changes
@@ -46,7 +51,7 @@
 # 2012-02-08: nils_2, (freenode.#weechat)
 #       0.5 : sync with 0.3.x API (requested by CAHbI4)
 #
-# requires: WeeChat version 0.3.4
+# requires: WeeChat version 0.4.2
 #
 # Development is currently hosted at
 # https://github.com/weechatter/weechat-scripts
@@ -82,7 +87,7 @@ except Exception:
 # -------------------------------[ Constants ]-------------------------------------
 SCRIPT_NAME     = "keepnick"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "1.3"
+SCRIPT_VERSION  = "1.4"
 SCRIPT_LICENCE  = "GPL3"
 SCRIPT_DESC     = "keep your nick and recover it in case it's occupied"
 
@@ -92,8 +97,8 @@ OPTIONS         =       { 'delay'       : ('600','delay (in seconds) to look at 
                           'timeout'     : ('60','timeout (in seconds) to wait for an answer from server.'),
                           'serverlist'  : ('','comma separated list of servers to look at. Try to register a nickname on server (see: /msg NickServ help).regular expression are allowed (eg. ".*" = matches ALL server,"freen.*" = matches freenode, freenet....)'),
                           'text'        : ('Nickstealer left Network: %s!','text that will be displayed if your nick will not be occupied anymore. (\"%s\" is a placeholder for the servername)'),
-                          'nickserv'    : ('/msg -server $server NICKSERV IDENTIFY $passwd','Use SASL authentification, if possible. This command will be used to IDENTIFY you on server (following placeholder can be used: \"$server\" for servername; \"$passwd\" for password. The password will be stored in a separate option for every single server: \"plugins.var.python.%s.<servername>.password\"). Using the "/secure" function, you\'ll have to add a format described in "/help secure" to password option (eg: ${sec.data.keepnick_freenode_password})' %  SCRIPT_NAME),
-                          'command'     : ('/nick %s','This command will be used to rename your nick (\"%s\" will be filled with your nickname for specific server)'),
+                          'nickserv'    : ('/msg -server $server NICKSERV IDENTIFY $passwd','Use SASL authentification, if possible. This command will be used to IDENTIFY you on server (following placeholder can be used: \"$server\" for servername; \"$passwd\" for password). You can create an option for every server to store password: \"plugins.var.python.%s.<servername>.password\", otherwise the \"irc.server.<servername>.password\" option will be used.' % SCRIPT_NAME),
+                          'command'     : ('/nick %s','This command will be used to rename your nick (\"%s\" will be replaced with your nickname)'),
                           'debug'       : ('off', 'When enabled, will output verbose debugging information during script operation'),
                         }
 HOOK            =       { 'timer': '', 'redirect': '', 'quit': '', 'nick': '' }
@@ -103,7 +108,7 @@ HOOK            =       { 'timer': '', 'redirect': '', 'quit': '', 'nick': '' }
 # calling /ison all x seconds using hook:timer()
 def ison(servername,nick,nicklist):
     command = ISON % ' '.join(nicklist)
-    debug_print("Checking nicks with command: %s" % command)
+    debug_print("Checking nicks on server %s with command: %s" % (servername, command) )
     weechat.hook_hsignal_send('irc_redirect_command',
                                   { 'server': servername, 'pattern': 'ison', 'signal': SCRIPT_NAME, 'count': '1', 'string': servername, 'timeout': OPTIONS['timeout'], 'cmd_filter': '' })
     weechat.hook_signal_send('irc_input_send', weechat.WEECHAT_HOOK_SIGNAL_STRING, '%s;;;;%s' % (servername,command))
@@ -119,7 +124,7 @@ def redirect_isonhandler(data, signal, hashtable):
     ISON_nicks = [nick.lower() for nick in ISON_nicks.split()]
 
     for nick in server_nicks(hashtable['server']):
-        mynick = weechat.info_get('irc_nick',hashtable['server'])
+        mynick = string_eval_expression( weechat.info_get('irc_nick',hashtable['server']) )
 
         if nick.lower() == mynick.lower():
             debug_print("I already have nick %s; not changing" % mynick)
@@ -196,14 +201,10 @@ def my_nick_on_server(servername):
 
 def grabnick_and_auth(servername, nick):
     global OPTIONS
-    # get password for given server (evaluated)
-    if int(version) >= 0x00040200:
-        password = weechat.string_eval_expression(
-            weechat.config_get_plugin('%s.password' % servername), {},
-            {}, {})
-    else:
-        password = weechat.config_get_plugin(
-            '%s.password' % servername)
+
+    password = string_eval_expression( weechat.config_get_plugin('%s.password' % servername) )
+    if not password:
+        password = string_eval_expression( weechat.config_get("irc.server.%s.password" % servername) )
 
     grabnick(servername, nick)  # get your nick back
 
@@ -212,6 +213,9 @@ def grabnick_and_auth(servername, nick):
         t = Template(OPTIONS['nickserv'])
         run_msg = t.safe_substitute(server=servername, passwd=password)
         weechat.command('', run_msg)
+
+def string_eval_expression(string):
+    return weechat.string_eval_expression(string,{},{},{})
 
 def grabnick(servername, nick):
     if nick and servername:
@@ -277,16 +281,27 @@ def toggle_refresh(pointer, name, value):
             remove_hooks()                                                  # user switched timer off
     return weechat.WEECHAT_RC_OK
 
+def print_usage(data, buffer, args):
+    weechat.prnt(buffer, "%s\t%s: script already running..." % ( string_eval_expression(weechat.config_string(weechat.config_get("weechat.look.prefix_error"))), SCRIPT_NAME) )
+    return weechat.WEECHAT_RC_OK
+
 # ================================[ main ]===============================
 if __name__ == '__main__':
-    weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENCE, SCRIPT_DESC, '','')
+    if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENCE, SCRIPT_DESC, '',''):
+        weechat.hook_command(SCRIPT_NAME,SCRIPT_DESC,
+                        '',
+                        'You have to edit options with: /set *keepnick*\n'
+                        'I suggest using /iset script or /fset plugin.\n',
+                        '',
+                        'print_usage',
+                        '')
 
-    version = weechat.info_get("version_number", "") or 0
-    if int(version) >= 0x00030400:
-        if int(OPTIONS['delay'][0]) > 0 and int(OPTIONS['timeout'][0]) > 0:
-            init_options()
-            install_hooks()
-            weechat.hook_config( 'plugins.var.python.' + SCRIPT_NAME + '.*', 'toggle_refresh', '' )
-    else:
-        weechat.prnt('','%s%s %s' % (weechat.prefix('error'),SCRIPT_NAME,': needs version 0.3.4 or higher'))
-        weechat.command('','/wait 1ms /python unload %s' % SCRIPT_NAME)
+        version = weechat.info_get("version_number", "") or 0
+        if int(version) >= 0x00040200:
+            if int(OPTIONS['delay'][0]) > 0 and int(OPTIONS['timeout'][0]) > 0:
+                init_options()
+                install_hooks()
+                weechat.hook_config( 'plugins.var.python.' + SCRIPT_NAME + '.*', 'toggle_refresh', '' )
+        else:
+            weechat.prnt('','%s%s %s' % (weechat.prefix('error'),SCRIPT_NAME,': needs version 0.4.2 or higher'))
+            weechat.command('','/wait 1ms /python unload %s' % SCRIPT_NAME)
