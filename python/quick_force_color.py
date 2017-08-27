@@ -17,6 +17,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2017-08-17: nils_2,(freenode.#weechat)
+#      0.6.1: print nicks in sorted order
 # 2017-05-18: ticalc-travis (https://github.com/weechatter/weechat-scripts/pull/18)
 #       0.6 : Clean up some redundant code
 #           : Add nicks to irc.look.nick_color_force in sorted order for easier manual editing
@@ -56,7 +58,7 @@ except Exception:
 
 SCRIPT_NAME     = "quick_force_color"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.6"
+SCRIPT_VERSION  = "0.6.1"
 SCRIPT_LICENSE  = "GPL3"
 SCRIPT_DESC     = "quickly add/del/change entry in nick_color_force"
 
@@ -102,7 +104,8 @@ def nick_colors_cmd_cb(data, buffer, args):
 
         else:
             weechat.prnt(buffer,"List of nicks in : %s" % nick_option)
-            for nick,color in list(colored_nicks.items()):
+
+            for nick,color in sorted(list(colored_nicks.items())):
                 weechat.prnt(buffer,"%s%s: %s" % (weechat.color(color),nick,color))
 
     elif (argv[0].lower() == 'add') and (len(argv) == 3):
