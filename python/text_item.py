@@ -17,6 +17,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2017-08-23: nils_2, (freenode.#weechat)
+#     0.7.1 : improve /help text
+#
 # 2017-08-19: nils_2, (freenode.#weechat)
 #       0.7 : add type "!all", internal changes
 #
@@ -53,7 +56,7 @@ except Exception:
 
 SCRIPT_NAME     = "text_item"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.7"
+SCRIPT_VERSION  = "0.7.1"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "add a plain text or evaluated content to item bar"
 
@@ -68,7 +71,6 @@ def add_hook(signal, item):
     # signal already exists?
     if signal in hooks:
         return
-#    weechat.prnt("","signal_type: %s" % signal)
     hooks[item] = weechat.hook_signal(signal, "bar_item_update", "")
 
 def unhook(hook):
@@ -195,7 +197,7 @@ if __name__ == "__main__":
                         '===========\n'
                         'Template:\n'
                         '/set plugins.var.python.text_item.<item_name> <type>|<signal> <${color:name/number}><text>\n\n'
-                        '   type : all, channel, server, private and !all (take effect on channel, server and private buffer)\n'
+                        '   type : channel, server, private, all (all kind of buffers e.g. /color, /fset...) and !all (channel, server and private buffer)\n'
                         '   (see: /buffer localvar)\n\n'
                         '   signal (eg.): buffer_switch, buffer_closing, print, mouse_enabled\n'
                         '   (for a list of all possible signals, see API doc weechat_hook_signal())\n\n'
