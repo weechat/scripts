@@ -19,6 +19,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # 2017-08-17: nils_2 (freenode.#weechat)
+#      1.4.1: fix eval_expression for nicks
+#           : add evaluation for options
+#
+# 2017-08-17: nils_2 (freenode.#weechat)
 #       1.4 : eval_expression for nicks
 #           : use irc.server.<servername>.password
 #           ; add short /help
@@ -87,7 +91,7 @@ except Exception:
 # -------------------------------[ Constants ]-------------------------------------
 SCRIPT_NAME     = "keepnick"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "1.4"
+SCRIPT_VERSION  = "1.4.1"
 SCRIPT_LICENCE  = "GPL3"
 SCRIPT_DESC     = "keep your nick and recover it in case it's occupied"
 
@@ -95,9 +99,9 @@ ISON            = '/ison %s'
 
 OPTIONS         =       { 'delay'       : ('600','delay (in seconds) to look at occupied nick (0 means OFF). It is not recommended to flood the server with /ison requests)'),
                           'timeout'     : ('60','timeout (in seconds) to wait for an answer from server.'),
-                          'serverlist'  : ('','comma separated list of servers to look at. Try to register a nickname on server (see: /msg NickServ help).regular expression are allowed (eg. ".*" = matches ALL server,"freen.*" = matches freenode, freenet....)'),
+                          'serverlist'  : ('','comma separated list of servers to look at. Try to register a nickname on server (see: /msg NickServ help).regular expression are allowed (eg. ".*" = matches ALL server,"freen.*" = matches freenode, freenet....) (this option is evaluated).'),
                           'text'        : ('Nickstealer left Network: %s!','text that will be displayed if your nick will not be occupied anymore. (\"%s\" is a placeholder for the servername)'),
-                          'nickserv'    : ('/msg -server $server NICKSERV IDENTIFY $passwd','Use SASL authentification, if possible. This command will be used to IDENTIFY you on server (following placeholder can be used: \"$server\" for servername; \"$passwd\" for password). You can create an option for every server to store password: \"plugins.var.python.%s.<servername>.password\", otherwise the \"irc.server.<servername>.password\" option will be used.' % SCRIPT_NAME),
+                          'nickserv'    : ('/msg -server $server NICKSERV IDENTIFY $passwd','Use SASL authentification, if possible. This command will be used to IDENTIFY you on server (following placeholder can be used: \"$server\" for servername; \"$passwd\" for password). You can create an option for every server to store password: \"plugins.var.python.%s.<servername>.password\", otherwise the \"irc.server.<servername>.password\" option will be used (this option is evaluated).' % SCRIPT_NAME),
                           'command'     : ('/nick %s','This command will be used to rename your nick (\"%s\" will be replaced with your nickname)'),
                           'debug'       : ('off', 'When enabled, will output verbose debugging information during script operation'),
                         }
@@ -124,7 +128,7 @@ def redirect_isonhandler(data, signal, hashtable):
     ISON_nicks = [nick.lower() for nick in ISON_nicks.split()]
 
     for nick in server_nicks(hashtable['server']):
-        mynick = string_eval_expression( weechat.info_get('irc_nick',hashtable['server']) )
+        mynick = weechat.info_get('irc_nick',hashtable['server'])           # current nick on server
 
         if nick.lower() == mynick.lower():
             debug_print("I already have nick %s; not changing" % mynick)
@@ -139,14 +143,15 @@ def redirect_isonhandler(data, signal, hashtable):
 def server_nicks(servername):
     infolist = weechat.infolist_get('irc_server','',servername)
     weechat.infolist_next(infolist)
-    nicks = weechat.infolist_string(infolist, 'nicks')
+    nicks = string_eval_expression( weechat.infolist_string(infolist, 'nicks') )    # nicks in config
     weechat.infolist_free(infolist)
     return nicks.split(',')
 
 def server_enabled(servername):
-    serverlist = OPTIONS['serverlist'].split(',')
-    server_matched = re.search(r"\b({})\b".format("|".join(serverlist)),
-                               servername)
+    serverlist = string_eval_expression( OPTIONS['serverlist'] ).split(',')
+
+    server_matched = re.search(r"\b({})\b".format("|".join(serverlist)),servername)
+
     if servername in serverlist or server_matched:
         return True
     else:
@@ -210,7 +215,7 @@ def grabnick_and_auth(servername, nick):
 
     if password != '' and OPTIONS['nickserv'] != '':
         # command stored in "keepnick.nickserv" option
-        t = Template(OPTIONS['nickserv'])
+        t = Template(string_eval_expression( OPTIONS['nickserv']) )
         run_msg = t.safe_substitute(server=servername, passwd=password)
         weechat.command('', run_msg)
 
