@@ -35,7 +35,7 @@ require 'singleton'
 # Register url-hinter plugin to weechat and do initialization.
 #
 def weechat_init
-  Weechat.register('url_hinter', 'Kengo Tateish', '0.3', 'GPL3', 'Open an url in the weechat buffer to type a hint', '', '')
+  Weechat.register('url_hinter', 'Kengo Tateish', '0.4', 'GPL3', 'Open an url in the weechat buffer to type a hint', '', '')
   Weechat.hook_command(
     'url_hinter',
     'Search url strings, and highlight them, and if you type a hint key, open the url related to hint key.',
@@ -372,6 +372,6 @@ class Line
   end
 
   def urls
-    remove_color_message.scan(/https?:\/\/[^ 　\(\)\r\n]*/).uniq
+    remove_color_message.encode("UTF-8", invalid: :replace, undef: :replace).scan(/https?:\/\/[^ 　\(\)\r\n]*/).uniq
   end
 end
