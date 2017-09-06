@@ -18,6 +18,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2017-09-06: nils_2 (freenode.#weechat)
+#      1.4.2: fix missing weechat.config_string()
+#
 # 2017-08-17: nils_2 (freenode.#weechat)
 #      1.4.1: fix eval_expression for nicks
 #           : add evaluation for options
@@ -91,7 +94,7 @@ except Exception:
 # -------------------------------[ Constants ]-------------------------------------
 SCRIPT_NAME     = "keepnick"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "1.4.1"
+SCRIPT_VERSION  = "1.4.2"
 SCRIPT_LICENCE  = "GPL3"
 SCRIPT_DESC     = "keep your nick and recover it in case it's occupied"
 
@@ -209,7 +212,7 @@ def grabnick_and_auth(servername, nick):
 
     password = string_eval_expression( weechat.config_get_plugin('%s.password' % servername) )
     if not password:
-        password = string_eval_expression( weechat.config_get("irc.server.%s.password" % servername) )
+        password = string_eval_expression( weechat.config_string(weechat.config_get("irc.server.%s.password" % servername)) )
 
     grabnick(servername, nick)  # get your nick back
 
