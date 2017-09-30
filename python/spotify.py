@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#Copyright (c) 2009 by xt <xt@bash.no>
+# Copyright (c) 2009 by xt <xt@bash.no>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,6 +24,8 @@
 #
 #
 # History:
+# 2017-09-30, butlerx
+#   version 0.9: Add support for oauth keys being stored in secure data
 # 2017-06-02, butlerx
 #   version 0.8: add now required oauth support
 # 2016-01-22, creadak
@@ -43,48 +45,66 @@
 #     version 0.1: initial
 #
 
-import re
 import datetime
-import weechat as w
+import re
+
 import spotipy
+import weechat as w
 from spotipy.oauth2 import SpotifyClientCredentials
 
-SCRIPT_NAME    = "spotify"
-SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.8"
+SCRIPT_NAME = "spotify"
+SCRIPT_AUTHOR = "xt <xt@bash.no>"
+SCRIPT_VERSION = "0.9"
 SCRIPT_LICENSE = "GPL"
-SCRIPT_DESC    = "Look up spotify urls"
+SCRIPT_DESC = "Look up spotify urls"
 
 settings = {
-    "buffers"       : 'freenode.#mychan,',     # comma separated list of buffers
-    "emit_notice"   : 'off',                   # on or off, use notice or msg
-    "client_id"     : 'client_id',
-    "client_secret" : 'client_secret'
+    "buffers": 'freenode.#mychan,',  # comma separated list of buffers
+    "emit_notice": 'off',  # on or off, use notice or msg
+    "client_id": 'client_id',
+    "client_secret": 'client_secret'
 }
 
 settings_help = {
-    "buffers"       : 'A comma separated list of buffers the script should check',
-    "emit_notice"   : 'If on, this script will use /notice, if off, it will use /msg to post info',
-    "client_id"     : 'required client id token go to https://developer.spotify.com/my-applications/#!/applications to generate your own',
-    "client_secret" : 'required client secret token go to https://developer.spotify.com/my-applications/#!/applications to generate your own'
+    "buffers":
+    'A comma separated list of buffers the script should check',
+    "emit_notice":
+    'If on, this script will use /notice, if off, it will use /msg to post info',
+    "client_id":
+    'required client id token go to https://developer.spotify.com/my-applications/#!/applications to generate your own',
+    "client_secret":
+    'required client secret token go to https://developer.spotify.com/my-applications/#!/applications to generate your own'
 }
 
-spotify_track_res = (re.compile(r'spotify:(?P<type>\w+):(?P<id>\w{22})'),
-                     re.compile(r'https?://open.spotify.com/(?P<type>\w+)/(?P<id>\w{22})'))
+spotify_track_res = (
+    re.compile(r'spotify:(?P<type>\w+):(?P<id>\w{22})'),
+    re.compile(r'https?://open.spotify.com/(?P<type>\w+)/(?P<id>\w{22})'))
+
 
 def get_spotify_ids(s):
     for r in spotify_track_res:
         for type, track in r.findall(s):
             yield type, track
 
+
+def get_oauth(arg):
+    token = w.config_get_plugin(arg)
+    if token.startswith('${sec.data'):
+        return w.string_eval_expression(token, {}, {}, {})
+    else:
+        return token
+
+
 def parse_response(data, type):
     if type == 'track':
         name = data['name']
         album = data['album']['name']
         artist = data['artists'][0]['name']
-        duration = str(datetime.timedelta(milliseconds=data['duration_ms'])).split('.')[0]
+        duration = str(
+            datetime.timedelta(milliseconds=data['duration_ms'])).split('.')[0]
         popularity = data['popularity']
-        return "%s - %s / %s %s %d%%" % (artist, name, album, duration, popularity)
+        return "%s - %s / %s %s %d%%" % (artist, name, album, duration,
+                                         popularity)
     elif type == 'album':
         name = data['name']
         artist = data['artists'][0]['name']
@@ -94,25 +114,32 @@ def parse_response(data, type):
         for track in data['tracks']['items']:
             length += track['duration_ms']
         duration = str(datetime.timedelta(milliseconds=length)).split('.')[0]
-        return "%s - %s (%s) - %d tracks (%s)" % (artist, name, released, tracks, duration)
+        return "%s - %s (%s) - %d tracks (%s)" % (artist, name, released,
+                                                  tracks, duration)
     elif type == 'artist':
         name = data['name']
         followers = data['followers']['total']
         return "%s - %s followers" % (name, followers)
 
-def spotify_print_cb(data, buffer, time, tags, displayed, highlight, prefix, message):
+
+def spotify_print_cb(data, buffer, time, tags, displayed, highlight, prefix,
+                     message):
     notice = w.config_get_plugin('emit_notice')
     buffer_name = w.buffer_get_string(buffer, "name")
     server, channel = buffer_name.split('.')
     buffers_to_check = w.config_get_plugin('buffers').split(',')
-    client_credentials_manager = SpotifyClientCredentials(w.config_get_plugin('client_id'), w.config_get_plugin('client_secret'))
-    spotify = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
+    client_credentials_manager = SpotifyClientCredentials(
+        get_oauth('client_id'), get_oauth('client_secret'))
+    spotify = spotipy.Spotify(
+        client_credentials_manager=client_credentials_manager)
 
     command = "msg"
     if notice == "on":
         command = "notice"
 
-    if buffer_name.lower() not in [buffer.lower() for buffer in buffers_to_check]:
+    if buffer_name.lower() not in [
+            buffer.lower() for buffer in buffers_to_check
+    ]:
         return w.WEECHAT_RC_OK
 
     for type, id in get_spotify_ids(message):
@@ -123,9 +150,10 @@ def spotify_print_cb(data, buffer, time, tags, displayed, highlight, prefix, mes
         elif type == 'artist':
             results = spotify.artist(id)
         reply = parse_response(results, type)
-        w.command('', "/%s -server %s %s %s" % (command, server, channel, reply))
-
+        w.command('', "/%s -server %s %s %s" % (command, server, channel,
+                                                reply))
     return w.WEECHAT_RC_OK
+
 
 if __name__ == "__main__":
     if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
