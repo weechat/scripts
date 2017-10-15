@@ -18,6 +18,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2017-10-14: Kaijo & nils_2 (freenode.#weechat)
+#       1.5 : fix empty string breaks output
+#           : add evaluation for option "text" and use variable "$server" instead of "%s"
+#
 # 2017-09-06: nils_2 (freenode.#weechat)
 #      1.4.2: fix missing weechat.config_string()
 #
@@ -94,7 +98,7 @@ except Exception:
 # -------------------------------[ Constants ]-------------------------------------
 SCRIPT_NAME     = "keepnick"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "1.4.2"
+SCRIPT_VERSION  = "1.5"
 SCRIPT_LICENCE  = "GPL3"
 SCRIPT_DESC     = "keep your nick and recover it in case it's occupied"
 
@@ -103,7 +107,7 @@ ISON            = '/ison %s'
 OPTIONS         =       { 'delay'       : ('600','delay (in seconds) to look at occupied nick (0 means OFF). It is not recommended to flood the server with /ison requests)'),
                           'timeout'     : ('60','timeout (in seconds) to wait for an answer from server.'),
                           'serverlist'  : ('','comma separated list of servers to look at. Try to register a nickname on server (see: /msg NickServ help).regular expression are allowed (eg. ".*" = matches ALL server,"freen.*" = matches freenode, freenet....) (this option is evaluated).'),
-                          'text'        : ('Nickstealer left Network: %s!','text that will be displayed if your nick will not be occupied anymore. (\"%s\" is a placeholder for the servername)'),
+                          'text'        : ('Nickstealer left Network: $server!','text to display, when you get your nick back. (\"$server and $nick\" can be used) (this option is evaluated).'),
                           'nickserv'    : ('/msg -server $server NICKSERV IDENTIFY $passwd','Use SASL authentification, if possible. This command will be used to IDENTIFY you on server (following placeholder can be used: \"$server\" for servername; \"$passwd\" for password). You can create an option for every server to store password: \"plugins.var.python.%s.<servername>.password\", otherwise the \"irc.server.<servername>.password\" option will be used (this option is evaluated).' % SCRIPT_NAME),
                           'command'     : ('/nick %s','This command will be used to rename your nick (\"%s\" will be replaced with your nickname)'),
                           'debug'       : ('off', 'When enabled, will output verbose debugging information during script operation'),
@@ -227,7 +231,10 @@ def string_eval_expression(string):
 
 def grabnick(servername, nick):
     if nick and servername:
-        weechat.prnt(weechat.current_buffer(),OPTIONS['text'] % servername)
+        if OPTIONS['text']:
+            t = Template( string_eval_expression(OPTIONS['text']) )
+            text = t.safe_substitute(server=servername, nick=nick)
+            weechat.prnt(weechat.current_buffer(), text)
         weechat.command(weechat.buffer_search('irc','%s.%s' % ('server',servername)), OPTIONS['command'] % nick)
 
 # ================================[ weechat hook ]===============================
