@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-# 
+#
 use IO::Socket::INET;
 use WWW::Curl::Easy;
 use URI::Escape;
@@ -22,7 +22,7 @@ use URI::Escape;
 use strict;
 use vars qw( %cmode $strmon_buffer $command_buffer $strmon_help $version $daemon_file $strmon_tag );
 
-$version = "0.5.2";
+$version = "0.5.3";
 weechat::register( "strmon", "Stravy", $version, "GPL",
   "Messages monitoring and notifications", "", "" );
 
@@ -34,7 +34,7 @@ weechat::register( "strmon", "Stravy", $version, "GPL",
 $strmon_tag='strmon_message';
 
 $daemon_file=<<'AFP';
-#!/usr/bin/perl  
+#!/usr/bin/perl
 #
 # Copyright (c) 2009 by Stravy <stravy@gmail.com>
 #
@@ -61,7 +61,7 @@ $daemon_file=<<'AFP';
 #
 # Default directory to look for images is $HOME/.config/strmon_daemon/pics
 # Default directory to look for sounds is $HOME/.config/strmon_daemon/sounds
-# these directories can be manually changed in this script by modifying 
+# these directories can be manually changed in this script by modifying
 # variables $picdir and $sounddir
 #
   use strict;
@@ -72,7 +72,7 @@ $daemon_file=<<'AFP';
   use vars qw($VERSION @ISA $picdir $sounddir);
   $VERSION = '0.2';
   @ISA = qw(Net::Daemon); # to inherit from Net::Daemon
-  
+
   $picdir=$ENV{'HOME'}."/.config/strmon_daemon/pics";
   $sounddir=$ENV{'HOME'}."/.config/strmon_daemon/sounds";
 
@@ -103,7 +103,7 @@ $daemon_file=<<'AFP';
               $sock->close();
               return;
           }
-          $line =~ s/\s+$//; # Remove CRLF          
+          $line =~ s/\s+$//; # Remove CRLF
           my($rc);
           my $message=do_the_work($line);
           $rc = printf $sock ("$message\n");
@@ -138,7 +138,7 @@ $daemon_file=<<'AFP';
         }
     if ($unformated)
         {
-        $ret=do_unformated($ligne);        
+        $ret=do_unformated($ligne);
         } else
         {
         $ret=do_message($mod,$pic,$sound,$bgcolor,$fgcolor,$chancolor,$nickcolor,$nchan,$chan,$nick,$ligne);
@@ -173,16 +173,16 @@ $daemon_file=<<'AFP';
       $ret="Let's be silent";
       return $ret;
       } else
-      {      
+      {
       $text=format_text($text);
-      
+
       my $message="";
       $message="<b><font size=3 color='$chancolor'>$chan  </font></b>";
       $message.="<b><font size=3 color='$nickcolor'>$nick </font></b>";
       $pic=$picdir."/".$pic unless ($pic=~/^\//);
-      $message.="<img src='$pic'><br>";      
+      $message.="<img src='$pic'><br>";
       $message.="<font size=3>$text</font>";
-      
+
       unless ($mod==2)
         {
         my $command="notify-send \"$message\" ";
@@ -196,7 +196,7 @@ $daemon_file=<<'AFP';
         }
       $ret="Notification done";
       return $ret;
-      }    
+      }
     }
 
   sub do_unformated
@@ -207,7 +207,7 @@ $daemon_file=<<'AFP';
         {
         my @list=`ls $picdir`;
         chop @list;
-        $ret=join(",",@list);        
+        $ret=join(",",@list);
         } elsif ($ligne=~/^daemon soundlist/)
         {
         my @list=`ls $sounddir`;
@@ -257,9 +257,9 @@ tags (so can be private messages), buffers or specific nicknames.
 Although it can be run by itself, full advantage of strmon is achieved using
 companion script strmon_daemon.pl which allow sound and osd notifications, it
 is embedded in this script and can be generated with command :
-    /strmon daemon write 
+    /strmon daemon write
 that will write script strmon_daemon.pl into \$HOME.
-By default use of this daemon is deactivated, you can print current state, 
+By default use of this daemon is deactivated, you can print current state,
 enable or disable it with command:
     /strmon daemon [on|off]
 
@@ -270,7 +270,7 @@ strmon_daemon.pl also needs the following files to exist on local machine :
     \$HOME/.config/strmon_daemon/pics/default.png
     \$HOME/.config/strmon_daemon/sounds/default.ogg
 
-Principle of operation : 
+Principle of operation :
 1) start notification daemon strmon_daemon.pl on local machine.
 2) If you run weechat on the local machine, just load strmon.pl script into
 weechat and that's it.
@@ -281,10 +281,12 @@ this will redirect localhost:9867 on the remote machine to
 localhost:9867 on the local machine thus allowing strmon.pl weechat script
 to access the notification daemon on local machine.
 
-In this version, notifo support has been added (smartphone notification), 
-see http://notifo.com/ to get an account.
+In this version, notifo support (smartphone notification) has been replaced
+by 'Notify My Android' as notifo no longer exist.
+See https://www.notifymyandroid.com to get an account, unfortunately you will
+only have 5 notifications per day for the free version.
 
-strmon is configured by entering commands either with 
+strmon is configured by entering commands either with
      /strmon command
   in any buffer, either with
      command
@@ -319,7 +321,7 @@ is considered to be relative to \$HOME/.config/strmon_daemon/pics (res. /sounds)
   color {bgcolor|fgcolor|chanelcolor|nickcolor} color
     without argument : print default colors used for osd notifications
     with argument : set the specified color to be used as :
-        
+
         bgcolor     : color used as background
         fgcolor     : text color used for the content of the message
         chanelcolor : text color used for chanel name
@@ -331,15 +333,13 @@ is considered to be relative to \$HOME/.config/strmon_daemon/pics (res. /sounds)
             ex : color fgcolor #ffffff
                  color fgcolor black
 
-  notifo [on|off]
-  notifo test
-  notifo user [username]
-  notifo secret [API_secret]
-    without arguments : print current status of notifo use.
+  nma [on|off]
+  nma test
+  nma apikey [APIKEY]
+    without arguments : print current status of nma (Notify My Android) use.
     test : try to send a test notification
-    on|off : set use of notifo notifications
-    user [username] : print or set username for notifo account
-    secret [API_secret] : print or set user's api_secret for notifo account
+    on|off : set use of nma notifications
+    apikey [APIKEY] : print or set the apikey for nma account
 
   daemon [on|off]
   daemon write
@@ -351,7 +351,7 @@ is considered to be relative to \$HOME/.config/strmon_daemon/pics (res. /sounds)
     without arguments : print current status of daemon use. Note that if it
                         is 'off' the only other possible commands are on|off,
                         port and write.
-    on|off : set use of notification daemon 
+    on|off : set use of notification daemon
     write : will write file \$HOME/strmon_daemon.pl
     test : try to contact the server with a test notification
                         (bypassing default operation mode)
@@ -371,15 +371,15 @@ is considered to be relative to \$HOME/.config/strmon_daemon/pics (res. /sounds)
   sound
   sound soundfile
     without arguments : print current default sound
-    with argument : set the specified sound as default sound          
-  
+    with argument : set the specified sound as default sound
+
   nick nickname
   nick nickname test
-  nick nickname mode {normal|silent|nosound|novisual} 
+  nick nickname mode {normal|silent|nosound|novisual}
   nick nickname pic picfile
   nick nickname sound soundfile
   nick nickname {bgcolor|fgcolor|chanelcolor|nickcolor} color
-    without arguments : show options specific to one nickname    
+    without arguments : show options specific to one nickname
     with argument : set option specific to one nickname, or make
     a test notification from nickname.
 
@@ -412,7 +412,7 @@ is considered to be relative to \$HOME/.config/strmon_daemon/pics (res. /sounds)
                  renumbered after that.
     number {normal|silent|nosound|novisual} : set the notification mode
                  for the monitor given by its number
-    hl {on|off} [normal|silent|nosound|novisual] : activate/deactivate 
+    hl {on|off} [normal|silent|nosound|novisual] : activate/deactivate
                  monitoring of highlights and optionally set notification
                  mode.
     tag add tagname [normal|silent|nosound|novisual] : monitor messages
@@ -422,7 +422,7 @@ is considered to be relative to \$HOME/.config/strmon_daemon/pics (res. /sounds)
                  set notification mode.
     nick add nickname [normal|silent|nosound|novisual] : monitor messages
                  from the specified nickname
-  
+
 AFP
 
 $strmon_buffer = "";
@@ -447,7 +447,7 @@ sub strmon_buffer_input
 {
     my $cb_buffer=$_[1];
     my $cb_data=$_[2];
-    
+
     #weechat::print($cb_buffer, $cb_data);
     $cb_data=~s/\s*$//;
     $cb_data=~s/^\s*//;
@@ -470,10 +470,10 @@ sub strmon_buffer_input
         {
         # color
         strmon_color_command($args);
-        } elsif ($main eq 'notifo')
+        } elsif ($main eq 'nma')
         {
-        # notifo
-        strmon_notifo_command($args);
+        # nma
+        strmon_nma_command($args);
         } elsif ($main eq 'daemon')
         {
         # daemon
@@ -495,7 +495,7 @@ sub strmon_buffer_input
         # filtertags
         strmon_filtertags_command($args);
         } elsif ($main eq 'filternicks')
-        { 
+        {
         strmon_filternicks_command($args);
         } elsif ($main eq 'monitor')
         {
@@ -568,52 +568,41 @@ sub strmon_color_command
 }
 
 
-sub strmon_notifo_command
+sub strmon_nma_command
 {
     my $args=shift @_;
-    my $usenotifo=weechat::config_get_plugin("usenotifo");
-    my $user=weechat::config_get_plugin("notifo_user");
-    my $secret=weechat::config_get_plugin("notifo_secret");
+    my $usenma=weechat::config_get_plugin("usenma");
+    my $apikey=weechat::config_get_plugin("nma_apikey");
     $args=~/^(\S*)\s*(.*)$/;
     my $first=$1;
     my $second=$2;
     if ($first eq '')
         {
         # print usage
-        weechat::print_date_tags($command_buffer,time,$strmon_tag,"Use of notifo is currently : $usenotifo");
+        weechat::print_date_tags($command_buffer,time,$strmon_tag,"Use of nma is currently : $usenma");
         } elsif (($first eq 'on') || ($first eq 'off'))
         {
-        weechat::config_set_plugin('usenotifo',$first);
-        weechat::print_date_tags($command_buffer,time,$strmon_tag,"Use of notifo set to : $first");
-        } elsif ($first eq 'user')
+        weechat::config_set_plugin('usenma',$first);
+        weechat::print_date_tags($command_buffer,time,$strmon_tag,"Use of nma set to : $first");
+        } elsif ($first eq 'apikey')
         {
         if ($second eq '')
             {
-            weechat::print_date_tags($command_buffer,time,$strmon_tag,"Notifo user is : $user");
+            weechat::print_date_tags($command_buffer,time,$strmon_tag,"nma apikey is : $apikey");
             } else
             {
-            weechat::config_set_plugin('notifo_user',$second);
-            weechat::print_date_tags($command_buffer,time,$strmon_tag,"Notifo user set to : $second");
-            }
-        } elsif ($first eq 'secret')
-        {
-        if ($second eq '')
-            {
-            weechat::print_date_tags($command_buffer,time,$strmon_tag,"Notifo secret is : $secret");
-            } else
-            {
-            weechat::config_set_plugin('notifo_secret',$second);
-            weechat::print_date_tags($command_buffer,time,$strmon_tag,"Notifo secret set to : $second");
+            weechat::config_set_plugin('nma_apikey',$second);
+            weechat::print_date_tags($command_buffer,time,$strmon_tag,"nma apikey set to : $second");
             }
         } elsif ($first eq 'test')
         {
-            # test notifo
+            # test nma
             my $testdata='1 irc.#test Nickname : This is a test message';
-            strmon_notifo_execute($testdata);
-            weechat::print_date_tags($command_buffer,time,$strmon_tag,"Notifo test done");
+            strmon_nma_execute($testdata);
+            weechat::print_date_tags($command_buffer,time,$strmon_tag,"nma test done");
         } else
         {
-        weechat::print_date_tags($command_buffer,time,$strmon_tag,"Wrong argument for notifo command.");   
+        weechat::print_date_tags($command_buffer,time,$strmon_tag,"Wrong argument for nma command.");
         }
 
     return weechat::WEECHAT_RC_OK;
@@ -642,17 +631,17 @@ sub strmon_daemon_command
             print $sock "daemon $first\n";
             my $answer=$sock->getline();
             $sock->shutdown(2);
-            my @liste=split(',',$answer);            
+            my @liste=split(',',$answer);
             foreach (@liste)
                 {
                 weechat::print_date_tags($command_buffer,time,$strmon_tag,$_);
-                }            
+                }
             } else
             {
             weechat::print_date_tags($command_buffer,time,$strmon_tag,"Problem contacting daemon");
             }
- 
-        } elsif (($first eq 'play') || ($first eq 'show')) 
+
+        } elsif (($first eq 'play') || ($first eq 'show'))
         {
         if ($usedaemon ne 'on')
             {
@@ -683,7 +672,7 @@ sub strmon_daemon_command
         my $nc=weechat::config_get_plugin('default_nick_color');
         my $pi=weechat::config_get_plugin('default_picture');
         my $so=weechat::config_get_plugin('default_sound');
-        
+
         if (my $sock = IO::Socket::INET->new(PeerAddr => 'localhost',
                                  PeerPort => $port+0,
                                  Proto => 'tcp'))
@@ -708,9 +697,9 @@ sub strmon_daemon_command
             {
             weechat::print_date_tags($command_buffer,time,$strmon_tag,"Argument should be an integer");
             }
-        
+
         } elsif ( ($first eq '') || ($first eq 'on') || ($first eq 'off') )
-        { 
+        {
         if ($first eq '')
             {
             weechat::print_date_tags($command_buffer,time,$strmon_tag,"Use of daemon is currently : $usedaemon");
@@ -797,10 +786,10 @@ sub strmon_nick_command
                     weechat::print_date_tags($command_buffer,time,$strmon_tag,"$nickname bgcolor : $bc\n$nickname fgcolor : $fc\n$nickname chanelcolor : $cc\n$nickname nickcolor : $nc");
                     }
                 }
-                
+
             } else
             {
-            # 
+            #
             $args=~/^(\S+)\s*(.*)$/;
             my $first=$1;
             my $args=$2;
@@ -834,7 +823,7 @@ sub strmon_nick_command
             if ($first eq 'test')
                 {
                 strmon_notify($cmode{$mo},$pi,$so,$bc,$fc,$cc,$nc,"1 irc.#test $nickname : This is a test message from $nickname");
-                weechat::print_date_tags($command_buffer,time,$strmon_tag,"Test notification from $nickname done");                
+                weechat::print_date_tags($command_buffer,time,$strmon_tag,"Test notification from $nickname done");
                 }
                 elsif ( ($first eq 'mode') && ($args ne '') )
                 {
@@ -885,7 +874,7 @@ sub strmon_filtertags_command
     if ($args eq '')
         {
         my $tags=weechat::config_get_plugin('filtertags');
-        weechat::print_date_tags($command_buffer,time,$strmon_tag,"Currently filtered tags : $tags");        
+        weechat::print_date_tags($command_buffer,time,$strmon_tag,"Currently filtered tags : $tags");
         } elsif ($args=~/^list\s*(.*)$/)
         {
         $args=$1;
@@ -916,7 +905,7 @@ sub strmon_filternicks_command
     if ($args eq '')
         {
         my $nicks=weechat::config_get_plugin('filternicks');
-        weechat::print_date_tags($command_buffer,time,$strmon_tag,"Currently filtered nicks : $nicks");        
+        weechat::print_date_tags($command_buffer,time,$strmon_tag,"Currently filtered nicks : $nicks");
         } elsif ($args=~/^list\s*(.*)$/)
         {
         $args=$1;
@@ -951,7 +940,7 @@ sub strmon_monitor_command
     if ($args eq '')
         {
         # no arguments, just print the list
-        weechat::print_date_tags($command_buffer,time,$strmon_tag,weechat::color('chat')."Monitor highlights is ".weechat::color('magenta').$hl.weechat::color('chat').", with notification mode ".weechat::color('green').$hlm.weechat::color("reset")); 
+        weechat::print_date_tags($command_buffer,time,$strmon_tag,weechat::color('chat')."Monitor highlights is ".weechat::color('magenta').$hl.weechat::color('chat').", with notification mode ".weechat::color('green').$hlm.weechat::color("reset"));
         weechat::print_date_tags($command_buffer,time,$strmon_tag,weechat::color('chat')."There are ".weechat::color('yellow').scalar(@taglist).weechat::color('chat')." tags monitored :".weechat::color("reset"));
         my $ntags=0;
         foreach (@taglist)
@@ -1023,7 +1012,7 @@ sub strmon_monitor_command
                         }
                     } elsif ($second=~/\d+/)
                     {
-                    # 
+                    #
                     if ( ($second > scalar(@taglist)) || ($second <= 0) )
                         {
                         weechat::print_date_tags($command_buffer,time,$strmon_tag,"Given number does not match an existing tag");
@@ -1041,7 +1030,7 @@ sub strmon_monitor_command
                                 {
                                 $taglist[$second-1]="$t:$args";
                                 weechat::config_set_plugin('monitortags',join(',',@taglist));
-                                weechat::print_date_tags($command_buffer,time,$strmon_tag,weechat::color('chat')."Notification mode set to ".weechat::color('green').$m.weechat::color('chat')." for tag ".weechat::color('magenta').$t.weechat::color('reset')); 
+                                weechat::print_date_tags($command_buffer,time,$strmon_tag,weechat::color('chat')."Notification mode set to ".weechat::color('green').$m.weechat::color('chat')." for tag ".weechat::color('magenta').$t.weechat::color('reset'));
                                 }
                             } else
                             {
@@ -1079,7 +1068,7 @@ sub strmon_monitor_command
                         }
                     } elsif ($second=~/\d+/)
                     {
-                    # 
+                    #
                     if ( ($second > scalar(@nicklist)) || ($second <= 0) )
                         {
                         weechat::print_date_tags($command_buffer,time,$strmon_tag,"Given number does not match an existing nick");
@@ -1097,7 +1086,7 @@ sub strmon_monitor_command
                                 {
                                 $nicklist[$second-1]="$n:$args";
                                 weechat::config_set_plugin('monitornicks',join(',',@nicklist));
-                                weechat::print_date_tags($command_buffer,time,$strmon_tag,weechat::color('chat')."Notification mode set to ".weechat::color('green').$m.weechat::color('chat')." for nick ".weechat::color('magenta').$n.weechat::color('reset')); 
+                                weechat::print_date_tags($command_buffer,time,$strmon_tag,weechat::color('chat')."Notification mode set to ".weechat::color('green').$m.weechat::color('chat')." for nick ".weechat::color('magenta').$n.weechat::color('reset'));
                                 }
                             } else
                             {
@@ -1135,7 +1124,7 @@ sub strmon_monitor_command
                         }
                     } elsif ($second=~/\d+/)
                     {
-                    # 
+                    #
                     if ( ($second > scalar(@buflist)) || ($second <= 0) )
                         {
                         weechat::print_date_tags($command_buffer,time,$strmon_tag,"Given number does not match an existing monitored buffer");
@@ -1153,7 +1142,7 @@ sub strmon_monitor_command
                                 {
                                 $buflist[$second-1]="$b:$args";
                                 weechat::config_set_plugin('monitorbuf',join(',',@buflist));
-                                weechat::print_date_tags($command_buffer,time,$strmon_tag,weechat::color('chat')."Notification mode changed to ".weechat::color('green').$args.weechat::color('chat')." for ".weechat::color('magenta').$b.weechat::color('reset'));                
+                                weechat::print_date_tags($command_buffer,time,$strmon_tag,weechat::color('chat')."Notification mode changed to ".weechat::color('green').$args.weechat::color('chat')." for ".weechat::color('magenta').$b.weechat::color('reset'));
                                 }
                             } else
                             {
@@ -1168,7 +1157,7 @@ sub strmon_monitor_command
             } else
             {
             weechat::print_date_tags($command_buffer,time,$strmon_tag,"Bad argument for monitor command");
-            }       
+            }
         }
     return weechat::WEECHAT_RC_OK;
 }
@@ -1191,22 +1180,16 @@ sub strmon_buffer_open
 sub strmon_default_settings
 {
 # set default values
-# use notifo
-if (! weechat::config_is_set_plugin("usenotifo"))
+# use nma
+if (! weechat::config_is_set_plugin("usenma"))
     {
-    weechat::config_set_plugin("usenotifo","off");
+    weechat::config_set_plugin("usenma","off");
     }
 
-# notifo user
-if (! weechat::config_is_set_plugin("notifo_user"))
+# nma apikey
+if (! weechat::config_is_set_plugin("nma_apikey"))
     {
-    weechat::config_set_plugin("notifo_user","nouser");
-    }
-
-# notifo secret
-if (! weechat::config_is_set_plugin("notifo_secret"))
-    {
-    weechat::config_set_plugin("notifo_secret","nosecret");
+    weechat::config_set_plugin("nma_apikey","nokey");
     }
 
 # use daemon
@@ -1308,11 +1291,11 @@ sub strmon_buffer_close
     return weechat::WEECHAT_RC_OK;
 }
 
-sub strmon_notifo_execute
+sub strmon_nma_execute
 {
     (my $data) =  @_;
     my $nout=weechat::string_remove_color($data,"");
-    # do not notify unformatted messages (such as channel messages when monitoring 
+    # do not notify unformatted messages (such as channel messages when monitoring
     # a buffer)
     return unless($nout=~/^(\d+)\s(\S+)\s(\S+)\s:\s(.*)$/);
     my $nchan=$1;
@@ -1324,23 +1307,26 @@ sub strmon_notifo_execute
     my @fields;
 
     # Try to find an url in the message to send with the notification
-    my $url="http://www.google.com/";
+    my $url="";
     if ($msg=~/(https?:\/\/\S+)/)
         {
         $url=$1;
-        }   
+        }
 
-    push @fields,"label=".uri_escape($chan);
-    push @fields,"msg=".uri_escape($msg);
-    push @fields,"title=".uri_escape($nick);
-    push @fields,"uri=".uri_escape($url);
+    my $apikey=weechat::config_get_plugin("nma_apikey");
+    push @fields,"apikey=$apikey";
+    push @fields,"application=Weechat";
+    push @fields,"event=".uri_escape("Chan:$chan Nick:$nick");
+    push @fields,"description=".uri_escape($msg);
+    if ($url ne "")
+        {
+        push @fields,"url=".uri_escape($url);
+        }
 
     my $pdata=join("&",@fields);
 
     $curl->setopt(CURLOPT_POSTFIELDS, $pdata);
-    $curl->setopt(CURLOPT_URL, 'https://api.notifo.com/v1/send_notification');
-    my $credential=weechat::config_get_plugin("notifo_user").":".weechat::config_get_plugin("notifo_secret");
-    $curl->setopt(CURLOPT_USERPWD,$credential);
+    $curl->setopt(CURLOPT_URL, 'https://www.notifymyandroid.com/publicapi/notify');
     $curl->setopt(CURLOPT_SSL_VERIFYPEER,0);
 
     # redirect response into variable $response_body
@@ -1354,14 +1340,24 @@ sub strmon_notifo_execute
     # Write an output in case of problems
     if ($retcode == 0) {
         # parse result
-        $response_body=~/^\{"status":"(.+)","response_code":(\d+),"response_message":"(.+)"\}/;
-        my $rstatus=$1;
-        my $rcode=$2;
-        my $rmsg=$3;        
+        $response_body=~/^.+code=\"(\d+)\"/;
+        my $rcode=$1;
 
-        if ($rstatus ne 'success') {
-            weechat::print_date_tags($command_buffer,time,$strmon_tag,"A notifo error happened :  Status = $rstatus  Code = $rcode  Msg = $rmsg");
-            }
+        if ($rcode==200) {
+           # Message sent do not write anything
+
+           } elsif ($rcode==400) {
+                weechat::print_date_tags($command_buffer,time,$strmon_tag,"nma error 400 : The data supplied is in the wrong format, invalid length or null");
+           } elsif ($rcode==401) {
+                weechat::print_date_tags($command_buffer,time,$strmon_tag,"nma error 401 : None of the API keys provided were valid.");
+           } elsif ($rcode==402) {
+                weechat::print_date_tags($command_buffer,time,$strmon_tag,"nma error 402 : Maximum number of API calls per hour exceeded.");
+           } elsif ($rcode==500) {
+                weechat::print_date_tags($command_buffer,time,$strmon_tag,"nma error 500 : Internal server error. Please contact our support if the problem persists.");
+           } else {
+                weechat::print_date_tags($command_buffer,time,$strmon_tag,"Unknown nma error code : $rcode");
+           }
+
 
         } else {
             weechat::print_date_tags($command_buffer,time,$strmon_tag,"A curl error happened : ".$curl->strerror($retcode)." ($retcode)");
@@ -1376,8 +1372,8 @@ sub strmon_notify
     (my $mode, my $pic, my $sound, my $bg_color, my $fg_color, my $chan_color, my $nick_color, my $data) = @_;
     my $ret=0;
     my $usedaemon=weechat::config_get_plugin('usedaemon');
-    my $usenotifo=weechat::config_get_plugin('usenotifo');
-    
+    my $usenma=weechat::config_get_plugin('usenma');
+
     # Daemon notification
     if ($usedaemon eq 'on')
         {
@@ -1393,10 +1389,10 @@ sub strmon_notify
             }
         }
 
-    # notifo notification
-    if ($usenotifo eq 'on')
+    # nma notification
+    if ($usenma eq 'on')
         {
-        strmon_notifo_execute($data);
+        strmon_nma_execute($data);
         $ret=1;
         }
     return $ret;
@@ -1433,7 +1429,7 @@ sub strmon_event
             }
         }
 
-    # get a "clean" buffer name    
+    # get a "clean" buffer name
     my $bufname = weechat::string_remove_color(weechat::buffer_get_string($cb_bufferp, 'name') ,"");
 
     # get a "clean" nick name
@@ -1453,7 +1449,7 @@ sub strmon_event
         }
 
     # initialize pic
-    my $picture=weechat::config_get_plugin("default_picture");    
+    my $picture=weechat::config_get_plugin("default_picture");
 
     # initialize sound
     my $sound=weechat::config_get_plugin("default_sound");
@@ -1507,7 +1503,7 @@ sub strmon_event
         weechat::print_date_tags($strmon_buffer,time,$strmon_tag, $outstr);
         $mode = $mode | $cmode{weechat::config_get_plugin("globalmode")} | $cmode{$hlm};
         strmon_notify($mode,$picture,$sound,$bg_color,$fg_color,$chan_color,$nick_color,$outstr);
-        return weechat::WEECHAT_RC_OK;        
+        return weechat::WEECHAT_RC_OK;
         }
 
 
@@ -1555,9 +1551,3 @@ sub strmon_event
 
     return weechat::WEECHAT_RC_OK;
 }
-
-
-
-
-
-
