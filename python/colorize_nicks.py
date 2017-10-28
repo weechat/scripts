@@ -21,6 +21,8 @@
 #
 #
 # History:
+# 2017-06-20: lbeziaud <louis.beziaud@ens-rennes.fr>
+#   version 24: colorize utf8 nicks
 # 2017-03-01, arza <arza@arza.us>
 #   version 23: don't colorize nicklist group names
 # 2016-05-01, Simmo Saan <simmo.saan@gmail.com>
@@ -79,11 +81,13 @@ w = weechat
 
 SCRIPT_NAME    = "colorize_nicks"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "23"
+SCRIPT_VERSION = "24"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Use the weechat nick colors in the chat area"
 
-VALID_NICK = r'([@~&!%+])?([-a-zA-Z0-9\[\]\\`_^\{|\}]+)'
+# Based on the recommendations in RFC 7613. A valid nick is composed
+# of anything but " ,*?.!@".
+VALID_NICK = r'([@~&!%+-])?([^\s,\*?\.!@]+)'
 valid_nick_re = re.compile(VALID_NICK)
 ignore_channels = []
 ignore_nicks = []
@@ -188,6 +192,21 @@ def colorize_cb(data, modifier, modifier_data, line):
         # Check that nick is not ignored and longer than minimum length
         if len(nick) < min_length or nick in ignore_nicks:
             continue
+
+        # If the matched word is not a known nick, we try to match the
+        # word without its first or last character (if not a letter).
+        # This is necessary as "foo:" is a valid nick, which could be
+        # adressed as "foo::".
+        if nick not in colored_nicks[buffer]:
+            if not nick[-1].isalpha() and not nick[0].isalpha():
+                if nick[1:-1] in colored_nicks[buffer]:
+                    nick = nick[1:-1]
+            elif not nick[0].isalpha():
+                if nick[1:] in colored_nicks[buffer]:
+                    nick = nick[1:]
+            elif not nick[-1].isalpha():
+                if nick[:-1] in colored_nicks[buffer]:
+                    nick = nick[:-1]
 
         # Check that nick is in the dictionary colored_nicks
         if nick in colored_nicks[buffer]:
