@@ -18,6 +18,8 @@
 # Display infolist in a buffer.
 #
 # History:
+# 2017-10-22, nils_2 <freenode.#weechat>:
+#     version 0.6: add string_eval_expression()
 # 2012-10-02, nils_2 <freenode.#weechat>:
 #     version 0.5: switch to infolist buffer (if exists) when command /infolist
 #                  is called with arguments, add some examples to help page
@@ -35,7 +37,7 @@
 
 SCRIPT_NAME    = "infolist"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.5"
+SCRIPT_VERSION = "0.6"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Display infolist in a buffer"
 
@@ -165,6 +167,8 @@ def infolist_buffer_new():
 def infolist_cmd(data, buffer, args):
     global infolist_buffer
 
+    args = string_eval_expression(args)
+
     if infolist_buffer == "":
         infolist_buffer_new()
     if infolist_buffer != "" and args != "":
@@ -172,6 +176,9 @@ def infolist_cmd(data, buffer, args):
         weechat.buffer_set(infolist_buffer, "display", "1");
 
     return weechat.WEECHAT_RC_OK
+
+def string_eval_expression(string):
+    return weechat.string_eval_expression(string,{},{},{})
 
 if __name__ == "__main__" and import_ok:
     if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
@@ -190,6 +197,8 @@ if __name__ == "__main__" and import_ok:
                              "  Show information about nick \"FlashCode\" in channel \"#weechat\" on server \"freenode\":\n"
                              "    /infolist irc_nick freenode,#weechat,FlashCode\n"
                              "  Show nicklist from a specific buffer:\n"
-                             "    /infolist nicklist <buffer pointer>"
+                             "    /infolist nicklist <buffer pointer>\n"
+                             "  Show current buffer:\n"
+                             "    /infolist buffer ${buffer}"
                              "",
                              "%(infolists)", "infolist_cmd", "")
