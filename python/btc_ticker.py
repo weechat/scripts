@@ -4,7 +4,7 @@
 # Copyright (c) 2014, 2017 Eugene Ciurana (pr3d4t0r)
 # All rights reserved.
 #
-# Version 2.0.0
+# Version - see _VERSION global
 #
 # Redistribution and use in source and binary forms, with or without modification,
 # are permitted provided that the following conditions are met:
@@ -50,8 +50,9 @@ CRYPTOCUR_API_URI       = 'url:https://api.cryptonator.com/api/ticker/%s-%s'
 DEFAULT_CRYPTO_CURRENCY = 'btc'
 DEFAULT_FIAT_CURRENCY   = 'usd'
 
-VALID_CRYPTO_CURRENCIES = [ DEFAULT_CRYPTO_CURRENCY, 'ltc', 'eth', 'nmc', 'zec', 'dash', 'xrp', 'xmr', ]
+VALID_CRYPTO_CURRENCIES = [ DEFAULT_CRYPTO_CURRENCY, 'eth', 'bch', 'xrp', 'xem', 'ltc', 'dash', 'neo', 'etc', ]
 VALID_FIAT_CURRENCIES   = [ DEFAULT_FIAT_CURRENCY, 'eur', 'rur', ]
+_VERSION                = '2.0.1'
 
 COMMAND_NICK = 'tick'
 
@@ -134,11 +135,11 @@ def displayCryptoCurrencyTicker(data, buffer, arguments):
 
 # *** main ***
 
-weechat.register('btc_ticker', 'pr3d4t0r', '2.0.0', 'BSD', 'Display a crypto currency spot price ticker (BTC, LTC, ETH) in the active buffer', '', 'UTF-8')
+weechat.register('btc_ticker', 'pr3d4t0r', _VERSION, 'BSD', 'Display a crypto currency spot price ticker (BTC, ETH, LTC) in the active buffer', '', 'UTF-8')
 
 cryptoCurrencies = '|'.join(sorted(VALID_CRYPTO_CURRENCIES))
 fiatCurrencies   = '|'.join(VALID_FIAT_CURRENCIES)
 argsWeeChat      = '[%s [%s] ]' % (cryptoCurrencies, fiatCurrencies)
 
 weechat.hook_command(COMMAND_NICK, 'Display common crypto currency spot exchange values conveted to fiat currencies like USD or EUR',\
-            argsWeeChat, '    btc = Bitcoin\n    eth = Ethereum\n    ltc = Litecoin\n    zec = Zcash\n\n    usd = US dollar\n    eur = euro\n    rur = Russian ruble', '', 'displayCryptoCurrencyTicker', '')
+            argsWeeChat, '    btc  = Bitcoin\n    eth  = Ethereum\n    bch  = Bitcoin Cash\n    xrp  = Ripple\n    xem  = NEM\n    ltc  = Litecoin\n    dash = Dash\n    neo  = NEO\n    etc  = Ethereum Classic\n\n    usd = US dollar\n    eur = euro\n    rur = Russian ruble', '', 'displayCryptoCurrencyTicker', '')
