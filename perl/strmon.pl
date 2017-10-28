@@ -22,7 +22,7 @@ use URI::Escape;
 use strict;
 use vars qw( %cmode $strmon_buffer $command_buffer $strmon_help $version $daemon_file $strmon_tag );
 
-$version = "0.5.3";
+$version = "0.5.4";
 weechat::register( "strmon", "Stravy", $version, "GPL",
   "Messages monitoring and notifications", "", "" );
 
@@ -264,8 +264,7 @@ enable or disable it with command:
     /strmon daemon [on|off]
 
 The script strmon_daemon.pl uses programs mplayer (http://www.mplayerhq.hu/)
-and qnotify (http://www.homac.de/cgi-bin/qnotify/index.pl), which must be
-installed on local machine.
+and notify-send, which must be installed on local machine.
 strmon_daemon.pl also needs the following files to exist on local machine :
     \$HOME/.config/strmon_daemon/pics/default.png
     \$HOME/.config/strmon_daemon/sounds/default.ogg
