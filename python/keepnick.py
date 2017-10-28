@@ -18,6 +18,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2017-10-19: nils_2 (freenode.#weechat)
+#       1.6 : fix parsing error, now using weechat.info_get_hashtable() (reported by Mikaela)
+#
 # 2017-10-14: Kaijo & nils_2 (freenode.#weechat)
 #       1.5 : fix empty string breaks output
 #           : add evaluation for option "text" and use variable "$server" instead of "%s"
@@ -32,7 +35,7 @@
 # 2017-08-17: nils_2 (freenode.#weechat)
 #       1.4 : eval_expression for nicks
 #           : use irc.server.<servername>.password
-#           ; add short /help
+#           : add short /help
 #
 # 2016-05-12: picasso (freenode.#weechat)
 #       1.3 : monitor quits and nick changes
@@ -62,7 +65,7 @@
 # 2012-02-08: nils_2, (freenode.#weechat)
 #       0.5 : sync with 0.3.x API (requested by CAHbI4)
 #
-# requires: WeeChat version 0.4.2
+# requires: WeeChat version 1.3
 #
 # Development is currently hosted at
 # https://github.com/weechatter/weechat-scripts
@@ -98,7 +101,7 @@ except Exception:
 # -------------------------------[ Constants ]-------------------------------------
 SCRIPT_NAME     = "keepnick"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "1.5"
+SCRIPT_VERSION  = "1.6"
 SCRIPT_LICENCE  = "GPL3"
 SCRIPT_DESC     = "keep your nick and recover it in case it's occupied"
 
@@ -129,10 +132,10 @@ def redirect_isonhandler(data, signal, hashtable):
     if hashtable['output'] == '':
         return weechat.WEECHAT_RC_OK
 
-    # ISON_nicks contains nicks that are online on server (separated with space)
-    # nicks in ISON_nicks are lowercase
-    message,ISON_nicks = hashtable['output'].split(':')[1:]
-    ISON_nicks = [nick.lower() for nick in ISON_nicks.split()]
+    parsed = weechat.info_get_hashtable( "irc_message_parse",dict(message=hashtable['output']) )
+    # variable ISON_nicks contains online nicks on server (separated with space)
+    # nicks in variable ISON_nicks are lowercase and 'text' contains the nick
+    ISON_nicks = [ nick.lower() for nick in parsed['text'].split() ]
 
     for nick in server_nicks(hashtable['server']):
         mynick = weechat.info_get('irc_nick',hashtable['server'])           # current nick on server
@@ -312,11 +315,11 @@ if __name__ == '__main__':
                         '')
 
         version = weechat.info_get("version_number", "") or 0
-        if int(version) >= 0x00040200:
+        if int(version) >= 0x01030000:
             if int(OPTIONS['delay'][0]) > 0 and int(OPTIONS['timeout'][0]) > 0:
                 init_options()
                 install_hooks()
                 weechat.hook_config( 'plugins.var.python.' + SCRIPT_NAME + '.*', 'toggle_refresh', '' )
         else:
-            weechat.prnt('','%s%s %s' % (weechat.prefix('error'),SCRIPT_NAME,': needs version 0.4.2 or higher'))
+            weechat.prnt('','%s%s %s' % (weechat.prefix('error'),SCRIPT_NAME,': needs version 1.3 or higher'))
             weechat.command('','/wait 1ms /python unload %s' % SCRIPT_NAME)
