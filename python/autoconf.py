@@ -15,6 +15,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2017-11-03: fix script/issue #236
+#       v0.2: add "%h" variable in option 'file'
 
 import os
 import re
@@ -31,7 +33,7 @@ except Exception:
 
 NAME        = "autoconf"
 AUTHOR      = "Manu Koell <manu@koell.li>"
-VERSION     = "0.1"
+VERSION     = "0.2"
 LICENSE     = "GPL3"
 DESCRIPTION = "auto save/load changed options in a ~/.weerc file, useful to share dotfiles with"
 
@@ -49,13 +51,8 @@ SETTINGS = {
     'ignore': (
         ','.join(EXCLUDES), 
         'comma separated list of patterns to exclude'),
-    'file': ('~/.weerc', 'config file location')
+    'file': ('%h/.weerc', 'config file location ("%h" will be replaced by WeeChat home, "~/.weechat" by default)')
 }
-
-RE = {
-    'option': re.compile('\s*(.*) = (.*)  \(default')
-}
-
 
 def cstrip(text):
     """strip color codes"""
@@ -68,8 +65,7 @@ def get_config(args):
     try:
         conf = args[1]
     except Exception:
-        conf = w.config_get_plugin('file')
-
+        conf = w.config_get_plugin('file').replace("%h",w.info_get("weechat_dir", ""))
     return os.path.expanduser(conf)
 
 def load_conf(args):
@@ -151,6 +147,10 @@ def quit_cb(data, signal, signal_data):
 if __name__ == '__main__':
     if w.register(NAME, AUTHOR, VERSION, LICENSE, DESCRIPTION, "", ""):
         w.hook_command(NAME, DESCRIPTION, 'save [path] || load [path]', '', 'save || load', 'autoconf_cb', '')
+        default_txt = w.gettext("default: ")            # check if string is translated
+        RE = {
+            'option': re.compile('\s*(.*) = (.*)  \(%s' % default_txt)
+        }
 
         # set default config
         for option, value in SETTINGS.items():
@@ -163,5 +163,3 @@ if __name__ == '__main__':
 
         if 'on' in w.config_get_plugin('autosave'):
             w.hook_signal('quit', 'quit_cb', '')
-
-
