@@ -25,6 +25,8 @@
 
 #
 # Changelog:
+# 3.1:
+#   * Use colors to format the help text.
 # 3.0:
 #   * Switch to evaluated expressions for sorting.
 #   * Add `/autosort debug` command.
@@ -734,95 +736,116 @@ def on_autosort_complete(data, name, buffer, completion):
 		return autosort_complete_helpers(words[1:], completion)
 	return weechat.WEECHAT_RC_OK
 
-command_description = r'''
-NOTE: For the best effect, you may want to consider setting the option irc.look.server_buffer to independent and buffers.look.indenting to on.
+command_description = r'''{*white}# General commands{reset}
 
-# Commands
-
-## Miscellaneous
-/autosort sort
+{*white}/autosort {brown}sort{reset}
 Manually trigger the buffer sorting.
 
-/autosort debug
+{*white}/autosort {brown}debug{reset}
 Show the evaluation results of the sort rules for each buffer.
 
 
-## Sorting rules
+{*white}# Sorting rule commands{reset}
 
-/autosort rules list
+{*white}/autosort{brown} rules list{reset}
 Print the list of sort rules.
 
-/autosort rules add <expression>
+{*white}/autosort {brown}rules add {cyan}<expression>{reset}
 Add a new rule at the end of the list.
 
-/autosort rules insert <index> <expression>
+{*white}/autosort {brown}rules insert {cyan}<index> <expression>{reset}
 Insert a new rule at the given index in the list.
 
-/autosort rules update <index> <expression>
+{*white}/autosort {brown}rules update {cyan}<index> <expression>{reset}
 Update a rule in the list with a new expression.
 
-/autosort rules delete <index>
+{*white}/autosort {brown}rules delete {cyan}<index>
 Delete a rule from the list.
 
-/autosort rules move <index_from> <index_to>
+{*white}/autosort {brown}rules move {cyan}<index_from> <index_to>{reset}
 Move a rule from one position in the list to another.
 
-/autosort rules swap <index_a> <index_b>
+{*white}/autosort {brown}rules swap {cyan}<index_a> <index_b>{reset}
 Swap two rules in the list
 
 
-## Helper variables
+{*white}# Helper variable commands{reset}
 
-/autosort helpers list
+{*white}/autosort {brown}helpers list
 Print the list of helper variables.
 
-/autosort helpers set <name> <expression>
+{*white}/autosort {brown}helpers set {cyan}<name> <expression>
 Add or update a helper variable with the given name.
 
-/autosort helpers delete <named>
+{*white}/autosort {brown}helpers delete {cyan}<name>
 Delete a helper variable.
 
-/autosort helpers rename <old_name> <new_name>
+{*white}/autosort {brown}helpers rename {cyan}<old_name> <new_name>
 Rename a helper variable.
 
-/autosort helpers swap <name_a> <name_b>
+{*white}/autosort {brown}helpers swap {cyan}<name_a> <name_b>
 Swap the expressions of two helper variables in the list.
 
 
-# Introduction
-Autosort is a weechat script to automatically keep your buffers sorted.
-The sort order can be customized by defining your own sort rules,
-but the default should be sane enough for most people.
-It can also group IRC channel/private buffers under their server buffer if you like.
+{*white}# Description
+Autosort is a weechat script to automatically keep your buffers sorted. The sort
+order can be customized by defining your own sort rules, but the default should
+be sane enough for most people. It can also group IRC channel/private buffers
+under their server buffer if you like.
 
-## Sort rules
-Autosort evaluates a list of eval expressions (see /help eval) and sorts the buffers based on evaluated result.
-Earlier rules will be considered first.
-Only if earlier rules produced identical results is the result of the next rule considered for sorting purposes.
+{*white}# Sort rules{reset}
+Autosort evaluates a list of eval expressions (see {*default}/help eval{reset}) and sorts the
+buffers based on evaluated result. Earlier rules will be considered first. Only
+if earlier rules produced identical results is the result of the next rule
+considered for sorting purposes.
 
-You can debug your sort rules with the `/autosort debug` command, which will print the evaluation results of each rule for each buffer.
+You can debug your sort rules with the `{*default}/autosort debug{reset}` command, which will
+print the evaluation results of each rule for each buffer.
 
-NOTE: The sort rules for version 3 are not compatible with version 2 or vice versa.
-You will have to manually port your old rules to version 3 if you have any.
+{*brown}NOTE:{reset} The sort rules for version 3 are not compatible with version 2 or vice
+versa. You will have to manually port your old rules to version 3 if you have any.
 
-## Helper variables
-You may define helper variables for the main sort rules to keep your rules readable.
-They can be used in the main sort rules as variables.
-For example, a helper variable named `foo` can be accessed in a main rule with the string `${foo}`.
+{*white}# Helper variables{reset}
+You may define helper variables for the main sort rules to keep your rules
+readable. They can be used in the main sort rules as variables. For example,
+a helper variable named `{cyan}foo{reset}` can be accessed in a main rule with the
+string `{cyan}${{foo}}{reset}`.
 
-## Replacing substrings
-There is no default method for replacing text inside eval expressions.
-However, autosort adds a `replace` info hook that can be used inside eval expressions: `${info:autosort_replace,from,to,text}`.
-For example, `${info:autosort_replace,#,,${buffer.name}}` will evaluate to the buffer name with all hash signs stripped.
-You can escape commas and backslashes inside the arguments by prefixing them with a backslash.
+{*white}# Replacing substrings{reset}
+There is no default method for replacing text inside eval expressions. However,
+autosort adds a `replace` info hook that can be used inside eval expressions:
+  {cyan}${{info:autosort_replace,from,to,text}}{reset}
 
-## Automatic or manual sorting
-By default, autosort will automatically sort your buffer list whenever a buffer is opened, merged, unmerged or renamed.
-This should keep your buffers sorted in almost all situations.
-However, you may wish to change the list of signals that cause your buffer list to be sorted.
-Simply edit the "autosort.sorting.signals" option to add or remove any signal you like.
-If you remove all signals you can still sort your buffers manually with the "/autosort sort" command.
-To prevent all automatic sorting, "autosort.sorting.sort_on_config_change" should also be set to off.
+For example, to strip all hashes from a buffer name, you could write:
+  {cyan}${{info:autosort_replace,#,,${{buffer.name}}}}{reset}
+
+You can escape commas and backslashes inside the arguments by prefixing them with
+a backslash.
+
+{*white}# Automatic or manual sorting{reset}
+By default, autosort will automatically sort your buffer list whenever a buffer
+is opened, merged, unmerged or renamed. This should keep your buffers sorted in
+almost all situations. However, you may wish to change the list of signals that
+cause your buffer list to be sorted. Simply edit the `{cyan}autosort.sorting.signals{reset}`
+option to add or remove any signal you like.
+
+If you remove all signals you can still sort your buffers manually with the
+`{*default}/autosort sort{reset}` command. To prevent all automatic sorting, the option
+`{cyan}autosort.sorting.sort_on_config_change{reset}` should also be disabled.
+
+{*white}# Recommended settings
+For the best visual effect, consider setting the following options:
+  {*white}/set {cyan}irc.look.server_buffer{reset} {brown}independent{reset}
+  {*white}/set {cyan}buffers.look.indenting{reset} {brown}on{reset}
+
+The first setting allows server buffers to be sorted independently, which is
+needed to create a hierarchical tree view of the server and channel buffers.
+The second one indents channel and private buffers in the buffer list of the
+`{*default}buffers.pl{reset}` script.
+
+If you are using the {*default}buflist{reset} plugin you can (ab)use Unicode to draw a tree
+structure with the following setting (modify to suit your need):
+  {*white}/set {cyan}buflist.format.indent {brown}"${{color:237}}${{if:${{buffer.next_buffer.local_variables.type}}=~^(channel|private)$?├─:└─}}"{reset}
 '''
 
 command_completion = '%(plugin_autosort) %(plugin_autosort) %(plugin_autosort) %(plugin_autosort) %(plugin_autosort)'
@@ -841,9 +864,33 @@ info_order_arguments   = 'value,first,second,third,...'
 if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, "", ""):
 	config = Config('autosort')
 
+	colors = {
+		'default':  weechat.color('default'),
+		'reset':    weechat.color('reset'),
+		'black':    weechat.color('black'),
+		'red':      weechat.color('red'),
+		'green':    weechat.color('green'),
+		'brown':    weechat.color('brown'),
+		'yellow':   weechat.color('yellow'),
+		'blue':     weechat.color('blue'),
+		'magenta':  weechat.color('magenta'),
+		'cyan':     weechat.color('cyan'),
+		'white':    weechat.color('white'),
+		'*default': weechat.color('*default'),
+		'*black':   weechat.color('*black'),
+		'*red':     weechat.color('*red'),
+		'*green':   weechat.color('*green'),
+		'*brown':   weechat.color('*brown'),
+		'*yellow':  weechat.color('*yellow'),
+		'*blue':    weechat.color('*blue'),
+		'*magenta': weechat.color('*magenta'),
+		'*cyan':    weechat.color('*cyan'),
+		'*white':   weechat.color('*white'),
+	}
+
 	weechat.hook_config('autosort.*', 'on_config_changed',  '')
 	weechat.hook_completion('plugin_autosort', '', 'on_autosort_complete', '')
-	weechat.hook_command('autosort', command_description, '', '', command_completion, 'on_autosort_command', '')
+	weechat.hook_command('autosort', command_description.format(**colors), '', '', command_completion, 'on_autosort_command', '')
 	weechat.hook_info('autosort_replace', info_replace_description, info_replace_arguments, 'on_info_replace', '')
 	weechat.hook_info('autosort_order',   info_order_description,   info_order_arguments,   'on_info_order',   '')
 
