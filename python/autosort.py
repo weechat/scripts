@@ -25,6 +25,8 @@
 
 #
 # Changelog:
+# 3.2:
+#   * Fix python3 compatiblity.
 # 3.1:
 #   * Use colors to format the help text.
 # 3.0:
@@ -60,12 +62,13 @@
 import json
 import math
 import re
+import sys
 import time
 import weechat
 
 SCRIPT_NAME     = 'autosort'
 SCRIPT_AUTHOR   = 'Maarten de Vries <maarten@de-vri.es>'
-SCRIPT_VERSION  = '3.1'
+SCRIPT_VERSION  = '3.2'
 SCRIPT_LICENSE  = 'GPL3'
 SCRIPT_DESC     = 'Flexible automatic (or manual) buffer sorting based on eval expressions.'
 
@@ -73,6 +76,12 @@ SCRIPT_DESC     = 'Flexible automatic (or manual) buffer sorting based on eval e
 config = None
 hooks  = []
 timer  = None
+
+# Make sure that unicode, bytes and str are always available in python2 and 3.
+# For python 2, str == bytes
+# For python 3, str == unicode
+if sys.version_info[0] >= 3:
+	unicode = str
 
 if hasattr(time, 'perf_counter'):
 	perf_counter = time.perf_counter
