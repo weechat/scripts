@@ -25,6 +25,9 @@
 
 #
 # Changelog:
+# 3.3:
+#   * Fix the /autosort debug command for unicode.
+#   * Update the default rules to work better with Slack.
 # 3.2:
 #   * Fix python3 compatiblity.
 # 3.1:
@@ -68,7 +71,7 @@ import weechat
 
 SCRIPT_NAME     = 'autosort'
 SCRIPT_AUTHOR   = 'Maarten de Vries <maarten@de-vri.es>'
-SCRIPT_VERSION  = '3.2'
+SCRIPT_VERSION  = '3.3'
 SCRIPT_LICENSE  = 'GPL3'
 SCRIPT_DESC     = 'Flexible automatic (or manual) buffer sorting based on eval expressions.'
 
@@ -82,6 +85,19 @@ timer  = None
 # For python 3, str == unicode
 if sys.version_info[0] >= 3:
 	unicode = str
+
+def ensure_str(input):
+	'''
+	Make sure the given type if the correct string type for the current python version.
+	That means bytes for python2 and unicode for python3.
+	'''
+	if not isinstance(input, str):
+		if isinstance(input, bytes):
+			return input.encode('utf-8')
+		if isinstance(input, unicode):
+			return input.decode('utf-8')
+	return input
+
 
 if hasattr(time, 'perf_counter'):
 	perf_counter = time.perf_counter
@@ -148,8 +164,8 @@ class Config:
 		'${irc_last}',
 		'${buffer.plugin.name}',
 		'${irc_raw_first}',
-		'${server}',
-		'${info:autosort_order,${type},server,*,channel,private}',
+		'${if:${plugin}==irc?${server}}',
+		'${if:${plugin}==irc?${info:autosort_order,${type},server,*,channel,private}}',
 		'${hashless_name}',
 		'${buffer.full_name}',
 	])
@@ -406,12 +422,13 @@ def command_debug(buffer, command, args):
 	for merged in buffers:
 		for buffer in merged:
 			fullname = weechat.hdata_string(hdata, buffer, 'full_name')
-			if isinstance(fullname, bytes): fullname = fullname.decode('utf-8')
 			results.append((fullname, key(buffer)))
 	elapsed = perf_counter() - start
 
 	for fullname, result in results:
-			log('{0}: {1}'.format(fullname, result))
+		fullname = ensure_str(fullname)
+		result = [ensure_str(x) for x in result]
+		log('{0}: {1}'.format(fullname, result))
 	log('Computing evalutaion results took {0:.4f} seconds.'.format(elapsed))
 
 	return weechat.WEECHAT_RC_OK
