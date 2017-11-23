@@ -24,6 +24,10 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2017-11-20, Nils Görs <weechatter@arcor.de>
+#  version 0.15: make script python3 compatible
+#              : fix problem with empty "command_on_*" options
+#              : add option "no_output"
 # 2014-08-02, Nils Görs <weechatter@arcor.de>
 #  version 0.14: add time to detach message. (idea by Mikaela)
 # 2014-06-19, Anders Bergh <anders1@gmail.com>
@@ -66,7 +70,7 @@ import datetime, time
 
 SCRIPT_NAME    = "screen_away"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.14"
+SCRIPT_VERSION = "0.15"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Set away status on screen detach"
 
@@ -80,6 +84,7 @@ settings = {
         'ignore': ('', 'Comma-separated list of servers to ignore.'),
         'set_away': ('on', 'Set user as away.'),
         'ignore_relays': ('off', 'Only check screen status and ignore relay interfaces'),
+        'no_output': ('off','no detach/attach information will be displayed in buffer'),
 }
 
 TIMER = None
@@ -144,7 +149,8 @@ def screen_away_timer_cb(buffer, args):
             w.infolist_free(infolist)
 
     if (attached and AWAY) or (check_relays and CONNECTED_RELAY and not attached and AWAY):
-        w.prnt('', '%s: Screen attached. Clearing away status' % SCRIPT_NAME)
+        if not w.config_string_to_boolean(w.config_get_plugin('no_output')):
+            w.prnt('', '%s: Screen attached. Clearing away status' % SCRIPT_NAME)
         for server, nick in get_servers():
             if set_away:
                 w.command(server,  "/away")
@@ -152,20 +158,23 @@ def screen_away_timer_cb(buffer, args):
                 nick = nick[:-len(suffix)]
                 w.command(server,  "/nick %s" % nick)
         AWAY = False
-        for cmd in w.config_get_plugin("command_on_attach").split(";"):
-            w.command("", cmd)
+        if w.config_get_plugin("command_on_attach"):
+            for cmd in w.config_get_plugin("command_on_attach").split(";"):
+                w.command("", cmd)
 
     elif not attached and not AWAY:
         if not CONNECTED_RELAY:
-            w.prnt('', '%s: Screen detached. Setting away status' % SCRIPT_NAME)
+            if not w.config_string_to_boolean(w.config_get_plugin('no_output')):
+                w.prnt('', '%s: Screen detached. Setting away status' % SCRIPT_NAME)
             for server, nick in get_servers():
                 if suffix and not nick.endswith(suffix):
                     w.command(server, "/nick %s%s" % (nick, suffix));
                 if set_away:
                     w.command(server, "/away %s %s" % (w.config_get_plugin('message'), time.strftime(w.config_get_plugin('time_format'))))
             AWAY = True
-            for cmd in w.config_get_plugin("command_on_detach").split(";"):
-                w.command("", cmd)
+            if w.config_get_plugin("command_on_detach"):
+                for cmd in w.config_get_plugin("command_on_detach").split(";"):
+                    w.command("", cmd)
 
     return w.WEECHAT_RC_OK
 
@@ -173,7 +182,7 @@ def screen_away_timer_cb(buffer, args):
 if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
                     SCRIPT_DESC, "", ""):
     version = w.info_get('version_number', '') or 0
-    for option, default_desc in settings.iteritems():
+    for option, default_desc in settings.items():
         if not w.config_is_set_plugin(option):
             w.config_set_plugin(option, default_desc[0])
         if int(version) >= 0x00030500:
