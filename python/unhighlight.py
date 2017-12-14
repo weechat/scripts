@@ -26,7 +26,7 @@ import re
 
 SCRIPT_NAME     = 'unhighlight'
 SCRIPT_AUTHOR   = 'xiagu'
-SCRIPT_VERSION  = '0.1.0'
+SCRIPT_VERSION  = '0.1.1'
 SCRIPT_LICENSE  = 'GPL3'
 SCRIPT_DESC     = 'Allows per-buffer specification of a regex that prevents highlights.'
 
@@ -93,7 +93,7 @@ Examples:
  Unhighlight SASL authentication messages for double logins:
    /buffer weechat
    /buffer set localvar_set_unhighlight_regex SaslServ
-   /autosetbuffer add core.weechat localvar_set_unhighlight_regex SaslServ
+   /buffer_autoset add core.weechat localvar_set_unhighlight_regex SaslServ
  List buffers with autoset unhighlights:
    /{script_name} list
  Show this help:
