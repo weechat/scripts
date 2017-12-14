@@ -20,6 +20,9 @@
 #
 # idea by shad0VV@freenode.#weechat
 #
+# 2017-12-14: Sébastien Helleu <flashcode@flashtux.org>
+#       0.6 : rename command "/autosetbuffer" by "/buffer_autoset" in example
+#
 # 2017-04-02: nils_2, (freenode.#weechat)
 #       0.5 : support of "/input jump_smart" and "/buffer +/-" (reported: squigz)
 #
@@ -52,7 +55,7 @@ except Exception:
 
 SCRIPT_NAME     = "stick_buffer"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.5"
+SCRIPT_VERSION  = "0.6"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "Stick buffers to particular windows, like irssi"
 
@@ -239,7 +242,7 @@ Examples:
  Stick buffer #weechat to window 2:
    /buffer #weechat
    /buffer set localvar_set_stick_buffer_to_window 2
-   /autosetbuffer add irc.freenode.#weechat stick_buffer_to_window 2
+   /buffer_autoset add irc.freenode.#weechat stick_buffer_to_window 2
  Set the default stick-to window to window 5:
    /set plugins.var.python.{script_name}.default_stick_window 5
  List buffers with persistent stickiness:
