@@ -24,6 +24,7 @@ import tempfile
 import time
 import calendar
 import socket
+import getpass
 
 # This twitter plugin can be extended even more. Just look at the twitter api
 # doc here: https://dev.twitter.com/docs/api/1.1
@@ -337,11 +338,23 @@ def stream_message(buffer,tweet):
         #TODO make the event printing better
         weechat.prnt_date_tags(buffer, 0, "no_highlight", "%s%s" % (weechat.prefix("network"),
             tweet['source']['screen_name'] + " " + event_str + " " + tweet['target']['screen_name'] + extra_str))
+    elif 'friends' in tweet:
+        #This should be the initital message you get listing friend ids when connecting to the twitter stream
+        weechat.prnt(buffer, "%s%s" % (weechat.prefix("network"), "Connected to twitter streaming API."))
+        #Get new tweets since the last update (we might have missed some if this is after a reconnect)
+        #Get latest tweets from timeline
+        my_command_cb("silent", buffer, "new")
     else:
         weechat.prnt(buffer, "%s%s" % (weechat.prefix("network"),
         "recv stream data: " + str(tweet)))
 
-def twitter_stream_cb(buffer,fd):
+def twitter_stream_cb(data,fd):
+
+    #TODO this is temporary fix for weechat 2.0
+    data = ast.literal_eval(data)
+    
+    buffer = data[0]
+    fd = data[1]
 
     #accept connection
     server = sock_fd_dict[sock_fd_dict[fd]]
@@ -442,10 +455,11 @@ def twitter_stream(cmd_args):
     # configuration. So it's defined here if the defaults change.
     stream_options = dict( timeout=None, block=True, heartbeat_timeout=90 )
 
-    # Reconnect timer, when zero it will not try to reconnect
-    re_timer = 1
+    # Reconnect timer list [1sec, 5sec, 10sec, 1min, 2min]
+    re_timer = [1,2,10,60,120]
+    re_timer_idx = 0
 
-    while re_timer:
+    while True:
         try:
             if name == "twitter":
                 #home timeline stream
@@ -504,8 +518,8 @@ def twitter_stream(cmd_args):
                 client.sendall(bytes(str(tweet),"utf-8"))
                 client.close()
                 stream_end_message = "Text message"
-                # Reset the reconnect timer when we get a new message
-                re_timer = 1
+                # Reset the reconnect timer index when we get a new message
+                re_timer_idx = 0
             else:
                 #Got a other type of message
                 client = connect()
@@ -514,14 +528,12 @@ def twitter_stream(cmd_args):
                 stream_end_message = "Unhandled type message"
 
         client = connect()
-        client.sendall(bytes('"Disconnected, trying to reconnect."',"utf-8"))
+        client.sendall(bytes('"Disconnected, trying to reconnect in {0} sec. Reason: {1}"'.format(re_timer[re_timer_idx], stream_end_message),"utf-8"))
         client.close()
 
-        if re_timer > 5:
-            re_timer = 0
-        else:
-            time.sleep(re_timer)
-            re_timer += 4
+        time.sleep(re_timer[re_timer_idx])
+        if re_timer_idx < (len(re_timer) - 1):
+            re_timer_idx += 1
 
     return "Stream shut down after: " + stream_end_message + ". You'll have to restart the stream manually. (:re_home, if home stream)"
 
@@ -558,7 +570,7 @@ def create_stream(name, args = ""):
         setup_buffer(buffer)
 
     if not sock_fd_dict.get(name):
-        file_name = tempfile.gettempdir() + "/we_tw_" + name
+        file_name = tempfile.gettempdir() + "/we_tw_" + getpass.getuser() + "_" + name
         if os.path.exists(file_name):
             os.remove(file_name)
 
@@ -571,7 +583,7 @@ def create_stream(name, args = ""):
         file_fd = server.fileno()
         sock_fd_dict[str(file_fd)] = name
         sock_fd_dict[name] = server
-        sock_hooks[name] = weechat.hook_fd(file_fd, 1, 0, 0, "twitter_stream_cb", buffer)
+        sock_hooks[name] = weechat.hook_fd(file_fd, 1, 0, 0, "twitter_stream_cb", str([buffer,str(file_fd)]))
 
     proc_hooks[name] = weechat.hook_process("python3 " + SCRIPT_FILE_PATH + " " +
                 "stream " + file_name + " " + args,  0 , "my_process_cb", str([buffer,"Stream"]))
@@ -1161,8 +1173,6 @@ def oauth_proc_cb(data, command, rc, out, err):
 
             for nick in process_output:
                 add_to_nicklist(buffer,nick)
-            #Get latest tweets from timeline
-            my_command_cb("silent", buffer, "new")
         elif data == "auth1":
             #First auth step to request pin code
             oauth_token, oauth_token_secret = parse_oauth_tokens(out)
@@ -1237,13 +1247,13 @@ def finish_init():
          return
     setup_buffer(buffer)
 
-    #Add friends to nick list and print new tweets
+    #Add friends to nick list
     weechat.hook_process("python3 " + SCRIPT_FILE_PATH + " " +
            script_options["oauth_token"] + " " + script_options["oauth_secret"] + " " +
            "f " + script_options['screen_name'] + " []", 10 * 1000, "oauth_proc_cb", "friends")
 
 if __name__ == "__main__" and weechat_call:
-    weechat.register( SCRIPT_NAME , "DarkDefender", "1.2.6", "GPL3", "Weechat twitter client", "", "")
+    weechat.register( SCRIPT_NAME , "DarkDefender", "1.2.7", "GPL3", "Weechat twitter client", "", "")
 
     if not import_ok:
         weechat.prnt("", "Can't load twitter python lib >= " + required_twitter_version)
@@ -1251,7 +1261,7 @@ if __name__ == "__main__" and weechat_call:
     else:
         hook_commands_and_completions()
 
-        # Set register script options if not available
+        #Set register script options if not available
 
         for option, default_value in script_options.items():
             if not weechat.config_is_set_plugin(option):
@@ -1263,11 +1273,10 @@ if __name__ == "__main__" and weechat_call:
                 weechat.config_set_plugin(option, default_value)
 
         read_config()
-        # hook for config changes
-
+        #Hook for config changes
         weechat.hook_config("plugins.var.python." + SCRIPT_NAME + ".*", "config_cb", "")
 
-        # create buffer
+        #Create buffer
         twit_buf = weechat.buffer_new("twitter", "buffer_input_cb", "", "buffer_close_cb", "")
 
         #Hook text input so we can update the bar item
@@ -1275,7 +1284,8 @@ if __name__ == "__main__" and weechat_call:
 
         if script_options['auth_complete']:
             finish_init()
-            #create home_timeline stream
+            #Create home_timeline stream.
+            #This will indirectly trigger the ":new" command if stream sucessfully starts
             create_stream("twitter")
         else:
             weechat.prnt(twit_buf,"""You have to register this plugin with twitter for it to work.
