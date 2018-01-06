@@ -31,11 +31,13 @@ Then the author will send a pull request on this repository.
 
 There are two ways to send a new release for a script:
 
-* Send a pull request, the commit message must have the name of script,
-  version, and changes, like that: +
+* Send a pull request (*recommended*). +
+  The commit message must have the name of script, version, and changes,
+  like that: +
   `script.py 0.3: fix...` +
-  Please submit only one script per pull request.
-* Use the form at: <https://weechat.org/scripts/update/>.
+  Only one script is allowed per pull request.
+* Use the form at: <https://weechat.org/scripts/update/> (please use this form
+  only if you can not send a pull request).
 
 When sending a new version :
 
