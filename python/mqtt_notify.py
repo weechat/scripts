@@ -12,7 +12,7 @@ import json
 
 SCRIPT_NAME = 'mqtt_notify'
 SCRIPT_AUTHOR = 'Guillaume Subiron <maethor@subiron.org>'
-SCRIPT_VERSION = '0.1'
+SCRIPT_VERSION = '0.2'
 SCRIPT_LICENSE = 'WTFPL'
 SCRIPT_DESC = 'Sends notifications using MQTT'
 
@@ -44,7 +44,7 @@ def on_msg(*a):
     msg['buffer'] = w.buffer_get_string(msg['buffer'], 'short_name')
 
     cli = mqtt.Client()
-    if w.config.get_plugin('mqtt_user'):
+    if w.config_get_plugin('mqtt_user'):
         cli.username_pw_set(w.config_get_plugin('mqtt_user'),
                             password=w.config_get_plugin('mqtt_password'))
     cli.connect(w.config_get_plugin('mqtt_host'),

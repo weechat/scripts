@@ -1,4 +1,4 @@
-# coding: utf-8
+# -*- coding: utf-8 -*-
 #
 # Copyright (c) 2014 Kengo Tateishi <embrace.ddd.flake.peace@gmail.com>
 # https://github.com/tkengo/weechat-url-hinter
@@ -35,7 +35,7 @@ require 'singleton'
 # Register url-hinter plugin to weechat and do initialization.
 #
 def weechat_init
-  Weechat.register('url_hinter', 'Kengo Tateish', '0.4', 'GPL3', 'Open an url in the weechat buffer to type a hint', '', '')
+  Weechat.register('url_hinter', 'Kengo Tateish', '0.41', 'GPL3', 'Open an url in the weechat buffer to type a hint', '', '')
   Weechat.hook_command(
     'url_hinter',
     'Search url strings, and highlight them, and if you type a hint key, open the url related to hint key.',
@@ -192,7 +192,7 @@ class Hint
   private
 
   def get_hint_keys
-	option = 'hintkeys'
+    option = 'hintkeys'
     if Weechat.config_is_set_plugin(option) == 0
       Weechat.config_set_plugin(option, 'jfhkgyuiopqwertnmzxcvblasd')
     end
@@ -350,7 +350,9 @@ class Line
   end
 
   def remove_color_message
-    Weechat.string_remove_color(message.dup, '')
+    ret = Weechat.string_remove_color(message.dup, '')
+    ret.force_encoding("UTF-8")
+    return ret
   end
 
   def next

@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2010-2015 by Nils Görs <weechatter@arcor.de>
+# Copyright (c) 2010-2017 by Nils Görs <weechatter@arcor.de>
 # Copyleft (ɔ) 2013 by oakkitten
 #
 # colors the channel text with nick color and also highlight the whole line
@@ -44,6 +44,7 @@
 # /buffer set localvar_set_colorize_lines *yellow
 
 # history:
+# 3.5: new options "highlight_words" and "highlight_words_color" (idea by jokrebel)
 # 3.4: new options "tags" and "ignore_tags"
 # 3.3: use localvar "colorize_lines" for buffer related color (idea by tomoe-mami)
 # 3.2: minor logic fix
@@ -106,29 +107,33 @@
 
 use strict;
 my $PRGNAME     = "colorize_lines";
-my $VERSION     = "3.4";
+my $VERSION     = "3.5";
 my $AUTHOR      = "Nils Görs <weechatter\@arcor.de>";
 my $LICENCE     = "GPL3";
 my $DESCR       = "Colorize users' text in chat area with their nick color, including highlights";
 
-my %config = ("buffers"             => "all",       # all, channel, query
-              "blacklist_buffers"   => "",          # "a,b,c"
-              "lines"               => "on",
-              "highlight"           => "on",        # on, off, nicks
-              "nicks"               => "",          # "d,e,f", "/file"
-              "own_lines"           => "on",        # on, off, only
-              "tags"                => "irc_privmsg",
-              "ignore_tags"         => "irc_ctcp",
+my %config = ("buffers"                 => "all",       # all, channel, query
+              "blacklist_buffers"       => "",          # "a,b,c"
+              "lines"                   => "on",
+              "highlight"               => "on",        # on, off, nicks
+              "nicks"                   => "",          # "d,e,f", "/file"
+              "own_lines"               => "on",        # on, off, only
+              "tags"                    => "irc_privmsg",
+              "ignore_tags"             => "irc_ctcp",
+              "highlight_words"         => "off",       # on, off
+              "highlight_words_color"   => "black,darkgray",
 );
 
-my %help_desc = ("buffers"             => "Buffer type affected by the script (all/channel/query, default: all)",
-                 "blacklist_buffers"   => "Comma-separated list of channels to be ignored (e.g. freenode.#weechat,*.#python)",
-                 "lines"               => "Apply nickname color to the lines (off/on/nicks). The latter will limit highlighting to nicknames in option 'nicks'",
-                 "highlight"           => "Apply highlight color to the highlighted lines (off/on/nicks). The latter will limit highlighting to nicknames in option 'nicks'",
-                 "nicks"               => "Comma-separater list of nicks (e.g. freenode.cat,*.dog) OR file name starting with '/' (e.g. /file.txt). In the latter case, nicknames will get loaded from that file inside weechat folder (e.g. from ~/.weechat/file.txt). Nicknames in file are newline-separated (e.g. freenode.dog\\n*.cat)",
-                 "own_lines"           => "Apply nickname color to own lines (off/on/only). The latter turns off all other kinds of coloring altogether",
-                 "tags"                => "Comma-separated list of tags to accept (see /debug tags)",
-                 "ignore_tags"         => "Comma-separated list of tags to ignore (see /debug tags)",
+my %help_desc = ("buffers"                  => "Buffer type affected by the script (all/channel/query, default: all)",
+                 "blacklist_buffers"        => "Comma-separated list of channels to be ignored (e.g. freenode.#weechat,*.#python)",
+                 "lines"                    => "Apply nickname color to the lines (off/on/nicks). The latter will limit highlighting to nicknames in option 'nicks'",
+                 "highlight"                => "Apply highlight color to the highlighted lines (off/on/nicks). The latter will limit highlighting to nicknames in option 'nicks'",
+                 "nicks"                    => "Comma-separater list of nicks (e.g. freenode.cat,*.dog) OR file name starting with '/' (e.g. /file.txt). In the latter case, nicknames will get loaded from that file inside weechat folder (e.g. from ~/.weechat/file.txt). Nicknames in file are newline-separated (e.g. freenode.dog\\n*.cat)",
+                 "own_lines"                => "Apply nickname color to own lines (off/on/only). The latter turns off all other kinds of coloring altogether",
+                 "tags"                     => "Comma-separated list of tags to accept (see /debug tags)",
+                 "ignore_tags"              => "Comma-separated list of tags to ignore (see /debug tags)",
+                 "highlight_words"          => "highlight word(s) in text, matching word(s) in weechat.look.highlight",
+                 "highlight_words_color"    => "color for highlight word in text (fg:bg)",
 );
 
 my @ignore_tags_array;
@@ -223,12 +228,41 @@ sub colorize_cb
             $color = $channel_color if ($channel_color); 
         } else {
             # oh well
-            return $string;
+            return $string if ($config{highlight_words} ne "on");
         }
     }
+    my $right_nocolor = weechat::string_remove_color($right, "");
+    if ((
+            $config{highlight_words} eq "on"
+            ) && ($my_nick ne $nick) && (
+            weechat::string_has_highlight($right_nocolor, weechat::config_string(weechat::config_get("weechat.look.highlight")))
+            ))
+            {
+            my $high_word_color = weechat::color(weechat::config_get_plugin("highlight_words_color"));
+            my $reset = weechat::color('reset');
+            my @highlight_array = split(/,/,weechat::config_string(weechat::config_get("weechat.look.highlight")));
+            my @line_array = split(/ /,$right);
 
+            foreach my $l (@line_array) {
+                foreach my $h (@highlight_array) {
+                    my $i = $h;
+                    # check word case insensitiv || check if word matches without "(?-i)" at beginning
+                    if ( lc($l) eq lc($h) || (index($h,"(?-i)") != -1 && ($l eq substr($i,5,length($i)-5,""))) ) {
+                        $right =~ s/\Q$l\E/$high_word_color$l$reset/;
+                    # word starts with (?-i) and has a wildcard ?
+                    } elsif ((index($h,"(?-i)") != -1) && (index($h,"*") != -1) ){
+                        my $i = $h;
+                        my $t = substr($i,5,length($i)-5,"");
+                        my $regex = weechat::string_mask_to_regex($t);
+                        $right =~ s/\Q$l\E/$high_word_color$l$reset/ if ($l =~ /^$regex$/i);    # use * without sensitive
+                      }elsif ((index($h,"*") == 0 || index($h,"*") == length($h)-1)){# wildcard at beginning or end ?
+                        my $regex = weechat::string_mask_to_regex($h);
+                        $right =~ s/\Q$l\E/$high_word_color$l$reset/ if ($l =~ /^$regex$/i);
+                      }
+                }
+            }
+            }
     ######################################## inject colors and go!
-
     my $out = "";
     if ($action) {
         # remove the first color reset - after * nick

@@ -17,6 +17,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2017-12-14: Sébastien Helleu <flashcode@flashtux.org>
+#       0.6 : rename command "/autosetbuffer" by "/buffer_autoset" in example
+#
 # 2015-04-05: nils_2 (freenode.#weechat)
 #       0.5 : change priority of hook_signal('buffer_opened') to 100
 #
@@ -49,7 +52,7 @@ except Exception:
 
 SCRIPT_NAME     = 'histman'
 SCRIPT_AUTHOR   = 'nils_2 <weechatter@arcor.de>'
-SCRIPT_VERSION  = '0.5'
+SCRIPT_VERSION  = '0.6'
 SCRIPT_LICENSE  = 'GPL'
 SCRIPT_DESC     = 'save and restore global and/or buffer command history'
 
@@ -395,9 +398,9 @@ if __name__ == '__main__':
                             ' save the command history manually (for example with /cron script):\n'
                             '   /' + SCRIPT_NAME + ' save\n'
                             ' save and restore command history for buffer #weechat on freenode (text only):\n'
-                            '   /autosetbuffer add irc.freenode.#weechat localvar_set_save_history text\n'
+                            '   /buffer_autoset add irc.freenode.#weechat localvar_set_save_history text\n'
                             ' save and restore command history for weechat core buffer (commands only):\n'
-                            '   /autosetbuffer add core.weechat localvar_set_save_history command\n',
+                            '   /buffer_autoset add core.weechat localvar_set_save_history command\n',
                             'save %-'
                             '|| list %-',
                             'histman_cmd_cb', '')
