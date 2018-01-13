@@ -20,6 +20,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # History:
+# version 1.6.1:nils_2@freenode.#weechat
+# 2018-01-11: fix: wrong variable name
+#
 # version 1.6:nils_2@freenode.#weechat
 # 2018-01-09: add: use hook_process_hashtable() for /WHOIS
 #           : imp: use hook_process_hashtable() instead hook_process() for security reasons
@@ -105,7 +108,7 @@ use File::Spec;
 use DBI;
 
 my $SCRIPT_NAME         = "stalker";
-my $SCRIPT_VERSION      = "1.6";
+my $SCRIPT_VERSION      = "1.6.1";
 my $SCRIPT_AUTHOR       = "Nils Görs <weechatter\@arcor.de>";
 my $SCRIPT_LICENCE      = "GPL3";
 my $SCRIPT_DESC         = "Records and correlates nick!user\@host information";
@@ -1311,7 +1314,7 @@ sub irc_in2_join_cb
         "arg8"  => $options{'max_recursion'},
         "arg9"  => $options{'ignore_guest_nicks'},
         "arg10" => $options{'guest_nick_regex'},
-        }, 1000 * $options{'timeout'},"hook_process_get_nicks_records_cb","$nick $ptr_buffer $my_tags");
+        }, 1000 * $options{'timeout'},"hook_process_get_nicks_records_cb","$nick $buffer $my_tags");
 
       }
     return weechat::WEECHAT_RC_OK;
