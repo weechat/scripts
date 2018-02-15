@@ -102,10 +102,13 @@ def search_trig_cb(data, buf, date, tags, displayed, highlight, prefix, message)
             return weechat.WEECHAT_RC_OK
 
     for row in cursor.execute("SELECT * FROM triggers"):
-        r = re.compile(row[1])
-        if r.search(message) is not None:
-            weechat.prnt('', "found trigger %s with reply %s for message %s" % (row[1], row[2], message))
-            weechat.command(buf, "/say %s" % row[2])
+        try:
+            r = re.compile(row[1])
+            if r.search(message) is not None:
+                weechat.command(buf, "/say %s" % row[2])
+        except:
+            if row[1] == message:
+                weechat.command(buf, "/say %s" % row[2])
 
     return weechat.WEECHAT_RC_OK
 
