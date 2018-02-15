@@ -149,8 +149,6 @@ def command_input_callback(data, buffer, argv):
         trigger = argv[pos[0] + 1:pos[1]].replace('\\"', '"')
         reply = argv[pos[2] + 1:pos[3]].replace('\\"', '"')
 
-        weechat.prnt('', 'trigger ~%s~ with reply ~%s~' % (trigger, reply))
-
         try:
             cursor.execute("INSERT INTO triggers(trig, reply) VALUES (?,?)", (trigger, reply,))
         except:
