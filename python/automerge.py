@@ -21,6 +21,8 @@
 History:
     * 2017-03-22, Ricky Brent <ricky@rickybrent.com>:
           version 0.1: initial release
+    * 2018-03-02, Brady Trainor <mail@bradyt.com>:
+          version 0.2: fix the merge command
 """
 
 from __future__ import print_function
@@ -32,7 +34,7 @@ except ImportError:
     print('Script must be run under weechat. http://www.weechat.org')
     IMPORT_OK = False
 
-VERSION = '0.1'
+VERSION = '0.2'
 NAME = 'automerge'
 AUTHOR = 'Ricky Brent <ricky@rickybrent.com>'
 DESC = 'Merge new irc buffers according to defined rules.'
@@ -93,7 +95,7 @@ def cb_signal_apply_rules(data, signal, buf):
         if re.match(pattern, name):
             mid = find_merge_id(buf, merge)
             if mid >= 0:
-                weechat.command(buf, "/merge " + str(mid))
+                weechat.command(buf, "/buffer merge " + str(mid))
     return weechat.WEECHAT_RC_OK
 
 def cb_command(data, buf, args):
