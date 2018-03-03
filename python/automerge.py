@@ -93,7 +93,7 @@ def cb_signal_apply_rules(data, signal, buf):
         if re.match(pattern, name):
             mid = find_merge_id(buf, merge)
             if mid >= 0:
-                weechat.command(buf, "/merge " + str(mid))
+                weechat.command(buf, "/buffer merge " + str(mid))
     return weechat.WEECHAT_RC_OK
 
 def cb_command(data, buf, args):
