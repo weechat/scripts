@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2010-2013 by Nils Görs <weechatter@arcor.de>
+# Copyright (c) 2010-2018 by Nils Görs <weechatter@arcor.de>
 #
 # display the status and visited buffers of your buddies in a buddylist bar
 #
@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 1.9   : added: cursor support
 # 1.8   : fixed: problem with temporary server
 #       : added: %h variable for filename
 # 1.7   : fixed: perl error when adding and removing nick
@@ -81,7 +82,7 @@
 use strict;
 
 my $prgname		= "buddylist";
-my $version		= "1.8";
+my $version		= "1.9";
 my $description		= "display status from your buddies a bar-item.";
 
 # -------------------------------[ config ]-------------------------------------
@@ -120,6 +121,9 @@ my %mouse_keys = ("\@item(buddylist):button1*"                                  
                   "\@item(buffer_nicklist)>item(buddylist):button1-gesture-*"   => "hsignal:buddylist_mouse",
                   "\@chat(*)>item(buddylist):button1-gesture-*"                 => "hsignal:buddylist_mouse",
                   "\@item(buddylist):button1-gesture-*"                         => "hsignal:buddylist_mouse");
+
+my %cursor_keys = ( "\@item(buddylist):q"            => "hsignal:buddylist_cursor",
+                    "\@item(buddylist):w"            => "hsignal:buddylist_cursor");
 
 my $debug_redir_out	= "off";
 
@@ -196,7 +200,9 @@ weechat::hook_signal("upgrade_ended", "buddylist_upgrade_ended", "");
 if ($weechat_version >= 0x00030600){
   weechat::hook_focus($prgname, "hook_focus_buddylist", "");
   weechat::hook_hsignal("buddylist_mouse","buddylist_hsignal_mouse", "");
+  weechat::hook_hsignal("buddylist_cursor","buddylist_hsignal_cursor", "");
   weechat::key_bind("mouse", \%mouse_keys);
+  weechat::key_bind("cursor", \%cursor_keys);
 }
 
 
@@ -248,10 +254,13 @@ weechat::hook_command($prgname, $description,
                 "\n".
                 "'plugins.var.perl.buddylist.use.redirection'      : using redirection to get status of buddies (needs weechat >=0.3.4) (default: on).\n".
                 "\n\n".
-                "Mouse-support (standard key bindings):\n".
+                "Mouse-support:\n".
                 "  click left mouse-button on buddy to open a query buffer.\n".
                 "  add a buddy by dragging a nick with left mouse-button from nicklist or chat-area and drop on buddylist.\n".
                 "  remove a buddy by dragging a buddy with left mouse-button from buddylist and drop it on any area.\n".
+                "Cursor-Mode:\n".
+                " q  open query with nick (/query)\n".
+                " w  query information about user (/whois)\n".
                 "\n\n".
                 "Troubleshooting:\n".
                 "If buddylist will not be refreshed in nicklist-mode, check the following WeeChat options:\n".
@@ -1521,7 +1530,7 @@ $server = $channel if ( $server eq "server");                                   
 
 return weechat::WEECHAT_RC_OK;
 }
-# -------------------------------[ mouse support ]-------------------------------------
+# --------------------------[ mouse and cursor support ]--------------------------------
 sub hook_focus_buddylist{
     my %info = %{$_[1]};
     my $bar_item_line = int($info{"_bar_item_line"});
@@ -1529,9 +1538,9 @@ sub hook_focus_buddylist{
     return if ($#buddylist_focus == -1);
 
     my $flag = 0;
-    # if button1 was pressed on "offline" buddy, do nothing!!!
-    if ( ($info{"_bar_item_name"} eq $prgname) && ($bar_item_line >= 0) && ($bar_item_line <= $#buddylist_focus) && ($info{"_key"} eq "button1" ) ){
-        $hash = $buddylist_focus[$bar_item_line];
+    # mouse or key pressed on "offline" buddy, do nothing!!!
+    if ( ($info{"_bar_item_name"} eq $prgname) && ($bar_item_line >= 0) && ($bar_item_line <= $#buddylist_focus) ){
+       $hash = $buddylist_focus[$bar_item_line];
         my $hash_focus = $hash;
         while ( my ($key,$value) = each %$hash_focus ){
           if ( $key eq "status" and $value eq "2" ){
@@ -1574,4 +1583,20 @@ sub buddylist_hsignal_mouse{
 weechat::bar_item_update($prgname);
 return weechat::WEECHAT_RC_OK;
 }
-# this is the end
+
+sub buddylist_hsignal_cursor{
+    my ($data, $signal, %hash) = ($_[0], $_[1], %{$_[2]});
+
+    # no server?
+    return weechat::WEECHAT_RC_OK if (not defined $hash{"server"});
+
+    # check which key was pressed and do some magic!
+    if ( $hash{"_key"} eq "q" ){
+        weechat::command("", "/query -server " . $hash{"server"} . " " . $hash{"nick"});
+    }elsif ( $hash{"_key"} eq "w" ){
+        weechat::command(weechat::buffer_search("==","irc.server.".$hash{"server"}), "/WHOIS " . $hash{"nick"});
+    }
+    # STOP cursor mode
+    weechat::command("", "/cursor stop");
+    return weechat::WEECHAT_RC_OK;
+}
