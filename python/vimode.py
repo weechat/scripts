@@ -25,7 +25,10 @@ import csv
 import os
 import re
 import subprocess
-from StringIO import StringIO
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO
 import time
 
 import weechat
@@ -36,7 +39,7 @@ import weechat
 
 SCRIPT_NAME = "vimode"
 SCRIPT_AUTHOR = "GermainZ <germanosz@gmail.com>"
-SCRIPT_VERSION = "0.5"
+SCRIPT_VERSION = "0.5.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = ("Add vi/vim-like modes and keybindings to WeeChat.")
 
@@ -50,7 +53,7 @@ SCRIPT_DESC = ("Add vi/vim-like modes and keybindings to WeeChat.")
 # Halp! Halp! Halp!
 GITHUB_BASE = "https://github.com/GermainZ/weechat-vimode/blob/master/"
 README_URL = GITHUB_BASE + "README.md"
-FAQ_KEYBINDINGS = GITHUB_BASE + "FAQ#problematic-key-bindings.md"
+FAQ_KEYBINDINGS = GITHUB_BASE + "FAQ.md#problematic-key-bindings"
 FAQ_ESC = GITHUB_BASE + "FAQ.md#esc-key-not-being-detected-instantly"
 
 # Holds the text of the command-line mode (currently only Ex commands ":").
@@ -778,14 +781,16 @@ VI_KEYS = {'j': "/window scroll_down",
            'I': key_I,
            'yy': key_yy,
            'p': "/input clipboard_paste",
-           '/': "/input search_text",
-           'gt': "/buffer +1",
-           'K': "/buffer +1",
-           'gT': "/buffer -1",
-           'J': "/buffer -1",
+           '/': "/input search_text_here",
+           'gt': "/buffer -1",
+           'K': "/buffer -1",
+           'gT': "/buffer +1",
+           'J': "/buffer +1",
            'r': key_r,
            'R': key_R,
            '~': key_tilda,
+           'nt': "/bar scroll nicklist * -100%",
+           'nT': "/bar scroll nicklist * +100%",
            '\x01[[A': "/input history_previous",
            '\x01[[B': "/input history_next",
            '\x01[[C': "/input move_next_char",
@@ -980,7 +985,8 @@ def cb_key_combo_default(data, signal, signal_data):
                 # This is to avoid crashing WeeChat on script reloads/unloads,
                 # because no hooks must still be running when a script is
                 # reloaded or unloaded.
-                if VI_KEYS[vi_keys] == "/input return":
+                if (VI_KEYS[vi_keys] == "/input return" and
+                        input_line.startswith("/script ")):
                     return weechat.WEECHAT_RC_OK
                 weechat.command("", VI_KEYS[vi_keys])
                 current_cur = weechat.buffer_get_integer(buf, "input_pos")
@@ -1124,6 +1130,7 @@ def cb_exec_cmd(data, remaining_calls):
         weechat.command("", "/cursor go {},{}".format(x, y))
     # Check againt defined commands.
     else:
+        raw_data = data
         data = data.split(" ", 1)
         cmd = data[0]
         args = ""
@@ -1131,11 +1138,22 @@ def cb_exec_cmd(data, remaining_calls):
             args = data[1]
         if cmd in VI_COMMANDS:
             weechat.command("", "%s %s" % (VI_COMMANDS[cmd], args))
-        # No vi commands defined, run the command as a WeeChat command.
         else:
+            # Check for commands not sepearated by space (e.g. "b2")
+            for i in range(1, len(raw_data)):
+                tmp_cmd = raw_data[:i]
+                tmp_args = raw_data[i:]
+                if tmp_cmd in VI_COMMANDS and tmp_args.isdigit():
+                    weechat.command("", "%s %s" % (VI_COMMANDS[tmp_cmd],
+                                                   tmp_args))
+                    return weechat.WEECHAT_RC_OK
+            # No vi commands found, run the command as WeeChat command
             weechat.command("", "/{} {}".format(cmd, args))
     return weechat.WEECHAT_RC_OK
 
+def cb_vimode_go_to_normal(data, buf, args):
+    set_mode("NORMAL")
+    return weechat.WEECHAT_RC_OK
 
 # Script commands.
 # ----------------
@@ -1409,7 +1427,7 @@ if __name__ == "__main__":
         print_warning("Please upgrade to WeeChat ≥ 1.0.0. Previous versions"
                       " are not supported.")
     # Set up script options.
-    for option, value in vimode_settings.items():
+    for option, value in list(vimode_settings.items()):
         if weechat.config_is_set_plugin(option):
             vimode_settings[option] = weechat.config_get_plugin(option)
         else:
@@ -1444,3 +1462,6 @@ if __name__ == "__main__":
                          "          --list: only list changes",
                          "help || bind_keys |--list",
                          "cb_vimode_cmd", "")
+    weechat.hook_command("vimode_go_to_normal", ("This command can be used for"
+                         " key bindings to go to normal mode."), "", "", "",
+                         "cb_vimode_go_to_normal", "")
