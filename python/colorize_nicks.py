@@ -22,7 +22,9 @@
 #
 # History:
 # 2018-05-06: Joey Pabalinas <joeypabalinas@gmail.com>
-#   version 25: fix freezes from too many nicks in one line
+#   version 26: fix freezes from too many nicks in one line
+# 2018-03-18: nils_2
+#   version 25: fix unable to run function colorize_config_reload_cb()
 # 2017-06-20: lbeziaud <louis.beziaud@ens-rennes.fr>
 #   version 24: colorize utf8 nicks
 # 2017-03-01, arza <arza@arza.us>
@@ -83,7 +85,7 @@ w = weechat
 
 SCRIPT_NAME    = "colorize_nicks"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "25"
+SCRIPT_VERSION = "26"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Use the weechat nick colors in the chat area"
 
@@ -110,7 +112,7 @@ def colorize_config_init():
     '''
     global colorize_config_file, colorize_config_option
     colorize_config_file = weechat.config_new(CONFIG_FILE_NAME,
-                                              "colorize_config_reload_cb", "")
+                                              "", "")
     if colorize_config_file == "":
         return
 
