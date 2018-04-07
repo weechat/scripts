@@ -120,6 +120,8 @@
 #             for '/url copy'
 #  - V2.8 Simmo Saan <simmo.saan@gmail.com>:
 #           - Changed print hook to ignore filtered lines
+#  - V2.9 Dominik Heidler <dominik@heidler.eu>:
+#           - Updated script for python3 support (now python2 and 3 are both supported)
 #
 # Copyright (C) 2005 David Rubin <drubin AT smartcube dot co dot za>
 #
@@ -139,20 +141,27 @@
 # USA.
 #
 
+from __future__ import print_function
 import sys
 import os
 try:
     import weechat
     import_ok = True
 except:
-    print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print("This script must be run under WeeChat.")
+    print("Get WeeChat now at: http://www.weechat.org/")
     import_ok = False
 import subprocess
 import time
-import urllib
+try:
+	from urllib import quote
+except ImportError:
+	from urllib.parse import quote
 import re
-from UserDict import UserDict
+try:
+	from UserDict import UserDict
+except ImportError:
+	from collections import UserDict
 
 
 octet = r'(?:2(?:[0-4]\d|5[0-5])|1\d\d|\d{1,2})'
@@ -358,7 +367,7 @@ class UrlGrabber:
                                            index['buffer'], index['url']))
                 dout.close()
             except :
-                print "failed to log url check that %s is valid path" % urlGrabSettings['url_log']
+                print("failed to log url check that %s is valid path" % urlGrabSettings['url_log'])
                 pass
 
         # check for buffer
@@ -452,7 +461,7 @@ def urlGrabCopy(bufferd, index):
 
 def urlGrabOpenUrl(url):
     global urlGrab, urlGrabSettings
-    argl = urlGrabSettings.createCmd( urllib.quote(url, '/:#%?&+=') )
+    argl = urlGrabSettings.createCmd( quote(url, '/:#%?&+=') )
     weechat.hook_process(argl,60000, "ug_open_cb", "")
 
 def ug_open_cb(data, command, code, out, err):
@@ -684,4 +693,4 @@ if ( import_ok and
     weechat.hook_completion("urlgrab_urls", "list of URLs",
                                 "completion_urls_cb", "")
 else:
-    print "failed to load weechat"
+    print("failed to load weechat")
