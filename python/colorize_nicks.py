@@ -21,6 +21,8 @@
 #
 #
 # History:
+# 2018-04-06: Joey Pabalinas <joeypabalinas@gmail.com>
+#   version 26: fix freezes with too many nicks in one line
 # 2018-03-18: nils_2
 #   version 25: fix unable to run function colorize_config_reload_cb()
 # 2017-06-20: lbeziaud <louis.beziaud@ens-rennes.fr>
@@ -83,7 +85,7 @@ w = weechat
 
 SCRIPT_NAME    = "colorize_nicks"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "25"
+SCRIPT_VERSION = "26"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Use the weechat nick colors in the chat area"
 
@@ -144,6 +146,10 @@ def colorize_config_init():
         colorize_config_file, section_look, "greedy_matching",
         "boolean", "If off, then use lazy matching instead", "", 0,
         0, "on", "on", 0, "", "", "", "", "", "")
+    colorize_config_option["match_limit"] = weechat.config_new_option(
+        colorize_config_file, section_look, "match_limit",
+        "integer", "Fall back to lazy matching if greedy matches exceeds this number", "",
+        20, 1000, "", "", 0, "", "", "", "", "", "")
     colorize_config_option["ignore_nicks_in_urls"] = weechat.config_new_option(
         colorize_config_file, section_look, "ignore_nicks_in_urls",
         "boolean", "If on, don't colorize nicks inside URLs", "", 0,
@@ -214,33 +220,50 @@ def colorize_cb(data, modifier, modifier_data, line):
         if nick in colored_nicks[buffer]:
             nick_color = colored_nicks[buffer][nick]
 
-            # Let's use greedy matching. Will check against every word in a line.
-            if w.config_boolean(colorize_config_option['greedy_matching']):
-                for word in line.split():
-                    if w.config_boolean(colorize_config_option['ignore_nicks_in_urls']) and \
-                          word.startswith(('http://', 'https://')):
-                        continue
+            try:
+                # Let's use greedy matching. Will check against every word in a line.
+                if w.config_boolean(colorize_config_option['greedy_matching']):
+                    cnt = 0
+                    limit = w.config_integer(colorize_config_option['match_limit'])
 
-                    if nick in word:
-                        # Is there a nick that contains nick and has a greater lenght?
-                        # If so let's save that nick into var biggest_nick
-                        biggest_nick = ""
-                        for i in colored_nicks[buffer]:
-                            if nick in i and nick != i and len(i) > len(nick):
-                                if i in word:
-                                    # If a nick with greater len is found, and that word
-                                    # also happens to be in word, then let's save this nick
-                                    biggest_nick = i
-                        # If there's a nick with greater len, then let's skip this
-                        # As we will have the chance to colorize when biggest_nick
-                        # iterates being nick.
-                        if len(biggest_nick) > 0 and biggest_nick in word:
-                            pass
-                        elif len(word) < len(biggest_nick) or len(biggest_nick) == 0:
-                            new_word = word.replace(nick, '%s%s%s' % (nick_color, nick, reset))
-                            line = line.replace(word, new_word)
-            # Let's use lazy matching for nick
-            else:
+                    for word in line.split():
+                        cnt += 1
+                        assert cnt < limit
+                        #  if cnt > limit:
+                            #  raise RuntimeError('Exceeded colorize_nicks.look.match_limit.');
+
+                        if w.config_boolean(colorize_config_option['ignore_nicks_in_urls']) and \
+                              word.startswith(('http://', 'https://')):
+                            continue
+
+                        if nick in word:
+                            # Is there a nick that contains nick and has a greater lenght?
+                            # If so let's save that nick into var biggest_nick
+                            biggest_nick = ""
+                            for i in colored_nicks[buffer]:
+                                cnt += 1
+                                assert cnt < limit
+
+                                if nick in i and nick != i and len(i) > len(nick):
+                                    if i in word:
+                                        # If a nick with greater len is found, and that word
+                                        # also happens to be in word, then let's save this nick
+                                        biggest_nick = i
+                            # If there's a nick with greater len, then let's skip this
+                            # As we will have the chance to colorize when biggest_nick
+                            # iterates being nick.
+                            if len(biggest_nick) > 0 and biggest_nick in word:
+                                pass
+                            elif len(word) < len(biggest_nick) or len(biggest_nick) == 0:
+                                new_word = word.replace(nick, '%s%s%s' % (nick_color, nick, reset))
+                                line = line.replace(word, new_word)
+
+                # Switch to lazy matching
+                else:
+                    raise AssertionError
+
+            except AssertionError:
+                # Let's use lazy matching for nick
                 nick_color = colored_nicks[buffer][nick]
                 # The two .? are in case somebody writes "nick:", "nick,", etc
                 # to address somebody
@@ -249,6 +272,7 @@ def colorize_cb(data, modifier, modifier_data, line):
                 if match is not None:
                     new_line = line[:match.start(2)] + nick_color+nick+reset + line[match.end(2):]
                     line = new_line
+
     return line
 
 def colorize_input_cb(data, modifier, modifier_data, line):
