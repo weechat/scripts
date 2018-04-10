@@ -69,6 +69,10 @@
 #
 #   History:
 #
+#   2018-04-10, Sébastien Helleu <flashcode@flashtux.org>
+#   version 0.8.1: fix infolist_time for WeeChat >= 2.2 (WeeChat returns a long
+#                  integer instead of a string)
+#
 #   2017-09-20, mickael9
 #   version 0.8:
 #   * use weechat 1.5+ api for background processing (old method was unsafe and buggy)
@@ -222,7 +226,7 @@ except ImportError:
 
 SCRIPT_NAME    = "grep"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.8"
+SCRIPT_VERSION = "0.8.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Search in buffers and logs"
 SCRIPT_COMMAND = "grep"
@@ -844,6 +848,10 @@ def grep_buffer(buffer, head, tail, after_context, before_context, count, regexp
                 prefix = string_remove_color(infolist_string(infolist, 'prefix'), '')
                 message = string_remove_color(infolist_string(infolist, 'message'), '')
                 date = infolist_time(infolist, 'date')
+                # since WeeChat 2.2, infolist_time returns a long integer
+                # instead of a string
+                if not isinstance(date, str):
+                    date = time.strftime('%F %T', time.localtime(int(date)))
                 return '%s\t%s\t%s' %(date, prefix, message)
         return function
     get_line = make_get_line_funcion()
