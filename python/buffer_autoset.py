@@ -328,8 +328,13 @@ if __name__ == "__main__" and import_ok:
             weechat.hook_config("%s.buffer.*" % CONFIG_FILE_NAME,
                                 "bas_config_option_cb", "")
 
-            # core buffer is already open on script startup, check manually!
-            bas_signal_buffer_opened_cb("", "", weechat.buffer_search_main())
+            # apply settings to all already opened buffers
+            buffers = weechat.infolist_get("buffer", "", "")
+            if buffers:
+                while weechat.infolist_next(buffers):
+                    buffer = weechat.infolist_pointer(buffers, "pointer")
+                    bas_signal_buffer_opened_cb("", "", buffer)
+                weechat.infolist_free(buffers)
 
 
 # ==================================[ end ]===================================
