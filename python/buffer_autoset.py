@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2018-04-14, Kim B. Heino:
+#     version 1.1: on startup apply settings to already opened buffers
 # 2017-06-21, Sébastien Helleu <flashcode@flashtux.org>:
 #     version 1.0: rename command /autosetbuffer to /buffer_autoset
 # 2015-09-28, Simmo Saan <simmo.saan@gmail.com>:
@@ -48,7 +50,7 @@
 
 SCRIPT_NAME = "buffer_autoset"
 SCRIPT_AUTHOR = "Sébastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "1.0"
+SCRIPT_VERSION = "1.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Auto-set buffer properties when a buffer is opened"
 
@@ -328,8 +330,13 @@ if __name__ == "__main__" and import_ok:
             weechat.hook_config("%s.buffer.*" % CONFIG_FILE_NAME,
                                 "bas_config_option_cb", "")
 
-            # core buffer is already open on script startup, check manually!
-            bas_signal_buffer_opened_cb("", "", weechat.buffer_search_main())
+            # apply settings to all already opened buffers
+            buffers = weechat.infolist_get("buffer", "", "")
+            if buffers:
+                while weechat.infolist_next(buffers):
+                    buffer = weechat.infolist_pointer(buffers, "pointer")
+                    bas_signal_buffer_opened_cb("", "", buffer)
+                weechat.infolist_free(buffers)
 
 
 # ==================================[ end ]===================================
