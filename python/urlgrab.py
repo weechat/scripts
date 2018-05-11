@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 #
 # UrlGrab, for weechat version >= 0.3.0
 #
@@ -107,7 +108,7 @@
 #           - Removed '/url help' command, because /help <command> is the standard way
 #  - V2.0 Xilov: replace "/url help" by "/help url"
 #  - V2.1 nand: Changed default: firefox %s to firefox '%s' (localcmd)
-#  - V2.2 Sebastien Helleu <flashcode@flashtux.org>: fix reload of config file
+#  - V2.2 Sébastien Helleu <flashcode@flashtux.org>: fix reload of config file
 #  - V2.3 nand: Allowed trailing )s for unmatched (s in URLs
 #  - V2.4 nand: Escaped URLs via URL-encoding instead of shell escaping, fixes '
 #  - V2.5 nand: Fixed some URLs that got incorrectly mangled by escaping
@@ -122,6 +123,8 @@
 #           - Changed print hook to ignore filtered lines
 #  - V2.9 Dominik Heidler <dominik@heidler.eu>:
 #           - Updated script for python3 support (now python2 and 3 are both supported)
+#  - V3.0 Sébastien Helleu <flashcode@flashtux.org>:
+#           - Fix python 3 compatibility (replace "has_key" by "in")
 #
 # Copyright (C) 2005 David Rubin <drubin AT smartcube dot co dot za>
 #
@@ -174,7 +177,7 @@ urlRe = re.compile(r'(\w+://(?:%s|%s)(?::\d+)?(?:/[^\]>\s]*)?)' % (domain, ipAdd
 
 SCRIPT_NAME    = "urlgrab"
 SCRIPT_AUTHOR  = "David Rubin <drubin [At] smartcube [dot] co [dot] za>"
-SCRIPT_VERSION = "2.9"
+SCRIPT_VERSION = "3.0"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Url functionality Loggin, opening of browser, selectable links"
 CONFIG_FILE_NAME= "urlgrab"
@@ -399,7 +402,7 @@ class UrlGrabber:
 
     def prnt(self, buff):
         found = True
-        if self.urls.has_key(buff):
+        if buff in self.urls:
             if len(self.urls[buff]) > 0:
                 i = 1
                 for url in self.urls[buff]:
