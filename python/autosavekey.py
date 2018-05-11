@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2013-2015 by nils_2 <weechatter@arcor.de>
+# Copyright (c) 2013-2018 by nils_2 <weechatter@arcor.de>
 #
 # save channel key from protected channel(s) to autojoin or secure data
 #
@@ -18,6 +18,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # idea by freenode.elsae
+#
+# 2018-05-11: nils_2, (freenode.#weechat)
+#       0.4 : make script python3 compatible
+#           : add /help text
 #
 # 2015-05-09: nils_2, (freenode.#weechat)
 #       0.3 : fix: ValueError (reported by: Darpa)
@@ -37,15 +41,15 @@ try:
     import weechat,re
 
 except Exception:
-    print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print("This script must be run under WeeChat.")
+    print("Get WeeChat now at: http://www.weechat.org/")
     quit()
 
 SCRIPT_NAME     = "autosavekey"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.3"
+SCRIPT_VERSION  = "0.4"
 SCRIPT_LICENSE  = "GPL"
-SCRIPT_DESC     = "save channel key from protected channel(s) to autojoin or secure data"
+SCRIPT_DESC     = "save channel key from protected channel(s) to autojoin option or secure data"
 
 OPTIONS         = { 'mute'        : ('off','execute command silently, only error messages will be displayed.'),
                     'secure'      : ('off','change channel key in secure data.'),
@@ -216,6 +220,11 @@ def check_key_for_secure(argv_keys,position):
     if argv_keys[position][0:11] == '${sec.data.':
         sec_data = 1
     return sec_data
+
+def cmd_autosavekey(data, buffer, args):
+    weechat.command('', '/help %s' % SCRIPT_NAME)
+    return weechat.WEECHAT_RC_OK
+
 # ================================[ weechat options & description ]===============================
 def init_options():
     for option,value in OPTIONS.items():
@@ -235,6 +244,13 @@ def toggle_refresh(pointer, name, value):
 # ================================[ main ]===============================
 if __name__ == "__main__":
     if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, '', ''):
+        weechat.hook_command(SCRIPT_NAME,SCRIPT_DESC,
+                             '',
+                             'You have to edit options with: /set *autosavekey*\n'
+                             'I suggest using /iset script or /fset plugin.\n',
+                             '',
+                             'cmd_autosavekey',
+                             '')
         version = weechat.info_get("version_number", "") or 0
 
         if int(version) >= 0x00030200:
