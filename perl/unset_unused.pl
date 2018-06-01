@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011-2013 by Nils Görs <weechatter@arcor.de>
+# Copyright (c) 2011-2018 by Nils Görs <weechatter@arcor.de>
 #
 # unset script option(s) from not installed scripts
 #
@@ -17,10 +17,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 #
+# 18-04-18: 0.4: add support for php and javascript
 # 14-10-04: 0.3: fixed: problem with unset options (reported by GermainZ)
-#
-# 13-07-27: 0.2 : added: support for guile_script
-#
+# 13-07-27: 0.2: added: support for guile_script
 # 11-08-28: 0.1
 #
 # Development is currently hosted at
@@ -29,19 +28,21 @@
 use strict;
 
 my $PRGNAME     = "unset_unused";
-my $VERSION     = "0.3";
+my $VERSION     = "0.4";
 my $AUTHOR      = "Nils Görs <weechatter\@arcor.de>";
 my $LICENCE     = "GPL3";
 my $DESCR       = "unset script option(s) from not installed scripts (YOU ARE USING THIS SCRIPT AT YOUR OWN RISK!)";
 my $weechat_version = "";
 my @option_list;
 my %script_plugins = (
-                    "python"    => "python_script",
-                    "perl"      => "perl_script",
-                    "ruby"      => "ruby_script",
-                    "tcl"       => "tcl_script",
-                    "lua"       => "lua_script",
-                    "guile"     => "guile_script",
+                    "python"        => "python_script",
+                    "perl"          => "perl_script",
+                    "ruby"          => "ruby_script",
+                    "tcl"           => "tcl_script",
+                    "lua"           => "lua_script",
+                    "guile"         => "guile_script",
+                    "php"           => "php_script",
+                    "javascript"    => "javascript_script",
 );
 
 my $option_struct;
@@ -142,10 +143,11 @@ $weechat_version = weechat::info_get("version_number", "");
 
 weechat::hook_command($PRGNAME, $DESCR,
                 "list || unset\n",
-                "   list         : list all unused script options\n".
-                "  unset         : reset config options (without warning!)\n\n".
-                "If \"plugins.desc.\" exists, it will be removed, too.\n".
-                "save your settings with \"/save plugins\" or restore settings with \"/reload plugins\"".
+                "   list: list all script options from not installed scripts (run this command first!)\n".
+                "  unset: remove script options from not installed scripts (without warning!)\n\n".
+                "If \"plugins.desc.\" exists, it will be removed, too.\n\n".
+                "save your settings with \"/save plugins\" or restore settings with \"/reload plugins\"\n".
+                "You can also use \"/unset -mask\", see /help unset".
                 "\n",
                 "list %-||".
                 "unset %-",
