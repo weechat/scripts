@@ -8,7 +8,7 @@ place into ~/.weechat/python/autoload
 """
 SCRIPT_NAME    = "clemenshow"
 SCRIPT_AUTHOR  = "Leigh MacDonald <leigh.macdonald@gmail.com>"
-SCRIPT_VERSION = "1.0"
+SCRIPT_VERSION = "1.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Clementine now playing script"
 SCRIPT_COMMAND = "np"
@@ -20,7 +20,7 @@ try:
     import weechat
 except ImportError:
     print "This script must be run under WeeChat 3.4 or better."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print "Get WeeChat now at: https://weechat.org/"
     sys.exit()
 try:
     from dbus import Bus, DBusException

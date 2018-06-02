@@ -34,12 +34,12 @@ try:
 
 except Exception:
   print "This script must be run under WeeChat."
-  print "Get WeeChat now at: http://www.weechat.org/"
+  print "Get WeeChat now at: https://weechat.org/"
   quit()
 
 SCRIPT_NAME     = "shutup"
 SCRIPT_AUTHOR   = 'Filip H.F. "FiXato" Slagter <FiXato+weechat@gmail.com>'
-SCRIPT_VERSION  = "0.2"
+SCRIPT_VERSION  = "0.3"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "Replace text from specified IRC users with random or preset text as a way to hide their actual text. Unlike /filter it won't hide the line (and thus can't be toggled either), and has access to the entire hostmask for comparison. Can be useful to mute users while still seeing that they are active."
 

@@ -30,7 +30,7 @@
 
 SCRIPT_NAME    = 'samegame'
 SCRIPT_AUTHOR  = 'Sebastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '0.2'
+SCRIPT_VERSION = '0.3'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC    = 'Samegame'
 
@@ -42,7 +42,7 @@ try:
     import weechat
 except ImportError:
     print('This script must be run under WeeChat.')
-    print('Get WeeChat now at: http://www.weechat.org/')
+    print('Get WeeChat now at: https://weechat.org/')
     import_ok = False
 
 try:

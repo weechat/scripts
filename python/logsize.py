@@ -43,12 +43,12 @@ try:
 
 except Exception:
     print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print "Get WeeChat now at: https://weechat.org/"
     quit()
 
 SCRIPT_NAME     = "logsize"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.3"
+SCRIPT_VERSION  = "0.4"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "display size of current logfile in item-bar"
 OPTIONS         = { "refresh"       : ("60","refresh timer (in seconds)"),

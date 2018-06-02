@@ -33,7 +33,7 @@ try:
     import re
 except:
     print("You must run this script within Weechat!")
-    print("http://www.weechat.org")
+    print("https://weechat.org")
     import_ok = False
 
 #####
@@ -41,7 +41,7 @@ except:
 #####
 SCRIPT_NAME = "xfer_scp"
 SCRIPT_AUTHOR = "Grant Bacon <btnarg@gmail.com>"
-SCRIPT_VERSION = "1.0.5"
+SCRIPT_VERSION = "1.0.6"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Send files via scp after xfer completes, optionally delete after"
 

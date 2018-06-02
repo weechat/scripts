@@ -47,12 +47,12 @@ try:
 
 except Exception:
     print("This script must be run under WeeChat.")
-    print("Get WeeChat now at: http://www.weechat.org/")
+    print("Get WeeChat now at: https://weechat.org/")
     quit()
 
 SCRIPT_NAME     = 'histman'
 SCRIPT_AUTHOR   = 'nils_2 <weechatter@arcor.de>'
-SCRIPT_VERSION  = '0.6'
+SCRIPT_VERSION  = '0.7'
 SCRIPT_LICENSE  = 'GPL'
 SCRIPT_DESC     = 'save and restore global and/or buffer command history'
 

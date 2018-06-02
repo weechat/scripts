@@ -112,7 +112,7 @@
 
 SCRIPT_NAME    = "inotify"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.1.4"
+SCRIPT_VERSION = "0.1.5"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Notifications for WeeChat."
 SCRIPT_COMMAND = "inotify"
@@ -140,7 +140,7 @@ try:
     import_ok = True
 except:
     print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print "Get WeeChat now at: https://weechat.org/"
     import_ok = False
 
 import xmlrpclib, socket

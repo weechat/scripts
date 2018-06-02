@@ -28,7 +28,7 @@ try:
     import weechat as w
 except Exception:
     print("This script must be run under WeeChat.")
-    print("Get WeeChat now at: http://www.weechat.org/")
+    print("Get WeeChat now at: https://weechat.org/")
     quit()
 
 import re, os
@@ -36,7 +36,7 @@ from collections import Counter
 
 name = "hl2file"
 author = "nesthib <nesthib@gmail.com>"
-version = "0.2"
+version = "0.3"
 license = "GPL"
 description = "Generates a file with highlights for external programs like conky"
 shutdown_function = "shutdown"

@@ -51,12 +51,12 @@ try:
 
 except Exception:
     print("This script must be run under WeeChat.")
-    print("Get WeeChat now at: http://www.weechat.org/")
+    print("Get WeeChat now at: https://weechat.org/")
     quit()
 
 SCRIPT_NAME     = "text_item"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.7.1"
+SCRIPT_VERSION  = "0.7.2"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "add a plain text or evaluated content to item bar"
 

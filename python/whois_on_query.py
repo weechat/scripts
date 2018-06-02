@@ -49,12 +49,12 @@ try:
     import_ok = True
 except ImportError:
     print('This script must be run under WeeChat.')
-    print('Get WeeChat now at: http://www.weechat.org/')
+    print('Get WeeChat now at: https://weechat.org/')
     import_ok = False
 
 SCRIPT_NAME    = 'whois_on_query'
 SCRIPT_AUTHOR  = 'Sebastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '0.6.1'
+SCRIPT_VERSION = '0.6.2'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC    = 'Whois on query'
 

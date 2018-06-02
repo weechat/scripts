@@ -95,13 +95,13 @@ try:
 
 except Exception:
     print("This script must be run under WeeChat.")
-    print("Get WeeChat now at: http://www.weechat.org/")
+    print("Get WeeChat now at: https://weechat.org/")
     quit()
 
 # -------------------------------[ Constants ]-------------------------------------
 SCRIPT_NAME     = "keepnick"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "1.6"
+SCRIPT_VERSION  = "1.7"
 SCRIPT_LICENCE  = "GPL3"
 SCRIPT_DESC     = "keep your nick and recover it in case it's occupied"
 

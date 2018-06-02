@@ -90,7 +90,7 @@
 
 SCRIPT_NAME    = "whatsapp"
 SCRIPT_AUTHOR  = "Jochen Sprickerhof <weechat@jochen.sprickerhof.de>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Whatsapp protocol for WeeChat"
 SCRIPT_COMMAND = SCRIPT_NAME
@@ -103,7 +103,7 @@ try:
     import weechat
 except:
     print("This script must be run under WeeChat.")
-    print("Get WeeChat now at: http://www.weechat.org/")
+    print("Get WeeChat now at: https://weechat.org/")
     import_ok = False
 
 try:

@@ -280,7 +280,7 @@ WEECHAT_VERSION = (0x30200, '0.3.2')
 
 SCRIPT_NAME    = "chanop"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.3.1"
+SCRIPT_VERSION = "0.3.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Helper script for IRC Channel Operators"
 
@@ -303,7 +303,7 @@ try:
     import_ok = True
 except ImportError:
     print("This script must be run under WeeChat.")
-    print("Get WeeChat now at: http://www.weechat.org/")
+    print("Get WeeChat now at: https://weechat.org/")
     import_ok = False
 
 import os

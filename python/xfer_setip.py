@@ -33,7 +33,7 @@
 
 SCR_NAME    = "xfer_setip"
 SCR_AUTHOR  = "Stephan Huebner <shuebnerfun01@gmx.org>"
-SCR_VERSION = "0.4"
+SCR_VERSION = "0.5"
 SCR_LICENSE = "GPL3"
 SCR_DESC    = "Set apropriate xfer-option for external ip"
 SCR_COMMAND = "xfer_setip"
@@ -51,7 +51,7 @@ try:
     import re
 
 except:
-    print "Script must be run under weechat. http://www.weechat.org"
+    print "Script must be run under weechat. https://weechat.org"
     import_ok = False
 
 def alert(myString):

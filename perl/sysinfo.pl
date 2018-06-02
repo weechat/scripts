@@ -37,7 +37,7 @@
 #
 # You can also reach Travis in #crd on efnet.
 #
-# ported to WeeChat (http://www.weechat.org/) by Nils Görs. Copyright
+# ported to WeeChat (https://weechat.org/) by Nils Görs. Copyright
 # (c) 2011-2016 Nils Görs
 #
 # 2016-03-23: 1.0 nils_2 (freenode@nils_2)
@@ -72,7 +72,7 @@ use POSIX qw(floor);
 use strict;
 
 my $SCRIPT_NAME         = "sysinfo";
-my $SCRIPT_VERSION      = "1.0";
+my $SCRIPT_VERSION      = "1.1";
 my $SCRIPT_DESCR        = "provides a system info command";
 my $SCRIPT_LICENSE      = "GPL3";
 my $SCRIPT_AUTHOR       = "Nils Görs <weechatter\@arcor.de>";

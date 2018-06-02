@@ -106,7 +106,7 @@ use strict;
 
 my $SCRIPT      = 'query_blocker';
 my $AUTHOR      = 'rettub <rettub@gmx.net>';
-my $VERSION     = '1.1';
+my $VERSION     = '1.2';
 my $LICENSE     = 'GPL3';
 my $DESCRIPTION = 'Simple blocker for private message (i.e. spam)';
 my $COMMAND     = "query_blocker";             # new command name
@@ -772,7 +772,7 @@ if ( weechat::register( $SCRIPT, $AUTHOR, $VERSION, $LICENSE, $DESCRIPTION, "", 
     weechat::hook_command( $COMMAND, $DESCRIPTION, $ARGS_HELP, $CMD_HELP, $COMPLETITION, $CALLBACK, "" );
     $weechat_version = weechat::info_get("version_number", "");
     if ( ($weechat_version ne "") && (weechat::info_get("version_number", "") < 0x00030200) ) {
-        weechat::print("",weechat::prefix("error")."$SCRIPT: needs WeeChat >= 0.3.2. Please upgrade: http://www.weechat.org/");
+        weechat::print("",weechat::prefix("error")."$SCRIPT: needs WeeChat >= 0.3.2. Please upgrade: https://weechat.org/");
         weechat::command("","/wait 1ms /perl unload $SCRIPT");
   }
 

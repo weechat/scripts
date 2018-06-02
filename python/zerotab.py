@@ -19,7 +19,7 @@
 
 SCRIPT_NAME='zerotab'
 SCRIPT_AUTHOR='Lucian Adamson <lucian.adamson@yahoo.com>'
-SCRIPT_VERSION='1.5'
+SCRIPT_VERSION='1.6'
 SCRIPT_LICENSE='GPL'
 SCRIPT_DESC='Will tab complete the last nick in channel without typing anything first. This is good for rapid conversations.'
 
@@ -29,7 +29,7 @@ try:
     import weechat, re
 except ImportError:
     print ('This script must be run under WeeChat')
-    print ('You can obtain a copy of WeeChat, for free, at http://www.weechat.org')
+    print ('You can obtain a copy of WeeChat, for free, at https://weechat.org')
     import_ok=False
 
 latest_speaker={}

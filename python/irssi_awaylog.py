@@ -25,14 +25,14 @@ try:
 	import weechat as wc
 except Exception:
 	print "This script must be run under WeeChat."
-	print "Get WeeChat now at: http://www.weechat.org/"
+	print "Get WeeChat now at: https://weechat.org/"
 	import_ok = False
 
 import time
 
 SCRIPT_NAME     = "irssi_awaylog"
 SCRIPT_AUTHOR   = "henrik"
-SCRIPT_VERSION  = "0.3"
+SCRIPT_VERSION  = "0.4"
 SCRIPT_LICENSE  = "GPL3"
 SCRIPT_DESC     = "Emulates irssis awaylog behaviour"
 

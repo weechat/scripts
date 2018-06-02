@@ -48,7 +48,7 @@ use strict;
 use URI::Find;
 
 my $PRGNAME	= "expand_url";
-my $version	= "0.6";
+my $version	= "0.7";
 my $AUTHOR      = "Nils Görs <weechatter\@arcor.de>";
 my $LICENSE     = "GPL3";
 my $DESC	= "Get information on a short URL. Find out where it goes.";
@@ -222,7 +222,7 @@ weechat::register($PRGNAME, $AUTHOR, $version,$LICENSE, $DESC, "", "");
 
 $weechat_version = weechat::info_get("version_number", "");
 if (( $weechat_version eq "" ) or ( $weechat_version < 0x00030700 )){
-    weechat::print("",weechat::prefix("error")."$PRGNAME: needs WeeChat >= 0.3.7. Please upgrade: http://www.weechat.org/");
+    weechat::print("",weechat::prefix("error")."$PRGNAME: needs WeeChat >= 0.3.7. Please upgrade: https://weechat.org/");
     weechat::command("","/wait 1ms /perl unload $PRGNAME");
 }
 

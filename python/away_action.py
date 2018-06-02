@@ -56,7 +56,7 @@
 
 SCRIPT_NAME    = "away_action"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.5"
+SCRIPT_VERSION = "0.6"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Run command on highlight and privmsg when away"
 
@@ -80,7 +80,7 @@ try:
     from fnmatch import fnmatch
 except:
     print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print "Get WeeChat now at: https://weechat.org/"
     import_ok = False
 
 class Ignores(object):

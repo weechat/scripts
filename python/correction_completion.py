@@ -61,11 +61,11 @@ try:
     import weechat as w
 except ImportError:
     print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print "Get WeeChat now at: https://weechat.org/"
 
 SCRIPT_NAME    = "correction_completion"
 SCRIPT_AUTHOR  = "Pascal Wittmann <mail@pascal-wittmann.de>"
-SCRIPT_VERSION = "0.3.0"
+SCRIPT_VERSION = "0.3.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Provides a completion for 's/typo/correct'"
 SCRIPT_COMMAND = "correction_completion"
@@ -315,6 +315,6 @@ standard /set-command e.g.
   /set weechat.completion.default_template "%%(nicks)|%%(irc_channels)|%%(%(completion)s)"
 
 Footnotes:
-¹ http://weechat.org/scripts/source/stable/iset.pl/
+¹ https://weechat.org/scripts/source/stable/iset.pl/
 """
 %dict(completion=template), '', '', '')

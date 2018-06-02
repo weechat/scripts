@@ -36,7 +36,7 @@
 
 SCRIPT_NAME    = "cron"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.4"
+SCRIPT_VERSION = "0.5"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Time-based scheduler, like cron and at"
 
@@ -46,7 +46,7 @@ try:
     import weechat
 except:
     print("This script must be run under WeeChat.")
-    print("Get WeeChat now at: http://www.weechat.org/")
+    print("Get WeeChat now at: https://weechat.org/")
     import_ok = False
 
 try:

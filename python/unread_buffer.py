@@ -28,12 +28,12 @@ try:
 
 except Exception:
     print("This script must be run under WeeChat.")
-    print("Get WeeChat now at: http://www.weechat.org/")
+    print("Get WeeChat now at: https://weechat.org/")
     quit()
 
 SCRIPT_NAME     = "unread_buffer"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "1"
+SCRIPT_VERSION  = "2"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "mark buffer as unread"
 

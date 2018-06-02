@@ -47,12 +47,12 @@ try:
     import_ok = True
 except ImportError:
     print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print "Get WeeChat now at: https://weechat.org/"
     import_ok = False
 
 SCRIPT_NAME    = "completion"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Word completions for WeeChat"
 SCRIPT_COMMAND = "completion"
@@ -258,7 +258,7 @@ For this script to work, you must add the template
 
 Examples:
 /%(command)s add wee WeeChat (typing wee<tab> will replace 'wee' by 'WeeChat')
-/%(command)s add weeurl http://www.weechat.org/
+/%(command)s add weeurl https://weechat.org/
 /%(command)s add test This is a test!
 """ %dict(completion=completion_template, command=SCRIPT_COMMAND),
             'add|del %(completion_keys)', 'cmd_completion', '')

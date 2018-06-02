@@ -24,7 +24,7 @@
 
 SCRIPT_NAME = 'growl'
 SCRIPT_AUTHOR = 'Sorin Ionescu <sorin.ionescu@gmail.com>'
-SCRIPT_VERSION = '1.0.6'
+SCRIPT_VERSION = '1.0.7'
 SCRIPT_LICENSE = 'MIT'
 SCRIPT_DESC = 'Sends Growl notifications upon events.'
 
@@ -76,7 +76,7 @@ except ImportError as error:
     IMPORT_OK = False
     if str(error).find('weechat') != -1:
         print('This script must be run under WeeChat.')
-        print('Get WeeChat at http://www.weechat.org.')
+        print('Get WeeChat at https://weechat.org.')
     elif str(error).find('notifier') != -1:
         weechat.prnt('', 'growl: GNTP bindings are not installed')
     else:

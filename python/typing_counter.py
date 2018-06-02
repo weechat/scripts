@@ -75,7 +75,7 @@
 
 SCRIPT_NAME    = "typing_counter"
 SCRIPT_AUTHOR  = "fauno <fauno@kiwwwi.com.ar>"
-SCRIPT_VERSION = "0.9"
+SCRIPT_VERSION = "0.10"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Bar item showing typing count and cursor position. Add 'tc' to a bar."
 
@@ -84,7 +84,7 @@ try:
 
 except Exception:
     print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print "Get WeeChat now at: https://weechat.org/"
     quit()
 try:
     import os, sys, re

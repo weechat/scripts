@@ -27,7 +27,7 @@
 
 SCR_NAME    = "arespond"
 SCR_AUTHOR  = "Stephan Huebner <shuebnerfun01@gmx.org>"
-SCR_VERSION = "0.1.0"
+SCR_VERSION = "0.1.1"
 SCR_LICENSE = "GPL3"
 SCR_DESC    = "An autoresponder (sending a notice on other users' messages)"
 SCR_COMMAND = "arespond"
@@ -37,7 +37,7 @@ import_ok = True
 try:
    import weechat as w
 except:
-   print "Script must be run under weechat. http://www.weechat.org"
+   print "Script must be run under weechat. https://weechat.org"
    import_ok = False
 
 import time

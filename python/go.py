@@ -92,7 +92,7 @@ from __future__ import print_function
 
 SCRIPT_NAME = 'go'
 SCRIPT_AUTHOR = 'Sébastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '2.5'
+SCRIPT_VERSION = '2.6'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC = 'Quick jump to buffers'
 
@@ -104,7 +104,7 @@ try:
     import weechat
 except ImportError:
     print('This script must be run under WeeChat.')
-    print('Get WeeChat now at: http://www.weechat.org/')
+    print('Get WeeChat now at: https://weechat.org/')
     IMPORT_OK = False
 
 import re

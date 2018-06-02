@@ -38,7 +38,7 @@
 # script variables
 SCRIPT_NAME = "notify"
 SCRIPT_AUTHOR = "lavaramano"
-SCRIPT_VERSION = "0.0.8"
+SCRIPT_VERSION = "0.0.9"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC = "notify: A real time notification system for weechat"
 
@@ -48,7 +48,7 @@ try:
     import weechat
 except ImportError:
     print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print "Get WeeChat now at: https://weechat.org/"
     import_ok = False
 # make sure we have notify2.
 try:

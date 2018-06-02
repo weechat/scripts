@@ -18,12 +18,12 @@ try:
   import weechat
 except:
   print("You must run this script within Weechat!")
-  print("http://www.weechat.org")
+  print("https://weechat.org")
   import_ok = False
 
 SCRIPT_NAME = "xfer_run_command"
 SCRIPT_AUTHOR = "Michael Kebe <michael.kebe@gmail.com>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Runs a command on xfer_ended signal with acces to data (with trigger not possible)"
 

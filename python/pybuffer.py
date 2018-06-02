@@ -51,7 +51,7 @@
 #   >>> buffer_get_string(b, 'input')
 #   'asdasdas hello!'
 #   >>> buffer_get_string(b, 'title')
-#   'WeeChat, stable: 0.3.3, web: http://www.weechat.org/ | English support channel | Please read
+#   'WeeChat, stable: 0.3.3, web: https://weechat.org/ | English support channel | Please read
 #   doc/faq/quickstart before asking here | Old versions (0.2.6.x and earlier) are not supported any
 #   more'
 #
@@ -69,7 +69,7 @@
 
 SCRIPT_NAME    = "pybuffer"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Python interpreter for WeeChat and module for debug scripts."
 
@@ -79,7 +79,7 @@ try:
     import_ok = True
 except ImportError:
     print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print "Get WeeChat now at: https://weechat.org/"
     import_ok = False
 
 import code, sys, traceback

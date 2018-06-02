@@ -26,14 +26,14 @@ local w = weechat
 
 SCRIPT_NAME    = "http_item"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "1"
+SCRIPT_VERSION = "2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Bar item with HTTP source, using lua patterns to match content"
 BAR_ITEM_NAME  = SCRIPT_NAME
 
 -- Settings
 settings = {
-    url               = 'http://weechat.org/info/stable/',
+    url               = 'https://weechat.org/info/stable/',
     pattern           = '(%d+%.%d+%.%d+)',
     message_prefix    = 'Latest WeeChat: ',
     message_postfix   = '',

@@ -90,7 +90,7 @@ from urllib import quote
 
 SCRIPT_NAME    = "announce_url_title"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "18"
+SCRIPT_VERSION = "19"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Announce URL titles to channel or locally"
 
@@ -105,7 +105,7 @@ settings = {
     'suffix':   '',
     'announce_public': 'off', # print it or msg the buffer
     'global': 'off', # whether to enable for all buffers
-    'user_agent': 'WeeChat/%(version)s (http://www.weechat.org)', # user-agent format string
+    'user_agent': 'WeeChat/%(version)s (https://weechat.org)', # user-agent format string
     'global_prefix':'url', # Prefix for when not public announcement
 }
 

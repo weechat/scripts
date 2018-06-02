@@ -45,7 +45,7 @@ from os.path import expanduser
 
 SCR_NAME    = "snotify"
 SCR_AUTHOR  = "Stephan Huebner <shuebnerfun01@gmx.org>"
-SCR_VERSION = "0.1.3"
+SCR_VERSION = "0.1.4"
 SCR_LICENSE = "GPL3"
 SCR_DESC    = "Play a soundfile for messages in choosable channels or queries"
 SCR_COMMAND = "snotify"
@@ -58,7 +58,7 @@ muted = False
 try:
 	import weechat as w
 except:
-	print "Script must be run under weechat. http://www.weechat.org"
+	print "Script must be run under weechat. https://weechat.org"
 	import_ok = False
 
 settings = {
