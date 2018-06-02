@@ -31,7 +31,7 @@ try:
     import_ok = True
 except ImportError:
     weechat.prnt('', 'mqtt_notify: this script must be run under WeeChat.')
-    weechat.prnt('', 'Get WeeChat now at: http://www.weechat.org/')
+    weechat.prnt('', 'Get WeeChat now at: https://weechat.org/')
     import_ok = False
 
 try:
@@ -49,7 +49,7 @@ SCRIPT_MAINTAINER = 'Serge van Ginderachter <serge@vanginderachter.be>'
 
 SCRIPT_NAME = 'mqtt_notify'
 SCRIPT_AUTHOR = 'Guillaume Subiron <maethor@subiron.org>'
-SCRIPT_VERSION = '0.5'
+SCRIPT_VERSION = '0.6'
 SCRIPT_LICENSE = 'WTFPL'
 SCRIPT_DESC = 'Sends notifications using MQTT'
 

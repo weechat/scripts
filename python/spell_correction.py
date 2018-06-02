@@ -39,7 +39,7 @@
 #       0.1 : - initial release -
 #
 # requires: WeeChat version >= 0.4.0
-# better use latest stable or devel version : http://www.weechat.org/download/
+# better use latest stable or devel version : https://weechat.org/download/
 #
 #
 # Development is currently hosted at
@@ -51,12 +51,12 @@ try:
 
 except Exception:
     print("This script must be run under WeeChat.")
-    print("Get WeeChat now at: http://www.weechat.org/")
+    print("Get WeeChat now at: https://weechat.org/")
     quit()
 
 SCRIPT_NAME     = "spell_correction"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.6"
+SCRIPT_VERSION  = "0.7"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "a simple spell correction for a 'misspelled' word"
 

@@ -15,7 +15,7 @@
 
 SCRIPT_NAME = 'lastfm2'
 SCRIPT_AUTHOR = "timss <timsateroy@gmail.com>"
-SCRIPT_VERSION = '0.1'
+SCRIPT_VERSION = '0.2'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC = "Sends latest played track for a Last.fm user to the current buffer"
 
@@ -53,7 +53,7 @@ try:
     import_ok = True
 except ImportError:
     print("This script must be run under WeeChat.")
-    print("Get WeeChat now at: http://www.weechat.org/")
+    print("Get WeeChat now at: https://weechat.org/")
     import_ok = False
 
 import json

@@ -6,7 +6,7 @@
 # Released under GNU GPL v2
 #
 # Based on the 'notify' plugin version 0.0.5 by lavaramano <lavaramano AT gmail DOT com>:
-# <http://www.weechat.org/scripts/source/stable/notify.py.html/>
+# <https://weechat.org/scripts/source/stable/notify.py.html/>
 #
 # 2014-05-10, Sébastien Helleu <flashcode@flashtux.org>
 #     Version 0.7: Change hook_print callback argument type of
@@ -29,7 +29,7 @@
 
 import urllib, weechat
 
-weechat.register('weeprowl', 'Josh Dick', '0.7', 'GPL', 'Prowl notifications for WeeChat', '', '')
+weechat.register('weeprowl', 'Josh Dick', '0.8', 'GPL', 'Prowl notifications for WeeChat', '', '')
 
 # Plugin settings
 settings = {

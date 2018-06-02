@@ -42,7 +42,7 @@ try:
     import weechat
 except:
     print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print "Get WeeChat now at: https://weechat.org/"
     raise SystemExit, 0
 
 try:
@@ -55,7 +55,7 @@ except:
 # defines
 SCRIPT_NAME     = "bandwidth"
 SCRIPT_AUTHOR   = "xt <xt@bash.no>"
-SCRIPT_VERSION  = "1.0"
+SCRIPT_VERSION  = "1.1"
 SCRIPT_LICENSE  = "GPL3"
 SCRIPT_DESC     = "Displays network interface bandwidth (KiB/s and MiB/s) on a bar"
 SCRIPT_SETTINGS = {

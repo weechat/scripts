@@ -97,7 +97,7 @@ try:
     import weechat
 except ImportError:
     print('This script must be run under WeeChat.')
-    print('Get WeeChat now at: http://www.weechat.org/')
+    print('Get WeeChat now at: https://weechat.org/')
     import_ok = False
 
 try:
@@ -111,7 +111,7 @@ except ImportError as message:
 
 SCRIPT_NAME = 'apply_corrections'
 SCRIPT_AUTHOR = 'Chris Johnson <raugturi@gmail.com>'
-SCRIPT_VERSION = '1.2'
+SCRIPT_VERSION = '1.3'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC = "When a correction (ex: s/typo/replacement) is sent, print the "\
               "user's previous message(s) with the corrected text instead."
@@ -253,7 +253,7 @@ def handle_message_cb(data, buffer, date, tags, disp, hl, nick, message):
         # incoming messages.
         #
         # Nick regex nicked from colorize_nicks available here:
-        # http://www.weechat.org/scripts/source/stable/colorize_nicks.py.html/
+        # https://weechat.org/scripts/source/stable/colorize_nicks.py.html/
         valid_nick = r'([@~&!%+])?([-a-zA-Z0-9\[\]\\`_^\{|\}]+)'
         valid_correction = r's/[^/]*/[^/]*'
         correction_message_pattern = re.compile(

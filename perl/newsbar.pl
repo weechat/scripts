@@ -31,7 +31,7 @@
 # Download:
 # http://github.com/rettub/weechat-plugins/raw/master/perl/newsbar.pl
 # https://github.com/weechatter/weechat-scripts
-# http://www.weechat.org/scripts/
+# https://weechat.org/scripts/
 # -----------------------------------------------------------------------------
 # XXX Known bugs:
 #     Bar must be redrawed if terminal size has changed (wrapping)
@@ -221,7 +221,7 @@ my %SETTINGS = (
 
 my $weechat_version;
 my $SCRIPT              = "newsbar";
-my $SCRIPT_VERSION      = "0.18";
+my $SCRIPT_VERSION      = "0.19";
 my $SCRIPT_AUTHOR       = "rettub";
 my $SCRIPT_LICENCE      = "GPL3";
 my $SCRIPT_DESCRIPTION  = "Print highlights or text given by commands into bar 'NewsBar'. Auto popup on top of weechat if needed. 'beeps' can be executed local or remote";

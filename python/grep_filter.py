@@ -47,7 +47,7 @@ from __future__ import print_function
 
 SCRIPT_NAME = "grep_filter"
 SCRIPT_AUTHOR = "Simmo Saan <simmo.saan@gmail.com>"
-SCRIPT_VERSION = "0.9"
+SCRIPT_VERSION = "0.10"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Filter buffers automatically while searching them"
 
@@ -63,7 +63,7 @@ try:
 	import weechat
 except ImportError:
 	print("This script must be run under WeeChat.")
-	print("Get WeeChat now at: http://www.weechat.org/")
+	print("Get WeeChat now at: https://weechat.org/")
 	IMPORT_OK = False
 
 import re # re.escape

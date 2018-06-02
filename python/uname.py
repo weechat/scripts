@@ -10,7 +10,7 @@
 
 SCRIPT_NAME    = "uname"
 SCRIPT_AUTHOR  = "Stalwart <stlwrt doggy gmail.com>"
-SCRIPT_VERSION = "1.1"
+SCRIPT_VERSION = "1.2"
 SCRIPT_LICENSE = "GPL2"
 SCRIPT_DESC    = "Sends \"uname -a\" output to current channel"
 
@@ -20,7 +20,7 @@ try:
     import weechat
 except ImportError:
     print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print "Get WeeChat now at: https://weechat.org/"
     import_ok = False
 
 try:

@@ -28,12 +28,12 @@ try:
 
 except Exception:
     print("This script must be run under WeeChat.")
-    print("Get WeeChat now at: http://www.weechat.org/")
+    print("Get WeeChat now at: https://weechat.org/")
     quit()
 
 SCRIPT_NAME     = "automarkbuffer"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "1.0"
+SCRIPT_VERSION  = "1.1"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "mark buffers as read if there is no new message in a specific time range"
 TIMER           = None

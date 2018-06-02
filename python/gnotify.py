@@ -9,12 +9,12 @@
 #
 # Copy weechaticn.png to /usr/local/share/pixmaps/ or change the path below
 #
-# gnotify is derived from notify http://www.weechat.org/files/scripts/notify.py
+# gnotify is derived from notify https://weechat.org/files/scripts/notify.py
 # Original author: lavaramano <lavaramano AT gmail DOT com>
 
 import weechat, Growl, string
 
-weechat.register("gnotify", "tobypadilla", "0.2", "GPL", "gnotify: Growl notifications for Weechat", "", "")
+weechat.register("gnotify", "tobypadilla", "0.3", "GPL", "gnotify: Growl notifications for Weechat", "", "")
 
 # script options
 settings = {

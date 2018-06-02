@@ -39,7 +39,7 @@
 
 SCRIPT_NAME    = "moc_control"
 SCRIPT_AUTHOR  = "SuperTux88 (Benjamin Neff) <info@benjaminneff.ch>"
-SCRIPT_VERSION = "1.7.3"
+SCRIPT_VERSION = "1.7.4"
 SCRIPT_LICENSE = "GPL2"
 SCRIPT_DESC    = "moc control and now playing script for Weechat"
 
@@ -51,7 +51,7 @@ try:
     import weechat
 except ImportError:
     print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print "Get WeeChat now at: https://weechat.org/"
     import_ok = False
 
 try:

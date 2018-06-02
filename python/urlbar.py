@@ -50,7 +50,7 @@
 
 SCRIPT_NAME    = "urlbar"
 SCRIPT_AUTHOR  = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "12"
+SCRIPT_VERSION = "13"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Bar with URLs. For easy clicking or selecting."
 SCRIPT_COMMAND = "urlbar"
@@ -73,7 +73,7 @@ try:
     import weechat
 except ImportError:
     print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print "Get WeeChat now at: https://weechat.org/"
     import_ok = False
 
 import re

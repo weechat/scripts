@@ -82,7 +82,7 @@ try:
 	import weechat
 except ImportError:
 	print("This script requires WeeChat")
-	print("To obtain a copy, for free, visit http://weechat.org")
+	print("To obtain a copy, for free, visit https://weechat.org")
 	import_ok = False
 
 
@@ -159,7 +159,7 @@ class Queue():
 
 SCRIPT_NAME		= "queue"
 SCRIPT_AUTHOR	= "walk"
-SCRIPT_VERSION	= "0.4.2"
+SCRIPT_VERSION	= "0.4.3"
 SCRIPT_LICENSE	= "GPL3"
 SCRIPT_DESC		= "Command queuing"
 

@@ -45,7 +45,7 @@
 # =============================================================================
 
 
-VERSION="1.1"
+VERSION="1.2"
 NAME="autoauth"
 AUTHOR="Kolter"
 
@@ -55,7 +55,7 @@ import_ok = True
 try:
     import weechat
 except:
-    print "Script must be run under weechat. http://www.weechat.org"
+    print "Script must be run under weechat. https://weechat.org"
     import_ok = False
 
 import re

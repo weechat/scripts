@@ -31,7 +31,7 @@
 
 SCRIPT_NAME    = "emoji2alias"
 SCRIPT_AUTHOR  = "Wil Clouser <clouserw@micropipes.com>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "MIT"
 SCRIPT_DESC    = "Replaces emoji characters with their aliases"
 
@@ -40,7 +40,7 @@ import_ok = True
 try:
    import weechat as w
 except:
-   print "Script must be run under weechat. http://www.weechat.org"
+   print "Script must be run under weechat. https://weechat.org"
    import_ok = False
 
 import re

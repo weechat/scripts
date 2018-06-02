@@ -26,14 +26,14 @@ try:
     import weechat as w
 except Exception:
     print("This script must be run under WeeChat.")
-    print("Get WeeChat now at: http://www.weechat.org/")
+    print("Get WeeChat now at: https://weechat.org/")
     quit()
 
 import argparse, re
 
 name = "hl_nicks"
 author = "nesthib <nesthib@gmail.com>"
-version = "0.1.1"
+version = "0.1.2"
 license = "GPL"
 description = "Generates a list of nicks in input by selecting nicks using flags and patterns"
 shutdown_function = ""

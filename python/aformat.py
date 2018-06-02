@@ -35,12 +35,12 @@ try:
     import_ok = True
 except ImportError:
     print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print "Get WeeChat now at: https://weechat.org/"
     import_ok = False
 
 SCRIPT_NAME = "aformat"
 SCRIPT_AUTHOR = "Hairo R. Carela <hairocr8@gmail.com>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "WTFPL"
 SCRIPT_DESC = ("Alternate way of text formatting, see /help for instructions")
 

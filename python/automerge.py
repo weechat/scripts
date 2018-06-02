@@ -31,10 +31,10 @@ try:
     import weechat
     IMPORT_OK = True
 except ImportError:
-    print('Script must be run under weechat. http://www.weechat.org')
+    print('Script must be run under weechat. https://weechat.org')
     IMPORT_OK = False
 
-VERSION = '0.2'
+VERSION = '0.3'
 NAME = 'automerge'
 AUTHOR = 'Ricky Brent <ricky@rickybrent.com>'
 DESC = 'Merge new irc buffers according to defined rules.'

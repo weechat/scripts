@@ -14,7 +14,7 @@ try:
     import weechat
 except ImportError:
     print('This script must be run under WeeChat.')
-    print('Get WeeChat now at: http://www.weechat.org/')
+    print('Get WeeChat now at: https://weechat.org/')
     import_success = False
 
 # Requires Install
@@ -25,7 +25,7 @@ except ImportError as e:
     import_success = False
 
 # Weechat Registration
-weechat.register("Teknik", "Uncled1023", "1.0.0", "BSD", "Interact with the Teknik Services, including file uploads, pastes, and url shortening.", "script_closed", "")
+weechat.register("Teknik", "Uncled1023", "1.0.1", "BSD", "Interact with the Teknik Services, including file uploads, pastes, and url shortening.", "script_closed", "")
 
 def upload_file(data):
   try:

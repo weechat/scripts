@@ -50,7 +50,7 @@
 
 SCRIPT_NAME = "buffer_autoset"
 SCRIPT_AUTHOR = "Sébastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "1.1"
+SCRIPT_VERSION = "1.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Auto-set buffer properties when a buffer is opened"
 
@@ -62,7 +62,7 @@ try:
     import weechat
 except ImportError:
     print("This script must be run under WeeChat.")
-    print("Get WeeChat now at: http://www.weechat.org/")
+    print("Get WeeChat now at: https://weechat.org/")
     import_ok = False
 
 CONFIG_FILE_NAME = "buffer_autoset"

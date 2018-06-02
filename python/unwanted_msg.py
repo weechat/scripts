@@ -26,14 +26,14 @@ try:
     import weechat as w
 except Exception:
     print("This script must be run under WeeChat.")
-    print("Get WeeChat now at: http://www.weechat.org/")
+    print("Get WeeChat now at: https://weechat.org/")
     quit()
 
 import re
 
 name = "unwanted_msg"
 author = "nesthib <nesthib@gmail.com>"
-version = "0.1"
+version = "0.2"
 license = "GPL"
 description = "Avoid sending misformatted commands as messages"
 shutdown_function = ""

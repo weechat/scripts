@@ -112,7 +112,7 @@
 
 SCRIPT_NAME = 'urlserver'
 SCRIPT_AUTHOR = 'Sébastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '2.2'
+SCRIPT_VERSION = '2.3'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC = 'Shorten URLs with own HTTP server'
 
@@ -125,7 +125,7 @@ try:
     import weechat
 except ImportError:
     print('This script must be run under WeeChat.')
-    print('Get WeeChat now at: http://www.weechat.org/')
+    print('Get WeeChat now at: https://weechat.org/')
     import_ok = False
 
 try:

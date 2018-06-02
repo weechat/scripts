@@ -69,7 +69,7 @@
 # Requirements:
 #
 #  - Designed to run with weechat version 0.3 or better.
-#      http://www.weechat.org/
+#      https://weechat.org/
 #
 # Acknowlegements:
 #
@@ -152,7 +152,7 @@ try:
     import_ok = True
 except:
     print("This script must be run under WeeChat.")
-    print("Get WeeChat now at: http://www.weechat.org/")
+    print("Get WeeChat now at: https://weechat.org/")
     import_ok = False
 import subprocess
 import time
@@ -177,7 +177,7 @@ urlRe = re.compile(r'(\w+://(?:%s|%s)(?::\d+)?(?:/[^\]>\s]*)?)' % (domain, ipAdd
 
 SCRIPT_NAME    = "urlgrab"
 SCRIPT_AUTHOR  = "David Rubin <drubin [At] smartcube [dot] co [dot] za>"
-SCRIPT_VERSION = "3.0"
+SCRIPT_VERSION = "3.1"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Url functionality Loggin, opening of browser, selectable links"
 CONFIG_FILE_NAME= "urlgrab"

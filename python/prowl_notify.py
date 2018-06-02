@@ -5,14 +5,14 @@
 # Requires Weechat 0.3.7 or Greater
 # Released under the GNU GPL v3
 #
-# prowl_notify is derived from notifo http://www.weechat.org/files/scripts/notifo.py
+# prowl_notify is derived from notifo https://weechat.org/files/scripts/notifo.py
 # Original Author: ochameau <poirot.alex AT gmail DOT com>
 
 ## libraries
 import weechat, time, urllib, xml.etree.ElementTree as ET
 
 ## registration
-weechat.register("prowl_notify", "kidchunks", "3.1", "GPL3", "prowl_notify: Push notifications to iPod Touch, iPhone or iPad with Prowl", "", "")
+weechat.register("prowl_notify", "kidchunks", "3.2", "GPL3", "prowl_notify: Push notifications to iPod Touch, iPhone or iPad with Prowl", "", "")
 
 ## settings
 API_KEY = '' # API key(s) from Prowl (seperated by commas)

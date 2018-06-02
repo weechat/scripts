@@ -28,7 +28,7 @@
 
 SCRIPT_NAME = 'anotify'
 SCRIPT_AUTHOR = 'magnific0'
-SCRIPT_VERSION = '1.0.1'
+SCRIPT_VERSION = '1.0.2'
 SCRIPT_LICENSE = 'MIT'
 SCRIPT_DESC = 'Sends libnotify notifications upon events.'
 
@@ -72,7 +72,7 @@ except ImportError as error:
     IMPORT_OK = False
     if str(error).find('weechat') != -1:
         print('This script must be run under WeeChat.')
-        print('Get WeeChat at http://www.weechat.org.')
+        print('Get WeeChat at https://weechat.org.')
     else:
         weechat.prnt('', 'anotify: {0}'.format(error))
 

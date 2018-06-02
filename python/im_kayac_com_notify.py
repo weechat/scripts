@@ -9,7 +9,7 @@ This plugin is for pushing notifications to im.kayac.com.
 See: http://im.kayac.com/
 
 This plugin is based on notifo_notify.py.
-See: http://www.weechat.org/scripts/source/stable/notifo_notify.py/
+See: https://weechat.org/scripts/source/stable/notifo_notify.py/
 
 Original license is:
 
@@ -28,7 +28,7 @@ import hashlib
 
 ## registration
 
-weechat.register("im_kayac_com_notify", "Gosuke Miyashita", "1.3", "MIT License",
+weechat.register("im_kayac_com_notify", "Gosuke Miyashita", "1.4", "MIT License",
     "im_kayac_com_notify: Push notification to iPod touch/iPhone with im.kayac.com", "", "")
 
 ## settings

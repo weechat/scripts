@@ -34,7 +34,7 @@
 
 SCRIPT_NAME    = "autopong"
 SCRIPT_AUTHOR  = "Wil Clouser <clouserw@micropipes.com>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.3"
 SCRIPT_LICENSE = "MIT"
 SCRIPT_DESC    = "Auto-replies to 'ping' queries"
 
@@ -48,7 +48,7 @@ defaults = {
 try:
    import weechat as w
 except:
-   print "Script must be run under weechat. http://www.weechat.org"
+   print "Script must be run under weechat. https://weechat.org"
    import_ok = False
 
 

@@ -76,7 +76,7 @@
 
 SCRIPT_NAME    = "weeget"
 SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "2.0"
+SCRIPT_VERSION = "2.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "WeeChat scripts manager"
 
@@ -88,7 +88,7 @@ try:
     import weechat
 except ImportError:
     print("This script must be run under WeeChat.")
-    print("Get WeeChat now at: http://www.weechat.org/")
+    print("Get WeeChat now at: https://weechat.org/")
     import_ok = False
 
 try:
@@ -189,8 +189,8 @@ def wg_config_init():
     wg_config_option["scripts_url"] = weechat.config_new_option(
         wg_config_file, section_scripts,
         "url", "string", "URL for file with list of plugins", "", 0, 0,
-        "http://www.weechat.org/files/plugins.xml.gz",
-        "http://www.weechat.org/files/plugins.xml.gz", 0, "", "", "", "", "", "")
+        "https://weechat.org/files/plugins.xml.gz",
+        "https://weechat.org/files/plugins.xml.gz", 0, "", "", "", "", "", "")
     wg_config_option["scripts_dir"] = weechat.config_new_option(
         wg_config_file, section_scripts,
         "dir", "string", "Local cache directory for" + SCRIPT_NAME, "", 0, 0,
@@ -484,7 +484,7 @@ def wg_show_script(name):
         Author: Sebastien Helleu <flashcode [at] flashtux [dot] org>
         Status: installed, running
           Date: added: 2009-04-05, updated: 2009-09-07
-           URL: http://www.weechat.org/files/scripts/weeget.py
+           URL: https://weechat.org/files/scripts/weeget.py
            MD5: 4b0458dd5cc5c9a09ba8078f89830869
           Desc: Scripts manager.
           Tags: scripts
@@ -750,7 +750,7 @@ def wg_parse_xml():
     Example of item return in dictionary :
       '119': { 'name'        : 'weeget',
                'version'     : '0.1',
-               'url'         : 'http://www.weechat.org/files/scripts/weeget.py',
+               'url'         : 'https://weechat.org/files/scripts/weeget.py',
                'language'    : 'python',
                'license'     : 'GPL3',
                'md5sum'      : 'd500714fc19b0e10cc4e339e70739e4ad500714fc19b0e10cc4e339e70739e4a',

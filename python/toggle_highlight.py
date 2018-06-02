@@ -24,13 +24,13 @@
 # 2013-01-06 Adam Spiers <weechat@adamspiers.org>
 #     version 0.1: initial release
 
-# http://www.weechat.org/files/doc/stable/weechat_scripting.en.html
+# https://weechat.org/files/doc/stable/weechat_scripting.en.html
 
 import weechat as w
 
 SCRIPT_NAME    = "toggle_highlight"
 SCRIPT_AUTHOR  = "Adam Spiers <weechat@adamspiers.org>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Toggles notifications of normal messages for the current buffer"
 
