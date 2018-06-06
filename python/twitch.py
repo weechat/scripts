@@ -27,11 +27,15 @@
 # plugins.var.python.twitch.servers (default: twitch)
 # plugins.var.python.twitch.prefix_nicks (default: 1)
 # plugins.var.python.twitch.debug (default: 0)
+# plugins.var.python.twitch.ssl_verify (default: 1)
 #
 # # History:
 #
+# 2018-06-03, mumixam
+#     v0.5: enable curl verbose mode when debug is active, add option to disable ssl/tls verification,
+#           if stream title contains newline char replace it with space
 # 2017-11-02, mumixam
-#     v0.4: added debug mode for API calls, minor bugfixes 
+#     v0.4: added debug mode for API calls, minor bugfixes
 # 2017-06-10, mumixam
 #     v0.3: fixed whois output of utf8 display names
 # 2016-11-03, mumixam
@@ -43,13 +47,14 @@
 
 SCRIPT_NAME = "twitch"
 SCRIPT_AUTHOR = "mumixam"
-SCRIPT_VERSION = "0.4"
+SCRIPT_VERSION = "0.5"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "twitch.tv Chat Integration"
-OPTIONS={ 
+OPTIONS={
     'servers': ('twitch','Name of server(s) which script will be active on, space seperated'),
     'prefix_nicks': ('1','Prefix nicks based on ircv3 tags for mods/subs, This can be cpu intensive on very active chats [1 for enabled, 0 for disabled]'),
-    'debug': ('0','Debug mode')
+    'debug': ('0','Debug mode'),
+    'ssl_verify': ('1', 'Verify SSL/TLS certs')
 }
 
 
@@ -63,7 +68,13 @@ import ast
 
 clientid='awtv6n371jb7uayyc4jaljochyjbfxs'
 params = '?client_id='+clientid
-curlopt = {"timeout": "5"}
+curlopt = {
+    "timeout": "5",
+    "verbose": "0",
+    "ssl_verifypeer": "1",
+    "ssl_verifyhost": "2"
+}
+
 def days_hours_minutes(td):
     age = ''
     hours = td.seconds // 3600
@@ -192,7 +203,7 @@ def stream_api(data, command, rc, stdout, stderr):
         jsonDict = json.loads(stdout.strip())
     except Exception as e:
         weechat.prnt(data, '%stwitch.py: error communicating with twitch api' % weechat.prefix('error'))
-        if OPTIONS['debug']: 
+        if OPTIONS['debug']:
             weechat.prnt(data,'%stwitch.py: return code: %s' % (weechat.prefix('error'),rc))
             weechat.prnt(data,'%stwitch.py: stdout: %s' % (weechat.prefix('error'),stdout))
             weechat.prnt(data,'%stwitch.py: stderr: %s' % (weechat.prefix('error'),stderr))
@@ -239,8 +250,8 @@ def stream_api(data, command, rc, stdout, stderr):
         output = 'STREAM: %sLIVE%s' % (green, title_fg)
         if 'game' in jsonDict['stream']:
             if jsonDict['stream']['game']:
-                game = gameshort(jsonDict['stream']['game']).encode('utf8')
-                output += ' %s with' % game
+                game = gameshort(jsonDict['stream']['game'])
+                output += ' %s with' % makeutf8(game)
         if 'viewers' in jsonDict['stream']:
             viewers = jsonDict['stream']['viewers']
             output += ' %s viewers started' % viewers
@@ -256,7 +267,7 @@ def stream_api(data, command, rc, stdout, stderr):
                 followers = jsonDict['stream']['channel']['followers']
                 output += ' [%s followers]' % followers
             if 'status' in jsonDict['stream']['channel']:
-                titleutf8=jsonDict['stream']['channel']['status'].encode('utf8')
+                titleutf8=jsonDict['stream']['channel']['status'].replace('\n',' ').encode('utf8')
                 titleascii=jsonDict['stream']['channel']['status'].encode('ascii','replace')
                 if not isinstance(titleutf8, str):
                     titleascii=str(titleascii,'utf8')
@@ -463,16 +474,40 @@ def config_setup():
             weechat.config_set_plugin(option, value[0])
             OPTIONS[option] = value[0]
         else:
-            if option == 'prefix_nicks' or option == 'debug':
+            if option == 'prefix_nicks' or option == 'debug' or option == 'ssl_verify':
                 OPTIONS[option] = weechat.config_string_to_boolean(
                     weechat.config_get_plugin(option))
+                if option == 'debug':
+                    if value == 0:
+                        curlopt['verbose'] = "0"
+                    else:
+                        curlopt['verbose'] = "1"
+                if option == 'ssl_verify':
+                    if value == 0:
+                        curlopt['ssl_verifypeer'] = "0"
+                        curlopt['ssl_verifyhost'] = "0"
+                    else:
+                        curlopt['ssl_verifypeer'] = "1"
+                        curlopt['ssl_verifyhost'] = "2"
             else:
                 OPTIONS[option] = weechat.config_get_plugin(option)
 
 def config_change(pointer, name, value):
     option = name.replace('plugins.var.python.'+SCRIPT_NAME+'.','')
-    if option == 'prefix_nicks' or option == 'debug':
+    if option == 'prefix_nicks' or option == 'debug' or option == 'ssl_verify':
         value=weechat.config_string_to_boolean(value)
+        if option == 'debug':
+            if value == 0:
+                curlopt['verbose'] = "0"
+            if value == 1:
+                curlopt['verbose'] = "1"
+        if option == 'ssl_verify':
+            if value == 0:
+                curlopt['ssl_verifypeer'] = "0"
+                curlopt['ssl_verifyhost'] = "0"
+            if value == 1:
+                curlopt['ssl_verifypeer'] = "1"
+                curlopt['ssl_verifyhost'] = "2"
     OPTIONS[option] = value
     return weechat.WEECHAT_RC_OK
 
@@ -484,6 +519,7 @@ if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
         "    plugins.var.python.twitch.servers (default: twitch)\n"
         "    plugins.var.python.twitch.prefix_nicks (default: 1)\n"
         "    plugins.var.python.twitch.debug (default: 0)\n"
+        "    plugins.var.python.twitch.ssl_verify (default: 0)\n"
         "\n\n"
         "  This script checks stream status of any channel on any servers listed\n"
         "  in the \"plugins.var.python.twitch.servers\" setting. When you switch\n"
@@ -505,6 +541,8 @@ if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
         "\n\n"
         "  If you are experiencing errors you can enable debug mode by setting\n"
         "    /set plugins.var.python.twitch.debug on\n"
+        "  You can also try disabling SSL/TLS cert verification.\n"
+        "    /set plugins.var.python.twitch.ssl_verify off\n"
         "\n\n"
         "  Required server settings:\n"
         "    /server add twitch irc.twitch.tv\n"
