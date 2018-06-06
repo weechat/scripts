@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2013 - 2015  Stefan Wold <ratler@stderr.eu>
+# Copyright (C) 2013 - 2018  Stefan Wold <ratler@stderr.eu>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,22 +25,20 @@
 # This allows OTP login when using irc.server.*.command to automatically
 # sign in to the X service when connecting to an undernet server.
 #
-#
-# Configuration:
-#  /set plugins.var.python.undernet-totp.otp_server_names "<server1>,<server2>,..."
-#  Set servers for which to automatically enable OTP login
-#
 # Commands:
-#  /uotp [server]
-#  Generate an OTP for server, output in core buffer.
-#
+#  /uotp otp [server]
+#  /uotp list
+#  /uotp add <server> <seed>
+#  /uotp remove <server>
+#  /uotp enable <server>
+#  /uotp disable <server>
 
 
 SCRIPT_NAME    = "undernet_totp"
 SCRIPT_AUTHOR  = "Stefan Wold <ratler@stderr.eu>"
-SCRIPT_VERSION = "0.3.1"
+SCRIPT_VERSION = "0.4.0"
 SCRIPT_LICENSE = "GPL3"
-SCRIPT_DESC    = "Enables automatic OTP (OATH-TOTP) support for UnderNET's X and Login on Connect (LoC) authentication."
+SCRIPT_DESC    = "Automatic OTP (OATH-TOTP) authentication with UnderNET's channel services (X) and Login on Connect (LoC)."
 SCRIPT_COMMAND = "uotp"
 
 HOOKS = {}
@@ -75,6 +73,9 @@ def print_debug(message):
     if weechat.config_get_plugin('debug') == 'on':
         weechat.prnt("", "%s DEBUG: %s" % (SCRIPT_NAME, message))
 
+def sprint(message, buffer=""):
+    weechat.prnt(buffer, "%s: %s" % (SCRIPT_NAME, message))
+
 
 def unhook(hook):
     global HOOKS
@@ -91,6 +92,7 @@ def unhook_all(server):
 
 
 def hook_all(server):
+    print_debug("hook_all(%s)" % server)
     global HOOKS
 
     notice = server + '.notice'
@@ -140,7 +142,6 @@ def get_otp_cb(data, buffer, server):
     else:
         server = enabled_servers()
 
-
     for _server in server:
         otp = generate_totp(_server)
         if otp is not None:
@@ -149,23 +150,42 @@ def get_otp_cb(data, buffer, server):
     return weechat.WEECHAT_RC_OK
 
 
+def get_irc_servers():
+    """ Returns a list of configured IRC servers in weechat"""
+    serverptrlist = weechat.infolist_get('irc_server', '', '')
+    serverlist = []
+    while weechat.infolist_next(serverptrlist):
+         serverlist.append(weechat.infolist_string(serverptrlist, 'name'))
+    return serverlist
+
+
 def enabled_servers():
-    def server_exists(server):
-        print_debug('enabled_servers(%s)' % server)
-        if weechat.config_get('irc.server.%s.addresses' % server) is not '':
-            return True
-        return False
-
-    servers = weechat.config_get_plugin('otp_server_names')
-    return [s.strip() for s in servers.split(',') if server_exists(s.strip())]
+    """ Return a list of TOTP enabled servers. """
+    serverlist = get_irc_servers()
+    return [s for s in get_config_as_list('otp_server_names') if s in serverlist]
 
 
-def generate_totp(server, period=30):
+def disabled_servers():
+    """ Return a list of configured TOTP servers that are currently disabled. """
+    serverlist = get_irc_servers()
+    server_seed_list = [server for server in serverlist
+                        if weechat.string_eval_expression("${sec.data.%s_seed}" % server, {}, {}, {})
+                        and server not in get_config_as_list('otp_server_names')]
+    return [s for s in server_seed_list if s in serverlist]
+
+
+def configured_servers():
+    """ Return a lost of servers with an existing seed. """
+    serverlist = get_irc_servers()
+    return [s for s in serverlist if weechat.string_eval_expression("${sec.data.%s_seed}" % s, {}, {}, {})]
+
+
+def generate_totp(server, period=30, buffer=""):
     print_debug('generate_totp(%s)' % server)
     seed = weechat.string_eval_expression("${sec.data.%s_seed}" % server, {}, {}, {})
 
-    if seed is "":
-        weechat.prnt("", "No OATH-TOTP secret set, use: /secure set %s_seed <secret>" % server)
+    if not seed:
+        sprint("No OATH-TOTP secret set, use: /uotp add %s <seed>" % server, buffer)
         return None
 
     if len(seed) == 40:  # Assume hex format
@@ -181,6 +201,129 @@ def generate_totp(server, period=30):
     return '%06d' % otp
 
 
+def config_update_cb(data, option, value):
+    """ Reload hooks on configuration change. """
+    print_debug("config_cb(%s)" % value)
+    [hook_all(s.strip()) for s in value.split(',')]
+    return weechat.WEECHAT_RC_OK
+
+
+def options_cb(data, buffer, args):
+    """ Script configuration callback """
+    if not args:
+        weechat.command("", "/help %s" % SCRIPT_COMMAND)
+    args = args.strip().split(' ')
+    opt = args[0]
+    opt_args = args[1:]
+
+    if opt == 'otp':
+        if opt_args:
+            servers = [opt_args[0]]
+        else:
+            servers = enabled_servers()
+        for server in servers:
+            otp = generate_totp(server, buffer=buffer)
+            if otp:
+                sprint("%s = %s" % (server, otp), buffer)
+    elif opt == 'list':
+        sprint("List of configured servers", buffer)
+        for server in enabled_servers():
+            weechat.prnt(buffer, "  - %s [enabled]" % server)
+        for server in disabled_servers():
+            weechat.prnt(buffer, "  - %s [disabled]" % server)
+    elif opt == 'add':
+        if len(opt_args) >= 2:
+            if opt_args[0] not in enabled_servers() and opt_args[0] in get_irc_servers():
+                #weechat.command("", "/secure set %s_seed %s" % (opt_args[0], opt_args[1]))
+                try:
+                    add_server(opt_args[0], opt_args[1:])
+                    sprint("server '%s' was successfully added" % opt_args[0], buffer)
+                except Exception as ex:
+                    sprint("invalid TOTP seed provided", buffer)
+            elif opt_args[0] not in get_irc_servers():
+                sprint("No server named '%s' was found, see /help server" % opt_args[0], buffer)
+            else:
+                sprint("OTP already configured for '%s', to change <seed> remove the existing one first." % opt_args[0], buffer)
+        else:
+            sprint("/uotp -- invalid argument, valid command is /uotp add <server> <seed>", buffer)
+    elif opt == 'remove':
+        if opt_args[0] in enabled_servers() or opt_args[0] in disabled_servers():
+            remove_server(opt_args[0], True)
+            sprint("server '%s' was successfully removed" % opt_args[0], buffer)
+        else:
+            sprint("failed to remove server, '%s' not found" % opt_args[0], buffer)
+    elif opt == 'enable':
+        if opt_args and opt_args[0] not in enabled_servers():
+            if opt_args[0] in get_irc_servers():
+                add_server(opt_args[0])
+                sprint("server '%s' was successfully enabled" % opt_args[0], buffer)
+            else:
+                sprint("No server named '%s' was found, see /help server" % opt_args[0], buffer)
+        else:
+            sprint("OTP is already enabled for the server '%s'." % opt_args[0], buffer)
+    elif opt == 'disable':
+        if opt_args and opt_args[0] in enabled_servers():
+            remove_server(opt_args[0])
+        else:
+            sprint("OTP does not seem to be enabled for '%s'" % opt_args[0], buffer)
+    elif opt:
+        sprint("/uotp: invalid option -- '%s'" % opt, buffer)
+        weechat.command("", "/help %s" % SCRIPT_COMMAND)
+
+    return weechat.WEECHAT_RC_OK
+
+
+def get_config_as_list(option):
+    """ Return comma-separated <option> as a list. """
+    return [o.strip() for o in weechat.config_get_plugin(option).strip().split(',')]
+
+
+def add_server(server, seed=None):
+    """ Append new server to the plugin configuration. """
+    if seed:  # Test seed
+        if len(seed[0]) == 40:
+            unhexlify(seed[0])
+            seed = seed[0]
+        else:
+            b32decode(''.join(seed).replace(" ", ""), True)
+            seed = ' '.join(seed)
+        weechat.command("", "/secure set %s_seed %s" % (server, seed))
+
+    servers = get_config_as_list("otp_server_names")
+    if server not in servers:
+        servers.append(server)
+        weechat.config_set_plugin("otp_server_names", ','.join(servers))
+
+
+def remove_server(server, remove_seed=False):
+    """ Remove server from the plugin configuration. """
+    if remove_seed and weechat.string_eval_expression("${sec.data.%s_seed}" % server, {}, {}, {}):
+        weechat.command("", "/secure del %s_seed" % server)
+
+    servers = get_config_as_list("otp_server_names")
+    if server in servers:
+        servers = [v for v in servers if v != server]
+        weechat.config_set_plugin("otp_server_names", ','.join(servers))
+
+
+def hide_secret_cb(data, modifier, modifier_data, cmd):
+    """ Callback to hide seed secret during input by replacing the seed with asterisks (*). """
+    match = re.search(r'(?i)^/uotp add \w+ (.+)', cmd)
+    if match:
+        last_arg = match.group(1)
+        rep = '*' * len(last_arg)
+        cmd = re.sub('%s$' % last_arg, rep, cmd)
+    return cmd
+
+
+def server_completion_cb(data, completion_item, buffer, completion):
+    """ Enabled or disabled server completion callback. """
+    print_debug("completion " + ', '.join(globals()[data]()))
+    for server in globals()[data]():
+        weechat.hook_completion_list_add(completion, server, 0, weechat.WEECHAT_LIST_POS_SORT)
+    return weechat.WEECHAT_RC_OK
+
+
 if __name__ == "__main__" and import_ok:
     if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
                         SCRIPT_DESC, "", ""):
@@ -189,9 +332,37 @@ if __name__ == "__main__" and import_ok:
             weechat.prnt("", "%s requires WeeChat >= 0.4.2 for secure_data support." % SCRIPT_NAME)
             weechat.command("", "/wait 1ms /python unload %s" % SCRIPT_NAME)
 
-        weechat.hook_command(SCRIPT_COMMAND, "Generate OTP for server", "[server]", "", "%(irc_servers)", "get_otp_cb", "")
+        weechat.hook_command(SCRIPT_COMMAND,
+                             "Generate a One-Time Password (TOTP) for service authentication or login on connect.",
+                             "otp [server] || list || add <server> <seed> || remove <server> || enable <server> || disable <server>",
+                             "    otp: generate one-time password for one or all servers\n"+
+                             "   list: list configured servers\n"+
+                             "    add: add one-time password (TOTP) seed for an existing irc server\n"+
+                             " remove: delete one-time password configuration for a server\n"+
+                             " enable: re-enable one-time password authentication for a server\n"+
+                             "disable: disable one-time password authentiction without removing the seed for a server\n\n"+
+                             "Examples:\n"+
+                             "  /uotp otp\n"+
+                             "  /uotp otp freenode\n"+
+                             "  /uotp list\n"+
+                             "  /uotp add freenode 4c6fdb7d0659bae2a16d23bab99678462b9f7897\n"+
+                             "  /uotp add freenode jrx5 w7ig lg5o filn eo5l tfty iyvz 66ex\n"+
+                             "  /uotp remove freenode\n"+
+                             "  /uotp enable freenode\n"+
+                             "  /uotp disable freenode",
+                             "otp %(irc_servers)"
+                             " || list"
+                             " || add %(irc_servers)"
+                             " || remove %(configured_servers)"
+                             " || enable %(irc_servers)"
+                             " || disable %(disabled_servers)",
+                             "options_cb", "")
         weechat.hook_signal("irc_server_connecting", "signal_cb", "")
         weechat.hook_signal("irc_server_disconnected", "signal_cb", "")
+        weechat.hook_config("plugins.var.python.undernet_totp.otp_server_names", "config_update_cb", "")
+        weechat.hook_completion("configured_servers", "list of otp configured servers", "server_completion_cb", "configured_servers")
+        weechat.hook_completion("disabled_servers", "list of disabled servers", "server_completion_cb", "enabled_servers")
+        weechat.hook_modifier("input_text_display", "hide_secret_cb", "")
 
         for option, default_value in SETTINGS.items():
             if weechat.config_get_plugin(option) == "":
@@ -201,5 +372,5 @@ if __name__ == "__main__" and import_ok:
         # For now we enable the hooks until it's possible to force script plugins to
         # load before the irc plugin on weechat startup, otherwise the irc_server_connecting signal
         # get missed.
-        for _server in enabled_servers():
-            hook_all(_server)
+        for server in enabled_servers():
+            hook_all(server)
