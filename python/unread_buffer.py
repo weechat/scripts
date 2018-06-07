@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2015 by nils_2 <weechatter@arcor.de>
+# Copyright (c) 2015-2018 by nils_2 <weechatter@arcor.de>
 #
 # mark buffer as unread
 #
@@ -19,6 +19,8 @@
 #
 # idea by Phyks
 #
+# 2018-06-07: nils_2, (freenode.#weechat)
+#       2 : add "remove"
 # 2015-03-13: nils_2, (freenode.#weechat)
 #       1 : initial release
 
@@ -28,12 +30,12 @@ try:
 
 except Exception:
     print("This script must be run under WeeChat.")
-    print("Get WeeChat now at: http://www.weechat.org/")
+    print("Get WeeChat now at: https://weechat.org")
     quit()
 
 SCRIPT_NAME     = "unread_buffer"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "1"
+SCRIPT_VERSION  = "2"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "mark buffer as unread"
 
@@ -51,14 +53,15 @@ def unread_buffer_cb(data, buffer, args):
         priority = "2"
     elif arguments[0] == 'highlight':
         priority = "3"
+    elif arguments[0] == 'remove':
+        priority = "-1"
     else:
         return weechat.WEECHAT_RC_OK
     # search for either buffer_name or buffer_number
     ptr_buffer = buffer_infolist(arguments[1])
 
-    # check if buffer is *not* in hotlist
-    if not check_hotlist(ptr_buffer):
-        weechat.buffer_set(ptr_buffer, "hotlist", priority)
+    weechat.buffer_set(ptr_buffer, "hotlist", "-1")
+    weechat.buffer_set(ptr_buffer, "hotlist", priority)
 
     return weechat.WEECHAT_RC_OK
 
@@ -85,17 +88,6 @@ def buffer_infolist(buf_name):
         if buf_type == '':
             ptr_buffer = 0
     return ptr_buffer
-
-def check_hotlist(check_pointer):
-    ptr_buffer = 0
-    infolist = weechat.infolist_get('hotlist', '', '')
-    while weechat.infolist_next(infolist):
-        pointer = weechat.infolist_pointer(infolist, 'buffer_pointer')
-        if pointer == check_pointer:
-            ptr_buffer = pointer
-            break
-    weechat.infolist_free(infolist)
-    return ptr_buffer
 # ================================[ main ]===============================
 if __name__ == "__main__":
     if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, '', ''):
@@ -108,13 +100,14 @@ if __name__ == "__main__":
                                  '  message  : message from a user\n'
                                  '  private  : message in a private buffer\n'
                                  '  highlight: message with highlight\n'
+                                 '     remove: remove buffer from hotlist\n'
                                  '\n'
                                  '<buffer> can be a buffer name or a buffer number\n'
                                  '\n'
                                  'Example:\n'
                                  '  /unread_buffer highlight 3\n'
                                  '  /unread_buffer message freenode.#weechat\n',
-                                 'low|message|private|highlight %(buffers_names)|%(buffers_numbers) %-',
+                                 'low|message|private|highlight|remove %(buffers_names)|%(buffers_numbers) %-',
                                  'unread_buffer_cb',
                                  '')
         else:
