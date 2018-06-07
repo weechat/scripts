@@ -1,6 +1,6 @@
 # coding: utf-8
 #
-# Copyright (c) 2012 by nesthib <nesthib@gmail.com>
+# Copyright (c) 2012-2018 by nesthib <nesthib@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@
 # correspond to misformatted commands (e.g. " /msg NickServ…") to avoid the
 # unfortunate discosure of personnal informations.
 #
+# 2018-06-07: nils_2@freenode.#weechat
+#        0.2: make script compatible with Python 3.x
 # 2012-03-07: nesthib <nesthib@gmail.com>
 #        0.1: initial release
 
@@ -26,14 +28,14 @@ try:
     import weechat as w
 except Exception:
     print("This script must be run under WeeChat.")
-    print("Get WeeChat now at: http://www.weechat.org/")
+    print("Get WeeChat now at: https://weechat.org")
     quit()
 
 import re
 
 name = "unwanted_msg"
 author = "nesthib <nesthib@gmail.com>"
-version = "0.1"
+version = "0.2"
 license = "GPL"
 description = "Avoid sending misformatted commands as messages"
 shutdown_function = ""
@@ -45,7 +47,7 @@ settings = {
         'regexp'        : ' +/',     # if the pattern matches the beginning of the line, the message will be blocked
         'warning_buffer': 'current', # if set to current/server/weechat will print warning on current/server/weechat buffer. Disable warning if unset
         }
-for opt, val in settings.iteritems():
+for opt, val in settings.items():
     if not w.config_is_set_plugin(opt):
         w.config_set_plugin(opt, val)
 
