@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2012 by nils_2 <weechatter@arcor.de>
+# Copyright (c) 2012-2018 by nils_2 <weechatter@arcor.de>
 #
 # customize your title/status/input bar for each buffer
 #
@@ -20,6 +20,9 @@
 # This script deletes weechatlog-files by age or size
 # YOU ARE USING THIS SCRIPT AT YOUR OWN RISK!
 #
+# 2017-11-11: nils_2, (freenode.#weechat)
+#       0.2 : make script python3 compatible
+#
 # 2012-01-20: nils_2, (freenode.#weechat)
 #       0.1 : initial release
 #
@@ -30,13 +33,13 @@ try:
     import weechat,re
 
 except Exception:
-    print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print("This script must be run under WeeChat.")
+    print("Get WeeChat now at: https://weechat.org")
     quit()
 
 SCRIPT_NAME     = "customize_bar"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.1"
+SCRIPT_VERSION  = "0.2"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "customize your title/status/input bar for each buffer"
 
@@ -50,7 +53,7 @@ def buffer_switch(data, signal, signal_data):
     if full_name == '':                                                                 # upps, something totally wrong!
         return weechat.WEECHAT_RC_OK
 
-    for option in OPTIONS.keys():
+    for option in list(OPTIONS.keys()):
         option = option.split('.')
         customize_plugin = weechat.config_get_plugin('%s.%s' % (option[1], full_name))  # for example: title.irc.freenode.#weechat
         if customize_plugin:                                                            # option exists
@@ -89,14 +92,14 @@ def customize_cmd_cb(data, buffer, args):
     return weechat.WEECHAT_RC_OK
 
 def customize_bar_completion_cb(data, completion_item, buffer, completion):
-    for option in OPTIONS.keys():
+    for option in list(OPTIONS.keys()):
         option = option.split('.')
         weechat.hook_completion_list_add(completion, option[1], 0, weechat.WEECHAT_LIST_POS_SORT)
     return weechat.WEECHAT_RC_OK
 
 def shutdown_cb():
     # write back default options to original options, then quit...
-    for option in OPTIONS.keys():
+    for option in list(OPTIONS.keys()):
         option = option.split('.')
         default_plugin = weechat.config_get_plugin('default.%s' % option[1])
         config_pnt = weechat.config_get('weechat.bar.%s.items' % option[1])
@@ -105,7 +108,7 @@ def shutdown_cb():
 # ================================[ config ]===============================
 def init_options():
     # check out if a default item bar exists
-    for option,value in OPTIONS.items():
+    for option,value in list(OPTIONS.items()):
         if not weechat.config_get_plugin(option):
             default_bar = weechat.config_string(weechat.config_get(value))# get original option
             weechat.config_set_plugin(option, default_bar)
@@ -129,7 +132,7 @@ if __name__ == "__main__":
         '  plugins.var.python.customize_bar.default.status: stores the default items from weechat status bar.\n'
         '  plugins.var.python.customize_bar.default.input : stores the default items from weechat input bar.\n'
         '  plugins.var.python.customize_bar.(title|status|input).<full_buffer_name> : stores the customize bar items for this buffer\n\n'
-        'CAVE: Do not delete options \"plugins.var.python.customize_bar.default.*\" as long as script is running...\n',
+        'HINT: Do not delete options \"plugins.var.python.customize_bar.default.*\" as long as script is running...\n',
         'add %(plugin_customize_bar) %-|| del %(plugin_customize_bar) %-',
         'customize_cmd_cb', '')
         init_options()
