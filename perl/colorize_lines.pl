@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2010-2017 by Nils Görs <weechatter@arcor.de>
+# Copyright (c) 2010-2018 by Nils Görs <weechatter@arcor.de>
 # Copyleft (ɔ) 2013 by oakkitten
 #
 # colors the channel text with nick color and also highlight the whole line
@@ -18,32 +18,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# with version 3.0 some options were renamed or have new possible values:
-# old:                  new:
-# avail_buffer          buffer
-# blacklist_channels    blacklist_buffers
-# highlight             new values
-
-# obsolete options:
-# buffer_autoset
-# hotlist_max_level_nicks_add
-# highlight_regex
-# highlight_words
-# shuffle
-# chat                  see option highlight
-
-# i recommend to remove all colorize_lines options, first:
-# /script unload colorize_lines
-# /unset plugins.var.perl.colorize_lines.*
-# /unset plugins.desc.perl.colorize_lines*
-# /script load colorize_lines.pl
-
-
-# you can colorize lines with a channel color instead of nick color:
-# /buffer set localvar_set_colorize_lines yellow
-# /buffer set localvar_set_colorize_lines *yellow
-
 # history:
+# 3.6: new option "own_lines_color" (idea by Linkandzelda)
+#    : add help about "localvar" to option
 # 3.5: new options "highlight_words" and "highlight_words_color" (idea by jokrebel)
 # 3.4: new options "tags" and "ignore_tags"
 # 3.3: use localvar "colorize_lines" for buffer related color (idea by tomoe-mami)
@@ -107,7 +84,7 @@
 
 use strict;
 my $PRGNAME     = "colorize_lines";
-my $VERSION     = "3.5";
+my $VERSION     = "3.6";
 my $AUTHOR      = "Nils Görs <weechatter\@arcor.de>";
 my $LICENCE     = "GPL3";
 my $DESCR       = "Colorize users' text in chat area with their nick color, including highlights";
@@ -118,6 +95,7 @@ my %config = ("buffers"                 => "all",       # all, channel, query
               "highlight"               => "on",        # on, off, nicks
               "nicks"                   => "",          # "d,e,f", "/file"
               "own_lines"               => "on",        # on, off, only
+              "own_lines_color"         => "",          # empty means, use color from option "chat_nick_self"
               "tags"                    => "irc_privmsg",
               "ignore_tags"             => "irc_ctcp",
               "highlight_words"         => "off",       # on, off
@@ -126,10 +104,11 @@ my %config = ("buffers"                 => "all",       # all, channel, query
 
 my %help_desc = ("buffers"                  => "Buffer type affected by the script (all/channel/query, default: all)",
                  "blacklist_buffers"        => "Comma-separated list of channels to be ignored (e.g. freenode.#weechat,*.#python)",
-                 "lines"                    => "Apply nickname color to the lines (off/on/nicks). The latter will limit highlighting to nicknames in option 'nicks'",
+                 "lines"                    => "Apply nickname color to the lines (off/on/nicks). The latter will limit highlighting to nicknames in option 'nicks'. You can use a localvar to color all lines with a given color (eg: /buffer set localvar_set_colorize_lines *yellow)",
                  "highlight"                => "Apply highlight color to the highlighted lines (off/on/nicks). The latter will limit highlighting to nicknames in option 'nicks'",
                  "nicks"                    => "Comma-separater list of nicks (e.g. freenode.cat,*.dog) OR file name starting with '/' (e.g. /file.txt). In the latter case, nicknames will get loaded from that file inside weechat folder (e.g. from ~/.weechat/file.txt). Nicknames in file are newline-separated (e.g. freenode.dog\\n*.cat)",
                  "own_lines"                => "Apply nickname color to own lines (off/on/only). The latter turns off all other kinds of coloring altogether",
+                 "own_lines_color"          => "this color will be used for own messages. Set an empty value to use weechat.color.chat_nick_self",
                  "tags"                     => "Comma-separated list of tags to accept (see /debug tags)",
                  "ignore_tags"              => "Comma-separated list of tags to ignore (see /debug tags)",
                  "highlight_words"          => "highlight word(s) in text, matching word(s) in weechat.look.highlight",
@@ -194,7 +173,9 @@ sub colorize_cb
         # process only if own_lines is "on" or "only" (i.e. not "off")
         return $string if ($config{own_lines} eq "off") && not ($channel_color);
 
-        $color = weechat::color("chat_nick_self");
+        $color = weechat::color($config{own_lines_color});
+        $color = weechat::color("chat_nick_self") if ($config{own_lines_color} eq "");
+
         $color = $channel_color if ($channel_color) && ($config{own_lines} eq "off");
 
     } else {
