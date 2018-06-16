@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2013 by nils_2 <weechatter@arcor.de>
+# Copyright (c) 2013-2018 by nils_2 <weechatter@arcor.de>
 #
 # a simple spell correction for a "misspelled" word
 #
@@ -17,6 +17,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2013-10-04: nils_2, (freenode.#weechat)
+#       0.7 : add: addword function (idea by Nei)
+#           : localvar wasn't removed after /input return
 #
 # 2013-10-04: nils_2, (freenode.#weechat)
 #       0.6 : add: new option replace_mode
@@ -56,7 +59,7 @@ except Exception:
 
 SCRIPT_NAME     = "spell_correction"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.6"
+SCRIPT_VERSION  = "0.7"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "a simple spell correction for a 'misspelled' word"
 
@@ -106,6 +109,8 @@ def toggle_refresh(pointer, name, value):
 # called from command and when TAB is pressed
 def auto_suggest_cmd_cb(data, buffer, args):
 
+    arguments = args.split(' ')
+
     input_line = weechat.buffer_get_string(buffer, 'input')
     weechat.buffer_set(buffer, 'localvar_set_spell_correction_suggest_input_line', '%s' % input_line)
 
@@ -119,6 +124,16 @@ def auto_suggest_cmd_cb(data, buffer, args):
     tab_complete,position,aspell_suggest_item = get_position_and_suggest_item(buffer)
     if not position:
         position = -1
+
+    if arguments[0].lower() == 'addword' and len(arguments) >= 2:
+        found_dicts = get_aspell_dict_for(buffer)
+        if len(found_dicts.split(",")) == 1 and len(arguments) == 2:
+            word = arguments[1]
+            weechat.command("","/aspell addword %s" % word)
+        elif arguments[1] in found_dicts.split(",") and len(arguments) == 3:
+            word = arguments[2]
+            weechat.command("","/aspell addword %s %s" % (arguments[1],word))
+        return weechat.WEECHAT_RC_OK
 
     # get localvar for misspelled_word and suggestions from buffer or return
     localvar_aspell_suggest = get_localvar_aspell_suggest(buffer)
@@ -183,35 +198,18 @@ def show_spell_correction_item_cb (data, item, window):
 #    else:
 #        return aspell_suggest_item
 
-    # get spell dict
-    localvar_aspell_suggest = get_localvar_aspell_suggest(buffer)
-    dicts_found = localvar_aspell_suggest.count("/")
     config_spell_suggest_item = weechat.config_get_plugin('suggest_item')
-    if dicts_found:
-        # aspell.dict.full_name = en_GB,de_DE-neu
-        # localvar_dict = en_GB,de_DE-neu
-        dictionary = get_aspell_dict_for(buffer)
-        if not dictionary:
+
+    dict_found = search_dict(buffer,position)
+
+    if dict_found:
+        if config_spell_suggest_item:
+            show_item = config_spell_suggest_item.replace('%S',aspell_suggest_item)
+            show_item = show_item.replace('%D',dict_found)
+            show_item = substitute_colors(show_item)
+            return '%s' % (show_item)
+        else:
             return aspell_suggest_item
-        dictionary_list = dictionary.split(',')
-        # more then one dict?
-        if len(dictionary_list) > 1:
-            undef,aspell_suggestions = localvar_aspell_suggest.split(':')
-            dictionary = aspell_suggestions.split('/')
-            words = 0
-            i = -1
-            for a in dictionary:
-                i += 1
-                words += a.count(',')+1
-                if words > int(position):
-                    break
-            if config_spell_suggest_item:
-                show_item = config_spell_suggest_item.replace('%S',aspell_suggest_item)
-                show_item = show_item.replace('%D',dictionary_list[i])
-                show_item = substitute_colors(show_item)
-                return '%s' % (show_item)
-            else:
-                return aspell_suggest_item
     else:
         if config_spell_suggest_item:
             show_item = config_spell_suggest_item.replace('%S',aspell_suggest_item)
@@ -313,6 +311,33 @@ def replace_misspelled_word(buffer):
         weechat.buffer_set(buffer,'input_pos',str(new_position))
 
     weechat.buffer_set(buffer, 'localvar_del_spell_correction_suggest_item', '')
+
+# ================================[ subroutines ]===============================
+# get aspell dict for suggestion
+def search_dict(buffer,position):
+    localvar_aspell_suggest = get_localvar_aspell_suggest(buffer)
+    dicts_found = localvar_aspell_suggest.count("/")
+    if not dicts_found:
+        return 0
+
+    # aspell.dict.full_name = en_GB,de_DE-neu
+    # localvar_dict = en_GB,de_DE-neu
+    dictionary = get_aspell_dict_for(buffer)
+    if not dictionary:
+        return 0
+    dictionary_list = dictionary.split(',')
+    # more then one dict?
+    if len(dictionary_list) > 1:
+        undef,aspell_suggestions = localvar_aspell_suggest.split(':')
+        dictionary = aspell_suggestions.split('/')
+        words = 0
+        i = -1
+        for a in dictionary:
+            i += 1
+            words += a.count(',')+1
+            if words > int(position):
+                break
+        return dictionary_list[i]
 
 # format of localvar aspell_suggest (using two dicts):   diehs:die hs,die-hs,dies/dies,Diebs,Viehs
 def get_localvar_aspell_suggest(buffer):
@@ -516,10 +541,13 @@ def input_return_cb(data, signal, signal_data):
 
     tab_complete,position,aspell_suggest_item = get_position_and_suggest_item(buffer)
     if not position or not aspell_suggest_item:
+        delete_localvar_replace_mode(buffer)
         return weechat.WEECHAT_RC_OK
 
     if OPTIONS['auto_replace'].lower() == "on" and aspell_suggest_item:
         replace_misspelled_word(buffer)
+
+    delete_localvar_replace_mode(buffer)
 
     return weechat.WEECHAT_RC_OK
 
@@ -615,22 +643,27 @@ if __name__ == "__main__":
             weechat.prnt('','%s%s %s' % (weechat.prefix('error'),SCRIPT_NAME,': needs version 0.4.0 or higher'))
             weechat.command('','/wait 1ms /python unload %s' % SCRIPT_NAME)
 
-        weechat.hook_command(SCRIPT_NAME, SCRIPT_DESC, 'previous|replace',
+        weechat.hook_command(SCRIPT_NAME, SCRIPT_DESC, 'addword|previous|replace',
+                            '\n'
+                            '/' + SCRIPT_NAME + ' addword   : add a word in personal aspell dictionary\n\n'
+                            'How to use:'
                             '\n'
                             'Add item "spell_correction" to a bar (i suggest the input bar).\n'
                             '\n'
                             'On an misspelled word, press TAB to cycle through suggestions. Any key on suggestion will replace misspelled word\n'
-                            'with current suggestion.\n'
+                            'with current displayed suggestion.\n'
+                            '\n'
+                            'HINTS:'
                             '\n'
                             'You have to set "aspell.check.suggestions" to a value >= 0 (default: -1 (off)).\n'
                             'Using "aspell.check.real_time" the nick-completion will not work, until all misspelled words in input_line are replaced.\n'
                             '\n'
-                            'You can bind following commands to key:\n'
+                            'You can bind following commands to key (as a fallback solution):\n'
                             ' /' + SCRIPT_NAME + '           : to cycle though next suggestion\n'
                             ' /' + SCRIPT_NAME + ' previous  : to cycle though previous suggestion\n'
                             ' /' + SCRIPT_NAME + ' replace   : to replace misspelled word\n'
                             '',
-                            'previous|replace',
+                            'previous|replace|addword',
                             'auto_suggest_cmd_cb', '')
 
         init_options()
