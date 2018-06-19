@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2016 by Simmo Saan <simmo.saan@gmail.com>
+# Copyright (c) 2016-2018 by Simmo Saan <simmo.saan@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,6 +19,10 @@
 #
 # History:
 #
+# 2018-06-19, Simmo Saan <simmo.saan@gmail.com>
+#   version 1.0: add Python 2/3 compatibility
+# 2016-11-01, Simmo Saan <simmo.saan@gmail.com>
+#   version 0.9: remove ungrouped script replacement
 # 2016-06-30, Simmo Saan <simmo.saan@gmail.com>
 #   version 0.8: support vulgar fractions and \sqrt
 # 2016-06-18, Simmo Saan <simmo.saan@gmail.com>
@@ -45,7 +49,7 @@ from __future__ import print_function
 
 SCRIPT_NAME = "latex_unicode"
 SCRIPT_AUTHOR = "Simmo Saan <simmo.saan@gmail.com>"
-SCRIPT_VERSION = "0.8"
+SCRIPT_VERSION = "1.0"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Replace LaTeX with unicode representations"
 
@@ -65,6 +69,12 @@ except ImportError:
 import os
 import xml.etree.ElementTree as ET
 import re
+import sys
+
+PY2 = sys.version_info < (3,)
+if PY2:
+	chr = unichr
+	range = xrange
 
 SETTINGS = {
 	"input": (
@@ -232,7 +242,7 @@ def setup_from_file():
 	for character in root.findall("character"):
 		dec = character.get("dec")
 		if "-" not in dec: # is not a range of characters
-			char = unichr(int(dec))
+			char = chr(int(dec))
 			
 			ams = character.find("AMS")
 			if ams is not None:
@@ -294,12 +304,9 @@ def replace_script(string, script):
 	if grouped:
 		string = string[1:-1]
 
-	if script == 1 and not grouped and string.isalpha(): # if ungrouped letter subscript
-		return None
-
 	chars = list(string)
 	all = True
-	for i in xrange(len(chars)):
+	for i in range(len(chars)):
 		if chars[i] in scripts and scripts[chars[i]][script] is not None:
 			chars[i] = scripts[chars[i]][script]
 		else:
@@ -318,8 +325,8 @@ def replace_scripts(string):
 		replaced = replace_script(match.group(1), script)
 		return replaced if replaced is not None else match.group(0)
 
-	string = re.sub(r"\^({[^}]+}|[^{}])", lambda match: replace(match, 0), string, flags=re.UNICODE)
-	string = re.sub(r"_({[^}]+}|[^{}])", lambda match: replace(match, 1), string, flags=re.UNICODE)
+	string = re.sub(r"\^({[^}]+})", lambda match: replace(match, 0), string, flags=re.UNICODE)
+	string = re.sub(r"_({[^}]+})", lambda match: replace(match, 1), string, flags=re.UNICODE)
 
 	def replace_frac(match):
 		vulgar_pair = (latex_ungroup(match.group(1)), latex_ungroup(match.group(2)))
@@ -358,10 +365,16 @@ def replace_scripts(string):
 def latex_unicode_replace(string):
 	"""Apply all latex_unicode replacements."""
 
-	string = string.decode("utf-8")
+	if PY2:
+		string = string.decode("utf-8")
+
 	string = replace_xml_replacements(string)
 	string = replace_scripts(string)
-	return string.encode("utf-8")
+
+	if PY2:
+		string = string.encode("utf-8")
+
+	return string
 
 def modifier_cb(data, modifier, modifier_data, string):
 	"""Handle modifier hooks."""
