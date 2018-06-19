@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2015 by Simmo Saan <simmo.saan@gmail.com>
+# Copyright (c) 2015-2018 by Simmo Saan <simmo.saan@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@
 #
 # History:
 #
+# 2018-06-19, Simmo Saan <simmo.saan@gmail.com>
+#   version 0.5: ignore channel modes arguments
 # 2015-08-07, Simmo Saan <simmo.saan@gmail.com>
 #   version 0.4: option for invite-only channels
 # 2015-08-07, Simmo Saan <simmo.saan@gmail.com>
@@ -37,7 +39,7 @@ from __future__ import print_function
 
 SCRIPT_NAME = "force_nick"
 SCRIPT_AUTHOR = "Simmo Saan <simmo.saan@gmail.com>"
-SCRIPT_VERSION = "0.4"
+SCRIPT_VERSION = "0.5"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Force nick change on channels which disallow it"
 
@@ -84,6 +86,8 @@ def channel_block(server, channel):
     channels = weechat.infolist_get("irc_channel", "", "%s,%s" % (server, channel))
     if weechat.infolist_next(channels):
         modes = weechat.infolist_string(channels, "modes")
+        if " " in modes:
+            modes, modes_args = modes.split(" ", 1)
 
         if not config_cycle("key") and weechat.infolist_string(channels, "key") != "":
             fail = "cycle_key"
