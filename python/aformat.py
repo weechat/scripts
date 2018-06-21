@@ -23,6 +23,8 @@
 # History:
 #   2016-09-24:
 #       v0.1: Initial release
+#   2018-06-19:
+#       v0.2: py3k-ok
 #
 # TODO:
 # - Colors support
@@ -34,13 +36,13 @@ try:
     from weechat import WEECHAT_RC_OK
     import_ok = True
 except ImportError:
-    print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print("This script must be run under WeeChat.")
+    print("Get WeeChat now at: http://www.weechat.org/")
     import_ok = False
 
 SCRIPT_NAME = "aformat"
 SCRIPT_AUTHOR = "Hairo R. Carela <hairocr8@gmail.com>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "WTFPL"
 SCRIPT_DESC = ("Alternate way of text formatting, see /help for instructions")
 
@@ -49,11 +51,6 @@ PY3 = sys.version > '3'
 class format:
     # Special byte sequences, using weechat.color("stuff") had some unwanted
     # results, i'll look into it if needed. Colors are unused for now
-   # PURPLE = '\x0306'
-   # BLUE = '\x0302'
-   # GREEN = '\x0303'
-   # YELLOW = '\x0308'
-   # RED = '\x0304'
    BOLD = '\x02'
    ITALIC = '\x1D'
    UNDERLINE = '\x1F'
