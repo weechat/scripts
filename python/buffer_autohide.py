@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # MIT License
 #
-# Copyright (c) 2017 Matthias Adamczyk
+# Copyright (c) 2017-2018 Matthias Adamczyk
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -34,6 +34,8 @@ Configuration:
 History:
 2017-03-19: Matthias Adamczyk <mail@notmatti.me>
     version 0.1: Initial release
+2018-06-28: yeled <yeled@github.com>
+    version 0.2: Only skip irc.servers
 
 https://github.com/notmatti/buffer_autohide
 """
@@ -47,7 +49,7 @@ except ImportError:
 
 SCRIPT_NAME = "buffer_autohide"
 SCRIPT_AUTHOR = "Matthias Adamczyk <mail@notmatti.me>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "MIT"
 SCRIPT_DESC = "Automatically hide read IRC buffers and unhide them on new activity"
 SCRIPT_COMMAND = SCRIPT_NAME
@@ -117,7 +119,7 @@ def hide_buffer_cb(signal, data, signal_data):
     server = weechat.buffer_get_string(previous_buffer, "localvar_server")
     channel = weechat.buffer_get_string(previous_buffer, "localvar_channel")
 
-    if plugin != "irc" or full_name.startswith("irc.server"):
+    if full_name.startswith("irc.server"):
         return WEECHAT_RC_OK
 
     buffer_type = weechat.buffer_get_string(
