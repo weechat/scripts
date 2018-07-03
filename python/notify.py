@@ -6,6 +6,10 @@
 # To make it work, you may need to download: python-notify2 (and libnotify - libgtk)
 # Requires Weechat 0.3.0
 # Released under GNU GPL v2
+# 2018-07-03, Konstantinos Tsamis <ktsamis@suse.de>
+#      version 0.0.9: make compatible with python3. PEP8 compliance
+#      rename show_hilights to show_highlights for readability
+#      Remove uneeded parenthesis
 # 2014-05-10, Sébastien Helleu <flashcode@flashtux.org>
 #     version 0.0.8: change hook_print callback argument type of
 #                    displayed/highlight (WeeChat >= 1.0)
@@ -38,7 +42,7 @@
 # script variables
 SCRIPT_NAME = "notify"
 SCRIPT_AUTHOR = "lavaramano"
-SCRIPT_VERSION = "0.0.8"
+SCRIPT_VERSION = "0.0.9"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC = "notify: A real time notification system for weechat"
 
@@ -47,47 +51,49 @@ import_ok = True
 try:
     import weechat
 except ImportError:
-    print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print("This script must be run under WeeChat.")
+    print("Get WeeChat now at: http://www.weechat.org/")
     import_ok = False
 # make sure we have notify2.
 try:
     import notify2
-except ImportError, message:
-    print "Missing package(s) for %s: %s" % (SCRIPT_NAME, message)
-    print "You must have notify2 installed."
+except ImportError as message:
+    print(("Missing package(s) for {}: {}".format(SCRIPT_NAME, message)))
+    print("You must have notify2 installed.")
     import_ok = False
 
 # script options
 settings = {
-    "show_hilights"             : "on",
-    "show_priv_msg"             : "on",
-    "notify_when_away"          : "off",
-    "nick_separator"            : ": ",
-    "ignore_nicks_startwith"    : "*",
-    "icon"                      : "/usr/share/pixmaps/weechat.xpm",
-    "urgency"                   : "normal",
-    "smart_notification"        : "off"
+    "show_highlights": "on",
+    "show_priv_msg": "on",
+    "notify_when_away": "off",
+    "nick_separator": ": ",
+    "icon": "/usr/share/pixmaps/weechat.xpm",
+    "ignore_nicks_startwith": "*",
+    "smart_notification": "off"
 }
 
 urgencies = {
-    "low"      : notify2.URGENCY_LOW,
-    "critical" : notify2.URGENCY_CRITICAL,
-    "normal"   : notify2.URGENCY_NORMAL,
+    "low": notify2.URGENCY_LOW,
+    "critical": notify2.URGENCY_CRITICAL,
+    "normal": notify2.URGENCY_NORMAL,
 }
 
+
 # Functions
-def notify_show(data, bufferp, uber_empty, tagsn, isdisplayed, ishilight, prefix, message):
+def notify_show(data, bufferp, uber_empty, tagsn, isdisplayed, ishighlight, prefix, message):
     """Sends highlighted message to be printed on notification"""
     # string for show_notification return
     snreturn = None
     # smart_notification
-    if (weechat.config_get_plugin('smart_notification') == "on" and bufferp == weechat.current_buffer()):
+    if weechat.config_get_plugin('smart_notification') == "on" and bufferp == weechat.current_buffer():
         pass
     # are we away and want highlights? check: w.infolist_integer(infolist, 'is_away')
-    elif (weechat.config_get_plugin('notify_when_away') == "off" and weechat.buffer_get_string(bufferp, 'localvar_away')):
+    elif (weechat.config_get_plugin('notify_when_away') == "off" and weechat.buffer_get_string(bufferp,
+                                                                                               'localvar_away')):
         pass
-    elif (weechat.buffer_get_string(bufferp, "localvar_type") == "private" and weechat.config_get_plugin('show_priv_msg') == "on"):
+    elif (weechat.buffer_get_string(bufferp, "localvar_type") == "private" and weechat.config_get_plugin(
+            'show_priv_msg') == "on"):
         # should we ignore messages from something like ZNC with * prefix?
         ignprefix = weechat.config_get_plugin('ignore_nicks_startwith')
         if ignprefix != '' and prefix.startswith(ignprefix):  # if not empty..
@@ -95,13 +101,14 @@ def notify_show(data, bufferp, uber_empty, tagsn, isdisplayed, ishilight, prefix
         # if im sending a message to someone, don't pop up a notification.
         elif weechat.buffer_get_string(bufferp, "localvar_nick") != prefix:
             snreturn = show_notification(prefix, message)
-    elif (int(ishilight) and weechat.config_get_plugin('show_hilights') == "on"):
+    elif int(ishighlight) and weechat.config_get_plugin('show_highlights') == "on":
         buffer = (weechat.buffer_get_string(bufferp, "short_name") or weechat.buffer_get_string(bufferp, "name"))
         snreturn = show_notification(buffer, prefix + weechat.config_get_plugin('nick_separator') + message)
     # check to see if we had an error showing notification and return to user
     if snreturn:
         weechat.prnt(bufferp, snreturn)
     return weechat.WEECHAT_RC_OK
+
 
 def show_notification(chan, message):
     """Our handler to print highlighted messages"""
@@ -113,16 +120,17 @@ def show_notification(chan, message):
     try:
         wn.show()
         return None
-    except Exception, e:
+    except Exception as e:
         return "Exception trying to show notification: {0}".format(e)
+
 
 if __name__ == "__main__":
     if import_ok and weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, "", ""):
         # Init everything
-        for option, default_value in settings.items():
+        for option, default_value in list(settings.items()):
             if weechat.config_get_plugin(option) == "":
                 weechat.config_set_plugin(option, default_value)
-        # Hook privmsg/hilights
+        # Hook privmsg/highlights
         weechat.hook_print("", "irc_privmsg", "", 1, "notify_show", "")
         # w.hook_info('%s_buffer' %SCRIPT_NAME, '', '', 'info_hook_cb', '')
 
