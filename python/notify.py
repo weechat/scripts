@@ -38,6 +38,7 @@
 #     version 0.0.3: added config options for icon and urgency
 # 2009-05-02, FlashCode <flashcode@flashtux.org>:
 #     version 0.0.2.1: sync with last API changes
+from __future__ import print_function
 
 # script variables
 SCRIPT_NAME = "notify"
