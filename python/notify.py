@@ -69,6 +69,7 @@ settings = {
     "notify_when_away": "off",
     "nick_separator": ": ",
     "icon": "/usr/share/pixmaps/weechat.xpm",
+    "urgency": "normal",
     "ignore_nicks_startwith": "*",
     "smart_notification": "off"
 }
