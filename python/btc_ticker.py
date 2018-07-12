@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding=utf-8
 
-# Copyright (c) 2014, 2017 Eugene Ciurana (pr3d4t0r)
+# Copyright (c) 2014-2018 Eugene Ciurana (pr3d4t0r)
 # All rights reserved.
 #
 # Version - see _VERSION global
@@ -36,6 +36,11 @@
 # Version history:  https://github.com/pr3d4t0r/weechat-btc-ticker
 
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
 from datetime import datetime
 
 import json
@@ -52,7 +57,7 @@ DEFAULT_FIAT_CURRENCY   = 'usd'
 
 VALID_CRYPTO_CURRENCIES = [ DEFAULT_CRYPTO_CURRENCY, 'eth', 'bch', 'xrp', 'xem', 'ltc', 'dash', 'neo', 'etc', ]
 VALID_FIAT_CURRENCIES   = [ DEFAULT_FIAT_CURRENCY, 'eur', 'rur', ]
-_VERSION                = '2.0.1'
+_VERSION                = '2.1.0'
 
 COMMAND_NICK = 'tick'
 
@@ -95,7 +100,7 @@ def displayCurrentTicker(buffer, rawTicker):
 
 def tickerPayloadHandler(_, service, returnCode, out, err):
     if returnCode == weechat.WEECHAT_HOOK_PROCESS_ERROR:
-        weechat.prnt(u"", u"%s\tError with service call '%s'" % (COMMAND_NICK, service))
+        weechat.prnt("", "%s\tError with service call '%s'" % (COMMAND_NICK, service))
         return weechat.WEECHAT_RC_OK
 
     displayCurrentTicker('', out)
@@ -143,3 +148,4 @@ argsWeeChat      = '[%s [%s] ]' % (cryptoCurrencies, fiatCurrencies)
 
 weechat.hook_command(COMMAND_NICK, 'Display common crypto currency spot exchange values conveted to fiat currencies like USD or EUR',\
             argsWeeChat, '    btc  = Bitcoin\n    eth  = Ethereum\n    bch  = Bitcoin Cash\n    xrp  = Ripple\n    xem  = NEM\n    ltc  = Litecoin\n    dash = Dash\n    neo  = NEO\n    etc  = Ethereum Classic\n\n    usd = US dollar\n    eur = euro\n    rur = Russian ruble', '', 'displayCryptoCurrencyTicker', '')
+
