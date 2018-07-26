@@ -324,7 +324,7 @@ sub print_info {
         if ( $server eq "" ){
             $buf_pointer = weechat::buffer_search_main();
         }else{
-            $buf_pointer = fallback($server);
+            $buf_pointer = fallback_buffer($server);
         }
     }
     return $buf_pointer if (lc(weechat::config_get_plugin('quiet') eq "on"));
