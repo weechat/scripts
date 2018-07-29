@@ -14,6 +14,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # History
+# 2018-07-12, Daniel Karbach <daniel.karbach@localhorst.tv>
+#  version 0.6.2: Fix is.gd URL pattern
+#                 (longurl param is appended by urlencode)
 # 2017-05-04, Jochen Saalfeld <privat@jochen-saalfeld.de>
 #   version 0.6.1: Fix support for is.gd, since the API changed
 # 2014-08-18, Ilkka Laukkanen <ilkka@fastmail.fm>
@@ -42,11 +45,11 @@ from urllib2 import urlopen
 
 SCRIPT_NAME = "shortenurl"
 SCRIPT_AUTHOR = "John Anderson <sontek@gmail.com>"
-SCRIPT_VERSION = "0.6.1"
+SCRIPT_VERSION = "0.6.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Shorten long incoming and outgoing URLs"
 
-ISGD = 'https://is.gd/api.php?longurl=%s'
+ISGD = 'https://is.gd/api.php?%s'
 TINYURL = 'http://tinyurl.com/api-create.php?%s'
 
 # script options
