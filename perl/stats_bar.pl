@@ -4,6 +4,8 @@
 #
 # History:
 #
+# 2018-05-14, CrazyCat <crazycat@c-p-f.org>
+#   version 1.2 : added check for no swap
 # 2009-10-13, wishbone <djwishbone@gmail.com>
 #   version 1: initial release
 #
@@ -64,7 +66,7 @@
 
 use strict;
 
-my $VERSION = "1.0";
+my $VERSION = "1.2";
 weechat::register("stats_bar","wishbone",$VERSION,"GPL3","statistics bar", "", "");
 
 my ($refresh,$old_refresh) = (10,0);
@@ -75,6 +77,7 @@ my %stats_data =(
 	inf_stats => "0",
 	load_stats => "0",
 	mem_stats => "0",
+	temp_stats => "0",
 	);
 my $stats_interface = "";
 
@@ -101,9 +104,9 @@ if (!weechat::config_is_set_plugin('stats_interface')) {
 weechat::bar_item_new('inf_stats','stats_cb',"inf_stats");
 weechat::bar_item_new('load_stats','stats_cb',"load_stats");
 weechat::bar_item_new('mem_stats','stats_cb',"mem_stats");
+weechat::bar_item_new('temp_stats','stats_cb',"temp_stats");
 refresh_stats_cb();
 $refresh_hook = weechat::hook_timer($refresh*1000, 0,0,'refresh_stats_cb', "");
-$config_hook1 = weechat::hook_config("plugins.var.perl.stats_bar.*","read_settings","");
 
 
 
@@ -123,11 +126,10 @@ sub stats_cb {
 }
 
 sub refresh_stats_cb {
-#  get_inf_stats();
-#  get_load_stats();
   weechat::bar_item_update('inf_stats');
   weechat::bar_item_update('load_stats');
   weechat::bar_item_update('mem_stats');
+  weechat::bar_item_update('temp_stats');
   return weechat::WEECHAT_RC_OK;
 }
 
@@ -190,7 +192,7 @@ sub get_inf_stats {
 		chomp @lines;
 		@lines = grep(/^\s*($stats_interface)/,@lines);
 		if (@lines) {
-		if ($lines[0] !~ /^(\s*)(.*):(\d+)\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+(\d+)/) {
+		if ($lines[0] !~ /^(\s*)(.*):\s*(\d+)\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+(\d+)/) {
 		} else {
 			$last_in = $3;
 			$last_out = $4;
@@ -227,7 +229,11 @@ sub get_mem_stats {
 			($swaptotal) = ($lines[2] =~ /^SwapTotal:\s+(\d+)/);
 			($swapfree) = ($lines[3] =~ /^SwapFree:\s+(\d+)/);
 			$mem_percentage = ($memfree/$memtotal)*100;
-			$swap_percentage = ($swapfree/$swaptotal)*100;
+			if ($swaptotal == 0) {
+				$swap_percentage = 0;
+			} else {
+				$swap_percentage = ($swapfree/$swaptotal)*100;
+			}
 			$stats_data{mem_stats} = sprintf("m:%.0f%% s:%.0f%%",$mem_percentage, $swap_percentage);
 
 		} else {
@@ -238,4 +244,17 @@ sub get_mem_stats {
 	}
 }
 
-
+sub get_temp_stats {
+	my @lines = ();
+	my ($tempmil,$temp);
+	if (!open(DEV, "< /sys/class/thermal/thermal_zone0/temp")) {
+		weechat::print("", "Failed to open /sys/class/thermal/thermal_zone0/temp");
+	} else {
+		@lines = <DEV>;
+		close DEV;
+		chomp @lines;
+		($tempmil) = ($lines[0] =~ /(\d+)/);
+		$temp = ($tempmil)/1000;
+		$stats_data{temp_stats} = sprintf("CPU:%2.1lf°C", $temp);
+	}
+}
