@@ -4,7 +4,7 @@
 #
 # -----------------------------------------------------------------------------
 # Copyright (c) 2009-2014 by rettub <rettub@gmx.net>
-# Copyright (c) 2011-2017 by nils_2 <weechatter@arcor.de>
+# Copyright (c) 2011-2018 by nils_2 <weechatter@arcor.de>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 # -----------------------------------------------------------------------------
 #
 # Simple IRC query blocker.
-# - requires WeeChat 0.3.2 or newer
+# - requires WeeChat 0.4.2 or newer
 # - suggests perl script newsbar
 #
 # Got inspiration from (xchat script):
@@ -38,13 +38,20 @@
 #
 # -----------------------------------------------------------------------------
 # History:
+# 2018-07-30, usefulz & nils_2:
+#     version 1.2:
+#     FIX: undefine subroutine
+#     ADD: eval_expression() for options
+#     FIX: Warnung: Use of uninitialized value using highmon as a bar
+#     FIX: Warnung: Use of uninitialized value using newsbar
+#
 # 2017-04-14, nils_2:
 #     version 1.1:
-#   ADD: function to ignore server (https://github.com/weechat/scripts/issues/79)
+#       ADD: function to ignore server (https://github.com/weechat/scripts/issues/79)
 #
 # 2016-12-11, mumixam:
 #     version 1.0:
-#   FIX: message starting with color not caught
+#     FIX: message starting with color not caught
 #
 # 2014-05-22, nils_2:
 #     version 0.9:
@@ -106,7 +113,7 @@ use strict;
 
 my $SCRIPT      = 'query_blocker';
 my $AUTHOR      = 'rettub <rettub@gmx.net>';
-my $VERSION     = '1.1';
+my $VERSION     = '1.2';
 my $LICENSE     = 'GPL3';
 my $DESCRIPTION = 'Simple blocker for private message (i.e. spam)';
 my $COMMAND     = "query_blocker";             # new command name
@@ -118,11 +125,11 @@ my %help_desc = ( "block_queries"       => "to enable or disable $COMMAND (defau
                   "show_nick_only"      => "only show nick and server. (default: 'off')",
                   "show_first_message_only"=> "Show only first message sent by blocked queries (default: 'on')",
                   "whitelist"           => "path/file-name to store/read nicks not to be blocked (default: qb-whitelist.txt)",
-                  "auto_message"        => "messages to inform user that you don't like to get private messages without asking first. '%N' will be replaced with users nick.",
-                  "auto_message_prefix" => "Prefix for auto message, may not be empty!",
-                  "msgbuffer"           => "buffer used to display $SCRIPT messages (current = current buffer, private = private buffer, weechat = weechat core buffer, server = server buffer, buffer = $SCRIPT buffer, highmon = highmon buffer)",
+                  "auto_message"        => "messages to inform user that you don't like to get private messages without asking first. '%N' will be replaced with users nick (note: content is evaluated, see /help eval).",
+                  "auto_message_prefix" => "Prefix for auto message, may not be empty! (note: content is evaluated, see /help eval)",
+                  "msgbuffer"           => "buffer used to display $SCRIPT messages (current = current buffer, private = private buffer, weechat = weechat core buffer, server = server buffer, buffer = $SCRIPT buffer, highmon = highmon buffer, newsbar = newsbar-bar)",
                   "logger"              => "logger status for $SCRIPT buffer (default: 'off')",
-                  "hotlist_show"        => "$SCRIPT buffer appear in hotlists (status bar/buffer.pl) (default: 'off')",
+                  "hotlist_show"        => "$SCRIPT buffer appear in hotlists (status bar/buflist) (default: 'off')",
                   "open_on_startup"     => "open $SCRIPT buffer on startup. option msgbuffer has to be set to 'buffer' (default: 'off')",
                   "temporary_mode"      => "if 'on' you have to manually add a nick to whitelist. otherwise a conversation will be temporary only and after closing query buffer the nick will be discard (default: 'off')",
                   "ignore_auto_message" => "path/file-name to store/read nicks to not send an auto message (default: qb-ignore_auto_message.txt)",
@@ -299,6 +306,7 @@ sub print_info {
     my ( $buffer, $server, $my_nick, $nick, $message ) = @_;
     my $prefix_network = weechat::config_string( weechat::config_get("weechat.look.prefix_network"));
     my $buf_pointer = "";
+    my $bar_pointer = "";
     my $orig_message = $message;
 
     if     ( $buffer eq "current" ){
@@ -320,11 +328,11 @@ sub print_info {
     }
 
     # no buffer found, use weechat fallback buffer
-    if ( $buf_pointer eq "" ){
+    if ( $buf_pointer eq "" or not defined $buf_pointer ){
         if ( $server eq "" ){
             $buf_pointer = weechat::buffer_search_main();
         }else{
-            $buf_pointer = fallback($server);
+            $buf_pointer = fallback_buffer($server);
         }
     }
     return $buf_pointer if (lc(weechat::config_get_plugin('quiet') eq "on"));
@@ -334,7 +342,6 @@ sub print_info {
     }else{
         $message = "";
     }
-
     unless ( exists $Blocked{$server.".".$nick} and lc(weechat::config_get_plugin('show_first_message_only') eq 'off') ) {
         weechat::print($buf_pointer,"$prefix_network\t"
                                     .irc_nick_find_color($nick).$nick
@@ -365,17 +372,18 @@ sub print_info {
     return $buf_pointer;
 }
 
+sub eval_expression{
+    my ($string) = @_;
+    return weechat::string_eval_expression($string, {}, {},{});
+}
+
+# get value from msgbuffer_fallback option
 sub fallback_buffer{
-    my $server = @_;
+    my ($server) = @_;
     my $fallback = weechat::config_string( weechat::config_get("irc.look.msgbuffer_fallback") );
     my $buf_pointer;
-    if ( $fallback eq "current" )
-    {
-        my $buf_pointer = weechat::current_buffer();
-    }elsif ( $fallback eq "server" )
-    {
-        $buf_pointer = weechat::buffer_search("irc","server".".".$server);
-    }
+    $buf_pointer = weechat::current_buffer() if ( $fallback eq "current" );
+    $buf_pointer = weechat::buffer_search("irc","server".".".$server) if ( $fallback eq "server" );
     return $buf_pointer;
 }
 
@@ -431,19 +439,35 @@ sub modifier_irc_in_privmsg {
 
             # auto responce msg to query_nick (deny_message)
             my $msg = weechat::config_get_plugin('auto_message_prefix') . weechat::config_get_plugin('auto_message');
+            $msg =~ s/%N/$query_nick/g;     # keep this for historical reasons
+            $msg = eval_expression($msg);
 
-            $msg =~ s/%N/$query_nick/g;
             if (lc(weechat::config_get_plugin('show_deny_message')) eq 'off' or lc(weechat::config_get_plugin('quiet') eq 'on'))
             {
                 # According to the RFC 1459, automatic messages must not be sent as response to NOTICEs and currently it might be possible to get in loop of automatic away messages or something similar.
 #                weechat::command( '', "/mute -all /msg -server $server $query_nick $msg " );
                 weechat::command( '', "/mute -all /notice -server $server $query_nick $msg " );
             }
-            else
+            else        # show deny message!
             {
 #                weechat::command( '', "/mute -all /msg -server $server $query_nick $msg " );
                 weechat::command( '', "/mute -all /notice -server $server $query_nick $msg " );
-                weechat::print($buf_pointer,"$SCRIPT\t"."$query_nick"."@"."$server: $msg");
+                if ( newsbar() eq "1" and lc(weechat::config_get_plugin('msgbuffer')) eq 'newsbar' ) {
+                    weechat::command( '',
+                    "/newsbar  add --color lightred [QUERY-WARN]\t"     # $color $category
+                    . irc_nick_find_color($query_nick)
+                    . $query_nick
+                    . weechat::color('reset') . '@'
+                    . irc_nick_find_color($server)
+                    . $server
+                    . weechat::color('reset')
+                    . ": "
+                    . weechat::color('bold')
+                    . "$msg");
+                }
+                else {
+                    weechat::print($buf_pointer,"$SCRIPT\t"."$query_nick"."@"."$server: $msg");
+                }
             }
             # counter for how many blocked messages
             $Blocked{$server.".".$query_nick} = 0;
@@ -716,6 +740,7 @@ sub qb_msg {
     return weechat::WEECHAT_RC_OK if ($server eq "");
 
     my ($msg) = $command =~ /^\/msg -server .*?\s.*?\s(.*)/;
+    return weechat::WEECHAT_RC_OK if (not defined $msg);
     my $n = _get_nick($_[2]);
     return weechat::WEECHAT_RC_OK if (lc($n) eq "nickserv" or lc($n) eq "chanserv");
     my $prefix = weechat::config_get_plugin('auto_message_prefix');
@@ -771,8 +796,8 @@ sub buffer_closing_cb
 if ( weechat::register( $SCRIPT, $AUTHOR, $VERSION, $LICENSE, $DESCRIPTION, "", "" ) ) {
     weechat::hook_command( $COMMAND, $DESCRIPTION, $ARGS_HELP, $CMD_HELP, $COMPLETITION, $CALLBACK, "" );
     $weechat_version = weechat::info_get("version_number", "");
-    if ( ($weechat_version ne "") && (weechat::info_get("version_number", "") < 0x00030200) ) {
-        weechat::print("",weechat::prefix("error")."$SCRIPT: needs WeeChat >= 0.3.2. Please upgrade: http://www.weechat.org/");
+    if ( ($weechat_version ne "") && (weechat::info_get("version_number", "") < 0x00040200) ) {
+        weechat::print("",weechat::prefix("error")."$SCRIPT: needs WeeChat >= 0.4.2. Please upgrade: http://www.weechat.org/");
         weechat::command("","/wait 1ms /perl unload $SCRIPT");
   }
 
