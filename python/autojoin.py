@@ -91,7 +91,7 @@ def autosave_channels_on_quit(signal, callback, callback_data):
     items = find_channels()
 
     # print/execute commands
-    for server, channels in items.iteritems():
+    for server, channels in items.items():
         process_server(server, channels)
 
     return w.WEECHAT_RC_OK
@@ -105,7 +105,7 @@ def autosave_channels_on_activity(signal, callback, callback_data):
     items = find_channels()
 
     # print/execute commands
-    for server, channels in items.iteritems():
+    for server, channels in items.items():
         nick = w.info_get('irc_nick', server)
 
         pattern = "^:%s!.*(JOIN|PART) :?(#[^ ]*)( :.*$)?" % nick
@@ -130,7 +130,7 @@ def autojoin_cb(data, buffer, args):
         run = False
 
     # print/execute commands
-    for server, channels in items.iteritems():
+    for server, channels in items.items():
         process_server(server, channels, run)
 
     return w.WEECHAT_RC_OK
