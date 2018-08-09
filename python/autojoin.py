@@ -46,6 +46,9 @@
 # 2016-01-13, The fox in the shell <KellerFuchs@hashbang.sh>
 #     version 0.2.6: Support keeping chan list as secured data
 #
+# 2018-08-09, Julien Palard <julien@palard.fr>
+#     version 0.3.0: Support for Python 3
+
 # @TODO: add options to ignore certain buffers
 # @TODO: maybe add an option to enable autosaving on part/join messages
 
@@ -54,7 +57,7 @@ import re
 
 SCRIPT_NAME    = "autojoin"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.2.6"
+SCRIPT_VERSION = "0.3.0"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Configure autojoin for all servers according to currently joined channels"
 SCRIPT_COMMAND = "autojoin"
