@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2013-2017 by nils_2 <weechatter@arcor.de>, Filip H.F. "FiXato" Slagter <fixato+weechat@gmail.com>
+# Copyright (c) 2013-2018 by nils_2 <weechatter@arcor.de>, Filip H.F. "FiXato" Slagter <fixato+weechat@gmail.com>
 #
 # save and restore query buffers after /quit
 #
@@ -18,6 +18,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # idea by lasers@freenode.#weechat
+#
+# 2018-08-08: nils_2, (freenode.#weechat)
+#       0.5 : fix TypeError with python3.6
 #
 # 2017-04-14: nils_2 & FiXato, (freenode.#weechat)
 #       0.4 : big rewrite:
@@ -53,7 +56,7 @@ except Exception:
 
 SCRIPT_NAME     = 'queryman'
 SCRIPT_AUTHOR   = 'nils_2 <weechatter@arcor.de>'
-SCRIPT_VERSION  = '0.4'
+SCRIPT_VERSION  = '0.5'
 SCRIPT_LICENSE  = 'GPL'
 SCRIPT_DESC     = 'save and restore query buffers after /quit and on open/close of queries'
 DEBUG           = False
@@ -140,7 +143,7 @@ def get_stored_list_of_query_buffers():
     stored_query_buffers_per_server = {}
 
     if os.path.isfile(filename):
-        f = open(filename, 'rb')
+        f = open(filename, 'r')
         for line in f:
             server_name,nick = line.strip().split(' ')
             stored_query_buffers_per_server.setdefault(server_name, set([]))
