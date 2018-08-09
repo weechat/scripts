@@ -46,6 +46,9 @@
 # 2016-01-13, The fox in the shell <KellerFuchs@hashbang.sh>
 #     version 0.2.6: Support keeping chan list as secured data
 #
+# 2018-08-09, Julien Palard <julien@palard.fr>
+#     version 0.3.0: Support for Python 3
+
 # @TODO: add options to ignore certain buffers
 # @TODO: maybe add an option to enable autosaving on part/join messages
 
@@ -54,7 +57,7 @@ import re
 
 SCRIPT_NAME    = "autojoin"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.2.6"
+SCRIPT_VERSION = "0.3.0"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Configure autojoin for all servers according to currently joined channels"
 SCRIPT_COMMAND = "autojoin"
@@ -91,7 +94,7 @@ def autosave_channels_on_quit(signal, callback, callback_data):
     items = find_channels()
 
     # print/execute commands
-    for server, channels in items.iteritems():
+    for server, channels in items.items():
         process_server(server, channels)
 
     return w.WEECHAT_RC_OK
@@ -105,7 +108,7 @@ def autosave_channels_on_activity(signal, callback, callback_data):
     items = find_channels()
 
     # print/execute commands
-    for server, channels in items.iteritems():
+    for server, channels in items.items():
         nick = w.info_get('irc_nick', server)
 
         pattern = "^:%s!.*(JOIN|PART) :?(#[^ ]*)( :.*$)?" % nick
@@ -130,7 +133,7 @@ def autojoin_cb(data, buffer, args):
         run = False
 
     # print/execute commands
-    for server, channels in items.iteritems():
+    for server, channels in items.items():
         process_server(server, channels, run)
 
     return w.WEECHAT_RC_OK
