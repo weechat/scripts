@@ -69,6 +69,9 @@
 #
 #   History:
 #
+#   2018-09-20, Jean-Philippe Menil <jpmenil@gmail.com>
+#   version 0.8.2: fix python3 compatibility
+#
 #   2018-04-10, Sébastien Helleu <flashcode@flashtux.org>
 #   version 0.8.1: fix infolist_time for WeeChat >= 2.2 (WeeChat returns a long
 #                  integer instead of a string)
@@ -226,7 +229,7 @@ except ImportError:
 
 SCRIPT_NAME    = "grep"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.8.1"
+SCRIPT_VERSION = "0.8.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Search in buffers and logs"
 SCRIPT_COMMAND = "grep"
@@ -259,22 +262,22 @@ class linesDict(dict):
     def get_matches_count(self):
         """Return the sum of total matches stored."""
         if dict.__len__(self):
-            return sum(map(lambda L: L.matches_count, self.itervalues()))
+            return sum(map(lambda L: L.matches_count, self.values()))
         else:
             return 0
 
     def __len__(self):
         """Return the sum of total lines stored."""
         if dict.__len__(self):
-            return sum(map(len, self.itervalues()))
+            return sum(map(len, self.values()))
         else:
             return 0
 
     def __str__(self):
         """Returns buffer count or buffer name if there's just one stored."""
-        n = len(self.keys())
+        n = len(list(self.keys()))
         if n == 1:
-            return self.keys()[0]
+            return list(self.keys())[0]
         elif n > 1:
             return '%s logs' %n
         else:
@@ -282,18 +285,16 @@ class linesDict(dict):
 
     def items(self):
         """Returns a list of items sorted by line count."""
-        items = dict.items(self)
-        items.sort(key=lambda i: len(i[1]))
+        items = sorted(dict.items(self), key=lambda i: len(i[1]))
         return items
 
     def items_count(self):
         """Returns a list of items sorted by match count."""
-        items = dict.items(self)
-        items.sort(key=lambda i: i[1].matches_count)
+        items = sorted(dict.items(self), key=lambda i: i[1].matches_count)
         return items
 
     def strip_separator(self):
-        for L in self.itervalues():
+        for L in self.values():
             L.strip_separator()
 
     def get_last_lines(self, n):
@@ -543,8 +544,7 @@ def get_file_by_pattern(pattern, all=False):
                 file.append(log)
         #debug('get_file_by_filename: got %s.' %file)
         if not all and file:
-            file.sort()
-            return [ file[-1] ]
+            return [ sorted(file[-1]) ]
         return file
 
 def get_file_by_buffer(buffer):
@@ -657,8 +657,8 @@ def make_regexp(pattern, matchcase=False):
             regexp = re.compile(pattern, re.IGNORECASE)
         else:
             regexp = re.compile(pattern)
-    except Exception, e:
-        raise Exception, 'Bad pattern, %s' %e
+    except Exception as e:
+        raise Exception('Bad pattern, %s' % e)
     return regexp
 
 def check_string(s, regexp, hilight='', exact=False):
@@ -1002,7 +1002,7 @@ def grep_process(*args):
         global grep_options, log_pairs
         for log_name, log in log_pairs:
             result[log_name] = grep_file(log, *grep_options)
-    except Exception, e:
+    except Exception as e:
         result = e
 
     return pickle.dumps(result)
@@ -1038,7 +1038,7 @@ def grep_process_cb(data, command, return_code, out, err):
             if isinstance(data, Exception):
                 raise data
             matched_lines.update(data)
-        except Exception, e:
+        except Exception as e:
             set_buffer_error(repr(e))
             return WEECHAT_RC_OK
         else:
@@ -1280,12 +1280,12 @@ def buffer_input(data, buffer, input_data):
                 weechat.infolist_free(infolist)
             try:
                 cmd_grep_parsing(input_data)
-            except Exception, e:
-                error('Argument error, %s' %e, buffer=buffer)
+            except Exception as e:
+                error('Argument error {0}'.format(e), buffer=buffer)
                 return WEECHAT_RC_OK
             try:
                 show_matching_lines()
-            except Exception, e:
+            except Exception as e:
                 error(e)
     except NameError:
         error("There isn't any previous search to repeat.", buffer=buffer)
@@ -1346,7 +1346,7 @@ def cmd_grep_parsing(args):
         pattern = _tmplRe.sub(tmplReplacer, args)
         debug('Using regexp: %s', pattern)
     if not pattern:
-        raise Exception, 'No pattern for grep the logs.'
+        raise Exception('No pattern for grep the logs.')
 
     def positive_number(opt, val):
         try:
@@ -1359,7 +1359,7 @@ def cmd_grep_parsing(args):
                 opt = '-' + opt
             else:
                 opt = '--' + opt
-            raise Exception, "argument for %s must be a positive integer." %opt
+            raise Exception("argument for %s must be a positive integer." % opt)
 
     for opt, val in opts:
         opt = opt.strip('-')
@@ -1454,8 +1454,8 @@ def cmd_grep(data, buffer, args):
     # parse
     try:
         cmd_grep_parsing(args)
-    except Exception, e:
-        error('Argument error, %s' %e)
+    except Exception as e:
+        error('Argument error {0}'.format(e))
         return WEECHAT_RC_OK
 
     # find logs
@@ -1501,7 +1501,7 @@ def cmd_grep(data, buffer, args):
     # grepping
     try:
         show_matching_lines()
-    except Exception, e:
+    except Exception as e:
         error(e)
     return WEECHAT_RC_OK
 
@@ -1520,22 +1520,21 @@ def cmd_logs(data, buffer, args):
             opt = opt.strip('-')
             if opt in ('size', 's'):
                 sort_by_size = True
-    except Exception, e:
-        error('Argument error, %s' %e)
+    except Exception as e:
+        error('Argument error {0}'.format(e))
         return WEECHAT_RC_OK
 
     # is there's a filter, filter_excludes should be False
     file_list = dir_list(home_dir, filter, filter_excludes=not filter)
     if sort_by_size:
-        file_list.sort(key=get_size)
+        sort(file_list, key=get_size)
     else:
-        file_list.sort()
+        sort(file_list)
 
     file_sizes = map(lambda x: human_readable_size(get_size(x)), file_list)
     # calculate column lenght
     if file_list:
-        L = file_list[:]
-        L.sort(key=len)
+        L = sorted(file_list[:], key=len)
         bigest = L[-1]
         column_len = len(bigest) + 3
     else:
@@ -1703,7 +1702,7 @@ Examples:
             'completion_grep_args', '')
 
     # settings
-    for opt, val in settings.iteritems():
+    for opt, val in settings.items():
         if not weechat.config_is_set_plugin(opt):
             weechat.config_set_plugin(opt, val)
 
@@ -1734,7 +1733,7 @@ Examples:
             debug = pybuffer.debugBuffer(globals(), '%s_debug' % SCRIPT_NAME)
         except:
             def debug(s, *args):
-                if not isinstance(s, basestring):
+                if not isinstance(s, str):
                     s = str(s)
                 if args:
                     s = s %args
