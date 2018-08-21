@@ -91,7 +91,7 @@ def on_msg(*a):
                 icon = w.config_get_plugin('icon')
             buffer = "me" if data == "private" else w.buffer_get_string(buffer, "short_name")
             run_notify(icon, sender, buffer, message)
-            w.prnt("", str(a))
+            #w.prnt("", str(a))
     return w.WEECHAT_RC_OK
 
 def weechat_script():
