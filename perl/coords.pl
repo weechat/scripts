@@ -898,7 +898,7 @@ weechat::key_bind('mouse', +{
 	map { $_ => 'hsignal:'.SCRIPT_NAME }
 	'@chat:button1*', '@chat:button1-event-*', '@chat(perl.[*):button1'
 });
-weechat::command('', '/alias copywin '.CMD_COPYWIN)
+weechat::command('', '/alias add copywin '.CMD_COPYWIN)
 	if 'copywin' ne CMD_COPYWIN && !Nlib::i2h('alias', '', 'copywin') && Nlib::i2h('hook', '', 'command,alias');
 
 # downloaded line fields
