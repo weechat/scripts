@@ -322,7 +322,7 @@ for full pod documentation, filter this script with
 use MIME::Base64;
 
 use constant SCRIPT_NAME => 'coords';
-weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.7.3.1', 'GPL3', 'copy text and urls', 'stop_coords', '') || return;
+weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.7.3.2', 'GPL3', 'copy text and urls', 'stop_coords', '') || return;
 sub SCRIPT_FILE() {
 	my $infolistptr = weechat::infolist_get('perl_script', '', SCRIPT_NAME);
 	my $filename = weechat::infolist_string($infolistptr, 'filename') if weechat::infolist_next($infolistptr);
