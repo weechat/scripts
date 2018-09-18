@@ -322,7 +322,7 @@ for full pod documentation, filter this script with
 use MIME::Base64;
 
 use constant SCRIPT_NAME => 'coords';
-weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.7.3.1', 'GPL3', 'copy text and urls', 'stop_coords', '') || return;
+weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.7.3.2', 'GPL3', 'copy text and urls', 'stop_coords', '') || return;
 sub SCRIPT_FILE() {
 	my $infolistptr = weechat::infolist_get('perl_script', '', SCRIPT_NAME);
 	my $filename = weechat::infolist_string($infolistptr, 'filename') if weechat::infolist_next($infolistptr);
@@ -898,7 +898,7 @@ weechat::key_bind('mouse', +{
 	map { $_ => 'hsignal:'.SCRIPT_NAME }
 	'@chat:button1*', '@chat:button1-event-*', '@chat(perl.[*):button1'
 });
-weechat::command('', '/alias copywin '.CMD_COPYWIN)
+weechat::command('', '/alias add copywin '.CMD_COPYWIN)
 	if 'copywin' ne CMD_COPYWIN && !Nlib::i2h('alias', '', 'copywin') && Nlib::i2h('hook', '', 'command,alias');
 
 # downloaded line fields
