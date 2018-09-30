@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2011-2015 Sébastien Helleu <flashcode@flashtux.org>
+# Copyright (C) 2011-2018 Sébastien Helleu <flashcode@flashtux.org>
 # Copyright (C) 2011 xt <xt@bash.no>
 # Copyright (C) 2012 Filip H.F. "FiXato" Slagter
 #                    <fixato+weechat+urlserver@gmail.com>
@@ -44,6 +44,8 @@
 #
 # History:
 #
+# 2018-09-30, Sébastien Helleu <flashcode@flashtux.org>:
+#     v2.3: fix regex in help of option "http_allowed_ips"
 # 2017-07-26, Sébastien Helleu <flashcode@flashtux.org>:
 #     v2.2: fix write on socket with python 3.x
 # 2016-11-01, Sébastien Helleu <flashcode@flashtux.org>:
@@ -112,7 +114,7 @@
 
 SCRIPT_NAME = 'urlserver'
 SCRIPT_AUTHOR = 'Sébastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '2.2'
+SCRIPT_VERSION = '2.3'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC = 'Shorten URLs with own HTTP server'
 
@@ -185,7 +187,7 @@ urlserver_settings_default = {
     'http_allowed_ips': (
         '',
         'regex for IPs allowed to use server '
-        '(example: "^(123.45.67.89|192.160.*)$")'),
+        '(example: "^(123\.45\.67\.89|192\.160\..*)$")'),
     'http_auth': (
         '',
         'login and password (format: "login:password") required to access to '
