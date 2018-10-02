@@ -87,13 +87,15 @@
 #                         /autoaway without arguments outputs current
 #                         settings.
 #                         Code rewrite.
+#   2018-10-02 - 0.4    - Pol Van Aubel <dev@polvanaubel.com>:
+#                         Make Python3 compatible.
 
+from __future__ import print_function
 try:
     import weechat as w
-    
-except Exception:
-    print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+except:
+    print("This script must be run under WeeChat.")
+    print("Get WeeChat now at: http://www.weechat.org/")
     quit()
 
 # Script Properties
