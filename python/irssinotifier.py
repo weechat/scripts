@@ -18,6 +18,8 @@
 # Requires Weechat >= 0.3.7, openssl
 # Released under GNU GPL v3
 #
+# 2018-10-02, Pol Van Aubel <dev@polvanaubel.com>
+#     version 0.9: - Make python3-compatible.
 # 2017-05-17, das_aug <wct@fnanp.in-ulm.de>
 #     version 0.8.1 - change openssl commandline to how the android app uses it now
 #                     (add "-md md5")
@@ -55,12 +57,20 @@
 # 2012-10-26, ccm <ccm@screenage.de>:
 #     version 0.1: - initial release - working proof of concept
 
-import weechat, string, os, urllib, urllib2, shlex
+import weechat, os, shlex
 from subprocess import Popen, PIPE
+
+import sys # Only required for python version check.
+PY3 = not sys.version_info < (3,)
+
+if PY3:
+    from urllib.parse import urlencode
+else:
+    from urllib import urlencode
 
 weechat.register("irssinotifier",
                  "Caspar Clemens Mierau <ccm@screenage.de>",
-                 "0.8.1",
+                 "0.9",
                  "GPL3",
                  "irssinotifier: Send push notifications to Android's IrssiNotifier about your private message and highligts.",
                  "",
@@ -77,7 +87,7 @@ settings = {
 
 required_settings = ["api_token", "encryption_password"]
 
-for option, help_text in settings.items():
+for option, help_text in list(settings.items()):
     if not weechat.config_is_set_plugin(option):
         weechat.config_set_plugin(option, "")
 
@@ -135,13 +145,23 @@ def encrypt(text):
     if encryption_password.startswith("${sec."):
         encryption_password = weechat.string_eval_expression(encryption_password, {}, {}, {})
 
+    if PY3:
+        text = text.encode("UTF-8")
+
     command="openssl enc -aes-128-cbc -salt -base64 -md md5 -A -pass env:OpenSSLEncPW"
     opensslenv = os.environ.copy();
+    # Unknown whether the encryption password should or should not be
+    # (UTF8-)encoded before being passed to the environment in python 3.
     opensslenv['OpenSSLEncPW'] = encryption_password
-    output,errors = Popen(shlex.split(command),stdin=PIPE,stdout=PIPE,stderr=PIPE,env=opensslenv).communicate(text+" ")
-    output = string.replace(output,"/","_")
-    output = string.replace(output,"+","-")
-    output = string.replace(output,"=","")
+    output, errors = Popen(shlex.split(command), stdin=PIPE, stdout=PIPE,
+                           stderr=PIPE,env=opensslenv).communicate(text + b" ")
+    output = output.replace(b"/", b"_")
+    output = output.replace(b"+", b"-")
+    output = output.replace(b"=", b"")
+
+    if PY3:
+        output = output.decode("UTF-8")
+
     return output
 
 def show_notification(chan, nick, message):
@@ -153,8 +173,14 @@ def show_notification(chan, nick, message):
 
     if API_TOKEN != "":
         url = "https://irssinotifier.appspot.com/API/Message"
-        postdata = urllib.urlencode({'apiToken':API_TOKEN,'nick':encrypt(nick),'channel':encrypt(chan),'message':encrypt(message),'version':13})
+        postdata = urlencode({'apiToken' : API_TOKEN,
+                              'nick'     : encrypt(nick),
+                              'channel'  : encrypt(chan),
+                              'message'  : encrypt(message),
+                              'version'  : 13})
         version = weechat.info_get("version_number", "") or 0
-        hook1 = weechat.hook_process_hashtable("url:"+url, { "postfields":  postdata}, 2000, "", "")
+        hook1 = weechat.hook_process_hashtable("url:" + url,
+                                               {"postfields": postdata},
+                                               2000, "", "")
 
 # vim: autoindent expandtab smarttab shiftwidth=4
