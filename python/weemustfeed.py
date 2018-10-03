@@ -49,7 +49,7 @@ PY2 = sys.version_info < (3,)
 weechat.register(
         "weemustfeed",
         "Bit Shift <bitshift@bigmacintosh.net>",
-        "0.2.3",
+        "0.3",
         "MIT",
         "RSS/Atom/RDF aggregator for weechat",
         "",
