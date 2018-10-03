@@ -101,7 +101,7 @@ except:
 # Script Properties
 SCRIPT_NAME    = "auto_away"
 SCRIPT_AUTHOR  = "Specimen"
-SCRIPT_VERSION = "0.3.3"
+SCRIPT_VERSION = "0.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Simple auto-away script in Python"
 
