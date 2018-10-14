@@ -9,26 +9,25 @@
 #
 # History:
 #
+# 2018-10-14, butlerx
+#   Version 1.0.2: clean up code
 # 2017-04-19, butlerx
 #   Version 1.0.1: remove + from message
 # 2017-04-18, butlerx
 #   Version 1.0.0: initial version
 #
 
-import requests
-import weechat
+from __future__ import absolute_import
+
+from requests import get
+
+from weechat import WEECHAT_RC_OK, command, hook_command, register
 
 SCRIPT_NAME = "giphy"
 SCRIPT_AUTHOR = "butlerx <butlerx@redbrick.dcu.ie>"
-SCRIPT_VERSION = "1.0.1"
+SCRIPT_VERSION = "1.0.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Insert giphy gif"
-
-URL = "http://api.giphy.com/v1/gifs/"
-API = "&api_key=dc6zaTOxFJmzC"
-RANDOM = "random?tag=%s"
-TRANSLATE = "translate?s=%s"
-SEARCH = "search?limit=1&q=%s"
 
 
 def giphy(data, buf, args):
@@ -36,57 +35,39 @@ def giphy(data, buf, args):
     search_string = args.split()
     arg = search_string.pop(0)
     search_string = "+".join(search_string)
-    if arg == "search":
-        image_url = search(URL + SEARCH + API, search_string)
-    elif arg == "msg":
-        image_url = translate(URL + TRANSLATE + API, search_string)
-    elif arg == "random":
-        image_url = random(URL + RANDOM + API, search_string)
-    else:
-        search_string = arg + "+" + search_string
-        image_url = random(URL + RANDOM + API, search_string)
-    weechat.command(buf, "giphy %s -- %s" %
-                    (search_string.replace("+", " ").strip(), image_url))
-    return weechat.WEECHAT_RC_OK
+    results = (
+        api_request("search", {"limit": 1, "q": search_string})
+        if arg == "search"
+        else api_request("translate", {"s": search_string})
+        if arg == "msg"
+        else api_request("random", {"tag": search_string})
+        if arg == "random"
+        else api_request("random", {"tag": "+".join([arg, search_string])})
+    )
+    command(
+        buf, "giphy {} -- {}".format(search_string.replace("+", " ").strip(), results)
+    )
+    return WEECHAT_RC_OK
 
 
-def translate(api, search_term):
-    """Query giphy translate api for search"""
-    response = requests.get(api % search_term)
-    data = response.json()
+def api_request(method, params):
+    """Query giphy api for search"""
     try:
-        # Translate
-        image_url = data["data"]["images"]["original"]["url"]
+        params["api_key"] = "dc6zaTOxFJmzC"
+        response = get("http://api.giphy.com/v1/gifs/{}".format(method), params=params)
+        data = response.json()["data"]
+        data = data[0] if isinstance(data, list) else data
+        return (
+            data["images"]["original"]["url"]
+            if "image_url" not in data
+            else data["image_url"]
+        )
     except TypeError:
-        image_url = "No GIF good enough"
-    return image_url
-
-
-def random(api, search_term):
-    """Query giphy random api for search"""
-    response = requests.get(api % search_term)
-    data = response.json()
-    try:
-        # Random
-        image_url = data["data"]["image_url"]
-    except TypeError:
-        image_url = "No GIF good enough"
-    return image_url
-
-
-def search(api, search_term):
-    """Query giphy search api for search"""
-    response = requests.get(api % search_term)
-    data = response.json()
-    try:
-        image_url = data["data"][0]["images"]["original"]["url"]
-    except TypeError:
-        image_url = "No GIF good enough"
-    return image_url
+        return "No GIF good enough"
 
 
 if __name__ == "__main__":
-    if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION,
-                        SCRIPT_LICENSE, SCRIPT_DESC, "", ""):
-        weechat.hook_command("giphy", "Insert a giphy GIF", "",
-                             "", "", "giphy", "")
+    if register(
+        SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, "", ""
+    ):
+        hook_command(SCRIPT_NAME, SCRIPT_DESC, "", "", "", SCRIPT_NAME, "")
