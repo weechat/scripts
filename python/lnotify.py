@@ -36,13 +36,16 @@
 # 0.3.1
 # Fix https://github.com/weechat/scripts/issues/114 - where we would get
 # notifications for messages that we sent
+#
+# 0.3.2
+# Check if active window is in the ignore_windows_list and skip notification
 
 import weechat as weechat
 import subprocess
 from os import environ, path
 
 lnotify_name = "lnotify"
-lnotify_version = "0.3.1"
+lnotify_version = "0.3.2"
 lnotify_license = "GPL3"
 
 # convenient table checking for bools
@@ -91,13 +94,16 @@ def handle_msg(data, pbuffer, date, tags, displayed, highlight, prefix, message)
     window_name = ""
     my_nickname = "nick_" + weechat.buffer_get_string(pbuffer, "localvar_nick")
 
-    # Check to make sure we're in X and xdotool exists.
-    # This is kinda crude, but I'm no X master.
+    # Check if active window is in the ignore_windows_list and skip notification
     if (environ.get('DISPLAY') != None) and path.isfile("/bin/xdotool"):
-        window_name = subprocess.check_output(["xdotool", "getwindowfocus", "getwindowname"])
-
-    if "WeeChat" in window_name:
+        cmd_pid="xdotool getactivewindow getwindowpid".split()
+        window_pid = subprocess.check_output(cmd_pid)
+        cmd_name=("ps -ho comm -p %s"%(window_pid)).split()
+        window_name = subprocess.check_output(cmd_name)
+        ignore_windows_list = ["tilda", "gnome-terminal", "xterm"]
+    if ignore_windows_list in window_name:
         x_focus = True
+        return weechat.WEECHAT_RC_OK
 
     if pbuffer == weechat.current_buffer() and x_focus:
         return weechat.WEECHAT_RC_OK
@@ -142,4 +148,3 @@ if __name__ == "__main__":
 
     cfg = config()
     print_hook = weechat.hook_print("", "", "", 1, "handle_msg", "")
-
