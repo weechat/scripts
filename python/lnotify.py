@@ -101,9 +101,9 @@ def handle_msg(data, pbuffer, date, tags, displayed, highlight, prefix, message)
         cmd_name=("ps -ho comm -p %s"%(window_pid)).split()
         window_name = subprocess.check_output(cmd_name)
         ignore_windows_list = ["tilda", "gnome-terminal", "xterm"]
-    if ignore_windows_list in window_name:
-        x_focus = True
-        return weechat.WEECHAT_RC_OK
+        if window_name in ignore_windows_list:
+            x_focus = True
+            return weechat.WEECHAT_RC_OK
 
     if pbuffer == weechat.current_buffer() and x_focus:
         return weechat.WEECHAT_RC_OK
