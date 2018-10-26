@@ -69,14 +69,14 @@ from os import urandom
 try:
     import weechat
 except ImportError:
-    print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print("This script must be run under WeeChat.")
+    print("Get WeeChat now at: http://www.weechat.org/")
     import_ok = False
 
 try:
     import Crypto.Cipher.Blowfish
 except:
-    print "Python Cryptography Toolkit must be installed to use fish"
+    print("Python Cryptography Toolkit must be installed to use fish")
     import_ok = False
 
 
@@ -271,9 +271,9 @@ def blowcrypt_b64decode(s):
         for i, p in enumerate(s[6:12]):
             left |= B64.index(p) << (i * 6)
         for i in range(0,4):
-            res +=chr(((left & (0xFF << ((3 - i) * 8))) >> ((3 - i) * 8)))
+            res += chr(((left & (0xFF << ((3 - i) * 8))) >> ((3 - i) * 8)))
         for i in range(0,4):
-            res +=chr(((right & (0xFF << ((3 - i) * 8))) >> ((3 - i) * 8)))
+            res += chr(((right & (0xFF << ((3 - i) * 8))) >> ((3 - i) * 8)))
         s = s[12:]
     return res
 
@@ -333,7 +333,7 @@ p_dh1080 = int('FBE1022E23D213E8ACFA9AE8B9DFAD'
                '83EB68FA07A77AB6AD7BEB618ACF9C'
                'A2897EB28A6189EFA07AB99A8A7FA9'
                'AE299EFA7BA66DEAFEFBEFBF0B7D8B', 16)
-q_dh1080 = (p_dh1080 - 1) / 2
+q_dh1080 = (p_dh1080 - 1) // 2
 
 
 def dh1080_b64encode(s):
@@ -447,7 +447,7 @@ class DH1080Ctx:
 
         bits = 1080
         while True:
-            self.private = bytes2int(urandom(bits / 8))
+            self.private = bytes2int(urandom(bits // 8))
             self.public = pow(g_dh1080, self.private, p_dh1080)
             if 2 <= self.public <= p_dh1080 - 1 and \
                dh_validate_public(self.public, q_dh1080, p_dh1080) == 1:
@@ -486,7 +486,7 @@ def dh1080_unpack(msg, ctx):
                 raise MalformedError
 
             if not dh_validate_public(public, q_dh1080, p_dh1080):
-                #print invalidmsg
+                #print(invalidmsg)
                 pass
 
             ctx.secret = pow(public, ctx.private, p_dh1080)
@@ -505,7 +505,7 @@ def dh1080_unpack(msg, ctx):
                 raise MalformedError
 
             if not dh_validate_public(public, q_dh1080, p_dh1080):
-                #print invalidmsg
+                #print(invalidmsg)
                 pass
 
             ctx.secret = pow(public, ctx.private, p_dh1080)
@@ -538,7 +538,7 @@ def int2bytes(n):
     b = ''
     while n:
         b = chr(n % 256) + b
-        n /= 256
+        n //= 256
     return b
 
 
