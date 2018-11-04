@@ -17,6 +17,10 @@
 #
 # 2017-11-03: fix script/issue #236
 #       v0.2: add "%h" variable in option 'file'
+# 2018-10-23: fix script/issue #297
+#       v0.3: make script python 3 compatible
+
+from __future__ import print_function
 
 import os
 import re
@@ -33,7 +37,7 @@ except Exception:
 
 NAME        = "autoconf"
 AUTHOR      = "Manu Koell <manu@koell.li>"
-VERSION     = "0.2"
+VERSION     = "0.3"
 LICENSE     = "GPL3"
 DESCRIPTION = "auto save/load changed options in a ~/.weerc file, useful to share dotfiles with"
 
@@ -49,7 +53,7 @@ SETTINGS = {
     'autosave': ('on', 'auto save config on quit'),
     'autoload': ('on', 'auto load config on start'),
     'ignore': (
-        ','.join(EXCLUDES), 
+        ','.join(EXCLUDES),
         'comma separated list of patterns to exclude'),
     'file': ('%h/.weerc', 'config file location ("%h" will be replaced by WeeChat home, "~/.weechat" by default)')
 }
@@ -61,7 +65,7 @@ def cstrip(text):
 
 def get_config(args):
     """get path to config file"""
-    
+
     try:
         conf = args[1]
     except Exception:
@@ -75,7 +79,7 @@ def load_conf(args):
     conf = get_config(args)
 
     if os.path.isfile(conf):
-        w.command('', '/exec -sh -norc cat %s > %s' % (conf, fifo))
+        w.command('', '/exec -sh -norc cat | grep */set %s > %s' % (conf, fifo))
 
 def save_conf(args):
     """match options and save to config file"""
@@ -83,7 +87,7 @@ def save_conf(args):
     try:
         f = open(get_config(args), 'w+')
 
-    except Exception, e:
+    except Exception as e:
         w.prnt('', '%sError: %s' % (w.prefix('error'), e))
 
         return w.WEECHAT_RC_ERROR
@@ -95,7 +99,7 @@ def save_conf(args):
         '# Use /autoconf load or cat this file to the FIFO pipe.',
         '#',
         '# For more info, see https://weechat.org/scripts/source/autoconf.py.html',
-        '#', 
+        '#',
         ''
     ]
 
