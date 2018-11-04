@@ -1,4 +1,5 @@
 # Copyright (c) 2010-2013 by fauno <fauno@kiwwwi.com.ar>
+# Copyright (c) 2018 by nils_2 <freenode.#weechat>
 #
 # Bar item showing typing count. Add 'tc' to a bar.
 #
@@ -40,12 +41,11 @@
 #       fix bug with root bar (reported by fours_)
 # 0.8 <nils_2@freenode>:
 #       fix regex bug with ":" in sms text (reported by ahuemer)
-#
 # 0.9 <nils_2@freenode>:
 #       add option 'start_cursor_pos_at_zero' (idea by nesthib)
-#
-# Note: As of version 0.2 this script requires a version of weechat
-#       from git 2010-01-25 or newer, or at least 0.3.2 stable.
+# 1.0 <nils_2@freenode>:
+#       make script python3 compatible
+#       add regular expression for format option
 #
 # usage:
 # add [tc] to your weechat.bar.status.items
@@ -69,28 +69,32 @@
 # to activate a display beep use.
 # /set plugins.var.python.typing_counter.warn_command "$bell"
 #
-## TODO:
+# TODO:
 # - buffer whitelist/blacklist
 # - max chars per buffer (ie, bar item will turn red when count > 140 for identica buffer)
 
+from __future__ import print_function
+
 SCRIPT_NAME    = "typing_counter"
 SCRIPT_AUTHOR  = "fauno <fauno@kiwwwi.com.ar>"
-SCRIPT_VERSION = "0.9"
+SCRIPT_VERSION = "1.0"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Bar item showing typing count and cursor position. Add 'tc' to a bar."
+
+import_ok = True
 
 try:
   import weechat as w
 
 except Exception:
-    print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
-    quit()
+    print("This script must be run under WeeChat.")
+    print("Get WeeChat now at: https://weechat.org/")
+    import_ok = False
 try:
     import os, sys, re
 
 except ImportError as message:
-    print('Missing package(s) for %s: %s' % (SCRIPT_NAME, message))
+    print(('Missing package(s) for %s: %s' % (SCRIPT_NAME, message)))
     import_ok = False
 
 tc_input_text   = ''
@@ -99,7 +103,7 @@ cursor_pos      = 1
 count_over      = '0'
 
 tc_default_options = {
-    'format'            : ('[%P|%L|<%R|%C>]','item name to add in a bar is "tc". item format is: %P = cursor position, %L = input length, %R = reverse counting from max_chars, %C = displays how many chars are count over max_chars'),
+    'format'            : ('[%P|%L|<%R|%C>]','item name to add in a bar is "tc". item format is: %P = cursor position, %L = input length, %R = reverse counting from max_chars, %C = displays how many chars are count over max_chars (content is evaluated, eg use colors with format "${color:xxx}", see /help eval)'),
     'warn'              : ('140','turns indicator to "warn_colour" when position is reached'),
     'warn_colour'       : ('red','color for warn after specified number of chars'),
     'max_chars'         : ('200','max number of chars to count reverse'),
@@ -109,6 +113,12 @@ tc_default_options = {
     'start_cursor_pos_at_zero': ('off','if option on, cursor position will start counting from zero instead of one'),
 }
 tc_options = {}
+
+# regexp to match ${color} tags
+regex_color=re.compile('\$\{([^\{\}]+)\}')
+
+# regexp to match ${optional string} tags
+regex_optional_tags=re.compile('%\{[^\{\}]+\}')
 
 def command_run_cb (data, signal, signal_data):
     if tc_options['warn_command'] == '':
@@ -241,7 +251,14 @@ def tc_bar_item (data, item, window):
 #    out_format = out_format.replace('%S', str(sms))
     tc_input_text = out_format
 
-    return tc_input_text
+    return substitute_colors(tc_input_text)
+
+def substitute_colors(text):
+    if int(version) >= 0x00040200:
+        return w.string_eval_expression(text,{},{},{})
+    # substitute colors in output
+    return re.sub(regex_color, lambda match: w.color(match.group(1)), text)
+
 
 def init_config():
     global tc_default_options, tc_options
@@ -269,10 +286,11 @@ def tc_action_cb():
             os.system(tc_options['warn_command'])
     return w.WEECHAT_RC_OK
 
-if __name__ == "__main__":
+if __name__ == "__main__" and import_ok:
     if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION,
                   SCRIPT_LICENSE, SCRIPT_DESC,
                   "", ""):
+        version = w.info_get("version_number", "") or 0
         init_config() # read configuration
         tc_bar_item_update() # update status bar display
 
