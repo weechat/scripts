@@ -465,9 +465,9 @@ def error(s, buffer=''):
     prnt(buffer, '%s%s %s' %(weechat.prefix('error'), script_nick, s))
     if weechat.config_get_plugin('debug'):
         import traceback
-        if traceback.sys.exc_type:
-            trace = traceback.format_exc()
-            prnt('', trace)
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        trace = traceback.format_tb(exc_traceback)
+        prnt('', str(trace))
 
 def say(s, buffer=''):
     """normal msg"""
@@ -544,7 +544,8 @@ def get_file_by_pattern(pattern, all=False):
                 file.append(log)
         #debug('get_file_by_filename: got %s.' %file)
         if not all and file:
-            return [ sorted(file[-1]) ]
+            file.sort()
+            return [ file[-1] ]
         return file
 
 def get_file_by_buffer(buffer):
@@ -716,7 +717,7 @@ def grep_file(file, head, tail, after_context, before_context, count, regexp, hi
                 return s
     else:
         check = lambda s: check_string(s, regexp, hilight, exact)
-    
+
     try:
         file_object = open(file, 'r')
     except IOError:
@@ -1281,7 +1282,7 @@ def buffer_input(data, buffer, input_data):
             try:
                 cmd_grep_parsing(input_data)
             except Exception as e:
-                error('Argument error {0}'.format(e), buffer=buffer)
+                error('Argument error, %s' %e, buffer=buffer)
                 return WEECHAT_RC_OK
             try:
                 show_matching_lines()
@@ -1359,7 +1360,7 @@ def cmd_grep_parsing(args):
                 opt = '-' + opt
             else:
                 opt = '--' + opt
-            raise Exception("argument for %s must be a positive integer." % opt)
+            raise Exception("argument for %s must be a positive integer." %opt)
 
     for opt, val in opts:
         opt = opt.strip('-')
@@ -1455,7 +1456,7 @@ def cmd_grep(data, buffer, args):
     try:
         cmd_grep_parsing(args)
     except Exception as e:
-        error('Argument error {0}'.format(e))
+        error('Argument error, %s' %e)
         return WEECHAT_RC_OK
 
     # find logs
@@ -1521,15 +1522,15 @@ def cmd_logs(data, buffer, args):
             if opt in ('size', 's'):
                 sort_by_size = True
     except Exception as e:
-        error('Argument error {0}'.format(e))
+        error('Argument error, %s' %e)
         return WEECHAT_RC_OK
 
     # is there's a filter, filter_excludes should be False
     file_list = dir_list(home_dir, filter, filter_excludes=not filter)
     if sort_by_size:
-        sort(file_list, key=get_size)
+        file_list.sort(key=get_size)
     else:
-        sort(file_list)
+        file_list.sort()
 
     file_sizes = map(lambda x: human_readable_size(get_size(x)), file_list)
     # calculate column lenght
@@ -1715,7 +1716,7 @@ Examples:
     color_summary     = weechat.color('lightcyan')
     color_delimiter   = weechat.color('chat_delimiters')
     color_script_nick = weechat.color('chat_nick')
-    
+
     # pretty [grep]
     script_nick = '%s[%s%s%s]%s' %(color_delimiter, color_script_nick, SCRIPT_NAME, color_delimiter,
             color_reset)
