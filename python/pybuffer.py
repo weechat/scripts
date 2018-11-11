@@ -40,7 +40,7 @@
 #   '0x9ca4ce0'
 #   >>> buffer_get(b, 'input')
 #   Traceback (most recent call last):
-#     File "<console>", line 1, in <module>    
+#     File "<console>", line 1, in <module>
 #   NameError: name 'buffer_get' is not defined
 #   >>> search('buffer')
 #   ['buffer_clear', 'buffer_close', 'buffer_get_integer', 'buffer_get_pointer', 'buffer_get_string',
@@ -57,6 +57,10 @@
 #
 #
 #   History:
+#   2018-10-03
+#   version 0.3:
+#   * Python3 compatibility (Pol Van Aubel <dev@polvanaubel.com>)
+#
 #   2010-11-05
 #   version 0.2:
 #   * More interperter console.
@@ -66,10 +70,14 @@
 #   2010-10-30
 #   version 0.1: Initial release
 ###
+from __future__ import print_function
+
+import sys # Only required for python version check.
+PY2 = sys.version_info < (3,)
 
 SCRIPT_NAME    = "pybuffer"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Python interpreter for WeeChat and module for debug scripts."
 
@@ -78,8 +86,8 @@ try:
     from weechat import WEECHAT_RC_OK, prnt
     import_ok = True
 except ImportError:
-    print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print("This script must be run under WeeChat.")
+    print("Get WeeChat now at: https://weechat.org/")
     import_ok = False
 
 import code, sys, traceback
@@ -88,21 +96,21 @@ from fnmatch import fnmatch
 def callback(method):
     """This function will take a bound method or function and make it a callback."""
     # try to create a descriptive and unique name.
-    func = method.func_name
+    funcname = method.__name__
     try:
-        im_self = method.im_self
+        classinst = method.__self__
         try:
-            inst = im_self.__name__
+            instname = classinst.__name__
         except AttributeError:
             try:
-                inst = im_self.name
+                instname = classinst.name
             except AttributeError:
-                raise Exception("Instance %s has no __name__ attribute" %im_self)
-        cls = type(im_self).__name__
-        name = '_'.join((cls, inst, func))
+                raise Exception("Instance %s has no __name__ attribute" % classinst)
+        classname = type(classinst).__name__
+        name = '_'.join((classname, instname, funcname))
     except AttributeError:
         # not a bound method
-        name = func
+        name = funcname
 
     # set our callback
     import __main__
@@ -127,8 +135,8 @@ class Command(object):
     def __init__(self):
         assert self.command, "No command defined"
         self.__name__ = self.command
-        self._pointer = ''   
-        self._callback = ''   
+        self._pointer = ''
+        self._callback = ''
 
     def __call__(self, *args):
         return self.callback(*args)
@@ -138,7 +146,7 @@ class Command(object):
         self.data, self.buffer, self.args = data, buffer, args
         try:
             self.parser(args)  # argument parsing
-        except ArgumentError, e:
+        except ArgumentError as e:
             error('Argument error, %s' %e)
         except NoArguments:
             pass
@@ -165,7 +173,7 @@ class Command(object):
                                        self.completion,
                                        self._callback, '')
         if pointer == '':
-            raise Exception, "hook_command failed: %s %s" %(SCRIPT_NAME, self.command)
+            raise Exception("hook_command failed: %s %s" %(SCRIPT_NAME, self.command))
         self._pointer = pointer
 
     def unhook(self):
@@ -220,10 +228,18 @@ class SimpleBuffer(object):
     def prnt(self, s, *args, **kwargs):
         """Prints messages in buffer."""
         buffer = self._getBuffer()
-        if not isinstance(s, basestring):
-            s = str(s)
+
+        # Ensure s is a str (Py3) or a str/unicode (Py2) so that s % args will work.
+        if PY2:
+            # Don't accidentally convert unicode to utf-8 or ASCII or whatever because we want to see the object.
+            if not isinstance(s, basestring):
+                s = str(s)
+        else:
+            if not isinstance(s, str):
+                s = str(s)
+
         if args:
-            s = s %args
+            s = s % args
         try:
             s = kwargs['prefix'] + s
         except KeyError:
@@ -304,7 +320,7 @@ class PythonBuffer(Buffer):
     def __call__(self, s, *args, **kwargs):
         kwargs['prefix'] = self.color_call
         self.prnt(s, *args, **kwargs)
-    
+
     def input_return(self, data, buffer, command):
         # we need to send returns even when there's no input.
         if data == buffer and not weechat.buffer_get_string(buffer, 'input'):
