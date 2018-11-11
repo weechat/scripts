@@ -24,6 +24,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2017-12-02, Benjamin Roberts <benjamin@bgroberts.id.au>:
+#     version 0.4: added support for home path expansion
 # 2012-08-28, Sebastien Helleu <flashcode@flashtux.org>:
 #     version 0.3: compatibility with WeeChat >= 0.3.9 (hdata_time is now long instead of string)
 # 2012-08-23, Sebastien Helleu <flashcode@flashtux.org>:
@@ -37,7 +39,7 @@ import time
 
 SCRIPT_NAME    = "bufsave"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.3"
+SCRIPT_VERSION = "0.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Save buffer to a file"
 SCRIPT_COMMAND  = SCRIPT_NAME
@@ -60,11 +62,13 @@ def cstrip(text):
 def bufsave_cmd(data, buffer, args):
     ''' Callback for /bufsave command '''
 
-    filename = args
+    filename_raw = args
 
-    if not filename:
+    if not filename_raw:
         w.command('', '/help %s' %SCRIPT_COMMAND)
         return w.WEECHAT_RC_OK
+    
+    filename = w.string_eval_path_home(filename_raw, {}, {}, {})
 
     if exists(filename):
         w.prnt('', 'Error: target file already exists!')
