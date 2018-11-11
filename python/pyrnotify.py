@@ -43,10 +43,14 @@
 
 # ChangeLog:
 #
+# 2018-08-20: Make it work with python3
+#              use of sendall instead of send
 # 2014-05-10: Change hook_print callback argument type of displayed/highlight
 #             (WeeChat >= 1.0)
 # 2012-06-19: Added simple escaping to the title and body strings for
 #             the script to handle trailing backslashes.
+
+from __future__ import print_function
 
 try:
     import weechat as w
@@ -61,22 +65,23 @@ import shlex
 
 SCRIPT_NAME    = "pyrnotify"
 SCRIPT_AUTHOR  = "Krister Svanlund <krister.svanlund@gmail.com>"
-SCRIPT_VERSION = "1.0"
+SCRIPT_VERSION = "1.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Send remote notifications over SSH"
 
 def escape(s):
     return re.sub(r'([\\"\'])', r'\\\1', s)
 
-def run_notify(icon, nick,chan,message):
+def run_notify(icon, nick, chan, message):
     host = w.config_get_plugin('host')
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((host, int(w.config_get_plugin('port'))))
-        s.send("normal %s \"%s to %s\" \"%s\"" % (icon, nick, escape(chan), escape(message)))
+        msg = "normal {0} \"{1} to {2}\" \"{3}\"".format(icon, nick, escape(chan), escape(message))
+        s.sendall(msg.encode('utf-8'))
         s.close()
     except Exception as e:
-        w.prnt("", "Could not send notification: %s" % str(e))
+        w.prnt("", "Could not send notification: {0}".format(e))
 
 def on_msg(*a):
     if len(a) == 8:
@@ -105,10 +110,6 @@ def weechat_script():
         w.hook_print("", "notify_highlight", "", 1, "on_msg", "") # Not sure if this is needed
 
 
-
-
-
-
 ######################################
 ## This is where the client starts, except for the global if-check nothing below this line is
 ## supposed to be executed in weechat, instead it runs when the script is executed from
@@ -120,7 +121,7 @@ def accept_connections(s, timeout=None):
         data = ""
         d = conn.recv(1024)
         while d:
-            data += d
+            data += d.decode('utf-8')
             d = conn.recv(1024)
     finally:
         conn.close()
@@ -133,9 +134,9 @@ def accept_connections(s, timeout=None):
                 subprocess.call(["notify-send", "-u", urgency, "-c", "IRC", "-i", icon, escape(title), escape(body)])
 
         except ValueError as e:
-            print e
+            print(e)
         except OSError as e:
-            print e
+            print(e)
     accept_connections(s, timeout)
 
 def weechat_client(argv):
@@ -146,8 +147,8 @@ def weechat_client(argv):
     try:
         accept_connections(s, argv[2] if len(sys.argv) > 2 else None)
     except KeyboardInterrupt as e:
-        print "Keyboard interrupt"
-        print e
+        print("Keyboard interrupt")
+        print(e)
     finally:
         s.close()
 
