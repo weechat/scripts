@@ -20,6 +20,12 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2018-10-03, Pol Van Aubel <dev@polvanaubel.com>
+#   version 0.7: Python3 compatibility. Considerations:
+#                - Settings during registration are iterated over only once, so
+#                  code should be succinct rather than efficient on both Py2/3.
+#                - The autojoin_keys zip is turned into a dict, so wouldn't
+#                  make sense to first turn into a list as futurize suggests.
 # 2015-10-11, Simmo Saan <simmo.saan@gmail.com>
 #   version 0.6: allow joining channels with keys in autojoin
 # 2013-12-21, Sebastien Helleu <flashcode@flashtux.org>
@@ -38,7 +44,7 @@ import re
 
 SCRIPT_NAME    = "autojoin_on_invite"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.6"
+SCRIPT_VERSION = "0.7"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Auto joins channels when invited"
 
@@ -56,7 +62,7 @@ settings = {
 
 if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
                     SCRIPT_DESC, "", ""):
-    for option, default_value in settings.iteritems():
+    for option, default_value in settings.items():
         if not w.config_is_set_plugin(option):
             w.config_set_plugin(option, default_value)
 
