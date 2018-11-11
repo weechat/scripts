@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# auto_away.py : A simple auto-away script for Weechat in Python 
+# auto_away.py : A simple auto-away script for Weechat in Python
 # Copyright (c) 2010 by Specimen <spinifer at gmail dot com>
 #
 # Inspired in yaaa.pl by jnbek
@@ -22,12 +22,12 @@
 #
 #
 # This script requires WeeChat 0.3.0 or newer.
-# 
+#
 # ---------------------------------------------------------------------
 #
 # Summary:
 #
-#   Sets status to away automatically after a given period of 
+#   Sets status to away automatically after a given period of
 #   inactivity. Returns from away when you start typing, but not when
 #   you change buffer or scroll. This script should work with any
 #   plugin and it's not IRC specific.
@@ -47,15 +47,15 @@
 # Configuration options via /set:
 #
 # 'idletime'
-#   description: Period in minutes (n) of keyboard inactivity until 
+#   description: Period in minutes (n) of keyboard inactivity until
 #                being marked as being away.
 #                Setting idletime to "0", a negative number or a string
-#                such as "off" disables auto-away. All positive values 
+#                such as "off" disables auto-away. All positive values
 #                are treated as they integers.
 #   command: /set plugins.var.python.auto_away.idletime n
-# 
+#
 # 'message'
-#   description: Away message. The /away command requires this setting 
+#   description: Away message. The /away command requires this setting
 #                not to be empty.
 #   command: /set plugins.var.python.auto_away.message "message"
 #
@@ -74,7 +74,7 @@
 #   2010-02-20 - 0.2.5  - Specimen:
 #                         Use hook_config to check idletime and
 #                         enable/disable hook_timer.
-#                         Removed away_status.  
+#                         Removed away_status.
 #   2010-02-21 - 0.3    - Specimen:
 #                         Implemented /autoaway command.
 #   2010-02-22 - 0.3.3  - Specimen:
@@ -87,19 +87,21 @@
 #                         /autoaway without arguments outputs current
 #                         settings.
 #                         Code rewrite.
+#   2018-10-02 - 0.4    - Pol Van Aubel <dev@polvanaubel.com>:
+#                         Make Python3 compatible.
 
+from __future__ import print_function
 try:
     import weechat as w
-    
-except Exception:
-    print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+except:
+    print("This script must be run under WeeChat.")
+    print("Get WeeChat now at: https://weechat.org/")
     quit()
 
 # Script Properties
 SCRIPT_NAME    = "auto_away"
 SCRIPT_AUTHOR  = "Specimen"
-SCRIPT_VERSION = "0.3.3"
+SCRIPT_VERSION = "0.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Simple auto-away script in Python"
 
@@ -130,20 +132,20 @@ def idle_chk(data, remaining_calls):
         w.unhook(timer_hook)
         if not w.config_get_plugin('message'):
             w.config_set_plugin('message', message)
-        w.command("", "/away -all %s" 
+        w.command("", "/away -all %s"
                   % w.config_get_plugin('message'))
         if int(version) < 0x00030200:
             ''' Workaround for /away -all bug in v. < 0.3.2 '''
             servers = irc_servers()
             if servers:
                 for server in servers:
-                    w.command(server, "/away %s" 
+                    w.command(server, "/away %s"
                               % w.config_get_plugin('message'))
         input_hook_function()
     return w.WEECHAT_RC_OK
 
 def irc_servers():
-    ''' Disconnected IRC servers, workaround for /away -all bug 
+    ''' Disconnected IRC servers, workaround for /away -all bug
     in v. < 0.3.2 '''
     serverlist = w.infolist_get('irc_server','','')
     buffers = []
@@ -185,16 +187,16 @@ def autoaway_cmd(data, buffer, args):
         if value[2]:
             w.config_set_plugin('message', value[2])
     if val_idletime() > 0:
-        w.prnt(w.current_buffer(), 
+        w.prnt(w.current_buffer(),
                "%sauto-away%s settings:\n"
                "   Time:    %s%s%s minute(s)\n"
                "   Message: %s%s\n"
                % (w.color("bold"), w.color("-bold"),
-               w.color("bold"), w.config_get_plugin('idletime'), 
-               w.color("-bold"), w.color("bold"), 
+               w.color("bold"), w.config_get_plugin('idletime'),
+               w.color("-bold"), w.color("bold"),
                w.config_get_plugin('message')))
     else:
-        w.prnt(w.current_buffer(), 
+        w.prnt(w.current_buffer(),
                "%sauto-away%s is disabled.\n"
                % (w.color("bold"), w.color("-bold")))
     return w.WEECHAT_RC_OK
@@ -213,16 +215,16 @@ def switch_chk(data, option, value):
 if __name__ == "__main__":
     if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION,
                   SCRIPT_LICENSE, SCRIPT_DESC, "", ""):
-                  
-        if not w.config_get_plugin('idletime'): 
-            w.config_set_plugin('idletime', idletime)	
-        if not w.config_get_plugin('message'): 
+
+        if not w.config_get_plugin('idletime'):
+            w.config_set_plugin('idletime', idletime)
+        if not w.config_get_plugin('message'):
             w.config_set_plugin('message', message)
-            
-        w.hook_command("autoaway", 
+
+        w.hook_command("autoaway",
                        "Set away status automatically after a period of "
-                       "inactivity.", 
-                       "[time|off] [message]", 
+                       "inactivity.",
+                       "[time|off] [message]",
                        "      time: minutes of inactivity to set away\n"
                        "       off: disable auto-away (0 also disables)\n"
                        "   message: away message (optional)\n"
@@ -242,11 +244,11 @@ if __name__ == "__main__":
                        "/autoaway off\n"
                        "/autoaway 0\n"
                        "Disables auto-away.\n",
-                       "", 
+                       "",
                        "autoaway_cmd", "")
         w.hook_config("plugins.var.python.auto_away.idletime",
                       "switch_chk", "")
-                      
+
         version = w.info_get("version_number", "") or 0
         timer_hook = None
         input_hook = None
