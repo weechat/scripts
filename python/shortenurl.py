@@ -48,7 +48,7 @@ from urllib2 import urlopen
 
 SCRIPT_NAME = "shortenurl"
 SCRIPT_AUTHOR = "John Anderson <sontek@gmail.com>"
-SCRIPT_VERSION = "0.6.2"
+SCRIPT_VERSION = "0.6.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Shorten long incoming and outgoing URLs"
 
