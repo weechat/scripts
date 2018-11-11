@@ -25,7 +25,14 @@
 # http://www.opensource.org/licenses/mit-license.php
 #
 # Revision log:
-# 0.2.3 Changed weechat.prnt to weechat.prnt_date_tags where messages
+# 0.3   Pol Van Aubel <dev@polvanaubel.com>
+#       Make Python3 compatible.
+#       Feed fetching should now timeout after 15 seconds.
+#       Handle negative return values correctly.
+#       Fix deleting from active iteration object in unload.
+#
+# 0.2.3 Pol Van Aubel <dev@polvanaubel.com>
+#       Changed weechat.prnt to weechat.prnt_date_tags where messages
 #       are not a direct result from user input; errors get tagged with
 #       irc_error and notify_message, messages get tagged with
 #       notify_message.
@@ -36,10 +43,13 @@ import weechat
 import string
 import feedparser
 
+import sys # Only required for python version check.
+PY2 = sys.version_info < (3,)
+
 weechat.register(
         "weemustfeed",
         "Bit Shift <bitshift@bigmacintosh.net>",
-        "0.2.3",
+        "0.3",
         "MIT",
         "RSS/Atom/RDF aggregator for weechat",
         "",
@@ -200,7 +210,7 @@ def weemustfeed_close_cb(data, buffer):
 
     weemustfeed_buffer = None
     weechat.unhook(weemustfeed_timer)
-    for feed in fetch_hooks:
+    for feed in list(fetch_hooks):
         weechat.unhook(fetch_hooks[feed])
         del fetch_hooks[feed]
     weemustfeed_timer = None
@@ -240,9 +250,14 @@ def weemustfeed_update_single_feed_cb(feed, command, return_code, out, err):
     if not feed in partial_feeds:
         partial_feeds[feed] = ""
 
-    if return_code < 0:  # feed not done yet
+    if return_code == weechat.WEECHAT_HOOK_PROCESS_RUNNING:  # feed not done yet
         partial_feeds[feed] += out
         return weechat.WEECHAT_RC_OK
+    elif return_code == weechat.WEECHAT_HOOK_PROCESS_ERROR:
+        weechat.prnt_date_tags(weemustfeed_buffer, 0,
+                "irc_error,notify_message",
+                weechat.prefix("error") + "Hook process error for feed '" + feed + "'. === " + command + " === " + out + " === " + err)
+        status = weechat.WEECHAT_RC_ERROR
     elif return_code == 1:
         weechat.prnt_date_tags(weemustfeed_buffer, 0,
                 "irc_error,notify_message",
@@ -263,7 +278,7 @@ def weemustfeed_update_single_feed_cb(feed, command, return_code, out, err):
                 "irc_error,notify_message",
                 weechat.prefix("error") + "Error with a file while fetching feed '" + feed + "'.")
         status = weechat.WEECHAT_RC_ERROR
-    else:  # all good, and we have a complete feed
+    elif return_code == 0:  # all good, and we have a complete feed
         if not weechat.config_is_set_plugin("feed." + feed.lower() + ".last_id"):
             weechat.config_set_plugin("feed." + feed.lower() + ".last_id", "")
             last_id = ""
@@ -287,11 +302,18 @@ def weemustfeed_update_single_feed_cb(feed, command, return_code, out, err):
                 only_new = True
 
             for entry in entries:
+                if PY2:
+                    entrytitle = entry.title.encode("utf-8")
+                    entryurl = entry.link.encode("utf-8")
+                else:
+                    entrytitle = entry.title
+                    entryurl = entry.link
+
                 if only_new:
                     weechat.prnt_date_tags(weemustfeed_buffer, 0, "notify_message", "{feed}\t{title} {url}".format(**{
                         "feed": feed,
-                        "title": entry.title.encode("utf-8"),
-                        "url": entry.link.encode("utf-8")
+                        "title": entrytitle,
+                        "url": entryurl
                         }))
                     last_id = entry.id
                 elif entry.id == last_id:
@@ -300,6 +322,12 @@ def weemustfeed_update_single_feed_cb(feed, command, return_code, out, err):
         weechat.config_set_plugin("feed." + feed.lower() + ".last_id", last_id)
 
         status = weechat.WEECHAT_RC_OK
+
+    else: # Unknown return code. Script must be updated.
+        weechat.prnt_date_tags(weemustfeed_buffer, 0,
+                "irc_error,notify_message",
+                weechat.prefix("error") + "Unknown return code " + return_code + " for feed '" + feed + "'. Script must be updated.")
+        status = weechat.WEECHAT_RC_ERROR
 
     partial_feeds[feed] = ""
     if feed in updating:
@@ -320,7 +348,7 @@ def weemustfeed_update_feeds_cb(data, remaining_calls):
                 if not feed in fetch_hooks:
                     fetch_hooks[feed] = weechat.hook_process(
                         "url:" + weechat.config_get_plugin("feed." + feed.lower() + ".url"),
-                        0,
+                        15000,
                         "weemustfeed_update_single_feed_cb", feed
                         )
         elif feed != "":
@@ -354,7 +382,7 @@ def unset_timer():
 def init_script():
     global default_settings
 
-    for option, default_value in default_settings.items():
+    for option, default_value in list(default_settings.items()):
         if not weechat.config_is_set_plugin(option):
             weechat.config_set_plugin(option, default_value)
 
