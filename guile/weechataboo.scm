@@ -1,5 +1,5 @@
 ; WeeChat-Script to replace emotion-tags with random emoticons.
-; Copyright (C) 2017 Alvar <post@0x21.biz>
+; Copyright (C) 2017-2018 Alvar <post@0x21.biz>
 ;
 ; This program is free software: you can redistribute it and/or modify
 ; it under the terms of the GNU General Public License as published by
@@ -53,15 +53,11 @@
       (emoticonize-line new-line)
       new-line)))
 
-; Pointer String String -> Weechat-Return
+; Pointer ? ? String -> String
 ; This function was registered to be called when an input was submitted and
 ; will try to replace ~~EMOTIONs to emoticons.
-(define (command-run data buffer command)
-  (let*
-    ((input  (weechat:buffer_get_string buffer "input"))
-     (output (emoticonize-line input)))
-    (weechat:buffer_set buffer "input" output))
-  weechat:WEECHAT_RC_OK)
+(define (weechataboo-hook data modifier modifier-data msg)
+  (emoticonize-line msg))
 
 ; Pointer String List -> Weechat-Return
 ; Function which tells you to RTFM.
@@ -115,13 +111,14 @@
 
 
 (weechat:register
-  "weechataboo" "Alvar" "0.1.1" "GPL3"
+  "weechataboo" "Alvar" "0.1.2" "GPL3"
   "Replace emotion-tags with random emoticons" "clean-up" "")
 
 (and (eq? (weechat:config_is_set_plugin "emotions") 0)
      (initial-setup))
 
-(weechat:hook_command_run "/input return" "command-run" "")
+(weechat:hook_modifier "irc_out1_privmsg" "weechataboo-hook" "")
+
 (weechat:hook_command
   "weechataboo"
   (string-append "This script automatically replaces written emotion-keywords\n"
