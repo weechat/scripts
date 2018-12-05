@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
-# Blackmore's Enhanced IRC-Notification Collection (BEINC) v1.1
-# Copyright (C) 2013-2015 Simeon Simeonov
+# Blackmore's Enhanced IRC-Notification Collection (BEINC) v3.0
+# Copyright (C) 2013-2018 Simeon Simeonov
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,21 +18,27 @@
 
 
 import datetime
-import httplib
 import json
 import os
-import random
 import socket
 import ssl
 import sys
-import urllib
-import urllib2
+
+PY2 = sys.version_info[0] == 2
+PY3 = sys.version_info[0] == 3
+
+if PY3:
+    from urllib.parse import urlencode
+    from urllib.request import urlopen
+else:
+    from urllib import urlencode
+    from urllib2 import urlopen
 
 import weechat
 
 
 __author__ = 'Simeon Simeonov'
-__version__ = '1.1'
+__version__ = '3.0'
 __license__ = 'GPL3'
 
 
@@ -43,37 +49,7 @@ global_values = dict()
 BEINC_POLICY_NONE = 0
 BEINC_POLICY_ALL = 1
 BEINC_POLICY_LIST_ONLY = 2
-BEINC_CURRENT_CONFIG_VERSION = 1
-
-
-class ValidHTTPSConnection(httplib.HTTPConnection):
-    """
-    Implements a simple CERT verification functionality
-    """
-
-    default_port = httplib.HTTPS_PORT
-
-    def __init__(self, *args, **kwargs):
-        httplib.HTTPConnection.__init__(self, *args, **kwargs)
-
-    def connect(self):
-        sock = socket.create_connection((self.host, self.port),
-                                        self.timeout, self.source_address)
-        if self._tunnel_host:
-            self.sock = sock
-            self._tunnel()
-        self.sock = ssl.wrap_socket(sock,
-                                    ca_certs=global_beinc_cert_file,
-                                    cert_reqs=ssl.CERT_REQUIRED)
-
-
-class ValidHTTPSHandler(urllib2.HTTPSHandler):
-    """
-    Implements a simple CERT verification functionality
-    """
-
-    def https_open(self, req):
-            return self.do_open(ValidHTTPSConnection, req)
+BEINC_CURRENT_CONFIG_VERSION = 2
 
 
 class WeechatTarget(object):
@@ -86,11 +62,13 @@ class WeechatTarget(object):
         """
         target_dict: the config-dictionary node that represents this instance
         """
-        self.__name = target_dict.get(
-            'name',
-            ''.join([chr(random.randrange(97, 123)) for x in range(4)]))
-        self.__url = target_dict.get('target_url')
-        self.__password = target_dict.get('target_password')
+        self.__name = target_dict.get('name', '')
+        if self.__name == '':
+            raise Exception('"name" not defined for target')
+        self.__url = target_dict.get('target_url', '')
+        if self.__url == '':
+            raise Exception('"target_url" not defined for target')
+        self.__password = target_dict.get('target_password', '')
         self.__pm_title_template = target_dict.get('pm_title_template',
                                                    '%s @ %S')
         self.__pm_message_template = target_dict.get('pm_message_template',
@@ -120,6 +98,13 @@ class WeechatTarget(object):
         self.__debug = bool(target_dict.get('debug', False))
         self.__enabled = bool(target_dict.get('enabled', True))
         self.__socket_timeout = int(target_dict.get('socket_timeout', 3))
+        self.__ssl_ciphers = target_dict.get('ssl_ciphers', '')
+        self.__disable_hostname_check = bool(
+            target_dict.get('disable-hostname-check', False))
+        self.__ssl_version = target_dict.get('ssl_version', 'auto')
+        self.__last_message = None  # datetime.datetime instance
+        self.__context = None
+        self.__context_setup()
 
     @property
     def name(self):
@@ -180,18 +165,29 @@ class WeechatTarget(object):
     def __repr__(self):
         """
         """
-        return 'name: {0}\nurl: {1}\nchannel_list: {2}\nnick_list: {3}\n'\
-            'channel_messages_policy: {4}\nprivate_messages_policy: {5}\n'\
-            'notifications_policy: {6}\nenabled: {7}\ndebug: {8}\n\n'.format(
-                self.__name,
-                self.__url,
-                ', '.join(self.__chans),
-                ', '.join(self.__nicks),
-                self.__chan_messages_policy,
-                self.__priv_messages_policy,
-                self.__notifications_policy,
-                'yes' if self.__enabled else 'no',
-                'yes' if self.__debug else 'no')
+        last_message = 'never'
+        if self.__last_message is not None:
+            last_message = self.__last_message.strftime('%Y-%m-%d %H:%M:%S')
+        return ('name: {0}\nurl: {1}\nenabled: {2}\nchannel_list: {3}\n'
+                'nick_list: {4}\nchannel_messages_policy: {5}\n'
+                'private_messages_policy: {6}\nnotifications_policy: {7}\n'
+                'last message: {8}\nsocket timeout: {9}\nssl-version: {10}\n'
+                'ciphers: {11}\ndisable hostname check: {12}\n'
+                'debug: {13}\n\n'.format(
+                    self.__name,
+                    self.__url,
+                    'yes' if self.__enabled else 'no',
+                    ', '.join(self.__chans),
+                    ', '.join(self.__nicks),
+                    self.__chan_messages_policy,
+                    self.__priv_messages_policy,
+                    self.__notifications_policy,
+                    last_message,
+                    self.__socket_timeout,
+                    self.__ssl_version,
+                    self.__ssl_ciphers or 'auto',
+                    'yes' if self.__disable_hostname_check else 'no',
+                    'yes' if self.__debug else 'no'))
 
     def send_private_message_notification(self, values):
         """
@@ -200,16 +196,12 @@ class WeechatTarget(object):
         values: dict pupulated by the irc msg-handler
         """
         try:
-            title_str = self.__fetch_formatted_str(self.__pm_title_template,
-                                                   values)
-            message_str = self.__fetch_formatted_str(
+            title = self.__fetch_formatted_str(self.__pm_title_template,
+                                               values)
+            message = self.__fetch_formatted_str(
                 self.__pm_message_template,
                 values)
-            post_values = {'title': title_str,
-                           'message': message_str,
-                           'password': self.__password}
-            data = urllib.urlencode(post_values)
-            if not self.__send_beinc_message(data) and self.__debug:
+            if not self.__send_beinc_message(title, message) and self.__debug:
                 beinc_prnt(
                     'BEINC DEBUG: send_private_message_notification-ERROR '
                     'for "{0}": __send_beinc_message -> False'.format(
@@ -227,16 +219,11 @@ class WeechatTarget(object):
         values: dict pupulated by the irc msg-handler
         """
         try:
-            title_str = self.__fetch_formatted_str(self.__cm_title_template,
-                                                   values)
-            message_str = self.__fetch_formatted_str(
-                self.__cm_message_template,
-                values)
-            post_values = {'title': title_str,
-                           'message': message_str,
-                           'password': self.__password}
-            data = urllib.urlencode(post_values)
-            if not self.__send_beinc_message(data) and self.__debug:
+            title = self.__fetch_formatted_str(self.__cm_title_template,
+                                               values)
+            message = self.__fetch_formatted_str(self.__cm_message_template,
+                                                 values)
+            if not self.__send_beinc_message(title, message) and self.__debug:
                 beinc_prnt(
                     'BEINC DEBUG: send_channel_message_notification-ERROR '
                     'for "{0}": __send_beinc_message -> False'.format(
@@ -254,16 +241,11 @@ class WeechatTarget(object):
         values: dict pupulated by the irc msg-handler
         """
         try:
-            title_str = self.__fetch_formatted_str(self.__nm_title_template,
-                                                   values)
-            message_str = self.__fetch_formatted_str(
-                self.__nm_message_template,
-                values)
-            post_values = {'title': title_str,
-                           'message': message_str,
-                           'password': self.__password}
-            data = urllib.urlencode(post_values)
-            if not self.__send_beinc_message(data) and self.__debug:
+            title = self.__fetch_formatted_str(self.__nm_title_template,
+                                               values)
+            message = self.__fetch_formatted_str(self.__nm_message_template,
+                                                 values)
+            if not self.__send_beinc_message(title, message) and self.__debug:
                 beinc_prnt(
                     'BEINC DEBUG: send_notify_message_notification-ERROR '
                     'for "{0}": __send_beinc_message -> False'.format(
@@ -282,11 +264,8 @@ class WeechatTarget(object):
         message: a single message string
         """
         try:
-            post_values = {'title': 'BEINC broadcast',
-                           'message': message,
-                           'password': self.__password}
-            data = urllib.urlencode(post_values)
-            if not self.__send_beinc_message(data) and self.__debug:
+            title = 'BEINC broadcast'
+            if not self.__send_beinc_message(title, message) and self.__debug:
                 beinc_prnt(
                     'BEINC DEBUG: send_broadcast_notification-ERROR '
                     'for "{0}": __send_beinc_message -> False'.format(
@@ -297,6 +276,34 @@ class WeechatTarget(object):
                     'BEINC DEBUG: send_broadcast_notification-ERROR '
                     'for "{0}": {1}'.format(self.__name, e))
 
+    def __context_setup(self):
+        """
+        """
+        if self.__context is not None:
+            return True
+        try:
+            context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+            context.verify_mode = ssl.CERT_NONE
+            if self.__cert_file:
+                context.verify_mode = ssl.CERT_REQUIRED
+                context.load_verify_locations(cafile=os.path.expanduser(
+                    self.__cert_file))
+                context.check_hostname = bool(
+                    not self.__disable_hostname_check)
+            if self.__ssl_ciphers and self.__ssl_ciphers != 'auto':
+                context.set_ciphers(self.__ssl_ciphers)
+            self.__context = context
+            return True
+        except ssl.SSLError as e:
+            if self.__debug:
+                beinc_prnt('BEINC DEBUG: SSL/TLS error: {0}\n'.format(e))
+        except Exception as e:
+            if self.__debug:
+                beinc_prnt('BEINC DEBUG: Generic context error: {0}\n'.format(
+                    e))
+        self.__context = None
+        return False
+
     def __fetch_formatted_str(self, template, values):
         """
         returns a formatted string by replacing the defined
@@ -305,46 +312,55 @@ class WeechatTarget(object):
         values: dict
         template: str
         """
-        template = unicode(template)
         timestamp = datetime.datetime.now().strftime(self.__timestamp_format)
-        replacements = {u'%S': values['server'].decode('utf-8'),
-                        u'%s': values['source_nick'].decode('utf-8'),
-                        u'%c': values['channel'].decode('utf-8'),
-                        u'%m': values['message'].decode('utf-8'),
-                        u'%t': timestamp.decode('utf-8'),
-                        u'%p': u'BEINC',
-                        u'%n': values['own_nick'].decode('utf-8')}
+        replacements = {'%S': values['server'],
+                        '%s': values['source_nick'],
+                        '%c': values['channel'],
+                        '%m': values['message'],
+                        '%t': timestamp,
+                        '%p': u'BEINC',
+                        '%n': values['own_nick']}
         for key, value in replacements.items():
             template = template.replace(key, value)
         return template.encode('utf-8')
 
-    def __send_beinc_message(self, data):
+    def __send_beinc_message(self, title, message):
         """
         the function implements the BEINC "protocol" by generating a simple
-        HTTP request
+        POST request
         """
         try:
-            req = urllib2.Request(self.__url, data)
-            if self.__cert_file:
-                global global_beinc_cert_file
-                global_beinc_cert_file = self.__cert_file
-                opener = urllib2.build_opener(ValidHTTPSHandler)
-                response = opener.open(req, timeout=self.__socket_timeout)
-            else:
-                response = urllib2.urlopen(req, self.__socket_timeout)
-            res_code = response.code
-            response.close()
-            if res_code == 200:
-                return True
-        except urllib2.HTTPError as e:
+            if self.__context is None and not self.__context_setup():
+                return False
+            response = urlopen(
+                self.__url,
+                data=urlencode(
+                    (
+                        ('resource_name', self.__name),
+                        ('password', self.__password),
+                        ('title', title),
+                        ('message', message)
+                        )).encode('utf-8'),
+                timeout=self.__socket_timeout,
+                context=self.__context)
+            response_dict = json.loads(response.read().decode('utf-8'))
+            if response.code != 200:
+                raise socket.error(response_dict.get('message', ''))
             if self.__debug:
-                beinc_prnt(
-                    'BEINC DEBUG: send_beinc_message-ERROR for "{0}": {1} ->'
-                    ' ({2} - {3})'.format(self.__name,
-                                          e.url,
-                                          e.code,
-                                          e.reason))
-        # all other exception should be handled by the caller
+                beinc_prnt('BEINC DEBUG: Server responded: {0}'.format(
+                    response_dict.get('message')))
+            self.__last_message = datetime.datetime.now()
+            return True
+        except ssl.SSLError as e:
+            if self.__debug:
+                beinc_prnt('BEINC DEBUG: SSL/TLS error: {0}\n'.format(e))
+        except socket.error as e:
+            if self.__debug:
+                beinc_prnt('BEINC DEBUG: Connection error: {0}\n'.format(e))
+        except Exception as e:
+            if self.__debug:
+                beinc_prnt('BEINC DEBUG: Unable to send message: {0}\n'.format(
+                    e))
         return False
 
 
@@ -594,9 +610,9 @@ def beinc_init():
 
 weechat.register(
     'beinc_weechat',
-    'Simeon Simeonov',
-    '1.1',
-    'GPL3',
+    __author__,
+    __version__,
+    __license__,
     'Blackmore\'s Extended IRC Notification Collection (Weechat Client)',
     '',
     '')
@@ -605,8 +621,10 @@ if int(version) < 0x00040000:
     weechat.prnt('', 'WeeChat version >= 0.4.0 is required to run beinc')
 else:
     weechat.hook_command('beinc',
-                         'beinc on off toggle', '<on | off | reload>',
-                         'description...',
+                         'BEINC command', ('< broadcast <message> | on | off |'
+                                           ' reload | target <action> >'),
+                         ('Available target actions:\n'
+                          'disable <target name>\nenable <target name>\nlist'),
                          'None',
                          'beinc_command',
                          '')
