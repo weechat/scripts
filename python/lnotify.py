@@ -42,6 +42,10 @@
 #
 # 0.3.3
 # Fix undefined ignore_windows_list.
+#
+# 0.3.4
+# - Redirect stderr when calling xdotool
+# - Add urxvt to the list of ignored windows
 
 import weechat as weechat
 import subprocess
@@ -99,11 +103,11 @@ def handle_msg(data, pbuffer, date, tags, displayed, highlight, prefix, message)
 
     # Check if active window is in the ignore_windows_list and skip notification
     if (environ.get('DISPLAY') != None) and path.isfile("/bin/xdotool"):
-        cmd_pid="xdotool getactivewindow getwindowpid".split()
-        window_pid = subprocess.check_output(cmd_pid)
+        cmd_pid="xdotool getactivewindow getwindowpid 2>/dev/null"
+        window_pid = subprocess.check_output(cmd_pid, shell=True)
         cmd_name=("ps -ho comm -p %s"%(window_pid)).split()
         window_name = subprocess.check_output(cmd_name)
-        ignore_windows_list = ["tilda", "gnome-terminal", "xterm"]
+        ignore_windows_list = ["tilda", "gnome-terminal", "xterm", "urxvt"]
         if window_name in ignore_windows_list:
             x_focus = True
             return weechat.WEECHAT_RC_OK
