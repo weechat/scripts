@@ -27,7 +27,7 @@ import weechat
 
 SCRIPT_NAME = "fullwidth"
 SCRIPT_AUTHOR = "GermainZ <germanosz@gmail.com>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.1.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = ("Convert text to its ｆｕｌｌｗｉｄｔｈ equivalent and send it "
                "to buffer.")
@@ -50,7 +50,9 @@ def cb_fullwidth_cmd(data, buf, args):
         args = args.decode("utf-8")
     for char in list(args):
         ord_char = ord(char)
-        if ord_char >= 32 and ord_char <= 126:
+        if ord_char == 32:
+            char = unichr(12288)
+        elif ord_char > 32 and ord_char <= 126:
             char = unichr(ord_char + 65248)
         chars.append(char)
     send(buf, ''.join(chars))
