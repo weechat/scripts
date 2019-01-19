@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011-2014 by Nils Görs <weechatter@arcor.de>
+# Copyright (c) 2011-2018 by Nils Görs <weechatter@arcor.de>
 #
 # Get information on a short URL. Find out where it goes.
 #
@@ -16,6 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 0.7  : use eval_expression() for option "prefix"
+#      : removed unused options
 # 0.6  : fix regex for tag "nick_xxx"
 # 0.5  : fix expand_own() tag "prefix_nick_ccc" (thanks roughnecks)
 #      : add item "%nick" for prefix (idea by roughnecks)
@@ -39,16 +41,14 @@
 # Development is currently hosted at
 # https://github.com/weechatter/weechat-scripts
 #
-# This Script needs WeeChat 0.3.7 or higher
+# This Script needs WeeChat 0.4.2 or higher
 #
-# You will find version 0.4:
-# http://git.savannah.gnu.org/gitweb/?p=weechat/scripts.git;a=snapshot;h=7bb8ac448c25cf50829ff88d554765a4ff9470cd;sf=tgz
 
 use strict;
 use URI::Find;
 
 my $PRGNAME	= "expand_url";
-my $version	= "0.6";
+my $version	= "0.7";
 my $AUTHOR      = "Nils Görs <weechatter\@arcor.de>";
 my $LICENSE     = "GPL3";
 my $DESC	= "Get information on a short URL. Find out where it goes.";
@@ -56,17 +56,15 @@ my $DESC	= "Get information on a short URL. Find out where it goes.";
 my %options = ( "shortener"             =>      "t.co/|goo.gl|tiny.cc|bit.ly|is.gd|tinyurl.com|ur1.ca",
                 "expander"              =>      "http://untiny.me/api/1.0/extract?url= http://api.longurl.org/v1/expand?url= http://expandurl.com/api/v1/?url=",
                 "color"                 =>      "blue",
-                "prefix"                =>      "[url]",
-                "color_prefix"          =>      "blue",
+                "prefix"                =>      "\${color:blue}[url]",
                 "expand_own"            =>      "off",
 );
 
 my %option_desc = ( "shortener"         =>      "list of know shortener. \"|\" separated list",
-                    "expander"          =>      "list of expander to use in script. Please use a space \" \" to separate expander",
+                    "expander"          =>      "list of expander to use in script. This is a space \" \" separate list from expander",
                     "color"             =>      "color to use for expanded url in buffer",
-                    "color_prefix"      =>      "color for prefix",
-                    "prefix"            =>      "displayed prefix. You can use item \"\%nick\" to display nick in prefix (default: [url])",
-                    "expand_own"        =>      "own shortened urls will be expanded (on|off)",
+                    "prefix"            =>      "displayed prefix. You can use item \"\%nick\" to display nick in prefix (note: content is evaluated, see /help eval) (default: \${color:blue}[url]",
+                    "expand_own"        =>      "own shortened urls will be expand (on|off)",
 );
 
 my %uris;
@@ -79,8 +77,9 @@ sub hook_print_cb
     my ( $data, $buffer, $date, $tags, $displayed, $highlight, $prefix, $message ) = @_;
     my $tags2 = ",$tags,";
     #return weechat::WEECHAT_RC_OK if ( not $tags2 =~ /,notify_[^,]+,/ ); # return if message is not from a nick.
-    #weechat::print("",$tags);
 
+    # get own nick
+    my $my_nick = "";
     if ( lc($options{expand_own}) eq "off" )
     {
         # get servername from buffer
@@ -88,21 +87,14 @@ sub hook_print_cb
         weechat::infolist_next($infolist);
         my ($servername, undef) = split( /\./, weechat::infolist_string($infolist,"name") );
         weechat::infolist_free($infolist);
-
-        my $my_nick = weechat::info_get( "irc_nick", $servername );   # get own nick
+        $my_nick = weechat::info_get( "irc_nick", $servername );   # get own nick
     }
 
-#  if ( $tags2 =~ /,nick_[$my_nick,]+,/ ){
-#  if ( $tags2 =~ m/(^|,)nick_[$my_nick,]+,/ ){
-#      return weechat::WEECHAT_RC_OK;
-#  }
-#}
-
+    # get nick from message
     my $nick_wo_suffix = ($tags2 =~ m/(^|,)nick_([^,]*)/) ? $2 : "";
     return weechat::WEECHAT_RC_OK if ($nick_wo_suffix eq "");
+    return weechat::WEECHAT_RC_OK if ( lc($options{expand_own}) eq "off" ) and ( $nick_wo_suffix eq $my_nick);
 
-#    $tags =~ m/(^|,)nick_(.*),/;
-#    my $nick_wo_suffix = $2;                                                                        # nickname without nick_suffix
   # search uri in message. result in %uris
   %uris = ();
   my $finder = URI::Find->new( \&uri_find_cb );
@@ -131,7 +123,8 @@ my ($data, $command, $return_code, $out, $err) = @_;
     if ($out ne ""){
         my $how_many_found = 0;
         my @array = split(/\n/,$out);                                   # split output to single raw lines
-        foreach ( @array ){
+        foreach ( @array )
+        {
             my $uri_only = "";
             my $finder = URI::Find->new(sub {
                 my($uri, $orig_uri) = @_;
@@ -140,19 +133,12 @@ my ($data, $command, $return_code, $out, $err) = @_;
 #            my $finder = URI::Find->new( \&uri_find_one_cb );
             $how_many_found = $finder->find(\$_);
 
-            my $print_suffix = weechat::color($options{color_prefix}).
-                                        $options{prefix};
 
-            if ( $how_many_found >= 1 ){                                # does message contains at least one an url?
-                if ( grep /$options{prefix}/,"\%nick" ){
-                    my $nick_color = weechat::info_get('irc_nick_color', $nick_wo_suffix);# get nick-color
-                    $print_suffix = $options{prefix};
-                    my $nick_prefix =   $nick_color.
-                                        $nick_wo_suffix.
-                                        weechat::color($options{color_prefix});
-                    $print_suffix =~ s/%nick/$nick_prefix/;
-                    $print_suffix = weechat::color($options{color_prefix}).$print_suffix;
-                }
+            if ( $how_many_found >= 1 )# message contains at least one url?
+            {
+                    my $print_suffix = my_eval_expression($options{prefix});                # use eval expression()
+                    my $nick_color = weechat::info_get('irc_nick_color', $nick_wo_suffix);  # get nick-color
+                    $print_suffix =~ s/%nick/$nick_color$nick_wo_suffix/;                   # replace %nick with nick
                 weechat::print($buffer, $print_suffix.
                                         "\t".
                                         weechat::color($options{color}).
@@ -169,18 +155,17 @@ my ($data, $command, $return_code, $out, $err) = @_;
     }
 }
 
+sub my_eval_expression{
+    my $value = $_[0];
+    return weechat::string_eval_expression($value,{},{},{});
+}
+
 # callback from URI::Find
 sub uri_find_cb {
 my ( $uri_url, $uri ) = @_;
   $uris{$uri}++;
 return "";
 }
-
-#sub uri_find_one_cb {
-#my ( $uri_url, $uri ) = @_;
-#  $uri_only = $uri;
-#return "";
-#}
 
 # get settings or set them if they do not exists.
 sub init_config{
@@ -221,8 +206,8 @@ return weechat::WEECHAT_RC_OK ;
 weechat::register($PRGNAME, $AUTHOR, $version,$LICENSE, $DESC, "", "");
 
 $weechat_version = weechat::info_get("version_number", "");
-if (( $weechat_version eq "" ) or ( $weechat_version < 0x00030700 )){
-    weechat::print("",weechat::prefix("error")."$PRGNAME: needs WeeChat >= 0.3.7. Please upgrade: http://www.weechat.org/");
+if (( $weechat_version eq "" ) or ( $weechat_version < 0x00040200 )){
+    weechat::print("",weechat::prefix("error")."$PRGNAME: needs WeeChat >= 0.4.2. Please upgrade: http://www.weechat.org/");
     weechat::command("","/wait 1ms /perl unload $PRGNAME");
 }
 
