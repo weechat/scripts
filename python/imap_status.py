@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2009-2015 by xt <xt@bash.no>
-# (this script requires WeeChat 0.3.0 or newer)
+# (this script requires WeeChat 0.4.2 or newer)
 #
 # History:
+# 2019-01-26, nils_2@freenode
+#   version 0.9: make script python3 compatible
+#              : remove option "message_color" and "separator_color"
 # 2016-05-07, Sebastien Helleu <flashcode@flashtux.org>:
 #   version 0.8: add options "mailbox_color", "separator", "separator_color",
 #                remove extra colon in bar item content, use hook_process
@@ -47,7 +50,7 @@ import weechat as w
 
 SCRIPT_NAME = "imap_status"
 SCRIPT_AUTHOR = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.8"
+SCRIPT_VERSION = "0.9"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Bar item with unread imap messages count"
 
@@ -62,26 +65,21 @@ settings = {
     'hostname': '',  # gmail uses imap.gmail.com
     'port': '993',
     'mailboxes': 'INBOX',  # comma separated list of mailboxes (gmail: "Inbox")
-    'message': 'Mail: ',
-    'message_color': 'default',
+    'message': '${color:default}Mail: ',
     'mailbox_color': 'default',
-    'separator': ', ',
-    'separator_color': 'default',
+    'separator': '${color:default}, ',
     'count_color': 'default',
     'interval': '5',
 }
 
 
 def string_eval_expression(text):
-    if WEECHAT_VERSION >= 0x00040200:
-        return w.string_eval_expression(text, {}, {}, {})
-    return text
-
+    return w.string_eval_expression(text, {}, {}, {})
 
 class Imap(object):
     """Simple helper class for interfacing with IMAP server."""
 
-    iRe = re.compile(r"UNSEEN (\d+)")
+    iRe = re.compile(br"UNSEEN (\d+)")
     conn = False
 
     def __init__(self):
@@ -117,15 +115,12 @@ class Imap(object):
 
 def imap_get_unread(data):
     """Return the unread count."""
-
     imap = Imap()
-
     if not w.config_get_plugin('message'):
         output = ""
     else:
-        output = '%s%s' % (
-            w.color(w.config_get_plugin('message_color')),
-            w.config_get_plugin('message'))
+        output = '%s' % (
+            string_eval_expression(w.config_get_plugin('message')))
     any_with_unread = False
     mailboxes = w.config_get_plugin('mailboxes').split(',')
     count = []
@@ -140,9 +135,8 @@ def imap_get_unread(data):
                 w.color(w.config_get_plugin('count_color')),
                 unreadCount))
     imap.logout()
-    sep = '%s%s' % (
-        w.color(w.config_get_plugin('separator_color')),
-        w.config_get_plugin('separator'))
+    sep = '%s' % (
+        string_eval_expression(w.config_get_plugin('separator')))
     output = output + sep.join(count) + w.color('reset')
 
     return output if any_with_unread else ''
@@ -177,7 +171,7 @@ def imap_timer_cb(data, remaining_calls):
 
 if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
               SCRIPT_DESC, '', ''):
-    for option, default_value in settings.iteritems():
+    for option, default_value in settings.items():
         if not w.config_is_set_plugin(option):
             w.config_set_plugin(option, default_value)
 
