@@ -24,6 +24,11 @@ and a dictionary set, e.g in
 
   aspell.check.default_dict
 
+since WeeChat 2.5 its:
+  spell.check.enabled on
+  spell.check.suggestions >-1
+  spell.check.default_dict
+
 you also need to have a menu script, if you don't have it yet:
 
   /script install menu.pl
@@ -86,8 +91,14 @@ don't spell correct with tab if exactly at the end of a word
 
 =cut
 
+my $plugin_name = "spell";      # WeeChat >= 2.5
+my $old_plugin_name = "aspell";   # WeeChat < 2.5
+
 use constant SCRIPT_NAME => 'spell_menu';
-weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.4', 'GPL3', 'spell checker menu', '', '') || return;
+weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.5', 'GPL3', 'spell checker menu', '', '') || return;
+my $weechat_version = weechat::info_get('version_number', '') || 0;
+$plugin_name = $old_plugin_name if ($weechat_version < 0x02050000); # v2.5
+
 sub SCRIPT_FILE() {
 	my $infolistptr = weechat::infolist_get('perl_script', '', SCRIPT_NAME);
 	my $filename = weechat::infolist_string($infolistptr, 'filename') if weechat::infolist_next($infolistptr);
@@ -352,7 +363,7 @@ sub spell_menu {
 		return weechat::WEECHAT_RC_OK
 	}
 	return weechat::WEECHAT_RC_OK if $_[2] eq '/input complete_next' && weechat::config_string_to_boolean(weechat::config_get_plugin('no_complete'));
-	Encode::_utf8_on(my $sugs = weechat::buffer_get_string($_[1], 'localvar_aspell_suggest'));
+	Encode::_utf8_on(my $sugs = weechat::buffer_get_string($_[1], 'localvar_'.$plugin_name.'_suggest'));
 	return weechat::WEECHAT_RC_OK unless $sugs;
 	my $fix = $1 if $_[2] =~ /^fix (\d+)/;
 	my $badword;
@@ -368,7 +379,7 @@ sub spell_menu {
 		weechat::buffer_set($_[1], 'input_pos', $rpos + length $goodword);
 	}
 	else {
-		return weechat::WEECHAT_RC_OK unless weechat::config_boolean(weechat::config_get('aspell.check.enabled'));
+		return weechat::WEECHAT_RC_OK unless weechat::config_boolean(weechat::config_get($plugin_name.'.check.enabled'));
 		return weechat::WEECHAT_RC_OK unless $pos >= $rpos;
 		if ($_[2] eq '/input complete_next') {
 			my $offset = $rpos + length $badword;
@@ -385,7 +396,7 @@ sub spell_menu {
 		my ($i, $j, $dc) = (0, 0, 0);
 		my %seen;
 		my @shortcut = (undef, 1..9, 0, 'a'..'z');
-		my @dict = split ',', (weechat::config_string(weechat::config_get('aspell.dict.'.weechat::buffer_get_string($_[1], 'full_name'))) || weechat::config_string(weechat::config_get('aspell.check.default_dict')));
+		my @dict = split ',', (weechat::config_string(weechat::config_get($plugin_name.'.dict.'.weechat::buffer_get_string($_[1], 'full_name'))) || weechat::config_string(weechat::config_get($plugin_name.'.check.default_dict')));
 		for my $sug (split '([,/])', $sugs) {
 			next if $sug eq ',';
 			if ($sug eq '/') { # next dict
@@ -409,12 +420,12 @@ sub spell_menu {
 			}
 			for (@dict) {
 				$dc = sprintf '%02d', $dc + 1;
-				$r{"9$dc.command"} = "/aspell addword $dict[$dc-1] \$0";
+				$r{"9$dc.command"} = "/".$plugin_name." addword $dict[$dc-1] \$0";
 				$r{"9$dc.name"} = "ADD($dict[$dc-1]) $badword";
 			}
 		}
 		else {
-			$r{'9.command'} = '/aspell addword $0';
+			$r{'9.command'} = '/'.$plugin_name.' addword $0';
 			$r{'9.name'} = "ADD $badword";
 		}
 		%spell_menu = %r;
