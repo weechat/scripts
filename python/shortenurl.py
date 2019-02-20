@@ -14,6 +14,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # History
+# 2019-02-20, Jochen Saalfeld <privat@jochen-saalfeld.de>
+#  version 0.6.4: Fix is.gd URL pulling
+#                 (fix displaying of shortened URL for is.gd)
 # 2018-11-02, Jochen Saalfeld <privat@jochen-saalfeld.de>
 #  version 0.6.3: Fix is.gd URL pattern
 #                 (api.php is depricated)
@@ -44,11 +47,11 @@
 import re
 import weechat
 from urllib import urlencode
-from urllib2 import urlopen
+import urllib2
 
 SCRIPT_NAME = "shortenurl"
 SCRIPT_AUTHOR = "John Anderson <sontek@gmail.com>"
-SCRIPT_VERSION = "0.6.3"
+SCRIPT_VERSION = "0.6.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Shorten long incoming and outgoing URLs"
 
@@ -150,7 +153,9 @@ def get_shortened_url(url):
     if shortener == 'tinyurl':
         url = TINYURL % urlencode({'url': url})
     try:
-        return urlopen(url).read()
+        opener = urllib2.build_opener()
+        opener.addheaders = [('User-Agent', 'weechat')]
+        return opener.open(url).read()
     except:
         return url
 
