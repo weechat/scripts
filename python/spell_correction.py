@@ -17,6 +17,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2019-02-24: nils_2, (freenode.#weechat)
+#      0.8.1: fix ValueError when a misspelled word don't have a suggestion and you move cursor in input_line
+#
 # 2019-02-08: nils_2, (freenode.#weechat)
 #       0.8 : add: make addword function shortkey compatible (ldlework)
 #           : -> https://github.com/weechat/weechat/pull/1288 (WeeChat >=2.4)
@@ -68,7 +71,7 @@ except Exception:
 
 SCRIPT_NAME     = "spell_correction"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.8"
+SCRIPT_VERSION  = "0.8.1"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "a spell correction script to use with spell/aspell plugin"
 
@@ -598,7 +601,7 @@ def input_move_cb(data, signal, signal_data):
     tab_complete,position,aspell_suggest_item = get_position_and_suggest_item(buffer)
 
     localvar_aspell_suggest = get_localvar_aspell_suggest(buffer)
-    if not localvar_aspell_suggest:
+    if not localvar_aspell_suggest or not ":" in localvar_aspell_suggest:
         return weechat.WEECHAT_RC_OK
 
     misspelled_word,aspell_suggestions = localvar_aspell_suggest.split(':')
