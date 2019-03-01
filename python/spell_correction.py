@@ -17,6 +17,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2019-03-01: nils_2, (freenode.#weechat)
+#       0.9 : fix bug with auto popup 'spell_suggestion' item (StarlitGhost)
+#
 # 2019-02-24: nils_2, (freenode.#weechat)
 #      0.8.1: fix ValueError when a misspelled word don't have a suggestion and you move cursor in input_line
 #
@@ -71,7 +74,7 @@ except Exception:
 
 SCRIPT_NAME     = "spell_correction"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.8.1"
+SCRIPT_VERSION  = "0.9"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "a spell correction script to use with spell/aspell plugin"
 
@@ -686,7 +689,7 @@ Quick start:
 
 IMPORTANT:
     "%(p)s.check.suggestions" option has to be set to a value >= 0 (default: -1 (off)).
-    "%(p)s.color.misspelled" option is used for selected suggestion-item color
+    "%(p)s.color.misspelled" option is used to highlight current suggestion in "%(p)s-suggestion" item
     Using "%(p)s.check.real_time" the nick-completion will not work. All misspelled words
     in input_line have to be replaced first.
 """ %dict(p=plugin_name, s=SCRIPT_NAME)
@@ -705,7 +708,7 @@ IMPORTANT:
         # multiline workaround
         weechat.hook_signal('input_flow_free', 'multiline_cb', '')
 
-        weechat.hook_signal (plugin_name, 'aspell_suggest_cb', '')
+        weechat.hook_signal ('%s_suggest' % plugin_name, 'aspell_suggest_cb', '')
 
         weechat.hook_signal ('buffer_switch', 'buffer_switch_cb','')
         weechat.hook_signal ('window_switch', 'window_switch_cb','')
