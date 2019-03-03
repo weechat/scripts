@@ -31,6 +31,9 @@
 #
 # # History:
 #
+# 2019-03-03,
+#     v0.6: added support for CLEARMSG -MentalFS
+#           fixed issue with /whois -mumixam
 # 2018-06-03, mumixam
 #     v0.5: enable curl verbose mode when debug is active, add option to disable ssl/tls verification,
 #           if stream title contains newline char replace it with space
@@ -47,7 +50,7 @@
 
 SCRIPT_NAME = "twitch"
 SCRIPT_AUTHOR = "mumixam"
-SCRIPT_VERSION = "0.5"
+SCRIPT_VERSION = "0.6"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "twitch.tv Chat Integration"
 OPTIONS={
@@ -146,7 +149,7 @@ def channel_api(data, command, rc, stdout, stderr):
     rul = weechat.color("-underline")
     pformat = weechat.config_string(
         weechat.config_get("weechat.look.prefix_network"))
-    if len(jsonDict) == 22:
+    if len(jsonDict) == 23:
         dname = jsonDict['display_name']
         create = jsonDict['created_at'].split('T')[0]
         status = jsonDict['status']
@@ -337,6 +340,26 @@ def twitch_clearchat(data, modifier, modifier_data, string):
         else:
             weechat.prnt(
                 buffer, "%s--%s Entire Chat Cleared By Moderator" % (pcolor, ccolor))
+    return ""
+
+
+def twitch_clearmsg(data, modifier, modifier_data, string):
+    mp = weechat.info_get_hashtable(
+    'irc_message_parse', {"message": string})
+    server = modifier_data
+    channel = mp['channel']
+    try:
+        tags = dict([s.split('=') for s in mp['tags'].split(';')])
+    except:
+        tags = ''
+    buffer = weechat.buffer_search("irc", "%s.%s" % (server, channel))
+    if buffer:
+        pcolor = weechat.color('chat_prefix_network')
+        ccolor = weechat.color('chat')
+        if 'login' in tags:
+            weechat.prnt(buffer,"%s--%s a message from %s was deleted" % (pcolor, ccolor, tags['login']))
+        else:
+            weechat.prnt(buffer, "%s--%s a message was deleted" % (pcolor, ccolor))
     return ""
 
 
@@ -559,6 +582,7 @@ if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
     weechat.hook_config('plugins.var.python.' + SCRIPT_NAME + '.*', 'config_change', '')
     config_setup()
     weechat.hook_modifier("irc_in_CLEARCHAT", "twitch_clearchat", "")
+    weechat.hook_modifier("irc_in_CLEARMSG", "twitch_clearmsg", "")
     weechat.hook_modifier("irc_in_RECONNECT", "twitch_reconnect", "")
     weechat.hook_modifier("irc_in_USERSTATE", "twitch_suppress", "")
     weechat.hook_modifier("irc_in_HOSTTARGET", "twitch_suppress", "")
