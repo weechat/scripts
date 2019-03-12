@@ -694,6 +694,24 @@ class Server:
             msg = xmpp.protocol.Message(to=recipient, body=message, typ='chat')
             self.client.send(msg)
 
+    def send_callattn(self, buddy, message):
+        """ Send a call attentionto buddy.
+
+        The buddy argument can be either a jid string,
+        eg username@domain.tld/resource or a Buddy object instance.
+        """
+        recipient = buddy
+        if isinstance(buddy, Buddy):
+            recipient = buddy.jid
+        if not self.ping_up:
+            weechat.prnt(self.buffer, "%sjabber: unable to send message, connection is down"
+                         % weechat.prefix("error"))
+            return
+        if self.client:
+            msg = xmpp.protocol.Message(to=recipient, body=message, typ='headline',
+                                        payload=[xmpp.protocol.Node('attention', attrs={'xmlns':'urn:xmpp:attention:0'})] )
+            self.client.send(msg)
+
     def send_message_from_input(self, input=''):
         """ Send a message from input text on server buffer. """
         # Input must be of format "name: message" where name is a jid, bare_jid
@@ -1267,6 +1285,13 @@ def jabber_hook_commands_and_completions():
                          "buddy: buddy id",
                          "",
                          "jabber_cmd_kick", "")
+    weechat.hook_command("jattn", "Send call attention to a Jabber buddy",
+                         "[-server <server>] <buddy> [<text>]",
+                         "server: name of jabber server buddy is on\n"
+                         " buddy: buddy id\n"
+                         "  text: text to send",
+                         "",
+                         "jabber_cmd_jattn", "")
     weechat.hook_completion("jabber_servers", "list of jabber servers",
                             "jabber_completion_servers", "")
     weechat.hook_completion("jabber_jid_aliases", "list of jabber jid aliases",
@@ -1474,6 +1499,26 @@ def jabber_cmd_kick(data, buffer, args):
         context = jabber_search_context(buffer)
         if context["server"]:
             context["server"].del_buddy(args)
+    return weechat.WEECHAT_RC_OK
+
+def jabber_cmd_jattn(data, buffer, args):
+    """ Command '/jattn'. """
+    if args:
+        argv = args.split()
+        if len(argv) < 1:
+            return weechat.WEECHAT_RC_OK
+        if argv[0] == '-server':
+            context = jabber_search_context_by_name(argv[1])
+            recipient = argv[2]
+            message = " ".join(argv[3:])
+        else:
+            context = jabber_search_context(buffer)
+            recipient = argv[0]
+            message = " ".join(argv[1:])
+        if context["server"]:
+            buddy = context['server'].search_buddy_list(recipient, by='alias')
+            context["server"].send_callattn(buddy, message)
+
     return weechat.WEECHAT_RC_OK
 
 def jabber_away_command_run_cb(data, buffer, command):
