@@ -677,7 +677,7 @@ class Server:
                 chat.print_status(status)
                 break
 
-    def send_message(self, buddy, message):
+    def send_message(self, buddy, message, payload=[]):
         """ Send a message to buddy.
 
         The buddy argument can be either a jid string,
@@ -691,25 +691,9 @@ class Server:
                          % weechat.prefix("error"))
             return
         if self.client:
-            msg = xmpp.protocol.Message(to=recipient, body=message, typ='chat')
-            self.client.send(msg)
-
-    def send_callattn(self, buddy, message):
-        """ Send a call attentionto buddy.
-
-        The buddy argument can be either a jid string,
-        eg username@domain.tld/resource or a Buddy object instance.
-        """
-        recipient = buddy
-        if isinstance(buddy, Buddy):
-            recipient = buddy.jid
-        if not self.ping_up:
-            weechat.prnt(self.buffer, "%sjabber: unable to send message, connection is down"
-                         % weechat.prefix("error"))
-            return
-        if self.client:
-            msg = xmpp.protocol.Message(to=recipient, body=message, typ='headline',
-                                        payload=[xmpp.protocol.Node('attention', attrs={'xmlns':'urn:xmpp:attention:0'})] )
+            if payload: msgtype = 'headline'
+            else: msgtype = 'chat'
+            msg = xmpp.protocol.Message(to=recipient, body=message, typ=msgtype, payload=payload)
             self.client.send(msg)
 
     def send_message_from_input(self, input=''):
@@ -1065,13 +1049,13 @@ class Chat:
                                              buddy.alias,
                                              message))
 
-    def send_message(self, message):
+    def send_message(self, message, payload=[]):
         """ Send message to buddy. """
         if not self.server.ping_up:
             weechat.prnt(self.buffer, "%sjabber: unable to send message, connection is down"
                          % weechat.prefix("error"))
             return
-        self.server.send_message(self.buddy, message)
+        self.server.send_message(self.buddy, message, payload)
         weechat.prnt_date_tags(self.buffer, 0,
                                "notify_none,no_highlight,nick_%s,prefix_nick_%s,log1" %
                                (self.server.buddy.alias,
@@ -1517,7 +1501,8 @@ def jabber_cmd_jattn(data, buffer, args):
             message = " ".join(argv[1:])
         if context["server"]:
             buddy = context['server'].search_buddy_list(recipient, by='alias')
-            context["server"].send_callattn(buddy, message)
+            context["server"].send_message(buddy, message,
+                                            payload=[xmpp.protocol.Node('attention', attrs={'xmlns':'urn:xmpp:attention:0'})] )
 
     return weechat.WEECHAT_RC_OK
 
