@@ -38,11 +38,16 @@
 #
 #   2016-06-28
 #   version 0.1.3: support extended-join messages
+#
+#   2019-03-09
+#   version 0.1.4: support python3
 ###
+
+from __future__ import print_function
 
 SCRIPT_NAME    = "automode"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.1.3"
+SCRIPT_VERSION = "0.1.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Script for auto op/voice users when they join."
 
@@ -52,8 +57,8 @@ try:
     WEECHAT_RC_OK = weechat.WEECHAT_RC_OK
     import_ok = True
 except ImportError:
-    print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://weechat.flashtux.org/"
+    print ("This script must be run under WeeChat.")
+    print ("Get WeeChat now at: http://weechat.flashtux.org/")
     import_ok = False
 
 from fnmatch import fnmatch
@@ -165,14 +170,14 @@ def join_cb(data, signal, signal_data):
     if channel[0] == ':':
         channel = channel[1:]
     server = signal[:signal.find(',')]
-    for mode_type, shorthand in {'op':'o', 'halfop':'h', 'voice':'v'}.iteritems():
+    for mode_type, shorthand in {'op':'o', 'halfop':'h', 'voice':'v'}.items():
         l = get_config_list('.'.join((server.lower(), channel.lower(), mode_type)))
         for pattern in l:
             #debug('checking: %r - %r', prefix, pattern)
             if fnmatch(prefix, pattern):
                 buf = weechat.buffer_search('irc', '%s.%s' %(server, channel))
                 if buf:
-                    weechat.command(buf, '/mode {} +{} {}'.format(channel, shorthand, prefix[:prefix.find('!')]))
+                    weechat.command(buf, '/wait 1 /mode {} +{} {}'.format(channel, shorthand, prefix[:prefix.find('!')]))
                 return WEECHAT_RC_OK
     return WEECHAT_RC_OK
 
@@ -259,12 +264,12 @@ def command(data, buffer, args):
                 else:
                     say('No automodes.', buffer)
                 return WEECHAT_RC_OK
-            for key, items in patterns.iteritems():
+            for key, items in patterns.items():
                 say('%s[%s%s.%s%s]' %(color_chat_delimiters,
                                       color_chat_buffer,
                                       key[0], key[1],
                                       color_chat_delimiters), buffer)
-                for type, masks in items.iteritems():
+                for type, masks in items.items():
                     for mask in masks:
                         say('  %s%s%s: %s%s' %(color_chat_nick, type,
                                                color_chat_delimiters,
@@ -272,7 +277,7 @@ def command(data, buffer, args):
                                                mask), buffer)
         else:
             raise ValueError("'%s' isn't a valid option. See /help %s" %(cmd, SCRIPT_NAME))
-    except ValueError, e:
+    except ValueError as e:
         error('Bad argument: %s' %e)
         return WEECHAT_RC_OK
 
@@ -315,7 +320,7 @@ if __name__ == '__main__' and import_ok and \
                                    color_chat_delimiters,
                                    color_reset)
 
-    for opt, val in settings.iteritems():
+    for opt, val in list(settings.items()):
         if not weechat.config_is_set_plugin(opt):
                 weechat.config_set_plugin(opt, val)
 
