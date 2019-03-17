@@ -677,6 +677,17 @@ class Server:
                 chat.print_status(status)
                 break
 
+    def print_action(self, nickname, action_string):
+        """ Print an action in server window or chat buffer. """
+        for chat in self.chats:
+            if nickname in chat.buddy.alias:
+                chat.print_action(action_string)
+                return
+
+        weechat.prnt_date_tags(self.buffer, 0, "no_highlight", "%s%s" %
+                               (weechat.prefix("action"),
+                                action_string))
+
     def send_message(self, buddy, message, payload=[]):
         """ Send a message to buddy.
 
@@ -684,8 +695,11 @@ class Server:
         eg username@domain.tld/resource or a Buddy object instance.
         """
         recipient = buddy
+        nick = buddy
         if isinstance(buddy, Buddy):
             recipient = buddy.jid
+            nick = buddy.alias
+            if not nick: nick = buddy.bare_jid
         if not self.ping_up:
             weechat.prnt(self.buffer, "%sjabber: unable to send message, connection is down"
                          % weechat.prefix("error"))
@@ -695,6 +709,8 @@ class Server:
             else: msgtype = 'chat'
             msg = xmpp.protocol.Message(to=recipient, body=message, typ=msgtype, payload=payload)
             self.client.send(msg)
+            if payload:
+              self.print_action(nick, "Sent call attention to %s" % nick)
 
     def send_message_from_input(self, input=''):
         """ Send a message from input text on server buffer. """
@@ -1069,6 +1085,12 @@ class Chat:
                      (weechat.prefix("action"),
                       self.buddy.alias,
                       status))
+
+    def print_action(self, action_string):
+        """ Print an action string in chat. """
+        weechat.prnt(self.buffer, "%s%s" %
+                     (weechat.prefix("action"),
+                      action_string))
 
     def close_buffer(self):
         """ Close chat buffer. """
