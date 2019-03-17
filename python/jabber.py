@@ -1270,7 +1270,7 @@ def jabber_hook_commands_and_completions():
                          "",
                          "jabber_cmd_kick", "")
     weechat.hook_command("jattn", "Send call attention to a Jabber buddy",
-                         "[-server <server>] <buddy> [<text>]",
+                         "[-server <server>] [-buddy <buddy>] [<text>]",
                          "server: name of jabber server buddy is on\n"
                          " buddy: buddy id\n"
                          "  text: text to send",
@@ -1487,22 +1487,30 @@ def jabber_cmd_kick(data, buffer, args):
 
 def jabber_cmd_jattn(data, buffer, args):
     """ Command '/jattn'. """
+    recipient = None
+    context = jabber_search_context(buffer)
+    message=''
+
     if args:
         argv = args.split()
-        if len(argv) < 1:
-            return weechat.WEECHAT_RC_OK
         if argv[0] == '-server':
             context = jabber_search_context_by_name(argv[1])
-            recipient = argv[2]
-            message = " ".join(argv[3:])
-        else:
-            context = jabber_search_context(buffer)
-            recipient = argv[0]
-            message = " ".join(argv[1:])
-        if context["server"]:
-            buddy = context['server'].search_buddy_list(recipient, by='alias')
-            context["server"].send_message(buddy, message,
-                                            payload=[xmpp.protocol.Node('attention', attrs={'xmlns':'urn:xmpp:attention:0'})] )
+            argv=argv[2:]
+
+        if argv[0] == '-buddy':
+            recipient = argv[1]
+            argv=argv[2:]
+
+        message = " ".join(argv[0:])
+
+    if context["server"]:
+        if recipient:
+           buddy = context['server'].search_buddy_list(recipient, by='alias')
+           context["server"].send_message(buddy, message,
+                                          payload=[xmpp.protocol.Node('attention', attrs={'xmlns':'urn:xmpp:attention:0'})] )
+        elif context["chat"]:
+           context["chat"].send_message(message,
+                                        payload=[xmpp.protocol.Node('attention', attrs={'xmlns':'urn:xmpp:attention:0'})] )
 
     return weechat.WEECHAT_RC_OK
 
