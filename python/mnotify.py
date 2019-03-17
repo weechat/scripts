@@ -21,6 +21,8 @@
 # Changed default settings to match new scheme
 # DCC get request show name with ip, network and size of file.
 #
+# Ver: 0.5 by Antonin Skala tony762@gmx.com 3.2019
+# Repaired DCC Get FAILED message.
 # Help:
 # Install and configure msmtp first (msmtp.sourceforge.net/)
 # List and Change plugin settings by /set plugins.var.python.mnotify.*
@@ -29,6 +31,10 @@
 # /save
 # /upgrade
 #
+#If running from TMux:
+#/usr/bin/tmux -S /tmp/ircmux -2 new-session -d -s irc bash
+#/usr/bin/tmux -S /tmp/ircmux -2 send -t irc "export LANG=en_US.UTF-8" ENTER
+#/usr/bin/tmux -S /tmp/ircmux -2 send -t irc weechat ENTER
 
 # -----------------------------------------------------------------------------
 # Imports
@@ -43,7 +49,7 @@ import weechat
 
 SCRIPT_NAME = 'mnotify'
 SCRIPT_AUTHOR = 'maker'
-SCRIPT_VERSION = '0.4'
+SCRIPT_VERSION = '0.5'
 SCRIPT_LICENSE = 'Beerware License'
 SCRIPT_DESC = 'Sends mail notifications upon events.'
 
@@ -374,6 +380,7 @@ def notify_dcc_get_failed(match):
     if (weechat.config_get_plugin("show_dcc") == "on"
         or (weechat.config_get_plugin("show_dcc") == "away"
             and STATE['is_away'])):
+        nick = match.group(2)
         file_name = match.group(1)
         a_notify(
             'DCC',
