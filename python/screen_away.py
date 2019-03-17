@@ -24,6 +24,9 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2019-03-04, Germain Z. <germanosz@gmail.com>
+#  version 0.16: add option "socket_file", for use with e.g. dtach
+#              : code reformatting for consistency/PEP8
 # 2017-11-20, Nils Görs <weechatter@arcor.de>
 #  version 0.15: make script python3 compatible
 #              : fix problem with empty "command_on_*" options
@@ -63,28 +66,37 @@
 # 2009-11-27, xt <xt@bash.no>
 #  version 0.1: initial release
 
-import weechat as w
-import re
 import os
-import datetime, time
+import re
+import time
+import weechat as w
 
-SCRIPT_NAME    = "screen_away"
-SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.15"
-SCRIPT_LICENSE = "GPL3"
-SCRIPT_DESC    = "Set away status on screen detach"
 
-settings = {
-        'message': ('Detached from screen', 'Away message'),
-        'time_format': ('since %Y-%m-%d %H:%M:%S%z', 'time format append to away message'),
-        'interval': ('5', 'How often in seconds to check screen status'),
-        'away_suffix': ('', 'What to append to your nick when you\'re away.'),
-        'command_on_attach': ('', 'Commands to execute on attach, separated by semicolon'),
-        'command_on_detach': ('', 'Commands to execute on detach, separated by semicolon'),
-        'ignore': ('', 'Comma-separated list of servers to ignore.'),
-        'set_away': ('on', 'Set user as away.'),
-        'ignore_relays': ('off', 'Only check screen status and ignore relay interfaces'),
-        'no_output': ('off','no detach/attach information will be displayed in buffer'),
+SCRIPT_NAME = 'screen_away'
+SCRIPT_AUTHOR = 'xt <xt@bash.no>'
+SCRIPT_VERSION = '0.16'
+SCRIPT_LICENSE = 'GPL3'
+SCRIPT_DESC = 'Set away status on screen detach'
+
+SETTINGS = {
+    'message': ('Detached from screen', 'Away message'),
+    'time_format': ('since %Y-%m-%d %H:%M:%S%z',
+                    'time format append to away message'),
+    'interval': ('5', 'How often in seconds to check screen status'),
+    'away_suffix': ('', 'What to append to your nick when you\'re away.'),
+    'command_on_attach': ('',
+                          ('Commands to execute on attach, separated by '
+                           'semicolon')),
+    'command_on_detach': ('',
+                          ('Commands to execute on detach, separated by '
+                           'semicolon')),
+    'ignore': ('', 'Comma-separated list of servers to ignore.'),
+    'set_away': ('on', 'Set user as away.'),
+    'ignore_relays': ('off',
+                      'Only check screen status and ignore relay interfaces'),
+    'no_output': ('off',
+                  'no detach/attach information will be displayed in buffer'),
+    'socket_file': ('', 'Socket file to use (leave blank to auto-detect)'),
 }
 
 TIMER = None
@@ -92,51 +104,62 @@ SOCK = None
 AWAY = False
 CONNECTED_RELAY = False
 
-def set_timer():
-    '''Update timer hook with new interval'''
 
+def set_timer():
+    '''Update timer hook with new interval.'''
     global TIMER
     if TIMER:
         w.unhook(TIMER)
-    TIMER = w.hook_timer(int(w.config_get_plugin('interval')) * 1000,
-            0, 0, "screen_away_timer_cb", '')
+    TIMER = w.hook_timer(int(w.config_get_plugin('interval')) * 1000, 0, 0,
+                         'screen_away_timer_cb', '')
+
 
 def screen_away_config_cb(data, option, value):
-    if option.endswith(".interval"):
+    '''Update timer / sock file on config changes.'''
+    global SOCK
+    if SOCK and option.endswith('.interval'):
         set_timer()
+    elif option.endswith('.socket_file'):
+        SOCK = value
+        if not SOCK:
+            SOCK = get_sock()
+        if SOCK:
+            set_timer()
+        elif TIMER:
+            w.unhook(TIMER)
     return w.WEECHAT_RC_OK
 
-def get_servers():
-    '''Get the servers that are not away, or were set away by this script'''
 
+def get_servers():
+    '''Get the servers that are not away, or were set away by this script.'''
     ignores = w.config_get_plugin('ignore').split(',')
-    infolist = w.infolist_get('irc_server','','')
+    infolist = w.infolist_get('irc_server', '', '')
     buffers = []
     while w.infolist_next(infolist):
-        if not w.infolist_integer(infolist, 'is_connected') == 1 or \
-               w.infolist_string(infolist, 'name') in ignores:
+        if (not w.infolist_integer(infolist, 'is_connected') == 1 or
+                w.infolist_string(infolist, 'name') in ignores):
             continue
-        if not w.config_string_to_boolean(w.config_get_plugin('set_away')) or \
-                not w.infolist_integer(infolist, 'is_away') or \
-                    w.config_get_plugin('message') in w.infolist_string(infolist, 'away_message'):
-#                    w.infolist_string(infolist, 'away_message') == \
-#                    w.config_get_plugin('message'):
+        if (not w.config_string_to_boolean(w.config_get_plugin('set_away')) or
+                not w.infolist_integer(infolist, 'is_away') or
+                w.config_get_plugin('message') in w.infolist_string(
+                    infolist, 'away_message')):
             buffers.append((w.infolist_pointer(infolist, 'buffer'),
-                w.infolist_string(infolist, 'nick')))
+                            w.infolist_string(infolist, 'nick')))
     w.infolist_free(infolist)
     return buffers
 
-def screen_away_timer_cb(buffer, args):
-    '''Check if screen is attached, update awayness'''
 
+def screen_away_timer_cb(buffer, args):
+    '''Check if screen is attached and update awayness.'''
     global AWAY, SOCK, CONNECTED_RELAY
 
     set_away = w.config_string_to_boolean(w.config_get_plugin('set_away'))
-    check_relays = not w.config_string_to_boolean(w.config_get_plugin('ignore_relays'))
+    check_relays = not w.config_string_to_boolean(
+        w.config_get_plugin('ignore_relays'))
     suffix = w.config_get_plugin('away_suffix')
-    attached = os.access(SOCK, os.X_OK) # X bit indicates attached
+    attached = os.access(SOCK, os.X_OK)  # X bit indicates attached.
 
-    # Check wether a client is connected on relay or not
+    # Check wether a client is connected on relay or not.
     CONNECTED_RELAY = False
     if check_relays:
         infolist = w.infolist_get('relay', '', '')
@@ -148,59 +171,74 @@ def screen_away_timer_cb(buffer, args):
                     break
             w.infolist_free(infolist)
 
-    if (attached and AWAY) or (check_relays and CONNECTED_RELAY and not attached and AWAY):
+    if ((attached and AWAY) or
+            (check_relays and CONNECTED_RELAY and not attached and AWAY)):
         if not w.config_string_to_boolean(w.config_get_plugin('no_output')):
-            w.prnt('', '%s: Screen attached. Clearing away status' % SCRIPT_NAME)
+            w.prnt('', '{}: Screen attached. Clearing away status'.format(
+                SCRIPT_NAME))
         for server, nick in get_servers():
             if set_away:
-                w.command(server,  "/away")
+                w.command(server, '/away')
             if suffix and nick.endswith(suffix):
                 nick = nick[:-len(suffix)]
-                w.command(server,  "/nick %s" % nick)
+                w.command(server, '/nick {}'.format(nick))
         AWAY = False
-        if w.config_get_plugin("command_on_attach"):
-            for cmd in w.config_get_plugin("command_on_attach").split(";"):
-                w.command("", cmd)
+        if w.config_get_plugin('command_on_attach'):
+            for cmd in w.config_get_plugin('command_on_attach').split(';'):
+                w.command('', cmd)
 
     elif not attached and not AWAY:
         if not CONNECTED_RELAY:
-            if not w.config_string_to_boolean(w.config_get_plugin('no_output')):
-                w.prnt('', '%s: Screen detached. Setting away status' % SCRIPT_NAME)
+            if (not w.config_string_to_boolean(
+                    w.config_get_plugin('no_output'))):
+                w.prnt('', '{}: Screen detached. Setting away status'.format(
+                    SCRIPT_NAME))
             for server, nick in get_servers():
                 if suffix and not nick.endswith(suffix):
-                    w.command(server, "/nick %s%s" % (nick, suffix));
+                    w.command(server, '/nick {}{}'.format(nick, suffix))
                 if set_away:
-                    w.command(server, "/away %s %s" % (w.config_get_plugin('message'), time.strftime(w.config_get_plugin('time_format'))))
+                    w.command(server, '/away {} {}'.format(
+                        w.config_get_plugin('message'),
+                        time.strftime(w.config_get_plugin('time_format'))))
             AWAY = True
-            if w.config_get_plugin("command_on_detach"):
-                for cmd in w.config_get_plugin("command_on_detach").split(";"):
-                    w.command("", cmd)
+            if w.config_get_plugin('command_on_detach'):
+                for cmd in w.config_get_plugin('command_on_detach').split(';'):
+                    w.command('', cmd)
 
     return w.WEECHAT_RC_OK
 
 
+def get_sock():
+    '''Try to get the appropriate sock file for screen/tmux.'''
+    sock = None
+    if 'STY' in os.environ.keys():
+        # We are running under screen.
+        cmd_output = os.popen('env LC_ALL=C screen -ls').read()
+        match = re.search(r'Sockets? in (/.+)\.', cmd_output)
+        if match:
+            sock = os.path.join(match.group(1), os.environ['STY'])
+
+    if not sock and 'TMUX' in os.environ.keys():
+        # We are running under tmux.
+        socket_data = os.environ['TMUX']
+        sock = socket_data.rsplit(',', 2)[0]
+    return sock
+
+
 if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
-                    SCRIPT_DESC, "", ""):
+              SCRIPT_DESC, '', ''):
     version = w.info_get('version_number', '') or 0
-    for option, default_desc in settings.items():
+    for option, default_desc in SETTINGS.items():
         if not w.config_is_set_plugin(option):
             w.config_set_plugin(option, default_desc[0])
         if int(version) >= 0x00030500:
             w.config_set_desc_plugin(option, default_desc[1])
 
-    if 'STY' in os.environ.keys():
-        # We are running under screen
-        cmd_output = os.popen('env LC_ALL=C screen -ls').read()
-        match = re.search(r'Sockets? in (/.+)\.', cmd_output)
-        if match:
-            SOCK = os.path.join(match.group(1), os.environ['STY'])
-
-    if not SOCK and 'TMUX' in os.environ.keys():
-        # We are running under tmux
-        socket_data = os.environ['TMUX']
-        SOCK = socket_data.rsplit(',',2)[0]
+    SOCK = w.config_get_plugin('socket_file')
+    if not SOCK:
+        SOCK = get_sock()
 
     if SOCK:
         set_timer()
-        w.hook_config("plugins.var.python." + SCRIPT_NAME + ".*",
-            "screen_away_config_cb", "")
+    w.hook_config('plugins.var.python.{}.*'.format(SCRIPT_NAME),
+                  'screen_away_config_cb', '')
