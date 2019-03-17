@@ -30,11 +30,16 @@
 #       v0.1: Initial release
 #   2015-10-30, Stanislav Ochotnicky <sochotnicky@gmail.com>
 #       v0.2: Reply to public pings as well and add more informative pong
+#   2019-02-08, Evgeni Golov <evgeni@golov.de>:
+#       v0.3: Only reply to public messages that only contain the word "ping",
+#             not words ending in "ping" or sentences ending in "ping".
 #
+
+import re
 
 SCRIPT_NAME    = "autopong"
 SCRIPT_AUTHOR  = "Wil Clouser <clouserw@micropipes.com>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.3"
 SCRIPT_LICENSE = "MIT"
 SCRIPT_DESC    = "Auto-replies to 'ping' queries"
 
@@ -56,7 +61,7 @@ def msg_cb(data, buffer, date, tags, displayed, is_hilight, prefix, msg):
   reply = w.config_get_plugin('reply_text')
   if not w.buffer_get_string(buffer, "localvar_type") == "private":
     reply = prefix + ": " + reply
-    if is_hilight and msg.endswith('ping'):
+    if is_hilight and re.match(r'^\S*\s?\bping$', msg):
       w.command(buffer, reply)
   elif msg == 'ping':
       w.command(buffer, reply)
