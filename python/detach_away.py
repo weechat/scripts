@@ -3,6 +3,9 @@
 # Copyright (C) 2017 p3lim <weechat@p3lim.net>
 #
 # https://github.com/p3lim/weechat-detach-away
+#
+# Changelog:
+# Ver: 0.1.1 Python3 support by Antonin Skala skala.antonin@gmail.com 3.2019
 
 try:
 	import weechat
@@ -11,11 +14,11 @@ except ImportError:
 	print('This script has to run under WeeChat (https://weechat.org/).')
 	exit(1)
 
-from urllib import urlencode
+from urllib.parse import urlencode
 
 SCRIPT_NAME = 'detach_away'
 SCRIPT_AUTHOR = 'p3lim'
-SCRIPT_VERSION = '0.1.0'
+SCRIPT_VERSION = '0.1.1'
 SCRIPT_LICENSE = 'MIT'
 SCRIPT_DESC = 'Automatically sets away message based on number of relays connected'
 
@@ -71,7 +74,7 @@ weechat.hook_signal('relay_client_connected', 'relay_connected', '')
 weechat.hook_signal('relay_client_disconnected', 'relay_disconnected', '')
 
 # register configuration defaults
-for option, value in SETTINGS.items():
+for option, value in list(SETTINGS.items()):
 	if not weechat.config_is_set_plugin(option):
 		weechat.config_set_plugin(option, value[0])
 
