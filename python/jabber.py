@@ -1260,7 +1260,8 @@ def jabber_hook_commands_and_completions():
                          "  Chat with a buddy (pv buffer): /jchat\n"
                          "  Add buddy to roster:           /invite\n"
                          "  Remove buddy from roster:      /kick\n"
-                         "  Send message to buddy:         /jmsg",
+                         "  Send message to buddy:         /jmsg\n"
+                         "  Send call attention to buddy:  /jattn",
                          "list %(jabber_servers)"
                          " || add %(jabber_servers)"
                          " || connect %(jabber_servers)"
@@ -1296,12 +1297,13 @@ def jabber_hook_commands_and_completions():
                          "buddy: buddy id",
                          "",
                          "jabber_cmd_kick", "")
-    weechat.hook_command("jattn", "Send call attention to a Jabber buddy",
+    weechat.hook_command("jattn", "Send call attention to a buddy",
                          "[-server <server>] [-buddy <buddy>] [<text>]",
                          "server: name of jabber server buddy is on\n"
                          " buddy: buddy id\n"
                          "  text: text to send",
-                         "",
+                         "-server %(jabber_servers)"
+                         " || -buddy %(jabber_jid_aliases)",
                          "jabber_cmd_jattn", "")
     weechat.hook_completion("jabber_servers", "list of jabber servers",
                             "jabber_completion_servers", "")
