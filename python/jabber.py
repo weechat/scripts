@@ -622,12 +622,13 @@ class Server:
         """ Receive message. """
         self.print_debug_handler("message", node)
         node_type = node.getType()
-        if node_type not in ["message", "chat", None]:
+        if node_type not in ["message", "chat", "headline", None]:
             self.print_error("unknown message type: '%s'" % node_type)
             return
         jid = node.getFrom()
         body = node.getBody()
-        if not jid or not body:
+        payload=node.getTags('attention')
+        if not jid or not (body or payload):
             return
         buddy = self.search_buddy_list(self.stringify_jid(jid), by='jid')
         if not buddy:
@@ -640,7 +641,11 @@ class Server:
             self.add_chat(buddy)
         if buddy.chat:
             recv_object = buddy.chat
-        recv_object.recv_message(buddy, body.encode("utf-8"))
+        if payload:
+            nick = buddy.alias
+            if not nick: nick = buddy.bare_jid
+            self.print_action(nick, "%s sent you a call attention" % nick)
+        if body: recv_object.recv_message(buddy, body.encode("utf-8"))
 
     def recv(self):
         """ Receive something from Jabber server. """
