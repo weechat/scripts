@@ -628,11 +628,13 @@ class Server:
         jid = node.getFrom()
         body = node.getBody()
         attention=node.getTags('attention')
+        receipt_req=node.getTags('request', namespace='urn:xmpp:receipts')
         if not jid or not (body or attention):
             return
         buddy = self.search_buddy_list(self.stringify_jid(jid), by='jid')
         if not buddy:
             buddy = self.add_buddy(jid=jid)
+            receipt_req=None
         # If a chat buffer exists for the buddy, receive the message with that
         # buffer even if private is off. The buffer may have been created with
         # /jchat.
@@ -646,6 +648,12 @@ class Server:
             if not nick: nick = buddy.bare_jid
             self.print_action(nick, "%s sent you a call attention" % nick)
         if body: recv_object.recv_message(buddy, body.encode("utf-8"))
+        if receipt_req:
+            msgid=node.getID()
+            payload=xmpp.protocol.Node('received', attrs={'xmlns':'urn:xmpp:receipts','id':msgid})
+            # setID fails !
+            #payload.setID(msgid)
+            self.send_message(buddy, '', payload=[payload])
 
     def recv(self):
         """ Receive something from Jabber server. """
