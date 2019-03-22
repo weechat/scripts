@@ -627,8 +627,8 @@ class Server:
             return
         jid = node.getFrom()
         body = node.getBody()
-        payload=node.getTags('attention')
-        if not jid or not (body or payload):
+        attention=node.getTags('attention')
+        if not jid or not (body or attention):
             return
         buddy = self.search_buddy_list(self.stringify_jid(jid), by='jid')
         if not buddy:
@@ -641,7 +641,7 @@ class Server:
             self.add_chat(buddy)
         if buddy.chat:
             recv_object = buddy.chat
-        if payload:
+        if attention:
             nick = buddy.alias
             if not nick: nick = buddy.bare_jid
             self.print_action(nick, "%s sent you a call attention" % nick)
@@ -710,12 +710,15 @@ class Server:
                          % weechat.prefix("error"))
             return
         if self.client:
-            if payload: msgtype = 'headline'
-            else: msgtype = 'chat'
+            msgtype = 'chat'
+            if payload:
+              for p in payload:
+                if p.getTags('attention'):
+                  msgtype = 'headline'
+                  self.print_action(nick, "Sent call attention to %s" % nick)
+                  break
             msg = xmpp.protocol.Message(to=recipient, body=message, typ=msgtype, payload=payload)
             self.client.send(msg)
-            if payload:
-              self.print_action(nick, "Sent call attention to %s" % nick)
 
     def send_message_from_input(self, input=''):
         """ Send a message from input text on server buffer. """
@@ -1532,14 +1535,13 @@ def jabber_cmd_jattn(data, buffer, args):
 
         message = " ".join(argv[0:])
 
+    payload=[xmpp.protocol.Node('attention', attrs={'xmlns':'urn:xmpp:attention:0'})]
     if context["server"]:
         if recipient:
            buddy = context['server'].search_buddy_list(recipient, by='alias')
-           context["server"].send_message(buddy, message,
-                                          payload=[xmpp.protocol.Node('attention', attrs={'xmlns':'urn:xmpp:attention:0'})] )
+           context["server"].send_message(buddy, message, payload=payload )
         elif context["chat"]:
-           context["chat"].send_message(message,
-                                        payload=[xmpp.protocol.Node('attention', attrs={'xmlns':'urn:xmpp:attention:0'})] )
+           context["chat"].send_message(message, payload=payload )
 
     return weechat.WEECHAT_RC_OK
 
