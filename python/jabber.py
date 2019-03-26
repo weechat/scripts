@@ -1250,6 +1250,11 @@ def jabber_hook_commands_and_completions():
                          "buddy: buddy id",
                          "",
                          "jabber_cmd_jchat", "")
+    weechat.hook_command("query", "Chat with a Jabber buddy",
+                         "<buddy>",
+                         "buddy: buddy id",
+                         "",
+                         "jabber_cmd_jchat", "")
     weechat.hook_command("jmsg", "Send a messge to a buddy",
                          "[-server <server>] <buddy> <text>",
                          "server: name of jabber server buddy is on\n"
