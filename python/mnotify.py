@@ -504,13 +504,13 @@ def cb_process_message(
                                                message, highlighted)
                 return weechat.WEECHAT_RC_OK
         return weechat.WEECHAT_RC_OK
-     else:
-          for key, value in TAGGED_MESSAGES.items():
-              if tags.issuperset(value):
-                  functions[DISPATCH_TABLE[key]](buffer_name, prefix,
+    else:
+         for key, value in TAGGED_MESSAGES.items():
+             if tags.issuperset(value):
+                 functions[DISPATCH_TABLE[key]](buffer_name, prefix,
                                                  message, highlighted)
-                  return weechat.WEECHAT_RC_OK
-          return weechat.WEECHAT_RC_OK
+                 return weechat.WEECHAT_RC_OK
+         return weechat.WEECHAT_RC_OK
 
 def humanbytes(B):
     B = float(B)
