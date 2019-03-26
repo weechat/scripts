@@ -23,6 +23,10 @@
 #
 # Ver: 0.5 by Antonin Skala tony762@gmx.com 3.2019
 # Repaired DCC Get FAILED message.
+#
+# Ver: 0.6 by Antonin Skala tony762@gmx.com 3.2019
+# Support Python 2 and 3
+#
 # Help:
 # Install and configure msmtp first (msmtp.sourceforge.net/)
 # List and Change plugin settings by /set plugins.var.python.mnotify.*
@@ -41,6 +45,7 @@
 # -----------------------------------------------------------------------------
 import re
 import os
+import sys
 import subprocess
 from email.mime.text import MIMEText
 #import smtplib
@@ -49,7 +54,7 @@ import weechat
 
 SCRIPT_NAME = 'mnotify'
 SCRIPT_AUTHOR = 'maker'
-SCRIPT_VERSION = '0.5'
+SCRIPT_VERSION = '0.6'
 SCRIPT_LICENSE = 'Beerware License'
 SCRIPT_DESC = 'Sends mail notifications upon events.'
 
@@ -478,19 +483,34 @@ def cb_process_message(
                                          message, highlighted)
         return weechat.WEECHAT_RC_OK
     # Pass identified, untagged message to its designated function.
-    for key, value in UNTAGGED_MESSAGES.items():
-        match = value.match(message)
-        if match:
-            functions[DISPATCH_TABLE[key]](match)
-            return weechat.WEECHAT_RC_OK
+    if sys.version_info[0] > 2:
+        for key, value in list(UNTAGGED_MESSAGES.items()):
+            match = value.match(message)
+            if match:
+                functions[DISPATCH_TABLE[key]](match)
+                return weechat.WEECHAT_RC_OK
+    else:
+         for key, value in UNTAGGED_MESSAGES.items():
+             match = value.match(message)
+             if match:
+                 functions[DISPATCH_TABLE[key]](match)
+                 return weechat.WEECHAT_RC_OK
+            
     # Pass identified, tagged message to its designated function.
-    for key, value in TAGGED_MESSAGES.items():
-        if tags.issuperset(value):
-            functions[DISPATCH_TABLE[key]](buffer_name, prefix,
-                                           message, highlighted)
-            return weechat.WEECHAT_RC_OK
-    return weechat.WEECHAT_RC_OK
-
+    if sys.version_info[0] > 2:
+        for key, value in list(TAGGED_MESSAGES.items()):
+            if tags.issuperset(value):
+                functions[DISPATCH_TABLE[key]](buffer_name, prefix,
+                                               message, highlighted)
+                return weechat.WEECHAT_RC_OK
+        return weechat.WEECHAT_RC_OK
+     else:
+          for key, value in TAGGED_MESSAGES.items():
+              if tags.issuperset(value):
+                  functions[DISPATCH_TABLE[key]](buffer_name, prefix,
+                                                 message, highlighted)
+                  return weechat.WEECHAT_RC_OK
+          return weechat.WEECHAT_RC_OK
 
 def humanbytes(B):
     B = float(B)
@@ -522,7 +542,10 @@ def a_notify(notification, subject, message):
         stdin=subprocess.PIPE,
 
     )
-    p.communicate(input=str(msg))
+    if sys.version_info[0] > 2:
+        p.communicate(input=str.encode(msg.as_string()))
+    else:
+        p.communicate(input=str(msg))
 
 
 # -----------------------------------------------------------------------------
@@ -531,9 +554,14 @@ def a_notify(notification, subject, message):
 def main():
     '''Sets up WeeChat notifications.'''
     # Initialize options.
-    for option, value in SETTINGS.items():
-        if not weechat.config_is_set_plugin(option):
-            weechat.config_set_plugin(option, value)
+    if sys.version_info[0] > 2:
+        for option, value in list(SETTINGS.items()):
+            if not weechat.config_is_set_plugin(option):
+                weechat.config_set_plugin(option, value)
+    else:
+        for option, value in SETTINGS.items():
+            if not weechat.config_is_set_plugin(option):
+                weechat.config_set_plugin(option, value)
     # Initialize.
     notifications = [
         'Public',
