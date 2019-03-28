@@ -1,5 +1,6 @@
 #
-# Copyright (c) 2016 Mitescu George Dan <mitescugeorgedan@gmail.com>
+# Copyright (c) 2016-2019 Mitescu George Dan <mitescugd@gmail.com>
+# Copyright (c) 2019 Silvan Mosberger <infinisil@icloud.com>
 # Copyright (c) 2016 Berechet Mihai <mihaibereket9954@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
@@ -17,7 +18,7 @@
 #
 
 my $SCRIPT_NAME = "notifym";
-my $VERSION = "1.1";
+my $VERSION = "1.2";
 
 # use Data::Dumper;
 
@@ -68,7 +69,7 @@ sub update_config_handler {
 # Function to send notification
 sub send_notification {
     my ($urgency, $summary, $body) = @_;
-    my $retval = system("notify-send -u $urgency \"$summary\" \"$body\"");
+    my $retval = system("notify-send", "-u", $urgency, $summary, $body);
 }
 
 # Verify matching options
@@ -123,7 +124,9 @@ sub message_handler {
 # Main execution point
 
 init();
-send_notification("critical", "Starting NotifyM plugin!", "");
+send_notification("critical",
+		  "Starting NotifyM plugin, version " . $VERSION . "!",
+		  "");
 weechat::hook_config("plugins.var.perl." . $SCRIPT_NAME . ".*",
 		     "update_config_handler", "");
 weechat::hook_signal("*,irc_in_*", "message_handler", "");
