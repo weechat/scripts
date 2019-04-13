@@ -1,7 +1,7 @@
 #  Project: lnotify
 #  Description: A libnotify script for weechat. Uses
 #  subprocess.call to execute notify-send with arguments.
-#  Author: kevr <kevr@nixcode.us>
+#  Author: kevr <kevr.gtalk@gmail.com>
 #  License: GPL3
 #
 # 0.1.2
@@ -48,7 +48,7 @@ import subprocess
 from os import environ, path
 
 lnotify_name = "lnotify"
-lnotify_version = "0.3.3"
+lnotify_version = "0.3.4"
 lnotify_license = "GPL3"
 
 # convenient table checking for bools
