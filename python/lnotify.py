@@ -53,7 +53,7 @@ import subprocess
 from os import environ, path
 
 lnotify_name = "lnotify"
-lnotify_version = "0.3.4"
+lnotify_version = "0.3.5"
 lnotify_license = "GPL3"
 
 # convenient table checking for bools
