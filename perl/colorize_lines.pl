@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2010-2018 by Nils Görs <weechatter@arcor.de>
+# Copyright (c) 2010-2019 by Nils Görs <weechatter@arcor.de>
 # Copyleft (ɔ) 2013 by oakkitten
 #
 # colors the channel text with nick color and also highlight the whole line
@@ -19,6 +19,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # history:
+# 3.7: new option "alternate_color" (https://github.com/weechat/scripts/issues/333) (idea by snuffkins)
 # 3.6: new option "own_lines_color" (idea by Linkandzelda)
 #    : add help about "localvar" to option
 # 3.5: new options "highlight_words" and "highlight_words_color" (idea by jokrebel)
@@ -84,7 +85,7 @@
 
 use strict;
 my $PRGNAME     = "colorize_lines";
-my $VERSION     = "3.6";
+my $VERSION     = "3.7";
 my $AUTHOR      = "Nils Görs <weechatter\@arcor.de>";
 my $LICENCE     = "GPL3";
 my $DESCR       = "Colorize users' text in chat area with their nick color, including highlights";
@@ -100,19 +101,21 @@ my %config = ("buffers"                 => "all",       # all, channel, query
               "ignore_tags"             => "irc_ctcp",
               "highlight_words"         => "off",       # on, off
               "highlight_words_color"   => "black,darkgray",
+              "alternate_color"         => "",
 );
 
 my %help_desc = ("buffers"                  => "Buffer type affected by the script (all/channel/query, default: all)",
                  "blacklist_buffers"        => "Comma-separated list of channels to be ignored (e.g. freenode.#weechat,*.#python)",
-                 "lines"                    => "Apply nickname color to the lines (off/on/nicks). The latter will limit highlighting to nicknames in option 'nicks'. You can use a localvar to color all lines with a given color (eg: /buffer set localvar_set_colorize_lines *yellow)",
-                 "highlight"                => "Apply highlight color to the highlighted lines (off/on/nicks). The latter will limit highlighting to nicknames in option 'nicks'",
+                 "lines"                    => "Apply nickname color to the lines (off/on/nicks). The latter will limit highlighting to nicknames in option 'nicks'. You can use a localvar to color all lines with a given color (eg: /buffer set localvar_set_colorize_lines *yellow). You'll have enable this option to use alternate_color.",
+                 "highlight"                => "Apply highlight color to the highlighted lines (off/on/nicks). The latter will limit highlighting to nicknames in option 'nicks'. Options 'weechat.color.chat_highlight' and 'weechat.color.chat_highlight_bg' will be used as colors.",
                  "nicks"                    => "Comma-separater list of nicks (e.g. freenode.cat,*.dog) OR file name starting with '/' (e.g. /file.txt). In the latter case, nicknames will get loaded from that file inside weechat folder (e.g. from ~/.weechat/file.txt). Nicknames in file are newline-separated (e.g. freenode.dog\\n*.cat)",
-                 "own_lines"                => "Apply nickname color to own lines (off/on/only). The latter turns off all other kinds of coloring altogether",
-                 "own_lines_color"          => "this color will be used for own messages. Set an empty value to use weechat.color.chat_nick_self",
+                 "own_lines"                => "Apply nickname color to own lines (off/on/only). The latter turns off all other kinds of coloring altogether. This option has an higher priority than alternate_color option.",
+                 "own_lines_color"          => "this color will be used for own messages. Set an empty value to use weechat.color.chat_nick_self option",
                  "tags"                     => "Comma-separated list of tags to accept (see /debug tags)",
                  "ignore_tags"              => "Comma-separated list of tags to ignore (see /debug tags)",
                  "highlight_words"          => "highlight word(s) in text, matching word(s) in weechat.look.highlight",
-                 "highlight_words_color"    => "color for highlight word in text (fg:bg)",
+                 "highlight_words_color"    => "color for highlight word in text (format: fg,bg)",
+                 "alternate_color"          => "alternate between two colors for messages (format: fg,bg:fg,bg)",
 );
 
 my @ignore_tags_array;
@@ -165,18 +168,25 @@ sub colorize_cb
 
     my $color = "";
     my $my_nick = weechat::buffer_get_string($buf_ptr, "localvar_nick");
-    my $channel_color = weechat::color( get_localvar_colorize_lines($buf_ptr) );
+    my $channel_color = weechat::color( get_localvar($buf_ptr,"localvar_colorize_lines") );
+    my $alternate_last = get_localvar($buf_ptr,"localvar_colorize_lines_alternate");
+    my ($alternate_color1,$alternate_color2) = split(/:/,$config{alternate_color},2) if ( $config{alternate_color} ne "");
+
+#    weechat::print("","a: $alternate_color1");
+#    weechat::print("","b: $alternate_color2");
 
     if ($my_nick eq $nick)
     {
         # it's our own line
         # process only if own_lines is "on" or "only" (i.e. not "off")
-        return $string if ($config{own_lines} eq "off") && not ($channel_color);
+        return $string if ($config{own_lines} eq "off") && not ($channel_color) && ( $config{alternate_color} eq "" );
 
         $color = weechat::color($config{own_lines_color});
         $color = weechat::color("chat_nick_self") if ($config{own_lines_color} eq "");
-
         $color = $channel_color if ($channel_color) && ($config{own_lines} eq "off");
+
+        $color = get_alternate_color($buf_ptr,$alternate_last,$alternate_color1,$alternate_color2) if ( $config{alternate_color} ne "" ) &&
+        ( $config{own_lines} eq "off" );
 
     } else {
         # it's someone else's line
@@ -195,7 +205,7 @@ sub colorize_cb
             weechat::string_has_highlight_regex($right_nocolor, weechat::config_string(weechat::config_get("weechat.look.highlight_regex"))) ||
             weechat::string_has_highlight_regex($right_nocolor, weechat::buffer_get_string($buf_ptr, "highlight_regex"))
            )) {
-            # that's definitely a highlight! get a hilight color
+            # that's definitely a highlight! get a highlight color
             # and replace the first occurance of coloring, that'd be nick color
             $color = weechat::color('chat_highlight');
             $right =~ s/\31[^\31 ]+?\Q$nick/$color$nick/ if ($action);
@@ -207,6 +217,8 @@ sub colorize_cb
            ) {
             $color = weechat::info_get('irc_nick_color', $nick);
             $color = $channel_color if ($channel_color); 
+
+            $color = get_alternate_color($buf_ptr,$alternate_last,$alternate_color1,$alternate_color2) if ( $config{alternate_color} ne "");
         } else {
             # oh well
             return $string if ($config{highlight_words} ne "on");
@@ -244,6 +256,7 @@ sub colorize_cb
             }
             }
     ######################################## inject colors and go!
+
     my $out = "";
     if ($action) {
         # remove the first color reset - after * nick
@@ -260,11 +273,31 @@ sub colorize_cb
     return $out;
 }
 
-sub get_localvar_colorize_lines
+sub get_localvar
 {
-    my ( $buf_ptr ) = @_;
+    my ( $buf_ptr,$localvar ) = @_;
+    return weechat::buffer_get_string($buf_ptr, "$localvar");
+}
 
-    return weechat::buffer_get_string($buf_ptr, "localvar_colorize_lines");
+sub set_localvar
+{
+    my ( $buf_ptr,$value ) = @_;
+    weechat::buffer_set($buf_ptr, "localvar_set_colorize_lines_alternate", "$value");
+}
+
+sub get_alternate_color
+{
+    my ( $buf_ptr, $alternate_last,$alternate_color1,$alternate_color2 ) = @_;
+    my $color;
+    if (($alternate_last eq "") or ($alternate_last eq "0"))
+    {
+        $color = weechat::color($alternate_color1);
+        set_localvar($buf_ptr,"1");
+    } else {
+        $color = weechat::color($alternate_color2);
+        set_localvar($buf_ptr,"0");
+    }
+    return $color;
 }
 #################################################################################################### config
 
