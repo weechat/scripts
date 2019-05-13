@@ -38,8 +38,12 @@
 # You can also reach Travis in #crd on efnet.
 #
 # ported to WeeChat (http://www.weechat.org/) by Nils Görs. Copyright
-# (c) 2011-2016 Nils Görs
+# (c) 2011-2019 Nils Görs
 #
+# 2019-05-13: 1.2 nils_2 (freenode@nils_2)
+#	    : make script compatible with kernel 5.x
+# 2019-03-17: 1.1 nils_2 (freenode@nils_2)
+#	    : fix: warning isn't numeric in subtraction
 # 2016-03-23: 1.0 nils_2 (freenode@nils_2)
 #	    : fix: problem with armv7l Processor (eg cubietruck)
 # 2015-05-16: 0.9 Keridos <fuffzehn@gmail.com>
@@ -72,7 +76,7 @@ use POSIX qw(floor);
 use strict;
 
 my $SCRIPT_NAME         = "sysinfo";
-my $SCRIPT_VERSION      = "1.0";
+my $SCRIPT_VERSION      = "1.2";
 my $SCRIPT_DESCR        = "provides a system info command";
 my $SCRIPT_LICENSE      = "GPL3";
 my $SCRIPT_AUTHOR       = "Nils Görs <weechatter\@arcor.de>";
@@ -234,7 +238,7 @@ my $d7		= 1 if $darwin && $osv =~ /^7\.\d+\.\d+/;
 my $d8		= 1 if $darwin && $osv =~ /^8\.\d+\.\d+/;
 my $d9		= 1 if $darwin && $osv =~ /^9\.\d+\.\d+/;
 my $l26		= 1 if $linux && $osv =~ /^2\.6/;
-my $l3          = 1 if $linux && $osv =~ /^2\.7/  || $osv =~ /^3\./ || $osv =~ /^4\./;
+my $l3		= 1 if $linux && $osv =~ /^2\.7/  || $osv =~ /^[3-5]\./;
 my $f_old	= 1 if $freebsd && $osv =~ /^4\.1-/ || $osv =~ /^4\.0-/ || $osv =~ /^3/ || $osv =~ /^2/;
 
 my $isJail = `sysctl -n security.jail.jailed` if $freebsd;
@@ -866,6 +870,8 @@ sub memoryusage {
 	$varp = sprintf("%.2f", 100-($vard / ($vara-$vard) * 100));
 	$vara = sprintf("%.2f", $vara / 1024 / 1024);
 	$vard = sprintf("%.2f", $vard / 1024 / 1024);
+	$vara =~y/,/./;
+	$vard =~y/,/./;
 	return ($vara-$vard)."MB/".$vara."MB ($varp%)";
 }
 
