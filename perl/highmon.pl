@@ -1,6 +1,6 @@
 #
 # highmon.pl - Highlight Monitoring for weechat 0.3.0
-# Version 2.5
+# Version 2.6
 #
 # Add 'Highlight Monitor' buffer/bar to log all highlights in one spot
 #
@@ -73,6 +73,8 @@
 # Bugs and feature requests at: https://github.com/KenjiE20/highmon
 
 # History:
+# 2019-05-13, HubbeKing <hubbe128@gmail.com>
+#       v2.6:   -add: send "logger_backlog" signal on buffer open if logging is enabled
 # 2014-08-16, KenjiE20 <longbow@longbowslair.co.uk>:
 #	v2.5:	-add: clearbar command to clear bar output
 #			-add: firstrun output prompt to check the help text for set up hints as they were being missed
