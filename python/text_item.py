@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2012-2018 by nils_2 <weechatter@arcor.de>
+# Copyright (c) 2012-2019 by nils_2 <weechatter@arcor.de>
 #
 # add a plain text or evaluated content to item bar
 #
@@ -16,6 +16,9 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# 2019-05-23: FlashCode, (freenode.#weechat)
+#       0.9 : fix eval_expression() for split windows
 #
 # 2018-08-18: nils_2, (freenode.#weechat)
 #       0.8 : add new option "interval"
@@ -49,6 +52,13 @@
 # Development is currently hosted at
 # https://github.com/weechatter/weechat-scripts
 
+# TODO
+# plugins.var.python.text_item.<item_name>.enabled
+# plugins.var.python.text_item.<item_name>.type
+# plugins.var.python.text_item.<item_name>.signal
+# plugins.var.python.text_item.<item_name>.text
+# plugins.var.python.text_item.<item_name>.interval
+
 try:
     import weechat,re
 
@@ -59,7 +69,7 @@ except Exception:
 
 SCRIPT_NAME     = "text_item"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.8"
+SCRIPT_VERSION  = "0.9"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "add a plain text or evaluated content to item bar"
 
@@ -72,7 +82,6 @@ TIMER = None
 settings = {
         'interval': ('0', 'How often (in seconds) to force an update of all items. 0 means deactivated'),
 }
-
 # ================================[ hooks ]===============================
 def add_hook(signal, item):
     global hooks
@@ -183,8 +192,7 @@ def bar_item_update_cb(signal, callback, callback_data):
 def substitute_colors(text,window):
     if int(version) >= 0x00040200:
         bufpointer = weechat.window_get_pointer(window,"buffer")
-        return weechat.string_eval_expression(text, {"buffer": bufpointer}, {}, {})
-#        return weechat.string_eval_expression(text,{},{},{})
+        return weechat.string_eval_expression(text, {"window": window, "buffer": bufpointer}, {}, {})
     # substitute colors in output
     return re.sub(regex_color, lambda match: weechat.color(match.group(1)), text)
 
