@@ -25,6 +25,8 @@
 
 #
 # Changelog:
+# 3.5:
+#   * Add ${info:autosort_escape,...} to escape arguments for other info hooks.
 # 3.4:
 #   * Fix rate-limit of sorting to prevent high CPU load and lock-ups.
 #   * Fix bug in parsing empty arguments for info hooks.
@@ -76,7 +78,7 @@ import weechat
 
 SCRIPT_NAME     = 'autosort'
 SCRIPT_AUTHOR   = 'Maarten de Vries <maarten@de-vri.es>'
-SCRIPT_VERSION  = '3.4'
+SCRIPT_VERSION  = '3.5'
 SCRIPT_LICENSE  = 'GPL3'
 SCRIPT_DESC     = 'Flexible automatic (or manual) buffer sorting based on eval expressions.'
 
@@ -184,7 +186,7 @@ class Config:
 		'irc_last':       '${if:${buffer.plugin.name}==irc}',
 		'irc_raw_first':  '${if:${buffer.full_name}!=irc.irc_raw}',
 		'irc_raw_last':   '${if:${buffer.full_name}==irc.irc_raw}',
-		'hashless_name':  '${info:autosort_replace,#,,${buffer.name}}',
+		'hashless_name':  '${info:autosort_replace,#,,${info:autosort_escape,${buffer.name}}}',
 	})
 
 	default_signal_delay = 5
@@ -746,6 +748,17 @@ def parse_args(args, max = None):
 		if args is None: break
 	return result, args
 
+def on_info_escape(pointer, name, arguments):
+	result = ''
+	for c in arguments:
+		if c == '\\':
+			result += '\\\\'
+		elif c == ',':
+			result += '\\,'
+		else:
+			result +=c
+	return result
+
 def on_info_replace(pointer, name, arguments):
 	arguments, rest = parse_args(arguments, 3)
 	if rest or len(arguments) < 3:
@@ -973,6 +986,9 @@ structure with the following setting (modify to suit your need):
 
 command_completion = '%(plugin_autosort) %(plugin_autosort) %(plugin_autosort) %(plugin_autosort) %(plugin_autosort)'
 
+info_escape_description = 'Escape commas and backslashes in the input so it can be passed as argument to other autosort info hooks.'
+info_escape_arguments   = 'text'
+
 info_replace_description = 'Replace all occurences of `from` with `to` in the string `text`.'
 info_replace_arguments   = 'from,to,text'
 
@@ -1014,6 +1030,7 @@ if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, 
 	weechat.hook_config('autosort.*', 'on_config_changed',  '')
 	weechat.hook_completion('plugin_autosort', '', 'on_autosort_complete', '')
 	weechat.hook_command('autosort', command_description.format(**colors), '', '', command_completion, 'on_autosort_command', '')
+	weechat.hook_info('autosort_escape',  info_escape_description,  info_escape_arguments,  'on_info_escape', '')
 	weechat.hook_info('autosort_replace', info_replace_description, info_replace_arguments, 'on_info_replace', '')
 	weechat.hook_info('autosort_order',   info_order_description,   info_order_arguments,   'on_info_order',   '')
 
