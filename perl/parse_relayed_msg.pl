@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011-2013 by w8rabbit (w8rabbit[at]mail[dot]i2p)
+# Copyright (c) 2011-2019 by w8rabbit (w8rabbit[at]mail[dot]i2p)
 # or from outside i2p: w8rabbit[at]i2pmail[dot]org
 #
 # Script is under GPL3.
@@ -8,6 +8,7 @@
 #
 # thanks to darrob for hard beta-testing
 #
+# 1.9.2: add: i2pr-support
 # 1.9.1: fix: uninitialized value (by arza)
 #        fix: indentation
 # 1.9:   add: Gitter support
@@ -64,13 +65,13 @@
 
 use strict;
 my $SCRIPT_NAME         = "parse_relayed_msg";
-my $SCRIPT_VERSION      = "1.9.1";
+my $SCRIPT_VERSION      = "1.9.2";
 my $SCRIPT_DESCR        = "proper integration of remote users' nicknames in channel and nicklist";
 my $SCRIPT_AUTHOR       = "w8rabbit";
 my $SCRIPT_LICENCE      = "GPL3";
 
 # =============== options ===============
-my %option = (  "supported_bot_names"   => "cloudrelay*,MultiRelay*,FLIPRelayBot*,i2pRelay,u2,uuu,RelayBot,lll,iRelay,fox,wolf,hawk,muninn,gribble,vulpine,*GitterBot",
+my %option = (  "supported_bot_names"   => "i2pr,cloudrelay*,MultiRelay*,FLIPRelayBot*,i2pRelay,u2,uuu,RelayBot,lll,iRelay,fox,wolf,hawk,muninn,gribble,vulpine,*GitterBot",
                 "debug"                 => "off",
                 "blacklist"             => "",
                 "servername"            => "i2p,freenet",
@@ -177,6 +178,25 @@ sub parse_relayed_msg_cb
             $string = create_string_without_relaynet($servername,$channelname,$relaynick,$nick_mode,$relaymsg);
 
             $modifier_data = change_tags_for_message( $buf_ptr,$relaynick,"",$modifier_data, "" );
+            weechat::print_date_tags($buf_ptr,0,$modifier_data,$string);
+            return "";
+        }
+        # PRIVMSG #i2p :[Freenode/nickname] here is the message.
+        elsif ( $line =~ m/^[\(\[`](.+?)\/(.+?)[\)\]`] (.+)$/ )
+        {
+            my ($relayserver,$relaynick,$relaymsg) = ($1,$2,$3);
+            if ( grep /^$servername.$relaynick$/, @blacklist )              # check for ignored relay nicks
+            {
+                return '';                                                  # delete message from ignored relaynick
+            }
+            my $nick_mode = "";
+            ($relaynick,$nick_mode) = check_nick_mode($buf_ptr,$relaynick);
+            add_relay_nick_to_nicklist($buf_ptr,$relaynick,"");
+            (undef, $relaymsg) = colorize_lines($modifier_data,$relaynick, $relaymsg);
+
+            $string = create_string_without_relaynet($servername,$channelname,$relaynick,$nick_mode,$relaymsg);
+
+            $modifier_data = change_tags_for_message( $buf_ptr,$relaynick,"",$modifier_data,"" );
             weechat::print_date_tags($buf_ptr,0,$modifier_data,$string);
             return "";
         }
