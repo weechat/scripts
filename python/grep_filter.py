@@ -19,6 +19,8 @@
 #
 # History:
 #
+# 2019-06-07, Trygve Aaberge <trygveaa@gmail.com>
+#   version 0.10: remove newlines from command completion
 # 2015-10-04, Simmo Saan <simmo.saan@gmail.com>
 #   version 0.9: fix text search imitation in filter
 # 2015-08-27, Simmo Saan <simmo.saan@gmail.com>
@@ -47,7 +49,7 @@ from __future__ import print_function
 
 SCRIPT_NAME = "grep_filter"
 SCRIPT_AUTHOR = "Simmo Saan <simmo.saan@gmail.com>"
-SCRIPT_VERSION = "0.9"
+SCRIPT_VERSION = "0.10"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Filter buffers automatically while searching them"
 
@@ -270,9 +272,7 @@ if __name__ == "__main__" and IMPORT_OK:
 		weechat.hook_signal("input_text_changed", "input_text_changed_cb", "")
 
 		weechat.hook_command(SCRIPT_COMMAND, SCRIPT_DESC,
-"""enable
- || disable
- || toggle""",
+"""enable || disable || toggle""",
 """ enable: enable {0} in current buffer
 disable: disable {0} in current buffer
  toggle: toggle {0} in current buffer
@@ -282,9 +282,7 @@ To see {0} status during search, add "{1}" item to some bar. On default configur
     /set weechat.bar.input.items "[input_prompt]+(away),[{1}],[input_search],[input_paste],input_text"
 
 Due to technical reasons with /filter it is not possible to exactly {0} in "pre|msg" search mode, thus the bar item is shown in warning color.""".format(SCRIPT_NAME, SCRIPT_BAR_ITEM),
-"""enable
- || disable
- || toggle""",
+"""enable || disable || toggle""",
 		"command_cb", "")
 
 		weechat.bar_item_new("(extra)%s" % SCRIPT_BAR_ITEM, "bar_item_cb", "")
