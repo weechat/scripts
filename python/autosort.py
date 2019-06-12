@@ -25,6 +25,8 @@
 
 #
 # Changelog:
+# 3.6:
+#   * Add more documentation on provided info hooks.
 # 3.5:
 #   * Add ${info:autosort_escape,...} to escape arguments for other info hooks.
 # 3.4:
@@ -78,7 +80,7 @@ import weechat
 
 SCRIPT_NAME     = 'autosort'
 SCRIPT_AUTHOR   = 'Maarten de Vries <maarten@de-vri.es>'
-SCRIPT_VERSION  = '3.5'
+SCRIPT_VERSION  = '3.6'
 SCRIPT_LICENSE  = 'GPL3'
 SCRIPT_DESC     = 'Flexible automatic (or manual) buffer sorting based on eval expressions.'
 
@@ -923,6 +925,36 @@ Rename a helper variable.
 Swap the expressions of two helper variables in the list.
 
 
+{*white}# Info hooks{reset}
+Autosort comes with a number of info hooks to add some extra functionality to regular weechat eval strings.
+Info hooks can be used in eval strings in the form of {cyan}${{info:some_hook,arguments}}{reset}.
+
+Commas and backslashes in arguments to autosort info hooks (except for {cyan}${{info:autosort_escape}}{reset}) must be escaped with a backslash.
+
+{*white}${{info:{brown}autosort_replace{white},{cyan}pattern{white},{cyan}replacement{white},{cyan}source{white}}}{reset}
+Replace all occurrences of {cyan}pattern{reset} with {cyan}replacement{reset} in the string {cyan}source{reset}.
+Can be used to ignore certain strings when sorting by replacing them with an empty string.
+
+For example: {cyan}${{info:autosort_replace,cat,dog,the dog is meowing}}{reset} expands to "the cat is meowing".
+
+{*white}${{info:{brown}autosort_order{white},{cyan}value{white},{cyan}option0{white},{cyan}option1{white},{cyan}option2{white},{cyan}...{white}}}
+Generate a zero-padded number that corresponds to the index of {cyan}value{reset} in the list of options.
+If one of the options is the special value {brown}*{reset}, then any value not explicitly mentioned will be sorted at that position.
+Otherwise, any value that does not match an option is assigned the highest number available.
+Can be used to easily sort buffers based on a manual sequence.
+
+For example: {cyan}${{info:autosort_order,${{server}},freenode,oftc,efnet}}{reset} will sort freenode before oftc, followed by efnet and then any remaining servers.
+Alternatively, {cyan}${{info:autosort_order,${{server}},freenode,oftc,*,efnet}}{reset} will sort any unlisted servers after freenode and oftc, but before efnet.
+
+{*white}${{info:{brown}autosort_escape{white},{cyan}text{white}}}{reset}
+Escape commas and backslashes in {cyan}text{reset} by prepending them with a backslash.
+This is mainly useful to pass arbitrary eval strings as arguments to other autosort info hooks.
+Otherwise, an eval string that expands to something with a comma would be interpreted as multiple arguments.
+
+For example, it can be used to safely pass buffer names to {cyan}${{info:autosort_replace}}{reset} like so:
+{cyan}${{info:autosort_replace,##,#,${{info:autosort_escape,${{buffer.name}}}}}}{reset}.
+
+
 {*white}# Description
 Autosort is a weechat script to automatically keep your buffers sorted. The sort
 order can be customized by defining your own sort rules, but the default should
@@ -946,17 +978,6 @@ You may define helper variables for the main sort rules to keep your rules
 readable. They can be used in the main sort rules as variables. For example,
 a helper variable named `{cyan}foo{reset}` can be accessed in a main rule with the
 string `{cyan}${{foo}}{reset}`.
-
-{*white}# Replacing substrings{reset}
-There is no default method for replacing text inside eval expressions. However,
-autosort adds a `replace` info hook that can be used inside eval expressions:
-  {cyan}${{info:autosort_replace,from,to,text}}{reset}
-
-For example, to strip all hashes from a buffer name, you could write:
-  {cyan}${{info:autosort_replace,#,,${{buffer.name}}}}{reset}
-
-You can escape commas and backslashes inside the arguments by prefixing them with
-a backslash.
 
 {*white}# Automatic or manual sorting{reset}
 By default, autosort will automatically sort your buffer list whenever a buffer
@@ -986,18 +1007,29 @@ structure with the following setting (modify to suit your need):
 
 command_completion = '%(plugin_autosort) %(plugin_autosort) %(plugin_autosort) %(plugin_autosort) %(plugin_autosort)'
 
-info_escape_description = 'Escape commas and backslashes in the input so it can be passed as argument to other autosort info hooks.'
-info_escape_arguments   = 'text'
-
-info_replace_description = 'Replace all occurences of `from` with `to` in the string `text`.'
-info_replace_arguments   = 'from,to,text'
+info_replace_description = (
+	'Replace all occurrences of `pattern` with `replacement` in the string `source`. '
+	'Can be used to ignore certain strings when sorting by replacing them with an empty string. '
+	'See /help autosort for examples.'
+)
+info_replace_arguments = 'pattern,replacement,source'
 
 info_order_description = (
-	'Get a zero padded index of a value in a list of possible values.'
-	'If the value is not found, the index for `*` is returned.'
-	'If there is no `*` in the list, the highest index + 1 is returned.'
+	'Generate a zero-padded number that corresponds to the index of `value` in the list of options. '
+	'If one of the options is the special value `*`, then any value not explicitly mentioned will be sorted at that position. '
+	'Otherwise, any value that does not match an option is assigned the highest number available. '
+	'Can be used to easily sort buffers based on a manual sequence. '
+	'See /help autosort for examples.'
 )
-info_order_arguments   = 'value,first,second,third,...'
+info_order_arguments = 'value,first,second,third,...'
+
+info_escape_description = (
+	'Escape commas and backslashes in `text` by prepending them with a backslash. '
+	'This is mainly useful to pass arbitrary eval strings as arguments to other autosort info hooks. '
+	'Otherwise, an eval string that expands to something with a comma would be interpreted as multiple arguments.'
+	'See /help autosort for examples.'
+)
+info_escape_arguments = 'text'
 
 
 if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, "", ""):
