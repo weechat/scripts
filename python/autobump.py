@@ -18,20 +18,25 @@
 # This script bumps buffers when there is activity on them,
 # replicating the functionality of most mainstream chat programs.
 
+# Changelog:
+# Ver: 0.1.0 improve activity detection:
+
 # TODO: combine priorities of merged buffers
 
 import weechat
 
 SCRIPT_NAME = 'autobump'
 SCRIPT_AUTHOR = 'Daniel Kessler <daniel@dkess.me>'
-SCRIPT_VERSION = '0.0.1'
+SCRIPT_VERSION = '0.1.0'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC = 'Bump buffers upon activity.'
 
 DEFAULTS = {
     'lowprio_buffers': ('', 'List of buffers to be sorted with low priority'),
     'highprio_buffers': ('irc.server.*,core.weechat',
-                         'List of buffers to be sorted with high priority')
+                         'List of buffers to be sorted with high priority'),
+    'tags': ('notify_message,notify_private,self_msg',
+             'List of message tags that are considered activity')
 }
 
 def on_autobump_command(data, buffer, args):
@@ -101,8 +106,17 @@ def on_print(data, buffer, date, tags, displayed, highlight, prefix, message):
         on_buffer_activity(buffer)
     return weechat.WEECHAT_RC_OK
 
-def on_signal(data, signal, signal_data):
+def on_buffer_open(data, signal, signal_data):
     on_buffer_activity(signal_data)
+    return weechat.WEECHAT_RC_OK
+
+the_print_hook = None
+def update_hook(*args):
+    global the_print_hook
+    if the_print_hook:
+        weechat.unhook(the_print_hook)
+    value = weechat.config_get_plugin('tags')
+    the_print_hook = weechat.hook_print('', value, '', 0, 'on_print', '')
     return weechat.WEECHAT_RC_OK
 
 command_description = r'''/autobump add high: Add the current buffer to the high priority list
@@ -125,8 +139,11 @@ if __name__ == '__main__':
                 weechat.config_set_plugin(option, value[0])
             weechat.config_set_desc_plugin(option, value[1])
 
-        weechat.hook_print('', 'log1,log3', '', 0, 'on_print', '')
-        weechat.hook_signal('buffer_opened', 'on_signal', '')
+        update_hook()
+        weechat.hook_config('plugins.var.python.'+SCRIPT_NAME+'.tags',
+                            'update_hook',
+                            '')
+        weechat.hook_signal('buffer_opened', 'on_buffer_open', '')
 
         weechat.hook_command('autobump',
                              command_description,
