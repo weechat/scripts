@@ -42,13 +42,18 @@
 #
 # 0.3.3
 # Fix undefined ignore_windows_list.
+#
+# 0.3.5
+# Fix ps call generation in Python 3
+
+from __future__ import unicode_literals
 
 import weechat as weechat
 import subprocess
 from os import environ, path
 
 lnotify_name = "lnotify"
-lnotify_version = "0.3.4"
+lnotify_version = "0.3.5"
 lnotify_license = "GPL3"
 
 # convenient table checking for bools
@@ -100,9 +105,9 @@ def handle_msg(data, pbuffer, date, tags, displayed, highlight, prefix, message)
     # Check if active window is in the ignore_windows_list and skip notification
     if (environ.get('DISPLAY') != None) and path.isfile("/bin/xdotool"):
         cmd_pid="xdotool getactivewindow getwindowpid".split()
-        window_pid = subprocess.check_output(cmd_pid)
+        window_pid = subprocess.check_output(cmd_pid).decode("utf-8")
         cmd_name=("ps -ho comm -p %s"%(window_pid)).split()
-        window_name = subprocess.check_output(cmd_name)
+        window_name = subprocess.check_output(cmd_name).decode("utf-8")
         ignore_windows_list = ["tilda", "gnome-terminal", "xterm"]
         if window_name in ignore_windows_list:
             x_focus = True
