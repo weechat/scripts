@@ -322,11 +322,7 @@ sub highmon_buffer_open
 		# send "logger_backlog" signal if logging is enabled to display backlog
 		if (weechat::config_get_plugin("logging") eq "on")
 		{
-			# this should be true only if logger plugin is loaded and auto_log is enabled
-			if (weechat::config_get("logger.file.auto_log"))
-			{
-				weechat::hook_signal_send("logger_backlog", weechat::WEECHAT_HOOK_SIGNAL_POINTER, $highmon_buffer)
-			}
+			weechat::hook_signal_send("logger_backlog", weechat::WEECHAT_HOOK_SIGNAL_POINTER, $highmon_buffer)
 		}
 	}
 	return weechat::WEECHAT_RC_OK;
