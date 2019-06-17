@@ -20,6 +20,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2019-06-17, Brad Hubbard <bhubbard@redhat.com>
+#   version 0.6: replace iteritems with items for python3 compatability
 # 2011-07-17, Sébastien Helleu <flashcode@flashtux.org>
 #   version 0.5: allow empty value for pairs or words
 # 2011-02-01, xt
@@ -36,7 +38,7 @@ import re
 
 SCRIPT_NAME    = "text_replace"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.5"
+SCRIPT_VERSION = "0.6"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Replaces text you write with replacement text"
 
@@ -50,7 +52,7 @@ settings = {
 
 if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
                     SCRIPT_DESC, "", ""):
-    for option, default_value in settings.iteritems():
+    for option, default_value in settings.items():
         if not w.config_is_set_plugin(option):
             w.config_set_plugin(option, default_value)
 
@@ -59,7 +61,7 @@ if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
         "input" : ("/input return",  "command_run_input"),
     }
     # Hook all hooks !
-    for hook, value in hook_command_run.iteritems():
+    for hook, value in hook_command_run.items():
         w.hook_command_run(value[0], value[1], "")
 
 
