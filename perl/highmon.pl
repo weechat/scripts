@@ -1,6 +1,6 @@
 #
 # highmon.pl - Highlight Monitoring for weechat 0.3.0
-# Version 2.5
+# Version 2.6
 #
 # Add 'Highlight Monitor' buffer/bar to log all highlights in one spot
 #
@@ -73,6 +73,8 @@
 # Bugs and feature requests at: https://github.com/KenjiE20/highmon
 
 # History:
+# 2019-05-13, HubbeKing <hubbe128@gmail.com>
+#	v2.6:	-add: send "logger_backlog" signal on buffer open if logging is enabled
 # 2014-08-16, KenjiE20 <longbow@longbowslair.co.uk>:
 #	v2.5:	-add: clearbar command to clear bar output
 #			-add: firstrun output prompt to check the help text for set up hints as they were being missed
@@ -306,7 +308,7 @@ sub highmon_buffer_open
 	# Turn off notify, highlights
 	if ($highmon_buffer ne "")
 	{
-		if (weechat::config_get_plugin("hotlist_show" eq "off"))
+		if (weechat::config_get_plugin("hotlist_show") eq "off")
 		{
 			weechat::buffer_set($highmon_buffer, "notify", "0");
 		}
@@ -316,6 +318,11 @@ sub highmon_buffer_open
 		if (weechat::config_get_plugin("logging") eq "off")
 		{
 			weechat::buffer_set($highmon_buffer, "localvar_set_no_log", "1");
+		}
+		# send "logger_backlog" signal if logging is enabled to display backlog
+		if (weechat::config_get_plugin("logging") eq "on")
+		{
+			weechat::hook_signal_send("logger_backlog", weechat::WEECHAT_HOOK_SIGNAL_POINTER, $highmon_buffer)
 		}
 	}
 	return weechat::WEECHAT_RC_OK;
