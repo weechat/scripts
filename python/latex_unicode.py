@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2016-2018 by Simmo Saan <simmo.saan@gmail.com>
+# Copyright (c) 2016-2019 by Simmo Saan <simmo.saan@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@
 #
 # History:
 #
+# 2019-06-27, Simmo Saan <simmo.saan@gmail.com>
+#   version 1.1: fix completion newlines
 # 2018-06-19, Simmo Saan <simmo.saan@gmail.com>
 #   version 1.0: add Python 2/3 compatibility
 # 2016-11-01, Simmo Saan <simmo.saan@gmail.com>
@@ -49,7 +51,7 @@ from __future__ import print_function
 
 SCRIPT_NAME = "latex_unicode"
 SCRIPT_AUTHOR = "Simmo Saan <simmo.saan@gmail.com>"
-SCRIPT_VERSION = "1.0"
+SCRIPT_VERSION = "1.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Replace LaTeX with unicode representations"
 
@@ -415,7 +417,7 @@ if __name__ == "__main__" and IMPORT_OK:
 """    reload: reload replacements from XML file
 redownload: redownload replacements XML file and load it""",
 """reload
- || redownload""",
+ || redownload""".replace("\n", ""),
 		"command_cb", "")
 
 		for option, value in SETTINGS.items():
