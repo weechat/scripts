@@ -68,6 +68,10 @@
 #       * plugins.var.python.listbuffer.channel_min_width
 #       * plugins.var.python.listbuffer.users_min_width
 #
+### 2019-07-05: Sébastien Helleu:
+#
+# * version 0.8.2: Make script compatible with Python 3.
+#
 ## Acknowledgements:
 # * Dmitry "troydm" Geurkov, for providing the inverse-sorting patch to the project.
 # * Sebastien "Flashcode" Helleu, for developing the kick-ass IRC client WeeChat
@@ -120,9 +124,12 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
+
+from __future__ import print_function
+
 SCRIPT_NAME    = "listbuffer"
 SCRIPT_AUTHOR  = "Filip H.F. 'FiXato' Slagter <fixato [at] gmail [dot] com>"
-SCRIPT_VERSION = "0.8.1"
+SCRIPT_VERSION = "0.8.2"
 SCRIPT_LICENSE = "MIT"
 SCRIPT_DESC    = "A common buffer for /list output."
 SCRIPT_COMMAND = "listbuffer"
@@ -132,7 +139,7 @@ import_ok = True
 try:
   import weechat
 except ImportError:
-  print "This script must be run under WeeChat."
+  print("This script must be run under WeeChat.")
   import_ok = False
 
 import re
