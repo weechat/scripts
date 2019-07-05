@@ -24,6 +24,9 @@
 #     * numerical sort for buffer info
 #     * moved window split info to option -split
 #     * simplified the output
+### 2019-07-05: Sébastien Helleu:
+# * version 0.4:
+#     * make script compatible with Python 3
 #
 ## Acknowledgements:
 # * Sebastien "Flashcode" Helleu, for developing the kick-ass chat/IRC
@@ -58,9 +61,12 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
+
+from __future__ import print_function
+
 SCRIPT_NAME     = "weestats"
 SCRIPT_AUTHOR   = "Filip H.F. 'FiXato' Slagter <fixato [at] gmail [dot] com>"
-SCRIPT_VERSION  = "0.3"
+SCRIPT_VERSION  = "0.4"
 SCRIPT_LICENSE  = "MIT"
 SCRIPT_DESC     = "Useless statistics about your open buffers and windows"
 SCRIPT_COMMAND  = "weestats"
@@ -71,7 +77,7 @@ import_ok = True
 try:
   import weechat as w
 except ImportError:
-  print "This script must be run under WeeChat."
+  print("This script must be run under WeeChat.")
   import_ok = False
 
 def close_cb(*kwargs):
@@ -126,7 +132,7 @@ def command_main(data, buffer, args):
 
   window_count = len(windows)
 
-  for desc, buffers in buffer_groups.iteritems():
+  for desc, buffers in buffer_groups.items():
     buffer_count += len(buffers)
     results.append('%i %s' % (len(buffers), desc))
 
