@@ -28,6 +28,9 @@
 #
 # History:
 # 2019-07-07, nils_2@freenode.#weechat
+#   version 0.4: - fix bug when script unloads.
+#                - add search for buffer name and display buffer name
+# 2019-07-07, nils_2@freenode.#weechat
 #   version 0.3: - make script compatible with Python 3.
 # 2014-09-17, Jani Kesänen <jani.kesanen@gmail.com>
 #   version 0.2: - added descriptions to settings.
@@ -39,7 +42,7 @@ from __future__ import print_function
 
 SCRIPT_NAME    = "urlbuf"
 SCRIPT_AUTHOR  = "Jani Kesänen <jani.kesanen@gmail.com>"
-SCRIPT_VERSION = "0.3"
+SCRIPT_VERSION = "0.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "A common buffer for received URLs."
 
@@ -65,10 +68,10 @@ urlbuf_buffer = None
 urlbuf_settings = {
     "display_active_buffer" : ("on",  "display URLs from the active buffer"),
     "display_private"       : ("on",  "display URLs from private messages"),
-    "display_buffer_number" : ("on",  "display the buffer's number"),
+    "display_buffer_number" : ("on",  "display the buffer's number or name (on/name/off)"),
     "display_nick"          : ("off", "display the nick of the user"),
     "skip_duplicates"       : ("on",  "skip the URL that is already in the urlbuf"),
-    "skip_buffers"          : ("",    "a comma separated list of buffer numbers to skip"),
+    "skip_buffers"          : ("",    "a comma separated list of buffer numbers or buffer names to skip"),
 }
 
 
@@ -107,8 +110,11 @@ def urlbuf_print_cb(data, buffer, date, tags, displayed, highlight, prefix, mess
 
     # Exit if the message came from a buffer that is on the skip list
     buffer_number = str(weechat.buffer_get_integer(buffer, "number"))
+    buffer_name = str(weechat.buffer_get_string(buffer, "name"))
     skips = set(weechat.config_get_plugin("skip_buffers").split(","))
     if buffer_number in skips:
+        return weechat.WEECHAT_RC_OK
+    if buffer_name in skips:
         return weechat.WEECHAT_RC_OK
 
     if weechat.config_get_plugin("display_active_buffer") == "off":
@@ -125,6 +131,8 @@ def urlbuf_print_cb(data, buffer, date, tags, displayed, highlight, prefix, mess
 
         if weechat.config_get_plugin("display_buffer_number") == "on":
             output += "%s%-2d " % (weechat.color("reset"), weechat.buffer_get_integer(buffer, "number"))
+        elif weechat.config_get_plugin("display_buffer_number") == "name":
+            output += "%s%s  " % (weechat.color("reset"), weechat.buffer_get_string(buffer, "name"))
 
         if weechat.config_get_plugin("display_nick") == "on":
             output += "%s " % (prefix)
@@ -147,10 +155,14 @@ def urlbuf_close_cb(data, buffer):
     urlbuf_buffer = None
     return weechat.WEECHAT_RC_OK
 
+def urlbuf2_close_cb():
+    global urlbuf_buffer
+    urlbuf_buffer = None
+    return weechat.WEECHAT_RC_OK
 
 if __name__ == "__main__" and import_ok:
     if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION,
-                        SCRIPT_LICENSE, SCRIPT_DESC, "urlbuf_close_cb", ""):
+                        SCRIPT_LICENSE, SCRIPT_DESC, "urlbuf2_close_cb", ""):
         version = weechat.info_get('version_number', '') or 0
 
         # Set default settings
