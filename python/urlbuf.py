@@ -27,15 +27,19 @@
 # not work properly (or at all) on older versions.
 #
 # History:
+# 2019-07-07, nils_2@freenode.#weechat
+#   version 0.3: - make script compatible with Python 3.
 # 2014-09-17, Jani Kesänen <jani.kesanen@gmail.com>
 #   version 0.2: - added descriptions to settings.
 # 2011-06-07, Jani Kesänen <jani.kesanen@gmail.com>
 #   version 0.1: - initial release.
 #
 
+from __future__ import print_function
+
 SCRIPT_NAME    = "urlbuf"
 SCRIPT_AUTHOR  = "Jani Kesänen <jani.kesanen@gmail.com>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "A common buffer for received URLs."
 
@@ -44,7 +48,7 @@ import_ok = True
 try:
     import weechat
 except ImportError:
-    print "This script must be run under WeeChat."
+    print("This script must be run under WeeChat.")
     import_ok = False
 
 import re
@@ -150,7 +154,7 @@ if __name__ == "__main__" and import_ok:
         version = weechat.info_get('version_number', '') or 0
 
         # Set default settings
-        for option, default_value in urlbuf_settings.iteritems():
+        for option, default_value in urlbuf_settings.items():
             if not weechat.config_is_set_plugin(option):
                 weechat.config_set_plugin(option, default_value[0])
             if int(version) >= 0x00030500:
