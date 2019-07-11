@@ -1,4 +1,3 @@
-''' History searcher '''
 # -*- coding: utf-8 -*-
 #
 # Copyright (c) 2009 by xt <xt@bash.no>
@@ -24,6 +23,9 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+#
+# 2019-07-11, Sébastien Helleu <flashcode@flashtux.org>:
+#     version 0.5: make script compatible with Python 3
 # 2019-07-11, Simmo Saan <simmo.saan@gmail.com>
 #     version 0.4: fix detection of "/input search_text_here"
 # 2016-02-20, Simmo Saan <simmo.saan@gmail.com>
@@ -39,7 +41,7 @@ weechat = w
 
 SCRIPT_NAME    = "histsearch"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.4"
+SCRIPT_VERSION = "0.5"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Quick search in command history (think ctrl-r in bash)"
 SCRIPT_COMMAND = 'histsearch'
@@ -82,7 +84,7 @@ if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
                          "You can use completion key (commonly Tab and shift-Tab) to select " +
                          "next/previous command in list.",
                          "", "histsearch_cmd", "")
-    for option, default_value in settings.iteritems():
+    for option, default_value in settings.items():
         if w.config_get_plugin(option) == "":
             w.config_set_plugin(option, default_value)
 
@@ -104,7 +106,7 @@ def unhook_all():
 def hook_all():
     """ Hook command_run and modifier """
     global hook_command_run, hooks
-    for hook, value in hook_command_run.iteritems():
+    for hook, value in hook_command_run.items():
         if hook not in hooks:
             hooks[hook] = w.hook_command_run(value[0], value[1], "")
     if "modifier" not in hooks:
