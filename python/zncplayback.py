@@ -27,12 +27,16 @@
 #
 # History:
 #
+# 2019-07-09, Alyssa Ross <hi@alyssa.is>:
+#     v0.2.0: Make script compatible with Python 3
 # 2016-08-27, Jasper v. Blanckenburg <jasper@mezzo.de>:
 #     v0.1.0: Initial release
 
+from __future__ import print_function
+
 SCRIPT_NAME = "zncplayback"
 SCRIPT_AUTHOR = "jazzpi"
-SCRIPT_VERSION = "0.1.0"
+SCRIPT_VERSION = "0.2.0"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESCRIPTION = "Add support for the ZNC Playback module"
 
@@ -143,7 +147,7 @@ if __name__ == "__main__" and import_ok:
                                     SCRIPT_SAVEFILE)
         # Set default settings
         version = weechat.info_get("version_number", "") or 0
-        for option, value in zncplayback_settings_default.items():
+        for option, value in list(zncplayback_settings_default.items()):
             if weechat.config_is_set_plugin(option):
                 zncplayback_settings[option] = weechat.config_get_plugin(
                     option)
