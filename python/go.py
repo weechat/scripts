@@ -21,6 +21,8 @@
 #
 # History:
 #
+# 2019-07-11, Simmo Saan <simmo.saan@gmail.com>
+#     version 2.6: fix detection of "/input search_text_here"
 # 2017-04-01, Sébastien Helleu <flashcode@flashtux.org>:
 #     version 2.5: add option "buffer_number"
 # 2017-03-02, Sébastien Helleu <flashcode@flashtux.org>:
@@ -92,7 +94,7 @@ from __future__ import print_function
 
 SCRIPT_NAME = 'go'
 SCRIPT_AUTHOR = 'Sébastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '2.5'
+SCRIPT_VERSION = '2.6'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC = 'Quick jump to buffers'
 
@@ -480,7 +482,7 @@ def go_input_modifier(data, modifier, modifier_data, string):
 def go_command_run_input(data, buf, command):
     """Function called when a command "/input xxx" is run."""
     global buffers, buffers_pos
-    if command == '/input search_text' or command.find('/input jump') == 0:
+    if command.startswith('/input search_text') or command.startswith('/input jump'):
         # search text or jump to another buffer is forbidden now
         return weechat.WEECHAT_RC_OK_EAT
     elif command == '/input complete_next':
