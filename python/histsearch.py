@@ -24,6 +24,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2019-07-11, Simmo Saan <simmo.saan@gmail.com>
+#     version 0.4: fix detection of "/input search_text_here"
 # 2016-02-20, Simmo Saan <simmo.saan@gmail.com>
 #     version 0.3: add option to only display selected command
 # 2010-01-19, xt <xt@bash.no>
@@ -37,7 +39,7 @@ weechat = w
 
 SCRIPT_NAME    = "histsearch"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.3"
+SCRIPT_VERSION = "0.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Quick search in command history (think ctrl-r in bash)"
 SCRIPT_COMMAND = 'histsearch'
@@ -204,7 +206,7 @@ def input_modifier(data, modifier, modifier_data, string):
 def command_run_input(data, buffer, command):
     """ Function called when a command "/input xxxx" is run """
     global commands, commands_pos
-    if command == "/input search_text" or command.find("/input jump") == 0:
+    if command.startswith('/input search_text') or command.startswith('/input jump'):
         # search text or jump to another buffer is forbidden now
         return w.WEECHAT_RC_OK_EAT
     elif command == "/input complete_next":
