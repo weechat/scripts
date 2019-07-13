@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2012-2013 by nils_2 <weechatter@arcor.de>
+# Copyright (c) 2012-2019 by nils_2 <weechatter@arcor.de>
 #
 # Display size of current logfile in item-bar
 #
@@ -17,6 +17,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2019-07-12: nils_2 (freenode.#weechat)
+#       0.4 : option "display" is evaluated
+#           : use hook_process("wc") to not stall weechat anymore
+#           : new function: refresh only on buffer/window switch
+#           : make script compatible with Python 3.x
 # 2013-01-07: nils_2 (freenode.#weechat)
 #       0.3 : missing logfile caused a crash (thanks swimmer)
 #           : add support of more than one window
@@ -29,42 +34,45 @@
 # How to use:
 # add item "logsize" to option "weechat.bar.status.items"
 #
-# CAVE:
-# USE OPTION: plugins.var.python.logsize.display "lines" VERY CAREFULLY
-# Very large logfiles will stall script and weechat.
-#
 # Development is currently hosted at
 # https://github.com/weechatter/weechat-scripts
 
+from __future__ import print_function
+from builtins import str
+
 try:
-    import weechat
-    import os, os.path, stat, time
-    from datetime import date, timedelta
+    import weechat, re
 
 except Exception:
-    print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print("This script must be run under WeeChat.")
+    print("Get WeeChat now at: https://weechat.org")
     quit()
 
 SCRIPT_NAME     = "logsize"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.3"
+SCRIPT_VERSION  = "0.4"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "display size of current logfile in item-bar"
-OPTIONS         = { "refresh"       : ("60","refresh timer (in seconds)"),
+OPTIONS         = { "refresh"       : ("0","refresh timer (in seconds). 0 = refresh only on buffer or window switch. this is the default setting"),
                     "size"          : ("KB","display length in KB/MB/GB/TB. Leave option empty for byte"),
-                    "display"       : ("length","could be \"length\", \"lines\" or \"both\". CAVE: Use display option \"lines\" very carefully, large logfiles can stall the script and weechat!!!"),
+                    "display"       : ("%L","possible item: %W = words, %L = lines or %F = file length. (content is evaluated, e.g. you can use colors with format \"${color:xxx}\", see /help eval)"),
                     "log_disabled"  : ("","displays a text in item, when logger is disabled for buffer"),
                     "file_not_found": ("","displays a text in item, when logfile wasn't found"),
                     }
 
 hooks           = { "timer": "", "bar_item": "" }
+hook_process_out = []
+output          = ""
 
-# ================================[ dos ]===============================
-def sizecheck(logfile):
-    if not os.path.isfile(logfile):
-        return OPTIONS["file_not_found"]
-    filesize = float(os.path.getsize(logfile))                      # filesize in bytes
+# regexp to match ${color} tags
+regex_color=re.compile('\$\{([^\{\}]+)\}')
+
+# regexp to match ${optional string} tags
+regex_optional_tags=re.compile('%\{[^\{\}]+\}')
+
+# ================================[ size ]===============================
+def sizecheck(filesize):
+    filesize = int(filesize)
     if OPTIONS["size"].lower() == "kb":
         filesize = "%.2f" % (filesize / 1024)
         size = "K"
@@ -82,45 +90,53 @@ def sizecheck(logfile):
         size = "b"
     return "%s%s" % (filesize,size)
 
-def read_lines(logfile):
-    if os.path.isfile(logfile):
-        f = open(logfile,'r')
-        lines = 0L
-        for line in f.xreadlines():
-            lines += 1L
-        f.close()
-        return "%s %s" % (lines,"lines")
-    else:
-        return OPTIONS["file_not_found"]
-
 # ================================[ weechat item ]===============================
 def show_item (data, item, window):
+    global output
+    return output
 
-    (logfile,log_enabled) = get_logfile(window)
+def get_file_information(ptr_buffer):
+    global hook_process_out, output
+
+    (logfile,log_enabled) = get_logfile(ptr_buffer)
     if not log_enabled:
-        return OPTIONS["log_disabled"]
+        output = OPTIONS["log_disabled"]
+        return
 
     output = ''
     if logfile != '':
-        if OPTIONS["display"] == 'lines':           # get number of lines in logfile
-            output = str(read_lines(logfile))
-        elif OPTIONS["display"] == 'length':        # get lenght of logfile
-            output = str(sizecheck(logfile))
-        elif OPTIONS["display"] == 'both':          # get lines and lenght of log_filename
-            output = "%s/%s" % ( str(read_lines(logfile)),str(sizecheck(logfile)) )
-    return "%s" % output                            # this line will be printed to item-bar
+        # newline / word / bytes / filename
+        weechat.hook_process("wc %s" % logfile, 50000, "my_hook_process_cb", "")
+        if hook_process_out:
+            lines = hook_process_out[0]
+            words = hook_process_out[1]
+            flength = sizecheck(hook_process_out[2])
 
-def get_logfile(window):
-    current_buffer = weechat.window_get_pointer(window,"buffer")
-    if current_buffer == "":
-        return ""
+            tags = {'%L': str(lines),
+                    '%W': str(words),
+                    '%F': str(flength)}
 
+            output = substitute_colors(OPTIONS['display'])
+            # replace mandatory tags
+            for tag in list(tags.keys()):
+                #    for tag in tags.keys():
+                output = output.replace(tag, tags[tag])
+    weechat.bar_item_update(SCRIPT_NAME)
+    return
+
+def substitute_colors(text):
+    if int(version) >= 0x00040200:
+        return weechat.string_eval_expression(text,{},{},{})
+    # substitute colors in output
+    return re.sub(regex_color, lambda match: weechat.color(match.group(1)), text)
+
+def get_logfile(ptr_buffer):
     log_filename = ""
     log_enabled = 0
     infolist = weechat.infolist_get('logger_buffer','','')
     while weechat.infolist_next(infolist):
         bpointer = weechat.infolist_pointer(infolist, 'buffer')
-        if current_buffer == bpointer:
+        if ptr_buffer == bpointer:
             log_filename = weechat.infolist_string(infolist, 'log_filename')
             log_enabled = weechat.infolist_integer(infolist, 'log_enabled')
             log_level = weechat.infolist_integer(infolist, 'log_level')
@@ -133,7 +149,41 @@ def item_update(data, remaining_calls):
     weechat.bar_item_update(SCRIPT_NAME)
     return weechat.WEECHAT_RC_OK
 
+# ================================[ hook process]===============================
+def my_hook_process_cb(data, command, return_code, out, err):
+    global hook_process_out
+    if return_code == weechat.WEECHAT_HOOK_PROCESS_ERROR:
+        weechat.prnt("", "Error with command '%s'" % command)
+        return weechat.WEECHAT_RC_OK
+#    if return_code >= 0:
+#        weechat.prnt("", "return_code = %d" % return_code)
+    if out != "":
+        hook_process_out = out.split()
+    if err != "":
+        weechat.prnt("", "stderr: %s" % err)
+    return weechat.WEECHAT_RC_OK
+
 # ================================[ weechat hook ]===============================
+def window_switch_cb(data, signal, signal_data):
+    window = signal_data
+    window = weechat.current_window()
+    ptr_buffer = weechat.window_get_pointer(window,"buffer")
+    get_file_information(ptr_buffer)
+    return weechat.WEECHAT_RC_OK
+
+def buffer_switch_cb(data, signal, signal_data):
+    ptr_buffer = signal_data
+    window = weechat.current_window()
+    ptr_buffer = weechat.window_get_pointer(window,'buffer')
+    if ptr_buffer == '':
+        return ''
+    get_file_information(ptr_buffer)
+    return weechat.WEECHAT_RC_OK
+
+def hook_timer_refresh_item_cb(data, remaining_calls):
+    weechat.bar_item_update(SCRIPT_NAME)
+    return weechat.WEECHAT_RC_OK
+
 def unhook_timer():
     global hooks
     if hooks["timer"] != "":
@@ -176,19 +226,26 @@ def toggle_refresh(pointer, name, value):
 
 def init_options():
     global OPTIONS
-    for option,value in OPTIONS.items():
+
+    for option, value in list(OPTIONS.items()):
+        weechat.config_set_desc_plugin(option, '%s (default: "%s")' % (value[1], value[0]))
         if not weechat.config_is_set_plugin(option):
             weechat.config_set_plugin(option, value[0])
-            weechat.config_set_desc_plugin(option, '%s (default: "%s")' % (value[1], value[0]))
             OPTIONS[option] = value[0]
         else:
             OPTIONS[option] = weechat.config_get_plugin(option)
 # ================================[ main ]===============================
 if __name__ == "__main__":
   if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, '', ''):
+      version = weechat.info_get("version_number", "") or 0
+
       init_options()
 
-      if OPTIONS["refresh"] != 0:
+      if OPTIONS["refresh"] != "0":
           hook_timer()
-          weechat.hook_config( 'plugins.var.python.' + SCRIPT_NAME + '.*', 'toggle_refresh', '' )
-
+      else:
+          weechat.hook_signal("buffer_switch","buffer_switch_cb","")
+          weechat.hook_signal("window_switch","window_switch_cb","")
+          weechat.bar_item_new(SCRIPT_NAME, 'show_item','')
+          weechat.bar_item_update(SCRIPT_NAME)
+      weechat.hook_config( 'plugins.var.python.' + SCRIPT_NAME + '.*', 'toggle_refresh', '' )
