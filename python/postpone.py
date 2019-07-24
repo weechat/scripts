@@ -20,6 +20,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2019-07-24, Sébastien Helleu <flashcode@flashtux.org>
+#   version 0.2.4: make script compatible with Python 3
 # 2015-04-29, Colgate Minuette <rabbit@minuette.net>
 #   version 0.2.3: add option to send queued messages on /nick
 # 2013-11-08, Stefan Huber <shuber@sthu.org>
@@ -38,7 +40,7 @@ from time import strftime
 
 SCRIPT_NAME    = "postpone"
 SCRIPT_AUTHOR  = "Alexander Schremmer <alex@alexanderweb.de>"
-SCRIPT_VERSION = "0.2.3"
+SCRIPT_VERSION = "0.2.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Postpones written messages for later dispatching if target nick is not on channel"
 
@@ -118,7 +120,7 @@ if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
                     SCRIPT_DESC, "", ""):
 
     version = w.info_get('version_number', '') or 0
-    for option, default_desc in settings.iteritems():
+    for option, default_desc in settings.items():
         if not w.config_is_set_plugin(option):
             w.config_set_plugin(option, default_desc[0])
         if int(version) >= 0x00030500:
