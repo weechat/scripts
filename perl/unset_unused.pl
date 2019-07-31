@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011-2018 by Nils Görs <weechatter@arcor.de>
+# Copyright (c) 2011-2019 by Nils Görs <weechatter@arcor.de>
 #
 # unset script option(s) from not installed scripts
 #
@@ -17,6 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 #
+# 22-07-19: 0.5: fixed: scripts currently unloaded wasn't recognised (reported by squigz)
 # 18-04-18: 0.4: add support for php and javascript
 # 14-10-04: 0.3: fixed: problem with unset options (reported by GermainZ)
 # 13-07-27: 0.2: added: support for guile_script
@@ -28,12 +29,11 @@
 use strict;
 
 my $PRGNAME     = "unset_unused";
-my $VERSION     = "0.4";
+my $VERSION     = "0.5";
 my $AUTHOR      = "Nils Görs <weechatter\@arcor.de>";
 my $LICENCE     = "GPL3";
 my $DESCR       = "unset script option(s) from not installed scripts (YOU ARE USING THIS SCRIPT AT YOUR OWN RISK!)";
 my $weechat_version = "";
-my @option_list;
 my %script_plugins = (
                     "python"        => "python_script",
                     "perl"          => "perl_script",
@@ -45,8 +45,6 @@ my %script_plugins = (
                     "javascript"    => "javascript_script",
 );
 
-my $option_struct;
-my %option_struct;
 my $str;
 
 # get installed scripts
@@ -71,6 +69,8 @@ sub get_options
     my $key;
     my $number = 0;
     chop($str);
+    my $option_struct;
+    my %option_struct;
 
     foreach my $plugin (keys %script_plugins)
     {
@@ -119,6 +119,7 @@ sub my_command_cb{
   my ($getargs) = ($_[2]);
   return weechat::WEECHAT_RC_OK if ($getargs eq "");
 
+  $str = "";            # reset
   get_scripts();
 
   if ( $getargs eq "list")
