@@ -17,6 +17,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2019-07-16: nils_2, (freenode.#weechat)
+#       1.0 : fix bug when misspelled word don't have a suggestion (rafasc)
+#           : fixed typo in /help text
+#
 # 2019-03-01: nils_2, (freenode.#weechat)
 #       0.9 : fix bug with auto popup 'spell_suggestion' item (StarlitGhost)
 #
@@ -74,7 +78,7 @@ except Exception:
 
 SCRIPT_NAME     = "spell_correction"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.9"
+SCRIPT_VERSION  = "1.0"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "a spell correction script to use with spell/aspell plugin"
 
@@ -636,7 +640,10 @@ def show_spell_suggestion_item_cb (data, item, window):
 
     # localvar_aspell_suggest = word,word2/wort,wort2
     if localvar_aspell_suggest:
-        misspelled_word,aspell_suggestions = localvar_aspell_suggest.split(':')
+        try:
+            misspelled_word,aspell_suggestions = localvar_aspell_suggest.split(':')
+        except ValueError:              # maybe no suggestion for misspelled word. then go back
+            return ''
         aspell_suggestions_orig = aspell_suggestions
         aspell_suggestions = aspell_suggestions.replace('/',',')
         aspell_suggestion_list = aspell_suggestions.split(',')
@@ -689,7 +696,7 @@ Quick start:
 
 IMPORTANT:
     "%(p)s.check.suggestions" option has to be set to a value >= 0 (default: -1 (off)).
-    "%(p)s.color.misspelled" option is used to highlight current suggestion in "%(p)s-suggestion" item
+    "%(p)s.color.misspelled" option is used to highlight current suggestion in "%(p)s_suggestion" item
     Using "%(p)s.check.real_time" the nick-completion will not work. All misspelled words
     in input_line have to be replaced first.
 """ %dict(p=plugin_name, s=SCRIPT_NAME)
