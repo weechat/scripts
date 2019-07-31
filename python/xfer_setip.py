@@ -30,10 +30,13 @@
 #          - better recognition of ipv4 addresses and support of ipv6
 #          - add mute option
 #    v 0.4 - check if xfer plugin is loaded.
+#    v 0.5 - make script python3 compatible.
+
+from __future__ import print_function
 
 SCR_NAME    = "xfer_setip"
 SCR_AUTHOR  = "Stephan Huebner <shuebnerfun01@gmx.org>"
-SCR_VERSION = "0.4"
+SCR_VERSION = "0.5"
 SCR_LICENSE = "GPL3"
 SCR_DESC    = "Set apropriate xfer-option for external ip"
 SCR_COMMAND = "xfer_setip"
@@ -45,13 +48,17 @@ OPTIONS         = { 'mute'      : ('off','hide output'),
                     'url'       : ('http://checkip.dyndns.org/','url to fetch'),
                   }
 
+import re
+
+try:
+    from html.parser import HTMLParser  # Python 3
+except ImportError:
+    from HTMLParser import HTMLParser  # Python 2
+
 try:
     import weechat as w
-    from HTMLParser import HTMLParser
-    import re
-
-except:
-    print "Script must be run under weechat. http://www.weechat.org"
+except ImportError:
+    print("Script must be run under weechat. http://www.weechat.org")
     import_ok = False
 
 def alert(myString):
