@@ -17,7 +17,7 @@
 #
 #
 #
-# USAGE: Bind a key to command /flip . Then write some text at input line 
+# USAGE: Bind a key to command /flip . Then write some text at input line
 # press your key to transform it to upside down.
 
 #
@@ -36,7 +36,7 @@ import re
 
 SCRIPT_NAME    = "upside_down"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.3"
+SCRIPT_VERSION = "0.3.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Replaces text you write with upside down text"
 
@@ -104,7 +104,7 @@ replacements = {
 
 if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
                     SCRIPT_DESC, "", ""):
-    for option, default_value in settings.iteritems():
+    for option, default_value in settings.items():
         if not w.config_is_set_plugin(option):
             w.config_set_plugin(option, default_value)
     w.hook_command("flip",
@@ -125,6 +125,6 @@ def flip_cmd_cb(data, buffer, args):
         if char in replacements:
             char = replacements[char]
         outstring += char
-    outstring = outstring.encode('UTF-8')
+    # outstring = outstring.encode('UTF-8')
     w.buffer_set(w.current_buffer(), 'input', outstring)
     return w.WEECHAT_RC_OK

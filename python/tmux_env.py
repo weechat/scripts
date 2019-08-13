@@ -47,7 +47,7 @@ import weechat as w
 
 SCRIPT_NAME    = "tmux_env"
 SCRIPT_AUTHOR  = "Aron Griffis <agriffis@n01se.net>"
-SCRIPT_VERSION = "2"
+SCRIPT_VERSION = "2.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Update weechat environment from tmux"
 
@@ -58,7 +58,7 @@ settings = {
     # environment updates, not removals. For removals, include the variable
     # name prefixed by a minus sign. For example, to add/remove exclusively
     # the DISPLAY variable, include="DISPLAY,-DISPLAY"
-    # 
+    #
     # Globs are also accepted, so you can ignore all variable removals with
     # exclude="-*"
 
@@ -95,7 +95,7 @@ def timer_cb(buffer, args):
 def update_environment():
     """Updates environment from tmux showenv"""
 
-    env = subprocess.check_output(['tmux', 'showenv'])
+    env = subprocess.check_output(['tmux', 'showenv']).decode('UTF-8')
     for line in env.splitlines():
         name = line.split('=', 1)[0]
         if check_include(name) and not check_exclude(name):
@@ -135,7 +135,7 @@ def remove_env(name):
 
 if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
         SCRIPT_DESC, '', ''):
-    for option, default_value in settings.iteritems():
+    for option, default_value in settings.items():
         if not w.config_is_set_plugin(option):
             w.config_set_plugin(option, default_value)
 
