@@ -88,7 +88,7 @@
 
 SCRIPT_NAME    = "country"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.6"
+SCRIPT_VERSION = "0.6.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Prints user's country and local time in whois replies"
 SCRIPT_COMMAND = "country"
@@ -98,8 +98,8 @@ try:
     from weechat import WEECHAT_RC_OK, prnt
     import_ok = True
 except ImportError:
-    print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print("This script must be run under WeeChat.")
+    print("Get WeeChat now at: http://www.weechat.org/")
     import_ok = False
 
 try:
@@ -229,7 +229,7 @@ def update_database():
             "   fd = open(temp, 'w')\n"
             "   fd.write(zip.read())\n"
             "   fd.close()\n"
-            "   print 'Download complete, uncompressing...'\n"
+            "   print('Download complete, uncompressing...')\n"
             "   zip = zipfile.ZipFile(temp)\n"
             "   try:\n"
             "       zip.extractall(path='%(script_dir)s')\n"
@@ -238,8 +238,8 @@ def update_database():
             "       fd.write(zip.read('%(database_file)s'))\n"
             "       fd.close()\n"
             "   os.remove(temp)\n"
-            "except Exception, e:\n"
-            "   print >>sys.stderr, e\n\"" % {'url':database_url,
+            "except Exception as e:\n"
+            "   print(e, file=sys.stderr)\n\"" % {'url':database_url,
                                               'script_dir':script_dir,
                                               'ip_database':ip_database,
                                               'database_file':database_file
@@ -278,9 +278,9 @@ def get_ip_process(host):
             "import socket, sys\n"
             "try:\n"
             "   ip = socket.gethostbyname('%(host)s')\n"
-            "   print ip\n"
-            "except Exception, e:\n"
-            "   print >>sys.stderr, e\n\"" %{'host':host},
+            "   print(ip)\n"
+            "except Exception as e:\n"
+            "   print(e, file=sys.stderr)\n\"" %{'host':host},
             timeout, 'get_ip_process_cb', '')
 
 def get_ip_process_cb(data, command, rc, stdout, stderr):
@@ -372,7 +372,7 @@ def get_ip_from_user(user):
 
 def sum_ip(ip):
     """Converts the ip number from dot-decimal notation to decimal."""
-    L = map(int, ip.split('.'))
+    L = list(map(int, ip.split('.')))
     return L[0]*16777216 + L[1]*65536 + L[2]*256 + L[3]
 
 unknown = ('--', 'unknown')
@@ -396,14 +396,14 @@ def search_in_database(ip):
             mid = (max + min)/2
             fd.seek(mid)
             fd.readline() # move cursor to next line
-            _, _, low, high, code, country = reader.next()
+            _, _, low, high, code, country = next(reader)
             if low == last_low and high == last_high:
                 break
-            if n < long(low):
+            if n < int(low):
                 max = mid
-            elif n > long(high):
+            elif n > int(high):
                 min = mid
-            elif n > long(low) and n < long(high):
+            elif n > int(low) and n < int(high):
                 return (code, country)
             else:
                 break
@@ -540,7 +540,7 @@ if import_ok and weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SC
             'update||%(nick)', 'cmd_country', '')
 
     # settings
-    for opt, val in settings.iteritems():
+    for opt, val in settings.items():
         if not weechat.config_is_set_plugin(opt):
             weechat.config_set_plugin(opt, val)
 
