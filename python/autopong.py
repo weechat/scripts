@@ -33,47 +33,50 @@
 #   2019-02-08, Evgeni Golov <evgeni@golov.de>:
 #       v0.3: Only reply to public messages that only contain the word "ping",
 #             not words ending in "ping" or sentences ending in "ping".
+#   2019-8-21, R. Heisenburg <Heisenburg01@protonmail.com>
+#       v0.4: Altered to allow for Python 3
 #
+from __future__ import print_function
 
 import re
 
-SCRIPT_NAME    = "autopong"
-SCRIPT_AUTHOR  = "Wil Clouser <clouserw@micropipes.com>"
-SCRIPT_VERSION = "0.3"
+SCRIPT_NAME = "autopong"
+SCRIPT_AUTHOR = "Wil Clouser <clouserw@micropipes.com>"
+SCRIPT_VERSION = "0.4"
 SCRIPT_LICENSE = "MIT"
-SCRIPT_DESC    = "Auto-replies to 'ping' queries"
+SCRIPT_DESC = "Auto-replies to 'ping' queries"
 
 import_ok = True
 
 # This can be changed with `/set plugins.var.python.autopong.reply_text`
 defaults = {
-  "reply_text": "pong (https://blogs.gnome.org/markmc/2014/02/20/naked-pings/)"
+    "reply_text": "pong (https://blogs.gnome.org/markmc/2014/02/20/naked-pings/)"
 }
 
 try:
-   import weechat as w
+    import weechat as w
 except:
-   print "Script must be run under weechat. http://www.weechat.org"
-   import_ok = False
+    print("Script must be run under weechat. http://www.weechat.org")
+    import_ok = False
 
 
 def msg_cb(data, buffer, date, tags, displayed, is_hilight, prefix, msg):
-  reply = w.config_get_plugin('reply_text')
-  if not w.buffer_get_string(buffer, "localvar_type") == "private":
-    reply = prefix + ": " + reply
-    if is_hilight and re.match(r'^\S*\s?\bping$', msg):
-      w.command(buffer, reply)
-  elif msg == 'ping':
-      w.command(buffer, reply)
+    reply = w.config_get_plugin('reply_text')
+    if not w.buffer_get_string(buffer, "localvar_type") == "private":
+        reply = prefix + ": " + reply
+        if is_hilight and re.match(r'^\S*\s?\bping$', msg):
+            w.command(buffer, reply)
+    elif msg == 'ping':
+        w.command(buffer, reply)
 
-  return w.WEECHAT_RC_OK
+    return w.WEECHAT_RC_OK
 
-if __name__ == "__main__" and import_ok:
-  if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
-                SCRIPT_DESC, "", ""):
-    for k, v in defaults.iteritems():
-      if not w.config_is_set_plugin(k):
-        w.config_set_plugin(k, v)
+
+if __name__ == "__main__" and import_ok and w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
+                                                       SCRIPT_DESC, "", ""):
+    for k, v in defaults.items():
+        if not w.config_is_set_plugin(k):
+            w.config_set_plugin(k, v)
 
     w.hook_print("", "notify_message", "ping", 1, "msg_cb", "")
     w.hook_print("", "notify_private", "ping", 1, "msg_cb", "")
