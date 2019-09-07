@@ -11,6 +11,8 @@
 #
 # ### changelog ###
 #
+#  * version 1.2 (Sébastien Helleu <flashcode@flashtux.org>)
+#      - make script compatible with Python 3
 #  * version 1.1 (CrazyCat <crazycat@c-p-f.org>)
 #      - add a way to manage NickServ nick and host
 #  * version 1.0 (Simmo Saan <simmo.saan@gmail.com>)
@@ -44,8 +46,9 @@
 #
 # =============================================================================
 
+from __future__ import print_function
 
-VERSION="1.1"
+VERSION="1.2"
 NAME="autoauth"
 AUTHOR="Kolter"
 
@@ -54,8 +57,8 @@ DELIMITER="|@|"
 import_ok = True
 try:
     import weechat
-except:
-    print "Script must be run under weechat. http://www.weechat.org"
+except ImportError:
+    print("Script must be run under weechat. https://weechat.org/")
     import_ok = False
 
 import re
