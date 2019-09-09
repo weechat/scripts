@@ -31,6 +31,10 @@
 #
 #
 #   History:
+#   2019-08-20
+#   version 0.3: Ben Harris (benharri)
+#   * port for python3
+#
 #   2010-05-08
 #   version 0.2:
 #   * complete any word behind the cursor, not just the last one in input line.
@@ -46,13 +50,13 @@ try:
     WEECHAT_RC_OK = weechat.WEECHAT_RC_OK
     import_ok = True
 except ImportError:
-    print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print("This script must be run under WeeChat.")
+    print("Get WeeChat now at: http://www.weechat.org/")
     import_ok = False
 
 SCRIPT_NAME    = "completion"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Word completions for WeeChat"
 SCRIPT_COMMAND = "completion"
@@ -63,16 +67,6 @@ settings = {
 }
 
 ### Messages ###
-def decode(s):
-    if isinstance(s, str):
-        s = s.decode('utf-8')
-    return s
-
-def encode(u):
-    if isinstance(u, unicode):
-        u = u.encode('utf-8')
-    return u
-
 def debug(s, prefix='', buffer=None):
     """Debug msg"""
     #if not weechat.config_get_plugin('debug'): return
@@ -84,13 +78,11 @@ def debug(s, prefix='', buffer=None):
             weechat.buffer_set(buffer, 'nicklist', '0')
             weechat.buffer_set(buffer, 'time_for_each_line', '0')
             weechat.buffer_set(buffer, 'localvar_set_no_log', '1')
-    s = encode(s)
     weechat.prnt(buffer, '%s\t%s' %(prefix, s))
 
 def error(s, prefix=None, buffer='', trace=''):
     """Error msg"""
     prefix = prefix or script_nick
-    s = encode(s)
     weechat.prnt(buffer, '%s%s %s' %(weechat.prefix('error'), prefix, s))
     if weechat.config_get_plugin('debug'):
         if not trace:
@@ -102,67 +94,34 @@ def error(s, prefix=None, buffer='', trace=''):
 def say(s, prefix=None, buffer=''):
     """normal msg"""
     prefix = prefix or script_nick
-    s = encode(s)
     weechat.prnt(buffer, '%s\t%s' %(prefix, s))
 
 print_replace = lambda k,v : say('%s %s=>%s %s' %(k, color_delimiter, color_reset, v))
 
 ### Config functions ###
-class UTFDict(dict):
-    decode = staticmethod(decode)
-    encode = staticmethod(encode)
-
-    def __init__(self, d={}):
-        dict.__init__(self)
-        for k, v in d.iteritems():
-            self[k] = v
-
-    def __setitem__(self, k, v):
-        k = self.decode(k)
-        v = self.decode(v)
-        dict.__setitem__(self, k, v)
-
-    def __getitem__(self, k):
-        k = self.decode(k)
-        return dict.__getitem__(self, k)
-
-    def __delitem__(self, k):
-        k = self.decode(k)
-        dict.__delitem__(self, k)
-
-    def __contains__(self, k):
-        k = self.decode(k)
-        return dict.__contains__(self, k)
-
-    def __str__(self):
-        values = [ '%s=>%s' %(k, v) for k, v in self.iteritems() ]
-        values = ';;'.join(values)
-        return self.encode(values)
-
-
 def get_config_dict(config):
     value = weechat.config_get_plugin(config)
     if not value:
         return {}
-    values = value.split(';;')
-    values = map(lambda s: s.split('=>'), values)
+    values = [s.split('=>') for s in value.split(';;')]
     #debug(values)
     return dict(values)
 
 def load_replace_table():
     global replace_table
-    replace_table = UTFDict(get_config_dict('replace_values'))
+    replace_table = dict(get_config_dict('replace_values'))
 
 def save_replace_table():
     global replace_table
-    weechat.config_set_plugin('replace_values', str(replace_table))
+    weechat.config_set_plugin('replace_values',
+            ';;'.join(['%s=>%s' %(k, v) for k, v in replace_table.items()]))
 
 ### Commands ###
 def cmd_completion(data, buffer, args):
     global replace_table
     if not args:
         if replace_table:
-            for k, v in replace_table.iteritems():
+            for k, v in replace_table.items():
                 print_replace(k, v)
         else:
             say('No completions.')
@@ -189,7 +148,7 @@ def cmd_completion(data, buffer, args):
 def completion_replacer(data, completion_item, buffer, completion):
     global replace_table
     pos = weechat.buffer_get_integer(buffer, 'input_pos')
-    input = decode(weechat.buffer_get_string(buffer, 'input'))
+    input = weechat.buffer_get_string(buffer, 'input')
     #debug('%r %s %s' %(input, len(input), pos))
     if pos > 0 and (pos == len(input) or input[pos] == ' '):
         n = input.rfind(' ', 0, pos)
@@ -202,14 +161,14 @@ def completion_replacer(data, completion_item, buffer, completion):
                 replace += ' '
             n = len(word)
             input = '%s%s%s' %(input[:pos-n], replace, input[pos:])
-            weechat.buffer_set(buffer, 'input', encode(input))
+            weechat.buffer_set(buffer, 'input', input)
             weechat.buffer_set(buffer, 'input_pos', str(pos - n + len(replace)))
     return WEECHAT_RC_OK
 
 def completion_keys(data, completion_item, buffer, completion):
     global replace_table
     for k in replace_table:
-        weechat.hook_completion_list_add(completion, encode(k), 0, weechat.WEECHAT_LIST_POS_SORT)
+        weechat.hook_completion_list_add(completion, k, 0, weechat.WEECHAT_LIST_POS_SORT)
     return WEECHAT_RC_OK
 
 ### Main ###
@@ -231,7 +190,7 @@ if __name__ == '__main__' and import_ok and \
         error('WeeChat 0.3.1 or newer is required for this script.')
     else:
         # settings
-        for opt, val in settings.iteritems():
+        for opt, val in settings.items():
             if not weechat.config_is_set_plugin(opt):
                 weechat.config_set_plugin(opt, val)
 
