@@ -27,7 +27,7 @@ weechat = w
 
 SCRIPT_NAME    = "ws_replace"
 SCRIPT_AUTHOR  = "mccloud"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.1.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Remove leading and trailing whitespace before sending"
 
@@ -39,7 +39,7 @@ settings = {
 
 if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
                     SCRIPT_DESC, "", ""):
-    for option, default_value in settings.iteritems():
+    for option, default_value in settings.items():
         if w.config_get_plugin(option) == "":
             w.config_set_plugin(option, default_value)
 
@@ -48,7 +48,7 @@ if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
         "input" : ("/input return",  "command_run_input"),
     }
     # Hook all hooks !
-    for hook, value in hook_command_run.iteritems():
+    for hook, value in hook_command_run.items():
         w.hook_command_run(value[0], value[1], "")
 
 
