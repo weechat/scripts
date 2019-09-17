@@ -17,8 +17,8 @@
 try:
     import weechat
 except Exception:
-    print 'This script must be run under WeeChat.'
-    print 'Get WeeChat now at: http://www.weechat.org/'
+    print('This script must be run under WeeChat.')
+    print('Get WeeChat now at: http://www.weechat.org/')
     import_ok = False
 
 import time
@@ -26,7 +26,7 @@ import re
 
 SCRIPT_NAME     = 'unhighlight'
 SCRIPT_AUTHOR   = 'xiagu'
-SCRIPT_VERSION  = '0.1.1'
+SCRIPT_VERSION  = '0.2.0'
 SCRIPT_LICENSE  = 'GPL3'
 SCRIPT_DESC     = 'Allows per-buffer specification of a regex that prevents highlights.'
 
