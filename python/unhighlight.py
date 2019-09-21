@@ -14,11 +14,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import print_function
+
 try:
     import weechat
 except Exception:
-    print 'This script must be run under WeeChat.'
-    print 'Get WeeChat now at: http://www.weechat.org/'
+    print('This script must be run under WeeChat.')
+    print('Get WeeChat now at: https://weechat.org/')
     import_ok = False
 
 import time
@@ -26,7 +28,7 @@ import re
 
 SCRIPT_NAME     = 'unhighlight'
 SCRIPT_AUTHOR   = 'xiagu'
-SCRIPT_VERSION  = '0.1.1'
+SCRIPT_VERSION  = '0.1.2'
 SCRIPT_LICENSE  = 'GPL3'
 SCRIPT_DESC     = 'Allows per-buffer specification of a regex that prevents highlights.'
 
