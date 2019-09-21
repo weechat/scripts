@@ -4,13 +4,16 @@
 
 import re
 
-from itertools import izip_longest
+try:
+    from itertools import zip_longest
+except ImportError:
+    from itertools import izip_longest as zip_longest
 
 import weechat
 
 SCRIPT_NAME    = "topicdiff"
 SCRIPT_AUTHOR  = "Dafydd Harries <daf@rhydd.org>"
-SCRIPT_VERSION = "0.3"
+SCRIPT_VERSION = "0.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Show differences between old and new topics."
 
@@ -25,7 +28,7 @@ def topic_changed(buffer, new_topic):
         old_chunks = topic_chunks(topics[buffer])
         new_chunks = topic_chunks(new_topic)
 
-        for old_chunk, new_chunk in izip_longest(old_chunks, new_chunks):
+        for old_chunk, new_chunk in zip_longest(old_chunks, new_chunks):
             if old_chunk and old_chunk not in new_chunks:
                 weechat.prnt(buffer, '%s-\t%s' % (
                     weechat.color('red'),
