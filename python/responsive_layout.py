@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2014  Stefan Wold <ratler@stderr.eu>
+# Copyright (C) 2014 - 2019  Stefan Wold <ratler@stderr.eu>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,10 +25,11 @@
 # Commands:
 #  /rlayout
 
+from __future__ import print_function
 
 SCRIPT_NAME    = "responsive_layout"
 SCRIPT_AUTHOR  = "Stefan Wold <ratler@stderr.eu>"
-SCRIPT_VERSION = "0.7"
+SCRIPT_VERSION = "0.8"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Responsive layout will automatically apply layouts based on the terminals current size."
 SCRIPT_COMMAND = "rlayout"
@@ -46,14 +47,14 @@ import_ok = True
 try:
     import weechat
 except ImportError:
-    print "This script must be run under WeeChat."
+    print("This script must be run under WeeChat.")
     import_ok = False
 
 try:
     import re
     from operator import itemgetter
 except ImportError as err:
-    print "Missing module(s) for %s: %s" % (SCRIPT_NAME, err)
+    print("Missing module(s) for %s: %s" % (SCRIPT_NAME, err))
     import_ok = False
 
 
