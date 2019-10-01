@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2013 - 2018  Stefan Wold <ratler@stderr.eu>
+# Copyright (C) 2013 - 2019  Stefan Wold <ratler@stderr.eu>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -33,10 +33,11 @@
 #  /uotp enable <server>
 #  /uotp disable <server>
 
+from __future__ import print_function
 
 SCRIPT_NAME    = "undernet_totp"
 SCRIPT_AUTHOR  = "Stefan Wold <ratler@stderr.eu>"
-SCRIPT_VERSION = "0.4.0"
+SCRIPT_VERSION = "0.4.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Automatic OTP (OATH-TOTP) authentication with UnderNET's channel services (X) and Login on Connect (LoC)."
 SCRIPT_COMMAND = "uotp"
@@ -53,10 +54,11 @@ import_ok = True
 try:
     import weechat
 except ImportError:
-    print "This script must be run under WeeChat."
+    print("This script must be run under WeeChat.")
     import_ok = False
 
 try:
+    import sys
     import hmac
     import re
     from base64 import b32decode
@@ -65,7 +67,7 @@ try:
     from time import time
     from binascii import unhexlify
 except ImportError as err:
-    print "Missing module(s) for %s: %s" % (SCRIPT_NAME, err)
+    print("Missing module(s) for %s: %s" % (SCRIPT_NAME, err))
     import_ok = False
 
 
@@ -193,9 +195,14 @@ def generate_totp(server, period=30, buffer=""):
     else:
         seed = b32decode(seed.replace(" ", ""), True)
 
+    def _ord(b):
+        if sys.version_info[0] < 3 or type(b) == str:
+            return ord(b)
+        return b
+
     t = pack(">Q", int(time() / period))
     _hmac = hmac.new(seed, t, sha1).digest()
-    o = ord(_hmac[19]) & 15
+    o = _ord(_hmac[19]) & 15
     otp = (unpack(">I", _hmac[o:o+4])[0] & 0x7fffffff) % 1000000
 
     return '%06d' % otp
