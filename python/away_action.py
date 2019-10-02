@@ -40,6 +40,8 @@
 #
 #
 #   History:
+#   2019-10-02:
+#   version 0.6: make compatible with python 3
 #   2014-05-10:
 #   version 0.5: change hook_print callback argument type of
 #                displayed/highlight (WeeChat >= 1.0)
@@ -54,9 +56,11 @@
 #
 ###
 
+from __future__ import print_function
+
 SCRIPT_NAME    = "away_action"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.5"
+SCRIPT_VERSION = "0.6"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Run command on highlight and privmsg when away"
 
@@ -79,8 +83,8 @@ try:
     import_ok = True
     from fnmatch import fnmatch
 except:
-    print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print("This script must be run under WeeChat.")
+    print("Get WeeChat now at: http://www.weechat.org/")
     import_ok = False
 
 class Ignores(object):
@@ -169,7 +173,7 @@ if __name__ == '__main__' and import_ok and \
         '', ''):
 
 
-    for opt, val in settings.iteritems():
+    for opt, val in settings.items():
         if not weechat.config_is_set_plugin(opt):
             weechat.config_set_plugin(opt, val)
 
