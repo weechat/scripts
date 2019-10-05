@@ -39,6 +39,9 @@
 # 2019-05-09: nils_2, (freenode.#weechat)
 #       0.6 : fix hiding of channel buffer when private buffer opens
 #
+# 2019-09-06: nils_2, (freenode.#weechat)
+#       0.7 : fix: ignore "slack" for signal "buffer_switch"
+#
 # idea and testing by DJ-ArcAngel
 
 try:
@@ -51,7 +54,7 @@ except Exception:
 
 SCRIPT_NAME     = "collapse_channel"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.6"
+SCRIPT_VERSION  = "0.7"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "collapse channel buffers from servers without focus"
 
@@ -100,6 +103,11 @@ def buffer_opened_closed_cb(data, signal, signal_data):
 # ============================[ buffer_switch ]===========================
 def buffer_switch_cb(data, signal, signal_data):
     global OPTIONS, version
+
+    plugin_name = weechat.buffer_get_string(signal_data, 'localvar_plugin')     # get plugin
+    script_name = weechat.buffer_get_string(signal_data, 'localvar_script_name')
+    if script_name == "slack":                                                  # script don't support slack yet
+        return weechat.WEECHAT_RC_OK
 
     # when you /join a buffer and irc.look.buffer_switch_join is ON, the new buffer pointer is not useable at this time
     server = weechat.buffer_get_string(signal_data, 'localvar_server')          # get internal servername
