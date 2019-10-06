@@ -48,7 +48,10 @@
 #
 # 2018-08-09, Julien Palard <julien@palard.fr>
 #     version 0.3.0: Support for Python 3
-
+#
+# 2019-09-28, fructose
+#     version 0.3.1: Error on invalid arguments
+#
 # @TODO: add options to ignore certain buffers
 # @TODO: maybe add an option to enable autosaving on part/join messages
 
@@ -57,7 +60,7 @@ import re
 
 SCRIPT_NAME    = "autojoin"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.3.0"
+SCRIPT_VERSION = "0.3.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Configure autojoin for all servers according to currently joined channels"
 SCRIPT_COMMAND = "autojoin"
@@ -77,14 +80,15 @@ if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT
                    "autojoin_cb",
                    "")
 
-    #w.hook_signal('*,irc_in2_join', 'autosave_channels_on_activity', '')
-    #w.hook_signal('*,irc_in2_part', 'autosave_channels_on_activity', '')
+    # w.hook_signal('*,irc_in2_join', 'autosave_channels_on_activity', '')
+    # w.hook_signal('*,irc_in2_part', 'autosave_channels_on_activity', '')
     w.hook_signal('quit',           'autosave_channels_on_quit', '')
 
 # Init everything
 for option, default_value in settings.items():
     if w.config_get_plugin(option) == "":
         w.config_set_plugin(option, default_value)
+
 
 def autosave_channels_on_quit(signal, callback, callback_data):
     ''' Autojoin current channels '''
@@ -114,23 +118,27 @@ def autosave_channels_on_activity(signal, callback, callback_data):
         pattern = "^:%s!.*(JOIN|PART) :?(#[^ ]*)( :.*$)?" % nick
         match = re.match(pattern, callback_data)
 
-        if match: # check if nick is my nick. In that case: save
+        if match:  # check if nick is my nick. In that case: save
             process_server(server, channels)
-        else: # someone else: ignore
+        else:  # someone else: ignore
             continue
 
     return w.WEECHAT_RC_OK
 
-def autojoin_cb(data, buffer, args):
-    """Old behaviour: doesn't save empty channel list"""
-    """In fact should also save open buffers with a /part'ed channel"""
-    """But I can't believe somebody would want that behaviour"""
-    items = find_channels()
 
+def autojoin_cb(data, buffer, args):
     if args == '--run':
         run = True
+    elif args != '':
+        w.prnt('', 'Unexpected argument: %s' % args)
+        return w.WEECHAT_RC_ERROR
     else:
         run = False
+
+    # Old behaviour: doesn't save empty channel list
+    # In fact should also save open buffers with a /part'ed channel
+    # But I can't believe somebody would want that behaviour
+    items = find_channels()
 
     # print/execute commands
     for server, channels in items.items():
@@ -138,30 +146,32 @@ def autojoin_cb(data, buffer, args):
 
     return w.WEECHAT_RC_OK
 
+
 def process_server(server, channels, run=True):
-        option   = "irc.server.%s.autojoin" % server
-        channels = channels.rstrip(',')
-        oldchans = w.config_string(w.config_get(option))
+    option = "irc.server.%s.autojoin" % server
+    channels = channels.rstrip(',')
+    oldchans = w.config_string(w.config_get(option))
 
-        if not channels: # empty channel list
-            return
+    if not channels:  # empty channel list
+        return
 
-        # Note: re already caches the result of regexp compilation
-        sec = re.match('^\${sec\.data\.(.*)}$', oldchans)
-        if sec:
-            secvar = sec.group(1)
-            command = "/secure set %s %s" % (secvar, channels)
-        else:
-            command = "/set irc.server.%s.autojoin '%s'" % (server, channels)
+    # Note: re already caches the result of regexp compilation
+    sec = re.match('^\${sec\.data\.(.*)}$', oldchans)
+    if sec:
+        secvar = sec.group(1)
+        command = "/secure set %s %s" % (secvar, channels)
+    else:
+        command = "/set irc.server.%s.autojoin '%s'" % (server, channels)
 
-        if run:
-            w.command('', command)
-        else:
-            w.prnt('', command)
+    if run:
+        w.command('', command)
+    else:
+        w.prnt('', command)
+
 
 def find_channels():
     """Return list of servers and channels"""
-    #@TODO: make it return a dict with more options like "nicks_count etc."
+    # TODO: make it return a dict with more options like "nicks_count etc."
     items = {}
     infolist = w.infolist_get('irc_server', '', '')
     # populate servers
@@ -175,18 +185,18 @@ def find_channels():
         keys = []
         keyed_channels = []
         unkeyed_channels = []
-        items[server] = '' #init if connected but no channels
+        items[server] = ''  # init if connected but no channels
         infolist = w.infolist_get('irc_channel', '',  server)
         while w.infolist_next(infolist):
             if w.infolist_integer(infolist, 'nicks_count') == 0:
-                #parted but still open in a buffer: bit hackish
+                # parted but still open in a buffer: bit hackish
                 continue
             if w.infolist_integer(infolist, 'type') == 0:
                 key = w.infolist_string(infolist, "key")
                 if len(key) > 0:
                     keys.append(key)
                     keyed_channels.append(w.infolist_string(infolist, "name"))
-                else :
+                else:
                     unkeyed_channels.append(w.infolist_string(infolist, "name"))
         items[server] = ','.join(keyed_channels + unkeyed_channels)
         if len(keys) > 0:
@@ -194,4 +204,3 @@ def find_channels():
         w.infolist_free(infolist)
 
     return items
-
