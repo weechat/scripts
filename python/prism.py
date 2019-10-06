@@ -8,6 +8,8 @@
 # TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
 #
 # 0. You just DO WHAT THE FUCK YOU WANT TO.
+# 2019-08-24, simonpatapon <simon@patapon.lol>
+#    v0.2.12: make the script compatible with python 3
 # 2017-06-28, Aoede <eevee@posteo.eu>
 #    v0.2.11: add -k switch to add black background
 # 2015-11-16, wowaname <wowaname@volatile.ch>
@@ -32,11 +34,12 @@
 import weechat as w
 import random
 import re
+import sys
 
 
 SCRIPT_NAME    = "prism"
 SCRIPT_AUTHOR  = "Alex Barrett <al.barrett@gmail.com>"
-SCRIPT_VERSION = "0.2.11"
+SCRIPT_VERSION = "0.2.12"
 SCRIPT_LICENSE = "WTFPL"
 SCRIPT_DESC    = "Taste the rainbow."
 
@@ -72,21 +75,39 @@ if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION,
                    "        eg. -c : /topic :howdy howdy howdy\n"
                    "  text: text to be colored",
                    "-r|-w|-m|-b|-e|-c", "prism_cmd_cb", "")
+
+
 def find_another_color(colorCode):
-    otherColor = (unicode(colors[random.randint(1, color_count - 1) % color_count]).rjust(2, "0"))
+    otherColor = (str(colors[random.randint(1, color_count - 1) % color_count]).rjust(2, "0"))
+    try:
+        otherColor = otherColor.decode('utf-8')
+    except AttributeError:
+        pass
     while (otherColor == colorCode):
-        otherColor = (unicode(colors[random.randint(1, color_count - 1) % color_count]).rjust(2, "0"))
+        otherColor = (str(colors[random.randint(1, color_count - 1) % color_count]).rjust(2, "0"))
+        try:
+            otherColor = otherColor.decode('utf-8')
+        except AttributeError:
+            pass
     return otherColor
+
 
 def prism_cmd_cb(data, buffer, args):
     global color_index
 
-    input = args.decode("UTF-8")
+    try:
+        input = args.decode('utf-8')
+    except AttributeError:
+        input = args
+
     input_method = "command"
 
     if not input or (input[0] == '-' and input.find(' ') == -1):
         input = (input + ' ' if input else '') + w.buffer_get_string(buffer, "input")
-        input = input.decode("UTF-8")
+        try:
+            input = input.decode('utf-8')
+        except AttributeError:
+            pass
         input_method = "keybinding"
 
     if not input:
@@ -96,30 +117,36 @@ def prism_cmd_cb(data, buffer, args):
     opts = input[1:optstop] if optstop else ''
     cmdstop = 'c' in opts and input.find(' ', optstop+1)
     cmd = ''
-    if 'm' in opts: cmd = '/me '
+    if 'm' in opts:
+        cmd = '/me '
     if 'c' in opts:
         find = input[optstop+1:cmdstop]
         where = input.find(find, cmdstop+1)
         cmd = input[cmdstop+1:where]
         input = input[where+len(find):]
-    else: input = input[optstop+bool(optstop):]
+    else:
+        input = input[optstop+bool(optstop):]
     regex = regex_words if 'w' in opts else regex_chars
     inc = 'r' not in opts
     bs = 'e' in opts
     k = 'k' in opts
     input = input[::-1] if 'b' in opts else input
 
-    output = u""
+    output = ""
     tokens = re.findall(regex, input)
     for token in tokens:
         # prefix each token with a color code
-        color_code = unicode(colors[color_index % color_count]).rjust(2, "0")
+        color_code = str(colors[color_index % color_count]).rjust(2, "0")
+        try:
+            color_code = color_code.decode('utf-8')
+        except AttributeError:
+            pass
         if bs == 1:
-            output += u'\x03' + color_code + ',' + find_another_color(color_code) + token
+            output += '\x03' + color_code + ',' + find_another_color(color_code) + token
         elif k == 1:
-            output += u'\x03' + color_code + ',' + '1'.rjust(2, "0") + token
+            output += '\x03' + color_code + ',' + '1'.rjust(2, "0") + token
         else:
-            output += u"\x03" + color_code  + token
+            output += "\x03" + color_code  + token
 
         # select the next color or another color at
         # random depending on the options specified
@@ -127,7 +154,7 @@ def prism_cmd_cb(data, buffer, args):
             color_index += random.randint(1, color_count - 1)
         else:
             color_index += inc
-    output += u'\x0f'
+    output += '\x0f'
 
     # output starting with a / will be executed as a
     # command unless we escape it with a preceding /
@@ -136,8 +163,10 @@ def prism_cmd_cb(data, buffer, args):
         output = "/" + output
     if len(cmd) > 0:
         output = cmd + output
+    if sys.version_info < (3, ):
+        output = output.encode('utf-8')
     if input_method == "keybinding":
-        w.buffer_set(buffer, "input", output.encode("UTF-8"))
+        w.buffer_set(buffer, "input", output)
     else:
-        w.command(buffer, output.encode("UTF-8"))
+        w.command(buffer, output)
     return w.WEECHAT_RC_OK
