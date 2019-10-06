@@ -17,9 +17,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import print_function
+
 SCRIPT_NAME    = "autoconnect"
 SCRIPT_AUTHOR  = "arno <arno@renevier.net>"
-SCRIPT_VERSION = "0.3.2"
+SCRIPT_VERSION = "0.3.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "reopens servers and channels opened last time weechat closed"
 SCRIPT_COMMAND = "autoconnect"
@@ -27,8 +29,8 @@ SCRIPT_COMMAND = "autoconnect"
 try:
     import weechat
 except:
-    print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print("This script must be run under WeeChat.")
+    print("Get WeeChat now at: https://weechat.org/")
     quit()
 
 
