@@ -1549,7 +1549,7 @@ def cmd_logs(data, buffer, args):
     if get_config_boolean('clear_buffer'):
         weechat.buffer_clear(buffer)
     file_list = zip(file_list, file_sizes)
-    msg = 'Found %s logs.' %len(file_list)
+    msg = 'Found %s logs.' % len(list(file_list))
 
     print_line(msg, buffer, display=True)
     for file, size in file_list:
