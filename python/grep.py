@@ -1741,8 +1741,11 @@ Examples:
             debug = pybuffer.debugBuffer(globals(), '%s_debug' % SCRIPT_NAME)
         except:
             def debug(s, *args):
-                if not isinstance(s, basestring):
-                    s = str(s)
+                try:
+                    if not isinstance(s, basestring):
+                        s = str(s)
+                except NameError:
+                    pass
                 if args:
                     s = s %args
                 prnt('', '%s\t%s' %(script_nick, s))
