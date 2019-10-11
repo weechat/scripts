@@ -69,6 +69,9 @@
 #
 #   History:
 #
+#   2019-10-11, hexa-
+#   version 0.8.3: correct a few more python3 errors
+#
 #   2019-06-30, dabbill <dabbill@gmail.com>
 #               and Sébastien Helleu <flashcode@flashtux.org>
 #   version 0.8.2: make script compatible with Python 3
@@ -230,7 +233,7 @@ except ImportError:
 
 SCRIPT_NAME    = "grep"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.8.2"
+SCRIPT_VERSION = "0.8.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Search in buffers and logs"
 SCRIPT_COMMAND = "grep"
