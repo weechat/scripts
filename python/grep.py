@@ -596,7 +596,10 @@ def get_file_by_name(buffer_name):
             if '$server' in mask:
                 mask = mask.replace('$server', server)
         # change the unreplaced vars by '*'
-        from string import letters
+        try:
+            from string import letters
+        except ImportError:
+            from string import ascii_letters as letters
         if '%' in mask:
             # vars for time formatting
             mask = mask.replace('%', '$')
