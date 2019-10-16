@@ -20,6 +20,8 @@
 #
 # History:
 #
+# 2019-10-16, Benjamin Neff <info@benjaminneff.ch>:
+#     version 1.8: - add python 3 support
 # 2009-10-26, Benjamin Neff <info@benjaminneff.ch>:
 #     version 1.7.3: - Bugfix ( "/me" --> "output_nothing" ) 2
 # 2009-10-25, Benjamin Neff <info@benjaminneff.ch>:
@@ -37,9 +39,11 @@
 #     version 1.5: initial release / port to weechat 0.3.0
 #
 
+from __future__ import print_function
+
 SCRIPT_NAME    = "moc_control"
 SCRIPT_AUTHOR  = "SuperTux88 (Benjamin Neff) <info@benjaminneff.ch>"
-SCRIPT_VERSION = "1.7.3"
+SCRIPT_VERSION = "1.8"
 SCRIPT_LICENSE = "GPL2"
 SCRIPT_DESC    = "moc control and now playing script for Weechat"
 
@@ -50,16 +54,16 @@ import_ok      = True
 try:
     import weechat
 except ImportError:
-    print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print("This script must be run under WeeChat.")
+    print("Get WeeChat now at: https://weechat.org/")
     import_ok = False
 
 try:
     import os
     import subprocess
     import traceback
-except ImportError, message:
-    print "Missing package(s) for %s: %s" % (SCRIPT_NAME, message)
+except ImportError as message:
+    print('Missing package(s) for {}: {}'.format(SCRIPT_NAME, message))
     import_ok = False
 
 # =================================[ config ]=================================
@@ -316,13 +320,13 @@ def _execute_command(cmd):
     """execute a command"""
     from subprocess import PIPE
     proc = subprocess.Popen(cmd, shell = True, stderr = PIPE, stdout = PIPE, close_fds = True)
-    error = proc.stderr.read()
+    error = proc.stderr.read().decode('utf-8')
     if error != '':
         for line in error.split('\n'):
             if line == 'FATAL_ERROR: The server is not running':
                 return STATUS_NOT_RUNNING
             
-    output = proc.stdout.read()
+    output = proc.stdout.read().decode('utf-8')
     proc.wait()
     return output
 
