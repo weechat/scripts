@@ -3,7 +3,7 @@ use Encode qw(encode_utf8);
 weechat::register(
     'ctrl_w',
     'Juerd <#####@juerd.nl>',
-    '1.00',
+    '1.01',
     'PD',
     'Implement readline-like ^W',
     '',
@@ -17,7 +17,7 @@ sub ctrl_w {
     my $input = weechat::buffer_get_string($buffer, 'input');
 
     utf8::decode($input);
-    substr($input, 0, $pos) =~ s/(\S+\s*)\z// and $pos -= length $1;
+    substr($input, 0, $pos) =~ s/((?:^|\S+)\s*)\z// and $pos -= length $1;
     utf8::encode($input);
 
     weechat::buffer_set($buffer, "input", $input);
