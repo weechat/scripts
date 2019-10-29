@@ -25,6 +25,8 @@
 
 #
 # Changelog:
+# 3.7:
+#   * Make default rules work with bitlbee, matrix and slack.
 # 3.6:
 #   * Add more documentation on provided info hooks.
 # 3.5:
@@ -80,7 +82,7 @@ import weechat
 
 SCRIPT_NAME     = 'autosort'
 SCRIPT_AUTHOR   = 'Maarten de Vries <maarten@de-vri.es>'
-SCRIPT_VERSION  = '3.6'
+SCRIPT_VERSION  = '3.7'
 SCRIPT_LICENSE  = 'GPL3'
 SCRIPT_DESC     = 'Flexible automatic (or manual) buffer sorting based on eval expressions.'
 
@@ -173,22 +175,21 @@ class Config:
 
 	default_rules = json.dumps([
 		'${core_first}',
-		'${irc_last}',
-		'${buffer.plugin.name}',
+		'${info:autosort_order,${info:autosort_escape,${script_or_plugin}},core,*,irc,bitlbee,matrix,slack}'
+		'${script_or_plugin}',
 		'${irc_raw_first}',
-		'${if:${plugin}==irc?${server}}',
-		'${if:${plugin}==irc?${info:autosort_order,${type},server,*,channel,private}}',
-		'${if:${plugin}==irc?${hashless_name}}',
+		'${server}',
+		'${info:autosort_order,${type},server,*,channel,private}',
+		'${hashless_name}',
 		'${buffer.full_name}',
 	])
 
 	default_helpers = json.dumps({
-		'core_first':     '${if:${buffer.full_name}!=core.weechat}',
-		'irc_first':      '${if:${buffer.plugin.name}!=irc}',
-		'irc_last':       '${if:${buffer.plugin.name}==irc}',
-		'irc_raw_first':  '${if:${buffer.full_name}!=irc.irc_raw}',
-		'irc_raw_last':   '${if:${buffer.full_name}==irc.irc_raw}',
-		'hashless_name':  '${info:autosort_replace,#,,${info:autosort_escape,${buffer.name}}}',
+		'core_first':       '${if:${buffer.full_name}!=core.weechat}',
+		'irc_raw_first':    '${if:${buffer.full_name}!=irc.irc_raw}',
+		'irc_raw_last':     '${if:${buffer.full_name}==irc.irc_raw}',
+		'hashless_name':    '${info:autosort_replace,#,,${info:autosort_escape,${buffer.name}}}',
+		'script_or_plugin': '${if:${script}?${script}:${plugin}}',
 	})
 
 	default_signal_delay = 5
