@@ -27,6 +27,11 @@ send a pull request to the author (instead of sending directly to this
 repository). +
 Then the author will send a pull request on this repository.
 
+=== Security reports
+
+Please *DO NOT* file a GitHub issue for security related problems, but send an
+email to <security@weechat.org> instead.
+
 === Send new release
 
 There are two ways to send a new release for a script:
