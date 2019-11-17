@@ -13,6 +13,9 @@ labels: bug
 - Script version: 
 - WeeChat version: 
 
+This bug has been reported to the script author? Yes/No
+Response or reason: 
+
 ## Bug summary
 
 
