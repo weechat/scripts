@@ -25,6 +25,9 @@
 
 #
 # Changelog:
+# 3,8:
+#   * Fix relative sorting on script name in default rules.
+#   * Document a useful property of stable sort algorithms.
 # 3.7:
 #   * Make default rules work with bitlbee, matrix and slack.
 # 3.6:
@@ -82,7 +85,7 @@ import weechat
 
 SCRIPT_NAME     = 'autosort'
 SCRIPT_AUTHOR   = 'Maarten de Vries <maarten@de-vri.es>'
-SCRIPT_VERSION  = '3.7'
+SCRIPT_VERSION  = '3.8'
 SCRIPT_LICENSE  = 'GPL3'
 SCRIPT_DESC     = 'Flexible automatic (or manual) buffer sorting based on eval expressions.'
 
@@ -175,7 +178,7 @@ class Config:
 
 	default_rules = json.dumps([
 		'${core_first}',
-		'${info:autosort_order,${info:autosort_escape,${script_or_plugin}},core,*,irc,bitlbee,matrix,slack}'
+		'${info:autosort_order,${info:autosort_escape,${script_or_plugin}},core,*,irc,bitlbee,matrix,slack}',
 		'${script_or_plugin}',
 		'${irc_raw_first}',
 		'${server}',
@@ -189,7 +192,7 @@ class Config:
 		'irc_raw_first':    '${if:${buffer.full_name}!=irc.irc_raw}',
 		'irc_raw_last':     '${if:${buffer.full_name}==irc.irc_raw}',
 		'hashless_name':    '${info:autosort_replace,#,,${info:autosort_escape,${buffer.name}}}',
-		'script_or_plugin': '${if:${script}?${script}:${plugin}}',
+		'script_or_plugin': '${if:${script_name}?${script_name}:${plugin}}',
 	})
 
 	default_signal_delay = 5
@@ -961,6 +964,9 @@ Autosort is a weechat script to automatically keep your buffers sorted. The sort
 order can be customized by defining your own sort rules, but the default should
 be sane enough for most people. It can also group IRC channel/private buffers
 under their server buffer if you like.
+
+Autosort uses a stable sorting algorithm, meaning that you can manually move buffers
+to change their relative order, if they sort equal with your rule set.
 
 {*white}# Sort rules{reset}
 Autosort evaluates a list of eval expressions (see {*default}/help eval{reset}) and sorts the
