@@ -19,6 +19,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # history:
+# 3.8: new option custom_action_text (https://github.com/weechat/scripts/issues/313) (idea by 3v1n0)
 # 3.7: new option "alternate_color" (https://github.com/weechat/scripts/issues/333) (idea by snuffkins)
 # 3.6: new option "own_lines_color" (idea by Linkandzelda)
 #    : add help about "localvar" to option
@@ -85,7 +86,7 @@
 
 use strict;
 my $PRGNAME     = "colorize_lines";
-my $VERSION     = "3.7";
+my $VERSION     = "3.8";
 my $AUTHOR      = "Nils Görs <weechatter\@arcor.de>";
 my $LICENCE     = "GPL3";
 my $DESCR       = "Colorize users' text in chat area with their nick color, including highlights";
@@ -102,6 +103,7 @@ my %config = ("buffers"                 => "all",       # all, channel, query
               "highlight_words"         => "off",       # on, off
               "highlight_words_color"   => "black,darkgray",
               "alternate_color"         => "",
+              "custom_action_text"      => "",
 );
 
 my %help_desc = ("buffers"                  => "Buffer type affected by the script (all/channel/query, default: all)",
@@ -116,6 +118,7 @@ my %help_desc = ("buffers"                  => "Buffer type affected by the scri
                  "highlight_words"          => "highlight word(s) in text, matching word(s) in weechat.look.highlight",
                  "highlight_words_color"    => "color for highlight word in text (format: fg,bg)",
                  "alternate_color"          => "alternate between two colors for messages (format: fg,bg:fg,bg)",
+                 "custom_action_text"       => "customise the text attributes of ACTION message (note: content is evaluated, see /help eval)",
 );
 
 my @ignore_tags_array;
@@ -262,6 +265,7 @@ sub colorize_cb
         # remove the first color reset - after * nick
         # make other resets reset to our color
         $right =~ s/\34//;
+        $color = weechat::string_eval_expression($config{custom_action_text}, {}, {}, {}) if ( $config{custom_action_text} ne "");
         $right =~ s/\34/\34$color/g;
         $out = $left . "\t" . $right . "\34"
     } else {
