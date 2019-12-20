@@ -75,6 +75,8 @@
 # Version 1.0.3 release - Dec 19, 2019
 #  -Adapt for python3
 
+from __future__ import print_function
+
 try:
   import weechat as w
   import os.path
