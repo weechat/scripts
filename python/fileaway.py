@@ -4,7 +4,7 @@
 #
 # fileaway.py - A simple autoaway script for Weechat which monitors a file,
 # allowing it to easily connect to external things (such as xscreensaver)
-# 
+#
 # The code from screen_away.py and auto_away.py were heavily consulted in the
 # writing of this script
 # ---------------------------------------------------------------------------
@@ -20,7 +20,7 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>. 
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # -------------------------------------------------------------------------
 # Purpose -
@@ -35,7 +35,7 @@
 # While this only one way this script can be used, this is why I wrote it
 #
 # #!/bin/sh
-# 
+#
 # # Read xscreensaver's state
 # xscreensaver-command -watch|
 # while read STATUS; do
@@ -72,19 +72,23 @@
 #  -Handles improper commands
 # Version 1.0.2 release - Jun 15, 2011
 #  -Added alternative for xset users (credit: sherpa9 at irc.freenode.net)
+# Version 1.0.3 release - Dec 19, 2019
+#  -Adapt for python3
+
+from __future__ import print_function
 
 try:
   import weechat as w
   import os.path
 
 except Exception:
-  print "This script must be run under WeeChat."
-  print "Get WeeChat now at: http://www.wwchat.org/"
+  print("This script must be run under WeeChat.")
+  print("Get WeeChat now at: http://www.wwchat.org/")
   quit()
 
 SCRIPT_NAME     = "fileaway"
 SCRIPT_AUTHOR   = "javagamer"
-SCRIPT_VERSION  = "1.0.2"
+SCRIPT_VERSION  = "1.0.3"
 SCRIPT_LICENSE  = "GPL3"
 SCRIPT_DESC     = "Set away status based on presence of a file"
 debug           = 0
@@ -150,8 +154,8 @@ def fileaway_cb(data, buffer, args):
       response[words[0]](words[2])
     else:
       w.prnt('', "Fileaway error: %s not a recognized command.  Try /help fileaway" % words[0])
-  w.prnt('', "fileaway: enabled: %s interval: %s away message: \"%s\" filepath: %s" % 
-    (w.config_get_plugin('status'), w.config_get_plugin('interval'), 
+  w.prnt('', "fileaway: enabled: %s interval: %s away message: \"%s\" filepath: %s" %
+    (w.config_get_plugin('status'), w.config_get_plugin('interval'),
     w.config_get_plugin('awaymessage'), w.config_get_plugin('filepath')))
   return w.WEECHAT_RC_OK
 
@@ -178,11 +182,11 @@ def check_timer():
 
 if __name__ == "__main__":
   if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, "", ""):
-    for option, default_value in settings.iteritems():
+    for option, default_value in settings.items():
       if not w.config_is_set_plugin(option):
         w.config_set_plugin(option, default_value)
 
-    w.hook_command("fileaway", 
+    w.hook_command("fileaway",
     "Set away status based on presense or absense of a file.",
     "check, msg [status], interval [time], file [filepath], or enable|disable",
     "check - manually checks for file rather than waiting for interval.\n"
