@@ -56,7 +56,7 @@ from __future__ import print_function
 
 SCRIPT_NAME = "fish"
 SCRIPT_AUTHOR = "David Flatz <david@upcs.at>"
-SCRIPT_VERSION = "0.9.3"
+SCRIPT_VERSION = "0.9.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "FiSH for weechat"
 CONFIG_FILE_NAME = SCRIPT_NAME
@@ -123,7 +123,7 @@ def fish_config_keys_write_cb(data, config_file, section_name):
     global fish_keys, fish_secure_cipher
 
     weechat.config_write_line(config_file, section_name, "")
-    for target, key in sorted(fish_keys.iteritems()):
+    for target, key in sorted(fish_keys.items()):
 
         if fish_secure_cipher != None:
             ### ENCRYPT Targets/Keys ###
@@ -252,10 +252,10 @@ def blowcrypt_b64encode(s):
     res = ''
     while s:
         left, right = struct.unpack('>LL', s[:8])
-        for i in xrange(6):
+        for i in range(6):
             res += B64[right & 0x3f]
             right >>= 6
-        for i in xrange(6):
+        for i in range(6):
             res += B64[left & 0x3f]
             left >>= 6
         s = s[8:]
@@ -1001,7 +1001,7 @@ def fish_decrypt_keys():
     global fish_cyphers
 
     fish_keys_tmp = {}
-    for target, key in fish_keys.iteritems():
+    for target, key in fish_keys.items():
         ### DECRYPT Targets/Keys ###
         fish_keys_tmp[blowcrypt_unpack(
             target,
@@ -1117,7 +1117,7 @@ def fish_list_keys(buffer):
         weechat.prnt(buffer, "NO KEYS!\n")
         return
 
-    for (target, key) in sorted(fish_keys.iteritems()):
+    for (target, key) in sorted(fish_keys.items()):
         (server, nick) = target.split("/")
         weechat.prnt(buffer, "\t%s(%s): %s" % (nick, server, key))
 
