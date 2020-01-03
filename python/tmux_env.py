@@ -21,9 +21,14 @@ History:
 
     2014-02-03 Aron Griffis <agriffis@n01se.net>
       version 2: python 2.6 compatible subprocess.check_output()
+
+    2020-01-03 dobbymoodge <john.w.lamb [at] gmail . com> ( https://github.com/dobbymoodge/ )
+      version 3: python 3.x compatibility
 """
 
 from __future__ import absolute_import, unicode_literals
+
+import weechat as w
 
 import fnmatch
 import os
@@ -31,7 +36,8 @@ import subprocess
 
 if not hasattr(subprocess, 'check_output'):
     def check_output(*popenargs, **kwargs):
-        process = subprocess.Popen(stdout=subprocess.PIPE, *popenargs, **kwargs)
+        process = subprocess.Popen(stdout=subprocess.PIPE,
+                                   *popenargs, **kwargs)
         output, unused_err = process.communicate()
         retcode = process.poll()
         if retcode:
@@ -43,13 +49,11 @@ if not hasattr(subprocess, 'check_output'):
     subprocess.check_output = check_output
     del check_output
 
-import weechat as w
-
-SCRIPT_NAME    = "tmux_env"
-SCRIPT_AUTHOR  = "Aron Griffis <agriffis@n01se.net>"
-SCRIPT_VERSION = "2"
+SCRIPT_NAME = "tmux_env"
+SCRIPT_AUTHOR = "Aron Griffis <agriffis@n01se.net>"
+SCRIPT_VERSION = "3"
 SCRIPT_LICENSE = "GPL3"
-SCRIPT_DESC    = "Update weechat environment from tmux"
+SCRIPT_DESC = "Update weechat environment from tmux"
 
 settings = {
     'interval': '30',  # How often in seconds to check for updates
@@ -58,7 +62,7 @@ settings = {
     # environment updates, not removals. For removals, include the variable
     # name prefixed by a minus sign. For example, to add/remove exclusively
     # the DISPLAY variable, include="DISPLAY,-DISPLAY"
-    # 
+    #
     # Globs are also accepted, so you can ignore all variable removals with
     # exclude="-*"
 
@@ -66,7 +70,10 @@ settings = {
     'exclude': '',      # Env vars to exclude, default all
     }
 
+check_output_kwargs = {'text': True}
+
 TIMER = None
+
 
 def set_timer():
     """Update timer hook with new interval"""
@@ -75,7 +82,8 @@ def set_timer():
     if TIMER:
         w.unhook(TIMER)
     TIMER = w.hook_timer(int(w.config_get_plugin('interval')) * 1000,
-            0, 0, 'timer_cb', '')
+                         0, 0, 'timer_cb', '')
+
 
 def config_cb(data, option, value):
     """Reset timer when interval option is updated"""
@@ -84,18 +92,31 @@ def config_cb(data, option, value):
         set_timer()
     return w.WEECHAT_RC_OK
 
+
 def timer_cb(buffer, args):
     """Check if tmux is attached, update environment"""
 
-    attached = os.access(SOCK, os.X_OK) # X bit indicates attached
+    attached = os.access(SOCK, os.X_OK)  # X bit indicates attached
     if attached:
         update_environment()
     return w.WEECHAT_RC_OK
 
+
+def do_check_output(command_args):
+    """Wrap `subprocess.check_output` to detect and account for
+    python2/python3 variations"""
+    global check_output_kwargs
+    try:
+        return subprocess.check_output(command_args, **check_output_kwargs)
+    except TypeError:
+        del(check_output_kwargs['text'])
+        return subprocess.check_output(command_args, **check_output_kwargs)
+
+
 def update_environment():
     """Updates environment from tmux showenv"""
 
-    env = subprocess.check_output(['tmux', 'showenv'])
+    env = subprocess.check_output(['tmux', 'showenv'], text=True)
     for line in env.splitlines():
         name = line.split('=', 1)[0]
         if check_include(name) and not check_exclude(name):
@@ -104,22 +125,27 @@ def update_environment():
             else:
                 add_env(name, line.split('=', 1)[1])
 
+
 def check_include(name):
     globs = comma_split_config('include')
     return check_match(name, globs)
 
+
 def check_exclude(name):
     globs = comma_split_config('exclude')
     return check_match(name, globs)
+
 
 def check_match(name, globs):
     for g in globs:
         if fnmatch.fnmatch(name, g):
             return True
 
+
 def comma_split_config(name):
     config = w.config_get_plugin(name)
     return filter(None, (s.strip() for s in config.split(',')))
+
 
 def add_env(name, value):
     old = os.environ.get(name)
@@ -127,27 +153,28 @@ def add_env(name, value):
         w.prnt("", "%s: add %s=%r (was %r)" % (SCRIPT_NAME, name, value, old))
         os.environ[name] = value
 
+
 def remove_env(name):
     old = os.environ.get(name)
     if old is not None:
         w.prnt("", "%s: remove %s (was %r)" % (SCRIPT_NAME, name, old))
         del os.environ[name]
 
+
 if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
-        SCRIPT_DESC, '', ''):
-    for option, default_value in settings.iteritems():
+              SCRIPT_DESC, '', ''):
+    for option, default_value in settings.items():
         if not w.config_is_set_plugin(option):
             w.config_set_plugin(option, default_value)
 
     global SOCK
     SOCK = None
 
-    if 'TMUX' in os.environ.keys():
+    if 'TMUX' in os.environ:
         # We are running under tmux
         socket_data = os.environ['TMUX']
-        SOCK = socket_data.rsplit(',',2)[0]
+        SOCK = socket_data.rsplit(',', 2)[0]
 
     if SOCK:
-        w.hook_config("plugins.var.python." + SCRIPT_NAME + ".*",
-            "config_cb", "")
+        w.hook_config("plugins.var.python.{}.*".format(SCRIPT_NAME), "config_cb", "")
         set_timer()
