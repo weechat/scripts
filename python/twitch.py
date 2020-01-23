@@ -482,8 +482,11 @@ def twitch_in_privmsg(data, modifier, server_name, string, prefix=''):
     tags = dict([s.split('=') for s in mp['tags'].split(';')])
     if tags['user-type'] == 'mod':
         prefix += '@'
-    if tags['subscriber'] == '1':
-        prefix += '%'
+    try:
+        if tags['subscriber'] == '1':
+            prefix += '%'
+    expect:
+        return string
     if prefix:
         msg = mp['message_without_tags'].replace(
             mp['nick'], prefix + mp['nick'], 1)
@@ -625,7 +628,7 @@ if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
     weechat.hook_modifier("irc_in2_HOSTTARGET", "twitch_suppress", "")
     weechat.hook_modifier("irc_in2_ROOMSTATE", "twitch_roomstate", "")
     weechat.hook_modifier("irc_in2_USERNOTICE", "twitch_usernotice", "")
-    weechat.hook_modifier("irc_in2_WHISPER", "twitch_whisper", "")
+    weechat.hook_modifier("irc_in_WHISPER", "twitch_whisper", "")
     weechat.hook_modifier("irc_out_PRIVMSG", "twitch_privmsg", "")
     weechat.hook_modifier("irc_out_WHOIS", "twitch_whois", "")
     weechat.hook_modifier("irc_in2_PRIVMSG", "twitch_in_privmsg", "")
