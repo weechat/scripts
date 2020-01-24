@@ -29,6 +29,8 @@
 # too.
 
 # Changelog:
+# 2020-01-10 -- Version 0.4.0
+#    - Transition to Python 3
 #
 # 2012-10-18 -- Version 0.3.0
 #    - incorrect words have a higher priority (typo completion)
@@ -55,17 +57,17 @@ try:
     import ctypes
     import ctypes.util
 except ImportError:
-    print "This script depends on ctypes"
+    print("This script depends on ctypes")
 
 try:
     import weechat as w
 except ImportError:
-    print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print("This script must be run under WeeChat.")
+    print("Get WeeChat now at: http://www.weechat.org/")
 
 SCRIPT_NAME    = "correction_completion"
 SCRIPT_AUTHOR  = "Pascal Wittmann <mail@pascal-wittmann.de>"
-SCRIPT_VERSION = "0.3.0"
+SCRIPT_VERSION = "0.4.0"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Provides a completion for 's/typo/correct'"
 SCRIPT_COMMAND = "correction_completion"
@@ -227,7 +229,7 @@ def suggest(word):
               break;
           else:
               word = ctypes.c_char_p(wordptr)
-              list.append(str(word.value))
+              list.append(word.value.decode('UTF-8'))
       aspell.delete_aspell_string_enumeration(elements)
       return list
     else:
@@ -246,7 +248,7 @@ def load_config(data = "", option = "", value = ""):
     global speller
     config = aspell.new_aspell_config()
 
-    for option, default in settings.iteritems():
+    for option, default in settings.items():
         if not w.config_is_set_plugin(option):
           w.config_set_plugin(option, default)
         value = w.config_get_plugin(option)
