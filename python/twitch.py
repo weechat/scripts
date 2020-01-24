@@ -482,11 +482,9 @@ def twitch_in_privmsg(data, modifier, server_name, string, prefix=''):
     tags = dict([s.split('=') for s in mp['tags'].split(';')])
     if tags['user-type'] == 'mod':
         prefix += '@'
-    try:
+    if 'subscriber' in tags:
         if tags['subscriber'] == '1':
             prefix += '%'
-    except:
-        return string
     if prefix:
         msg = mp['message_without_tags'].replace(
             mp['nick'], prefix + mp['nick'], 1)
