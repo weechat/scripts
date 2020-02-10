@@ -48,7 +48,7 @@ use warnings;
 
 weechat::register(
     "recoverop", "AYANOKOUZI, Ryuunosuke",
-    "0.1.1", "GPL3", "recover channel operator in empty channel",
+    "0.1.2", "GPL3", "recover channel operator in empty channel",
     "", ""
 );
 my $script_name = "recoverop";
@@ -91,7 +91,7 @@ sub part_join {
                   weechat::buffer_search( "irc", "$server.$channel" );
                 if ($buffer)
                 {
-                    my $sec = int rand 10;
+                    my $sec = 1 + int rand 10;
                     weechat::command( $buffer, "/wait ${sec}s /cycle" );
                     if ($conf->{mode})
                     {
