@@ -56,7 +56,7 @@ from __future__ import print_function
 
 SCRIPT_NAME = "fish"
 SCRIPT_AUTHOR = "David Flatz <david@upcs.at>"
-SCRIPT_VERSION = "0.9.3"
+SCRIPT_VERSION = "0.9.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "FiSH for weechat"
 CONFIG_FILE_NAME = SCRIPT_NAME
@@ -66,6 +66,8 @@ import_ok = True
 import re
 import struct
 import hashlib
+import string
+import struct
 from os import urandom
 
 try:
@@ -123,7 +125,7 @@ def fish_config_keys_write_cb(data, config_file, section_name):
     global fish_keys, fish_secure_cipher
 
     weechat.config_write_line(config_file, section_name, "")
-    for target, key in sorted(fish_keys.iteritems()):
+    for target, key in sorted(fish_keys.items()):
 
         if fish_secure_cipher != None:
             ### ENCRYPT Targets/Keys ###
@@ -245,39 +247,53 @@ class Blowfish:
         return self.blowfish.encrypt(data)
 
 
-# XXX: Unstable.
-def blowcrypt_b64encode(s):
-    """A non-standard base64-encode."""
-    B64 = "./0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    res = ''
-    while s:
-        left, right = struct.unpack('>LL', s[:8])
-        for i in xrange(6):
-            res += B64[right & 0x3f]
-            right >>= 6
-        for i in xrange(6):
-            res += B64[left & 0x3f]
-            left >>= 6
-        s = s[8:]
-    return res
+def unblow(ciphertext, cipher):
+    if not isinstance(ciphertext, str):
+        raise TypeError('Ciphertext must be str')
+    else:
+        assert len(ciphertext) % 12 == 0
+        plaintext = bytearray()
+
+        charset = list('./' + string.digits + string.ascii_lowercase + string.ascii_uppercase)
+        for j in range(0,len(ciphertext),12):
+            high = 0
+            for k in range(6):
+                high |= charset.index(ciphertext[j+k]) << (k*6) & 0xffffffff
+            low = 0
+            for k in range(6):
+                low |= charset.index(ciphertext[j+k+6]) << (k*6) & 0xffffffff
+            plaintext += cipher.decrypt(struct.pack('>LL', low, high))
+
+        return plaintext.decode('utf-8').rstrip("\0")
 
 
-def blowcrypt_b64decode(s):
-    """A non-standard base64-decode."""
-    B64 = "./0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    res = ''
-    while s:
-        left, right = 0, 0
-        for i, p in enumerate(s[0:6]):
-            right |= B64.index(p) << (i * 6)
-        for i, p in enumerate(s[6:12]):
-            left |= B64.index(p) << (i * 6)
-        for i in range(0,4):
-            res += chr(((left & (0xFF << ((3 - i) * 8))) >> ((3 - i) * 8)))
-        for i in range(0,4):
-            res += chr(((right & (0xFF << ((3 - i) * 8))) >> ((3 - i) * 8)))
-        s = s[12:]
-    return res
+def blow(plaintext, cipher):
+    if not isinstance(plaintext, str):
+        raise TypeError('Plaintext must be str')
+    else:
+        if len(plaintext) % 8 != 0:
+            plaintext += "\0" * (8-(len(plaintext)%8))
+
+        ciphertext = ''
+        charset = list('./' + string.digits + string.ascii_lowercase + string.ascii_uppercase)
+        for j in range(0,len(plaintext),8):
+            block = cipher.encrypt(plaintext[j:j+8])
+            (low, high) = struct.unpack('>LL', block)
+
+            while high:
+                ciphertext += charset[high%64]
+                high //= 64
+            if len(ciphertext) % 6 != 0:
+                ciphertext += charset[0] * (6-len(ciphertext)%6)
+
+            while low:
+                ciphertext += charset[low%64]
+                low //= 64
+            if len(ciphertext) % 6 != 0:
+                ciphertext += charset[0] * (6-len(ciphertext)%6)
+
+        assert len(ciphertext) % 12 == 0
+        return ciphertext
 
 
 def padto(msg, length):
@@ -291,34 +307,24 @@ def padto(msg, length):
 
 
 def blowcrypt_pack(msg, cipher):
-    """."""
-    return '+OK ' + blowcrypt_b64encode(cipher.encrypt(padto(msg, 8)))
+    """.  """
+    return '+OK ' + blow(padto(msg, 8), cipher)
 
 
 def blowcrypt_unpack(msg, cipher):
-    """."""
+    """.  """
     if not (msg.startswith('+OK ') or msg.startswith('mcps ')):
         raise ValueError
     _, rest = msg.split(' ', 1)
     if len(rest) < 12:
         raise MalformedError
 
-    if not (len(rest) %12) == 0:
-        rest = rest[:-(len(rest) % 12)]
-
     try:
-        raw = blowcrypt_b64decode(padto(rest, 12))
-    except TypeError:
-        raise MalformedError
-    if not raw:
-        raise MalformedError
-
-    try:
-        plain = cipher.decrypt(raw)
+        plain = unblow(rest, cipher)
     except ValueError:
         raise MalformedError
 
-    return plain.strip('\x00').replace('\n','')
+    return plain.replace('\n','')
 
 
 #
@@ -457,7 +463,7 @@ class DH1080Ctx:
 
 
 def dh1080_pack(ctx):
-    """."""
+    """.  """
     cmd = None
     if ctx.state == 0:
         ctx.state = 1
@@ -468,7 +474,7 @@ def dh1080_pack(ctx):
 
 
 def dh1080_unpack(msg, ctx):
-    """."""
+    """.  """
     if not msg.startswith("DH1080_"):
         raise ValueError
 
@@ -518,7 +524,7 @@ def dh1080_unpack(msg, ctx):
 
 
 def dh1080_secret(ctx):
-    """."""
+    """.  """
     if ctx.secret == 0:
         raise ValueError
     return dh1080_b64encode(sha256(int2bytes(ctx.secret)))
@@ -1001,7 +1007,7 @@ def fish_decrypt_keys():
     global fish_cyphers
 
     fish_keys_tmp = {}
-    for target, key in fish_keys.iteritems():
+    for target, key in fish_keys.items():
         ### DECRYPT Targets/Keys ###
         fish_keys_tmp[blowcrypt_unpack(
             target,
@@ -1117,7 +1123,7 @@ def fish_list_keys(buffer):
         weechat.prnt(buffer, "NO KEYS!\n")
         return
 
-    for (target, key) in sorted(fish_keys.iteritems()):
+    for (target, key) in sorted(fish_keys.items()):
         (server, nick) = target.split("/")
         weechat.prnt(buffer, "\t%s(%s): %s" % (nick, server, key))
 
