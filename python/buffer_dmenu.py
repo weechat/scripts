@@ -24,6 +24,8 @@
 # Optionally requires i3-py [py2] (or i3ipc [py3]) to focus weechat in i3
 #
 # History:
+# 2020-02024, Seirdy
+#     version 0.1.2: py3-ok
 # 2017-05-03, Ferus
 #     version 0.1.1: fix argument error for config_set_plugin
 # 2016-05-01, Ferus
@@ -38,7 +40,7 @@
 
 SCRIPT_NAME    = "buffer_dmenu"
 SCRIPT_AUTHOR  = "Ferus <ferus+weechat@airmail.cc>"
-SCRIPT_VERSION = "0.1.1"
+SCRIPT_VERSION = "0.1.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "List buffers in dmenu (or rofi), changes active window to selected buffer"
 SCRIPT_COMMAND = "buffer_dmenu"
@@ -140,7 +142,7 @@ def launch_process_cb(data, command, rc, out, err):
 	if out != "":
 		process_output += out
 	if int(rc) >= 0:
-		selected = process_output.decode("utf-8").strip("\n")
+		selected = process_output.strip("\n")
 		number, name = selected.split(":")
 		process_output = ""
 		switch_to_buffer(name)
@@ -155,7 +157,7 @@ def get_open_buffers():
 		while w.infolist_next(infolist):
 			name = w.infolist_string(infolist, "name")
 			number = w.infolist_integer(infolist, "number")
-			_ = "{0}:{1}".format(number, name).decode("utf-8")
+			_ = "{0}:{1}".format(number, name)
 			buffers.append(_)
 		w.infolist_free(infolist)
 	return buffers
@@ -169,7 +171,7 @@ def get_hotlist_buffers():
 			number = w.infolist_integer(infolist, "buffer_number")
 			buffer = w.infolist_pointer(infolist, "buffer_pointer")
 			name = w.buffer_get_string(buffer, "name")
-			_ = "{0}:{1}".format(number, name).decode("utf-8")
+			_ = "{0}:{1}".format(number, name)
 			buffers.append(_)
 		w.infolist_free(infolist)
 	return buffers
