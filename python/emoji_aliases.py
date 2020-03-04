@@ -18,7 +18,7 @@ import weechat
 weechat.register(
     "emoji_aliases",   # name
     "Mike Reinhardt",  # author
-    "1.0.2",           # version
+    "1.0.3",           # version
     "BSD",             # license
     "Convert emoji aliases to unicode emoji.",  # description
     "",                # shutdown function
@@ -1465,15 +1465,31 @@ HOOKS = (
 
 
 def convert_aliases_to_emoji(data, modifier, modifier_data, string):
-    if modifier in NEEDSPLIT:
-        aliases_found = ALIAS_RE.findall(string.split(':', 1)[1])
-    else:
-        aliases_found = ALIAS_RE.findall(string)
-    for alias in aliases_found:
-        if alias in EMOJI_ALIASES:
-            string = string.replace(alias, '{} '.format(EMOJI_ALIASES[alias].encode('utf-8')))
-    return string
+    # `unmodified` is text not to have replacements done on it
+    unmodified, modifiable = "", string
 
+    if modifier in NEEDSPLIT:
+        # if " :" exists in a raw IRC string (once tags have been removed) it
+        # will be the start of the final (trailing) parameter
+
+        # optionally put IRCv3 tags in to `unmodified`
+        if string[0] == "@":
+            tags, sep, string = string.partition(" ")
+            unmodified += tags+sep
+        # split at the first instance of " :"
+        # (`trailing` will be empty string if not found)
+        left_string, sep, trailing = string.partition(" :")
+
+        # put everything before (and including) " :" in to not-to-be-modified
+        unmodified += left_string+sep
+        # trailing param is what we want to modify
+        modifiable = trailing
+
+    for alias in ALIAS_RE.findall(modifiable):
+        if alias in EMOJI_ALIASES:
+            modifiable = modifiable.replace(alias, '{} '.format(EMOJI_ALIASES[alias]))
+
+    return unmodified+modifiable
 
 for hook in HOOKS:
     weechat.hook_modifier(
