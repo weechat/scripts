@@ -18,7 +18,7 @@ import weechat
 weechat.register(
     "emoji_aliases",   # name
     "Mike Reinhardt",  # author
-    "1.0.3",           # version
+    "1.0.4",           # version
     "BSD",             # license
     "Convert emoji aliases to unicode emoji.",  # description
     "",                # shutdown function
@@ -1472,18 +1472,34 @@ def convert_aliases_to_emoji(data, modifier, modifier_data, string):
         # if " :" exists in a raw IRC string (once tags have been removed) it
         # will be the start of the final (trailing) parameter
 
-        # optionally put IRCv3 tags in to `unmodified`
+        # optionally put IRCv3 tags (and space) in to `unmodified`
         if string[0] == "@":
             tags, sep, string = string.partition(" ")
             unmodified += tags+sep
+
+        # optionally put :source (and space) in to `unmodified`
+        if string[0] == ":":
+            source, sep, string = string.partition(" ")
+            unmodified += source+sep
+
         # split at the first instance of " :"
         # (`trailing` will be empty string if not found)
-        left_string, sep, trailing = string.partition(" :")
+        string, trailing_sep, trailing = string.partition(" :")
 
-        # put everything before (and including) " :" in to not-to-be-modified
-        unmodified += left_string+sep
-        # trailing param is what we want to modify
-        modifiable = trailing
+        # put COMMAND (and space) in to `unmodified`
+        command, sep, string = string.partition(" ")
+        unmodified += command+sep
+
+        if not trailing and string:
+            # we've not got a :trailing param; let's use the last arg instead
+            string, sep, modifiable = string.rpartition(" ")
+            # put all other args (and space) in to `unmodified`
+            unmodified += string+sep
+        else:
+            # we've got a :trailing param.
+            # put all the other args (and " :") in to `unmodified`
+            unmodified += string+trailing_sep
+            modifiable = trailing
 
     for alias in ALIAS_RE.findall(modifiable):
         if alias in EMOJI_ALIASES:
