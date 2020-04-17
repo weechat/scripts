@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2017 Marcin Kurczewski <rr-@sakuya.pl>
+# Copyright (C) 2017-2020 Marcin Kurczewski <rr-@sakuya.pl>
 # Copyright (C) 2017 Ricardo Ferreira <ricardo.sff@goatse.cx>
 # Copyright (C) 2014 Charles Franklin <jakhead@gmail.com>
 # Copyright (C) 2012 Markus Näsman <markus@botten.org>
@@ -61,7 +61,7 @@ from os import urandom
 
 SCRIPT_NAME = "fish"
 SCRIPT_AUTHOR = "David Flatz <david@upcs.at>"
-SCRIPT_VERSION = "0.9.3"
+SCRIPT_VERSION = "0.9.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "FiSH for weechat"
 CONFIG_FILE_NAME = SCRIPT_NAME
