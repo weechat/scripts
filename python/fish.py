@@ -143,7 +143,7 @@ def fish_config_keys_write_cb(data, config_file, section_name):
     global fish_keys, fish_secure_cipher
 
     weechat.config_write_line(config_file, section_name, "")
-    for target, key in sorted(fish_keys.iteritems()):
+    for target, key in sorted(fish_keys.items()):
 
         if fish_secure_cipher != None:
             ### ENCRYPT Targets/Keys ###
@@ -360,6 +360,9 @@ def fish_config_write():
     return weechat.config_write(fish_config_file)
 
 
+class MalformedError(RuntimeError):
+    pass
+
 ##
 ## Blowfish and DH1080 Code:
 ##
@@ -391,10 +394,10 @@ def blowcrypt_b64encode(s):
     res = ""
     while s:
         left, right = struct.unpack(">LL", s[:8])
-        for i in xrange(6):
+        for i in range(6):
             res += B64[right & 0x3F]
             right >>= 6
-        for i in xrange(6):
+        for i in range(6):
             res += B64[left & 0x3F]
             left >>= 6
         s = s[8:]
@@ -404,17 +407,25 @@ def blowcrypt_b64encode(s):
 def blowcrypt_b64decode(s):
     """A non-standard base64-decode."""
     B64 = "./0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    res = ""
+    res = b""
     while s:
         left, right = 0, 0
         for i, p in enumerate(s[0:6]):
             right |= B64.index(p) << (i * 6)
         for i, p in enumerate(s[6:12]):
             left |= B64.index(p) << (i * 6)
-        for i in range(0, 4):
-            res += chr(((left & (0xFF << ((3 - i) * 8))) >> ((3 - i) * 8)))
-        for i in range(0, 4):
-            res += chr(((right & (0xFF << ((3 - i) * 8))) >> ((3 - i) * 8)))
+        res += bytes(
+            [
+                ((left & (0xFF << ((3 - i) * 8))) >> ((3 - i) * 8))
+                for i in range(0, 4)
+            ]
+        )
+        res += bytes(
+            [
+                ((right & (0xFF << ((3 - i) * 8))) >> ((3 - i) * 8))
+                for i in range(0, 4)
+            ]
+        )
         s = s[12:]
     return res
 
@@ -424,14 +435,14 @@ def padto(msg, length):
     If the length of msg is already a multiple of 'length', does nothing."""
     L = len(msg)
     if L % length:
-        msg += "\x00" * (length - L % length)
+        msg += bytes(length - L % length)
     assert len(msg) % length == 0
     return msg
 
 
 def blowcrypt_pack(msg, cipher):
     """."""
-    return "+OK " + blowcrypt_b64encode(cipher.encrypt(padto(msg, 8)))
+    return "+OK " + blowcrypt_b64encode(cipher.encrypt(padto(msg.encode('utf-8'), 8)))
 
 
 def blowcrypt_unpack(msg, cipher):
@@ -446,7 +457,7 @@ def blowcrypt_unpack(msg, cipher):
         rest = rest[: -(len(rest) % 12)]
 
     try:
-        raw = blowcrypt_b64decode(padto(rest, 12))
+        raw = blowcrypt_b64decode(padto(rest.encode('utf-8'), 12).decode('utf-8'))
     except TypeError:
         raise MalformedError
     if not raw:
@@ -457,7 +468,7 @@ def blowcrypt_unpack(msg, cipher):
     except ValueError:
         raise MalformedError
 
-    return plain.strip("\x00").replace("\n", "")
+    return plain.strip(b"\x00").decode('utf-8').replace("\n", "")
 
 
 #
@@ -1166,7 +1177,7 @@ def fish_decrypt_keys():
     global fish_cyphers
 
     fish_keys_tmp = {}
-    for target, key in fish_keys.iteritems():
+    for target, key in fish_keys.items():
         ### DECRYPT Targets/Keys ###
         fish_keys_tmp[
             blowcrypt_unpack(target, fish_secure_cipher)
@@ -1292,7 +1303,7 @@ def fish_list_keys(buffer):
         weechat.prnt(buffer, "NO KEYS!\n")
         return
 
-    for (target, key) in sorted(fish_keys.iteritems()):
+    for (target, key) in sorted(fish_keys.items()):
         (server, nick) = target.split("/")
         weechat.prnt(buffer, "\t%s(%s): %s" % (nick, server, key))
 
