@@ -47,15 +47,15 @@ import_ok = True
 try:
     import weechat
 except ImportError:
-    print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print("This script must be run under WeeChat.")
+    print("Get WeeChat now at: http://www.weechat.org/")
     import_ok = False
 # make sure we have notify2.
 try:
     import notify2
-except ImportError, message:
-    print "Missing package(s) for %s: %s" % (SCRIPT_NAME, message)
-    print "You must have notify2 installed."
+except ImportError as message:
+    print("Missing package(s) for %s: %s" % (SCRIPT_NAME, message))
+    print("You must have notify2 installed.")
     import_ok = False
 
 # script options
@@ -113,13 +113,13 @@ def show_notification(chan, message):
     try:
         wn.show()
         return None
-    except Exception, e:
+    except Exception as e:
         return "Exception trying to show notification: {0}".format(e)
 
 if __name__ == "__main__":
     if import_ok and weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, "", ""):
         # Init everything
-        for option, default_value in settings.items():
+        for option, default_value in list(settings.items()):
             if weechat.config_get_plugin(option) == "":
                 weechat.config_set_plugin(option, default_value)
         # Hook privmsg/hilights
