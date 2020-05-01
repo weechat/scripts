@@ -36,6 +36,7 @@ Some new functions:
       - utf-8 added
       - cooldown (max. n replies in t time)
       - random delay, so more human-like
+      - even more randomness: can specify randomness of the reply/replies group.
 
 Bugs: not that i'm aware of.
 """
@@ -46,15 +47,18 @@ try:
     import re
     import random
 except ImportError:
-    raise ImportError("Failed importing weechat, sqlite3, re")
+    raise ImportError("Failed importing weechat, sqlite3, re or random")
 import os
 
 SCRIPT_NAME = "triggerreply"
 SCRIPT_AUTHOR = "Vlad Stoica <stoica.vl@gmail.com>, Fisher <fisher@fisher.hu>"
-SCRIPT_VERSION = "0.4.1"
+SCRIPT_VERSION = "0.4.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Auto replies when someone sends a specified trigger. Now with 100% more regex!"
 pcooldown  = 1
+""" This is all I need so far :) """
+colorcodes = { "^Cb":"\x02","^CR":"\x0F","^Ci":"\x1D" }
+debug = 2
 
 
 def cooldown_timer_cb(data, remaining_calls):
@@ -73,9 +77,10 @@ Usage: /triggerreply [list | add | remove | ignore | parse] ARGUMENTS
 
 Commands:
     list   - lists the triggers with replies, and ignored channels
-    add    - two arguments: "trigger" and "reply"
-           - adds a trigger with the specified reply
-           - if '-r' is specified, then the trigger will be parsed as regular expression
+    add    - three arguments: "trigger", "reply" and probability
+           - adds a trigger with the specified reply and probability
+           - probability 1 = 1/1 (100%), 5 = 1/5 (20 %) - optional, default is 1 (100%)
+           - the %n in the reply will be replaced by the nick of the matching line
     remove - one argument: "trigger"
            - remove a trigger
     ignore - one argument: "server.#channel"
@@ -88,8 +93,8 @@ watchnick  - one argument: "server.#channel.Nick"
            - removes a nick from ignored list
 
 Examples:
-    /triggerreply add "^H(i|ello|ey)[ .!]*" "Hey there!|Hi matey|Aloha!"
-    /triggerreply add "lol" "not funny tho"
+    /triggerreply add "^H(i|ello|ey)[ .!]*" "Hey there!|Hi matey|Aloha!" "1"
+    /triggerreply add "lol" "not funny tho" "5"
     /triggerreply remove 2
     /triggerreply ignore rizon.#help
     /triggerreply parse rizon.#help
@@ -107,7 +112,7 @@ def create_db(delete=False):
     temp_con = sqlite3.connect(db_file)
     cur = temp_con.cursor()
     cur.execute("CREATE TABLE triggers(id INTEGER PRIMARY KEY, trig VARCHAR, reply VARCHAR);")
-    cur.execute("INSERT INTO triggers(trig, reply) VALUES ('trigge.rs', 'Automatic reply');")
+    cur.execute("INSERT INTO triggers(trig, reply, prob) VALUES ('trigge.rs', 'Automatic reply', '1');")
     cur.execute("CREATE TABLE banchans(id INTEGER PRIMARY KEY, ignored VARCHAR);")
     cur.execute("INSERT INTO banchans(ignored) VALUES ('rizon.#help');")
     cur.execute("CREATE TABLE ignorenicks(id INTEGER PRIMARY KEY, ignored VARCHAR);")
@@ -116,33 +121,53 @@ def create_db(delete=False):
     cur.close()
 
 
+
+def check_db():
+    temp_con = sqlite3.connect(db_file)
+    cur = temp_con.cursor()
+
+    try:
+        """ Try to add record enchated with probability """
+        cur.execute("INSERT INTO triggers(trig, reply, prob) VALUES (?,?,?)", ('JJORAIGPADMLOLYUGSBZ',"",1))
+    except:
+        """ If it fails, hope the best and assume it is just an older schema """
+        cur.execute("ALTER TABLE triggers ADD COLUMN prob INTEGER")
+
+    """ Clean up the mess """
+    cur.execute("DELETE FROM triggers WHERE trig='JJORAIGPADMLOLYUGSBZ'")
+    temp_con.commit()
+    cur.close()
+
+
+
 def search_trig_cb(data, buf, date, tags, displayed, highlight, prefix, message):
     """ function for parsing sent messages """
     global pcooldown
 
     """ Prevent infinite loop/flood, no more messages than n (approx 3) in 300 secs """
-    if ( pcooldown > 300 ):
-        return weechat.WEECHAT_RC_OK
+    if ( pcooldown > 300 ): return weechat.WEECHAT_RC_OK
+
+    """ Save some CPU cycles """
+    if (prefix == '-->' or prefix == '<--' or prefix == '--' or prefix == ' *' or prefix == ""): return weechat.WEECHAT_RC_OK
 
     bufname = weechat.buffer_get_string(buf, "name")
     mynick = weechat.buffer_get_string(buf, "localvar_nick")
 
-    if bufname == 'weechat':
-        return weechat.WEECHAT_RC_OK
+    if bufname == 'weechat': return weechat.WEECHAT_RC_OK
 
     """ Ignore myself """
     if re.search('[@+~]?' + mynick, prefix):
-        weechat.prnt("", "Ignored myself.")
+        """ weechat.prnt("", "Ignored myself.") """
         return weechat.WEECHAT_RC_OK
 
 
     database = sqlite3.connect(db_file)
     cursor = database.cursor()
     pure = weechat.string_remove_color(message,"")
-    pure = pure.decode('utf8')
+    """ pure = pure.decode('utf8')"""
     channel = weechat.buffer_get_string(buf, "name")
 
-    """ weechat.prnt("", "Nick in question: %s" % channel + '.' + prefix.translate(None,'@+~')) """
+    if debug > 0 : weechat.prnt("", "Nick in question:'%s" % channel + '.' + prefix.translate(None,'@+~') + "'")
 
     for row in cursor.execute("SELECT ignored from ignorenicks;"):
         if re.search(row[0], channel + '.' + prefix.translate(None,'@+~')):
@@ -151,27 +176,42 @@ def search_trig_cb(data, buf, date, tags, displayed, highlight, prefix, message)
 
     for row in cursor.execute("SELECT ignored from banchans;"):
         if  channel == row[0]:
-            """ weechat.prnt("", "Channel ignored: %s" % row[0]) """
+            """  """
             return weechat.WEECHAT_RC_OK
 
     for row in cursor.execute("SELECT * FROM triggers"):
-        delay = random.randint(4,9)
+        """ delay = random.randint(4,9)"""
+        delay = 1
 
-        pattern = row[1]
-        replydata = row[2]
+        pattern = row[1].encode('utf8')
+        pattern = pattern.replace("%n", mynick)
+        replydata = row[2].encode('utf8')
+        prob = int(row[3])
+
+        for ccode, chex in colorcodes.items():
+            replydata = replydata.replace(ccode,chex)
 
         try:
             nick = re.sub('^[+%@]','', prefix)
-            """ weechat.prnt("", "prefix: %s, nick: %s, pattern: %s, pure: %s" % (prefix, nick, type(pattern), type(pure))) """
+            if debug > 1: weechat.prnt("", "prefix: %s, mynick: %s, nick: %s, pattern: %s, prob: %s, pure: %s" % (prefix, mynick, nick, pattern, str(prob), pure))
+
             r = re.compile(pattern,re.I | re.U)
+
             if r.search(pure) is not None:
-                weechat.prnt("", "Match: %s" % pure.encode('utf8'))
+                weechat.prnt("", "Matched")
+
+                """ Meh, not really sure if it is accurete, but probably good enough """
+                if ( prob > 1 and random.randint(1,prob) == 1):
+                    if debug > 0: weechat.prnt("", "Randomly ignored.")
+                    return weechat.WEECHAT_RC_OK
+
+                weechat.prnt("", "Match: %s" % r.search(pure).group(0))
                 myreply = "n/a"
                 myreply = random.choice(replydata.split('|'))
                 myreply = myreply.replace("%n", nick)
-                weechat.prnt("", "reply: %s" % myreply.encode('utf8'))
-                weechat.prnt("", "%s triggered." % pattern.encode('utf8'))
-                weechat.command(buf, "/wait %s /say %s" % (delay, myreply.encode('utf8')))
+                weechat.prnt("", "reply: %s" % myreply)
+                weechat.prnt("", "%s triggered." % pattern)
+                weechat.command(buf, "/wait %s /say %s" % (delay, myreply))
                 pcooldown += 100
         except:
             weechat.prnt("", "NOMatch")
@@ -195,7 +235,7 @@ def command_input_callback(data, buffer, argv):
     if command[0] == "list":
         weechat.prnt("", "List of triggers with replies:")
         for row in cursor.execute("SELECT * FROM triggers;"):
-            weechat.prnt("", str(row[0]) + ". " + row[1].encode('utf8') + " -> " + row[2].encode('utf8'))
+            weechat.prnt("", str(row[0]) + ". " + row[1].encode('utf8') + " -> " + row[2].encode('utf8') + "  [Prob: " + str(row[3]) + "]")
 
         weechat.prnt("", "\nList of ignored channels:")
         for row in cursor.execute("SELECT ignored FROM banchans;"):
@@ -219,17 +259,21 @@ def command_input_callback(data, buffer, argv):
             if v == '"' and argv[k - 1] != '\\':
                 pos.append(k)
 
-        if len(pos) != 4:
+        if (len(pos) != 6 and len(pos) != 4):
             print_help()
             return weechat.WEECHAT_RC_ERROR
 
         trigger = argv[pos[0] + 1:pos[1]].replace('\\"', '"')
         reply = argv[pos[2] + 1:pos[3]].replace('\\"', '"')
 
+        prob = 1
+        if (len(pos) == 6):
+            prob = int(argv[pos[4] + 1:pos[5]])
+
         try:
-            cursor.execute("INSERT INTO triggers(trig, reply) VALUES (?,?)", (trigger.decode('utf8'), reply.decode('utf8')))
+            cursor.execute("INSERT INTO triggers(trig, reply, prob) VALUES (?,?,?)", (trigger.decode('utf8'), reply.decode('utf8'), prob))
         except:
-            #print_help()
+            print_help()
             weechat.prnt("", "DB Insert error.")
             return weechat.WEECHAT_RC_ERROR
 
@@ -312,6 +356,8 @@ if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, 
 
     if not os.path.isfile(db_file):
         create_db()
+
+    check_db()
 
     weechat.hook_print("", "", "", 1, "search_trig_cb", "")
     weechat.hook_command(SCRIPT_NAME, SCRIPT_DESC, "See `/triggerreply' for more information.", "", "",
