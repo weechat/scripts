@@ -51,9 +51,8 @@ When sending a new version :
 * Do *not* update the author name in script (used in `register` function);
   it must always contain the original script author, even if you are doing
   large updates in the script.
-* If the script is tagged `py3k-ok` (script running fine with Python 3.x),
-  please ensure that your update is still compatible with both
-  Python 2.x *AND* 3.x.
+* Python scripts must be compatible with Python 3.x. Support of Python 2.x is
+  now optional.
 
 == Report an issue
 
