@@ -69,6 +69,9 @@
 #
 #   History:
 #
+#   2020-05-06, Dominique Martinet <asmadeus@codewreck.org> and hexa-
+#   version 0.8.3: more python3 compatibility fixes...
+#
 #   2019-06-30, dabbill <dabbill@gmail.com>
 #               and Sébastien Helleu <flashcode@flashtux.org>
 #   version 0.8.2: make script compatible with Python 3
@@ -230,7 +233,7 @@ except ImportError:
 
 SCRIPT_NAME    = "grep"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.8.2"
+SCRIPT_VERSION = "0.8.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Search in buffers and logs"
 SCRIPT_COMMAND = "grep"
@@ -596,7 +599,10 @@ def get_file_by_name(buffer_name):
             if '$server' in mask:
                 mask = mask.replace('$server', server)
         # change the unreplaced vars by '*'
-        from string import letters
+        try:
+            from string import letters
+        except ImportError:
+            from string import ascii_letters as letters
         if '%' in mask:
             # vars for time formatting
             mask = mask.replace('%', '$')
@@ -984,7 +990,7 @@ def show_matching_lines():
             buffer_update()
         else:
             global hook_file_grep, grep_stdout, grep_stderr, pattern_tmpl
-            grep_stdout = grep_stderr = ''
+            grep_stdout = grep_stderr = b''
             hook_file_grep = weechat.hook_process(
                 'func:grep_process',
                 get_config_int('timeout_secs') * 1000,
@@ -1009,14 +1015,17 @@ def grep_process(*args):
     except Exception as e:
         result = e
 
-    return pickle.dumps(result)
-
-grep_stdout = grep_stderr = ''
+    return pickle.dumps(result, 0)
 
 def grep_process_cb(data, command, return_code, out, err):
     global grep_stdout, grep_stderr, matched_lines, hook_file_grep
 
+    if isinstance(out, str):
+        out = out.encode()
     grep_stdout += out
+
+    if isinstance(err, str):
+        err = err.encode()
     grep_stderr += err
 
     def set_buffer_error(message):
@@ -1548,7 +1557,7 @@ def cmd_logs(data, buffer, args):
     buffer = buffer_create()
     if get_config_boolean('clear_buffer'):
         weechat.buffer_clear(buffer)
-    file_list = zip(file_list, file_sizes)
+    file_list = list(zip(file_list, file_sizes))
     msg = 'Found %s logs.' %len(file_list)
 
     print_line(msg, buffer, display=True)
@@ -1738,8 +1747,11 @@ Examples:
             debug = pybuffer.debugBuffer(globals(), '%s_debug' % SCRIPT_NAME)
         except:
             def debug(s, *args):
-                if not isinstance(s, basestring):
-                    s = str(s)
+                try:
+                    if not isinstance(s, basestring):
+                        s = str(s)
+                except NameError:
+                    pass
                 if args:
                     s = s %args
                 prnt('', '%s\t%s' %(script_nick, s))
