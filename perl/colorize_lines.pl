@@ -19,6 +19,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # history:
+# 3.9: add compatibility with new weechat_print modifier data (WeeChat >= 2.9)
 # 3.8: new option custom_action_text (https://github.com/weechat/scripts/issues/313) (idea by 3v1n0)
 # 3.7: new option "alternate_color" (https://github.com/weechat/scripts/issues/333) (idea by snuffkins)
 # 3.6: new option "own_lines_color" (idea by Linkandzelda)
@@ -86,7 +87,7 @@
 
 use strict;
 my $PRGNAME     = "colorize_lines";
-my $VERSION     = "3.8";
+my $VERSION     = "3.9";
 my $AUTHOR      = "Nils Görs <weechatter\@arcor.de>";
 my $LICENCE     = "GPL3";
 my $DESCR       = "Colorize users' text in chat area with their nick color, including highlights";
@@ -146,9 +147,21 @@ sub colorize_cb
         return $string unless (@tags_found);
     }
 
-# find buffer pointer
-    $modifier_data =~ m/([^;]*);([^;]*);/;
-    my $buf_ptr = weechat::buffer_search($1, $2);
+    # find buffer pointer and tags
+    my $buf_ptr = "";
+    my $tags = "";
+    if ($modifier_data =~ /^0x/)
+    {
+        # WeeChat >= 2.9
+        $modifier_data =~ m/([^;]*);(.*)/;
+        $buf_ptr = $1;
+        $tags = $2;
+    } else {
+        # WeeChat <= 2.8
+        $modifier_data =~ m/([^;]*);([^;]*);(.*)/;
+        $buf_ptr = weechat::buffer_search($1, $2);
+        $tags = $3;
+    }
     return $string if ($buf_ptr eq "");
 
     # find buffer name, server name
@@ -164,8 +177,8 @@ sub colorize_cb
 
     # find nick of the sender
     # find out if we are doing an action
-    my $nick = ($modifier_data =~ m/(^|,)nick_([^,]*)/) ? $2 : weechat::string_remove_color($left, "");
-    my $action = ($modifier_data =~ m/\birc_action\b/) ? 1 : 0;
+    my $nick = ($tags =~ m/(^|,)nick_([^,]*)/) ? $2 : weechat::string_remove_color($left, "");
+    my $action = ($tags =~ m/\birc_action\b/) ? 1 : 0;
 
     ######################################## get color
 
