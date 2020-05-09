@@ -25,6 +25,8 @@ Usage:
 
 
     Changelog:
+        version 5, 2020-05-09, FlashCode:
+            * remove obsolete comment on weechat_print modifier data
         version 4, 2017-10-12, massa1240
             * add support of :+1: and :-1:
         version 3, 2016-11-04, xt
@@ -67,7 +69,7 @@ print "}"
 
 local SCRIPT_NAME     = "emoji"
 local SCRIPT_AUTHOR   = "xt <xt@bash.no>"
-local SCRIPT_VERSION  = "4"
+local SCRIPT_VERSION  = "5"
 local SCRIPT_LICENSE  = "GPL3"
 local SCRIPT_DESC     = "Emoji output helper"
 
@@ -156,7 +158,6 @@ function emoji_completion_cb(data, completion_item, buffer, completion)
 end
 
 function incoming_cb(data, modifier, modifier_data, msg)
-	--local plugin, buffer_name, tags = modifier_data:match('^(.-);(.-);(.-)$')
 	-- Only replace in incoming "messages"
 	if modifier_data:match('nick_') then
 		return str2emoji(msg)
