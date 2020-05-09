@@ -24,6 +24,7 @@
 #
 # this scripts needs weechat 0.3.2 or higher
 #
+# v0.4  : add compatibility with new weechat_print modifier data (WeeChat >= 2.9)
 # v0.3  : add: option cloaked_text_reply (suggested by dAnjou)
 #       : add: option rapid_fire
 #       : add: description for options
@@ -36,7 +37,7 @@ use strict;
 use POSIX qw(strftime);
 
 my $SCRIPT_NAME         = "curiousignore";
-my $SCRIPT_VERSION      = "0.3";
+my $SCRIPT_VERSION      = "0.4";
 my $SCRIPT_DESC         = "suppresses messages from specified nick and only prints his nickname in channel";
 
 my $save_to_log = "on";
@@ -63,11 +64,25 @@ sub colorize_cb {
     my $message = $2;
 
     if (not defined $nick) {return $string;}                                                            # no nickname
-    #irc;freenode.#weechat;
-    $modifier_data =~ (m/irc;(.+?)\.(.+?)\;/);
-    my $server = $1;
-    my $channel = $2;
-    if (not defined $channel) {return $string;}                                                         # no channel
+    my $server = "";
+    my $channel = "";
+    if ($modifier_data =~ /0x/)
+    {
+        # WeeChat >= 2.9
+        $modifier_data =~ (m/([^;]*);/);
+        my $buf_ptr = $1;
+        $server = weechat::buffer_get_string($buf_ptr, "localvar_server");
+        $channel = weechat::buffer_get_string($buf_ptr, "localvar_channel");
+    }
+    else
+    {
+        # WeeChat <= 2.8
+        #irc;freenode.#weechat;
+        $modifier_data =~ (m/irc;(.+?)\.(.+?)\;/);
+        $server = $1;
+        $channel = $2;
+    }
+    if ($server eq "" or $channel eq "") {return $string;}                                              # no channel
     my $server_chan = $server . "." . $channel;
 
     $nick = weechat::string_remove_color($nick,"");                                                     # remove colour-codes from nick
