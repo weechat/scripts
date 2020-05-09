@@ -1,6 +1,6 @@
 # Mass highlight blocker for WeeChat by arza <arza@arza.us>, distributed freely and without any warranty, licensed under GPL3 <http://www.gnu.org/licenses/gpl.html>
 
-weechat::register('mass_hl_blocker', 'arza <arza\@arza.us>', '0.1', 'GPL3', 'Block mass highlights', '', '');
+weechat::register('mass_hl_blocker', 'arza <arza\@arza.us>', '0.2', 'GPL3', 'Block mass highlights', '', '');
 
 my $version=weechat::info_get('version_number', '') || 0;
 
@@ -16,8 +16,28 @@ weechat::hook_modifier('2000|weechat_print', 'block', '');
 
 sub block { my $message=$_[3];
 
-	$_[2]=~/(\S+);(\S+)\.(\S+);(\S+)/ || return $message;
-	my ($plugin, $server, $channel, $tags) = ($1, $2, $3, $4);
+        my $buffer = "";
+        my $tags = "";
+        if ($_[2] =~ /0x/)
+        {
+                # WeeChat >= 2.9
+                $_[2] =~ m/([^;]*);(.*)/;
+                $buffer = $1;
+                $tags = $2;
+        }
+        else
+        {
+                # WeeChat <= 2.8
+                $_[2] =~ m/([^;]*);([^;]*);(.*)/;
+                $buffer = weechat::buffer_search($1, $2);
+                $tags = $3;
+        }
+        my $plugin = weechat::buffer_get_string($buffer, "plugin");
+        my $server = weechat::buffer_get_string($buffer, "localvar_server");
+        my $channel = weechat::buffer_get_string($buffer, "localvar_channel");
+
+        return $message if ($server eq "" or $channel eq "");
+
 	index($message, weechat::info_get('irc_nick', $server)) != -1 && index($tags, 'notify_message') != -1 && index($tags, 'no_highlight') == -1 || return $message;
 
 	my $count=0;
