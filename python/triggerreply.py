@@ -37,6 +37,7 @@ Some new functions:
       - cooldown (max. n replies in t time)
       - random delay, so more human-like
       - even more randomness: can specify randomness of the reply/replies group.
+05-09-20 - new function - actions
 
 Bugs: not that i'm aware of.
 """
@@ -46,6 +47,7 @@ try:
     import sqlite3
     import re
     import random
+    import sys
 except ImportError:
     raise ImportError("Failed importing weechat, sqlite3, re or random")
 import os
@@ -80,7 +82,12 @@ Commands:
     add    - three arguments: "trigger", "reply" and probability
            - adds a trigger with the specified reply and probability
            - probability 1 = 1/1 (100%), 5 = 1/5 (20 %) - optional, default is 1 (100%)
-           - the %n in the reply will be replaced by the nick of the matching line
+           - negative probability means action, see examples
+           - %n in the reply will be replaced by the nick of the matching line
+           - %N replaced by "my" nick
+           - %m replaced by host and mask *!*@
+           - %c replaced by channel name
+
     remove - one argument: "trigger"
            - remove a trigger
     ignore - one argument: "server.#channel"
@@ -102,6 +109,14 @@ Examples:
     /triggerreply ignorenick rizon.#help.Bot
     /triggerreply watchnick rizon.#help.Bot
 
+Auto greetings:
+/triggerreply add "(hi|hello|hey|howdy)[,: ]+%N" "Hi, %n.|Hello, %n." "1"
+/triggerreply add "%N[,: ]+(hi|hello|hey|howdy)" "Hi, %n.|Helllo, %n." "1"
+
+
+Kick on adult content. Probability -1 means the strings between | are command executed in order:
+/triggerreply add "https?://(www\.)?pornhub\.com|https?://(www\.)?xhamster\.com" "/msg chanserv op %c %N|/kick %n No adult content here, bye|/ban *!*@%m|/msg chanserv deop %c %N" "-1"
+
 """)
 
 
@@ -111,7 +126,7 @@ def create_db(delete=False):
         os.remove(db_file)
     temp_con = sqlite3.connect(db_file)
     cur = temp_con.cursor()
-    cur.execute("CREATE TABLE triggers(id INTEGER PRIMARY KEY, trig VARCHAR, reply VARCHAR);")
+    cur.execute("CREATE TABLE triggers(id INTEGER PRIMARY KEY, trig VARCHAR, reply VARCHAR, prob INTEGER);")
     cur.execute("INSERT INTO triggers(trig, reply, prob) VALUES ('trigge.rs', 'Automatic reply', '1');")
     cur.execute("CREATE TABLE banchans(id INTEGER PRIMARY KEY, ignored VARCHAR);")
     cur.execute("INSERT INTO banchans(ignored) VALUES ('rizon.#help');")
@@ -151,11 +166,11 @@ def search_trig_cb(data, buf, date, tags, displayed, highlight, prefix, message)
     if (prefix == '-->' or prefix == '<--' or prefix == '--' or prefix == ' *' or prefix == ""): return weechat.WEECHAT_RC_OK
 
     bufname = weechat.buffer_get_string(buf, "name")
-    mynick = weechat.buffer_get_string(buf, "localvar_nick")
 
     if bufname == 'weechat': return weechat.WEECHAT_RC_OK
 
     """ Ignore myself """
+    mynick =  weechat.buffer_get_string(buf, "localvar_nick")
     if re.search('[@+~]?' + mynick, prefix):
         """ weechat.prnt("", "Ignored myself.") """
         return weechat.WEECHAT_RC_OK
@@ -164,27 +179,23 @@ def search_trig_cb(data, buf, date, tags, displayed, highlight, prefix, message)
     database = sqlite3.connect(db_file)
     cursor = database.cursor()
     pure = weechat.string_remove_color(message,"")
-    """ pure = pure.decode('utf8')"""
-    channel = weechat.buffer_get_string(buf, "name")
 
-    if debug > 0 : weechat.prnt("", "Nick in question:'%s" % channel + '.' + prefix.translate(None,'@+~') + "'")
+    if debug > 0 : weechat.prnt("", "Nick in question:'%s" % bufname + '.' + prefix.translate(None,'@+~') + "'")
 
     for row in cursor.execute("SELECT ignored from ignorenicks;"):
-        if re.search(row[0], channel + '.' + prefix.translate(None,'@+~')):
+        if re.search(row[0], bufname + '.' + prefix.translate(None,'@+~')):
             """ weechat.prnt("", "Nick ignored: %s" % row[0]) """
             return weechat.WEECHAT_RC_OK
 
     for row in cursor.execute("SELECT ignored from banchans;"):
-        if  channel == row[0]:
-            """  """
+        if  bufname == row[0]:
             return weechat.WEECHAT_RC_OK
 
     for row in cursor.execute("SELECT * FROM triggers"):
-        """ delay = random.randint(4,9)"""
-        delay = 1
+        delay = random.randint(4,9)
 
         pattern = row[1].encode('utf8')
-        pattern = pattern.replace("%n", mynick)
+        pattern = pattern.replace("%N", mynick)
         replydata = row[2].encode('utf8')
         prob = int(row[3])
 
@@ -200,13 +211,41 @@ def search_trig_cb(data, buf, date, tags, displayed, highlight, prefix, message)
             if r.search(pure) is not None:
                 weechat.prnt("", "Matched")
 
-                """ Meh, not really sure if it is accurete, but probably good enough """
+                """ Meh, not really sure how random it is, but probably good enough """
                 if ( prob > 1 and random.randint(1,prob) == 1):
                     if debug > 0: weechat.prnt("", "Randomly ignored.")
                     return weechat.WEECHAT_RC_OK
 
                 weechat.prnt("", "Match: %s" % r.search(pure).group(0))
                 myreply = "n/a"
+                if prob < 0:
+                    """ -1 means this is action, not saying """
+                    delay = 0
+                    weechat.prnt("", "Command mode triggered.")
+                    infolist = weechat.infolist_get("irc_nick", "", bufname.replace(".",","))
+                    while weechat.infolist_next(infolist):
+                       _nick = weechat.infolist_string(infolist, 'name')
+                       if _nick == nick:
+                          hostinfo = weechat.infolist_string(infolist,'host')
+                          break
+                    mask = hostinfo.split('@')[1]
+                    weechat.prnt("", "mask: %s" % mask)
+                    weechat.infolist_free(infolist)
+
+                    for myreply in replydata.split('|'):
+                        myreply = myreply.replace("%n", nick)
+                        myreply = myreply.replace("%N", mynick)
+                        myreply = myreply.replace("%m", mask)
+                        myreply = myreply.replace("%c", bufname.split(".")[1])
+                        weechat.prnt("", "Command: %s" % myreply)
+                        if delay > 0:
+                            weechat.command(buf, "/wait %s %s" % (delay, myreply))
+                        else:
+                            weechat.command(buf, "%s" % myreply)
+                        delay++2
+
+                    return weechat.WEECHAT_RC_OK
+
                 myreply = random.choice(replydata.split('|'))
                 myreply = myreply.replace("%n", nick)
                 weechat.prnt("", "reply: %s" % myreply)
