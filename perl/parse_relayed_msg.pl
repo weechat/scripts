@@ -8,6 +8,7 @@
 #
 # thanks to darrob for hard beta-testing
 #
+# 1.9.3: add compatibility with new weechat_print modifier data (WeeChat >= 2.9)
 # 1.9.2: add: i2pr-support
 # 1.9.1: fix: uninitialized value (by arza)
 #        fix: indentation
@@ -65,7 +66,7 @@
 
 use strict;
 my $SCRIPT_NAME         = "parse_relayed_msg";
-my $SCRIPT_VERSION      = "1.9.2";
+my $SCRIPT_VERSION      = "1.9.3";
 my $SCRIPT_DESCR        = "proper integration of remote users' nicknames in channel and nicklist";
 my $SCRIPT_AUTHOR       = "w8rabbit";
 my $SCRIPT_LICENCE      = "GPL3";
@@ -117,11 +118,25 @@ sub parse_relayed_msg_cb
     # its neither a channel nor a query buffer
     return $string if ( index( $modifier_data,"irc_privmsg" ) == -1 or $modifier_data eq "" );
 
-    $modifier_data =~ (m/irc;(.+?)\.(.+?)\;/);                              # irc;servername.channelname;
-    my $servername = $1;
-    my $channelname = $2;
+    my $buffer = "";
+    my $tags = "";
+    if ($modifier_data =~ /0x/)
+    {
+        # WeeChat >= 2.9
+        $modifier_data =~ m/([^;]*);(.*)/;
+        $buffer = $1;
+        $tags = $2;
+    }
+    else {
+        # WeeChat <= 2.8
+        $modifier_data =~ m/([^;]*);([^;]*);(.*)/;
+        $buffer = weechat::buffer_search($1, $2);
+        $tags = $3;
+    }
+    my $servername = weechat::buffer_get_string($buffer, "localvar_server");
+    my $channelname = weechat::buffer_get_string($buffer, "localvar_channel");
 
-    return $string if (not defined $servername or not defined $channelname);
+    return $string if ($servername eq "" or $channelname eq "");
 
     return $string  if ( !grep /^$servername$/, @list_of_server );          # does server exists?
 
