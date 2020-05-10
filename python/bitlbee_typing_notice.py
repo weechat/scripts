@@ -21,6 +21,8 @@
 # (this script requires WeeChat 0.3.6 or newer)
 #
 # History:
+# 2020-05-10, Sébastien Helleu <flascode@flashtux.org>
+#  version 0.7: remove useless list() around .items()
 # 2020-04-15, Corey Halpin <chalpin@cs.wisc.edu>
 #  version 0.6:
 #    * Update for python3, fixing issues pointed out by 2to3.
@@ -69,7 +71,7 @@ import re
 
 SCRIPT_NAME = "bitlbee_typing_notice"
 SCRIPT_AUTHOR = "Alexander Schremmer <alex@alexanderweb.de>"
-SCRIPT_VERSION = "0.6"
+SCRIPT_VERSION = "0.7"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Sends and displays bitlbee typing notices."
 
@@ -183,7 +185,7 @@ def send_typing(nick, level):
 def typing_notice_item_cb(data, buffer, args):
     if typing:
         msgs = []
-        for key, value in list(typing.items()):
+        for key, value in typing.items():
             msg = key
             if value == 2:
                 msg += " (stale)"
