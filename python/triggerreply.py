@@ -60,8 +60,6 @@ SCRIPT_DESC = "Auto replies when someone sends a specified trigger. Now with 100
 pcooldown  = 1
 """ This is all I need so far :) """
 colorcodes = { "^Cb":"\x02","^CR":"\x0F","^Ci":"\x1D" }
-debug = 0
-
 
 def cooldown_timer_cb(data, remaining_calls):
     global pcooldown
@@ -119,8 +117,12 @@ Kick on adult content. Probability -1 means the strings between | are command ex
 
 """)
 
+def debug(mlevel, message):
+    if int(weechat.config_get_plugin('debug')) >= int(mlevel):
+       weechat.prnt("", "DEBUG: %s" % message)
 
 def create_db(delete=False):
+    debug(3, "Creating basic database.")
     """ create the sqlite database """
     if delete:
         os.remove(db_file)
@@ -180,7 +182,7 @@ def search_trig_cb(data, buf, date, tags, displayed, highlight, prefix, message)
     cursor = database.cursor()
     pure = weechat.string_remove_color(message,"")
 
-    if debug > 0 : weechat.prnt("", "Nick in question:'%s" % bufname + '.' + prefix.translate(None,'@+~') + "'")
+    debug(1, "Nick in question:'%s" % bufname + '.' + prefix.translate(None,'@+~') + "'")
 
     for row in cursor.execute("SELECT ignored from ignorenicks;"):
         if re.search(row[0], bufname + '.' + prefix.translate(None,'@+~')):
@@ -204,7 +206,7 @@ def search_trig_cb(data, buf, date, tags, displayed, highlight, prefix, message)
 
         try:
             nick = re.sub('^[+%@]','', prefix)
-            if debug > 1: weechat.prnt("", "prefix: %s, mynick: %s, nick: %s, pattern: %s, prob: %s, pure: %s" % (prefix, mynick, nick, pattern, str(prob), pure))
+            debug(2, "prefix: %s, mynick: %s, nick: %s, pattern: %s, prob: %s, pure: %s" % (prefix, mynick, nick, pattern, str(prob), pure))
 
             r = re.compile(pattern,re.I | re.U)
 
@@ -213,7 +215,7 @@ def search_trig_cb(data, buf, date, tags, displayed, highlight, prefix, message)
 
                 """ Meh, not really sure how random it is, but probably good enough """
                 if ( prob > 1 and random.randint(1,prob) == 1):
-                    if debug > 0: weechat.prnt("", "Randomly ignored.")
+                    debug(1, "Randomly ignored.")
                     return weechat.WEECHAT_RC_OK
 
                 weechat.prnt("", "Match: %s" % r.search(pure).group(0))
@@ -221,7 +223,7 @@ def search_trig_cb(data, buf, date, tags, displayed, highlight, prefix, message)
                 if prob < 0:
                     """ -1 means this is action, not saying """
                     delay = 0
-                    weechat.prnt("", "Command mode triggered.")
+                    debug(1,"Command mode triggered.")
                     infolist = weechat.infolist_get("irc_nick", "", bufname.replace(".",","))
                     while weechat.infolist_next(infolist):
                        _nick = weechat.infolist_string(infolist, 'name')
@@ -390,6 +392,8 @@ def command_input_callback(data, buffer, argv):
 
 if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, "", ""):
     db_file = "%s/trigge.rs" % weechat.info_get("weechat_dir", "")
+    if weechat.config_get_plugin('debug') == "":
+        weechat.config_set_plugin('debug', "0")
 
     random.seed()
 
