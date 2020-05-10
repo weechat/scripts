@@ -53,7 +53,7 @@ except ImportError:
 import os
 
 SCRIPT_NAME = "triggerreply"
-SCRIPT_AUTHOR = "Vlad Stoica <stoica.vl@gmail.com>, Fisher <fisher@fisher.hu>"
+SCRIPT_AUTHOR = "Vlad Stoica <stoica.vl@gmail.com>"
 SCRIPT_VERSION = "0.4.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Auto replies when someone sends a specified trigger. Now with 100% more regex!"
