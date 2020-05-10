@@ -60,7 +60,7 @@ SCRIPT_DESC = "Auto replies when someone sends a specified trigger. Now with 100
 pcooldown  = 1
 """ This is all I need so far :) """
 colorcodes = { "^Cb":"\x02","^CR":"\x0F","^Ci":"\x1D" }
-debug = 2
+debug = 0
 
 
 def cooldown_timer_cb(data, remaining_calls):
