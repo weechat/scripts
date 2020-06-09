@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2016 by Ferus Castor <ferus+weechat@airmail.cc>
+# Copyright (c) 2020 by Ferus Castor <ferus+weechat@airmail.cc>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,6 +24,9 @@
 # Optionally requires i3-py [py2] (or i3ipc [py3]) to focus weechat in i3
 #
 # History:
+# 2020-06-08, Ferus
+#     version 0.2: drop support of py2 and fix error when closing
+#                  dmenu/rofi with no choice selected
 # 2020-02024, Seirdy
 #     version 0.1.2: py3-ok
 # 2017-05-03, Ferus
@@ -40,13 +43,12 @@
 
 SCRIPT_NAME    = "buffer_dmenu"
 SCRIPT_AUTHOR  = "Ferus <ferus+weechat@airmail.cc>"
-SCRIPT_VERSION = "0.1.2"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "List buffers in dmenu (or rofi), changes active window to selected buffer"
 SCRIPT_COMMAND = "buffer_dmenu"
 
 import os
-import sys
 import subprocess
 
 try:
@@ -56,10 +58,7 @@ except ImportError as e:
 	exit(1)
 
 try:
-	if sys.version_info[0] == 3:
-		import i3ipc as i3
-	else:
-		import i3
+	import i3ipc as i3
 	have_i3 = True
 except ImportError as e:
 	have_i3 = False
@@ -114,19 +113,13 @@ def focus_i3():
 	if have_i3:
 		regex = w.config_get_plugin("title.regex")
 
-		#py3
-		if sys.version_info[0] == 3:
-			i3conn = i3.Connection()
-			weechat = i3conn.get_tree().find_named(regex)[0]
-			weechat.command('focus')
-
-		#py2
-		else:
-			i3.focus(title=regex)
+		i3conn = i3.Connection()
+		weechat = i3conn.get_tree().find_named(regex)[0]
+		weechat.command('focus')
 
 
 def call(command, options):
-	options = "\n".join(options).encode("utf-8")
+	options = "\n".join(options)
 
 	w.hook_process_hashtable("sh"
 		,{"arg1": "-c","arg2": 'echo "{0}" | {1}'.format(options, command)}
@@ -139,8 +132,9 @@ def call(command, options):
 process_output = ""
 def launch_process_cb(data, command, rc, out, err):
 	global process_output
-	if out != "":
-		process_output += out
+	if out == "" or ":" not in out:
+		return w.WEECHAT_RC_ERROR
+	process_output += out
 	if int(rc) >= 0:
 		selected = process_output.strip("\n")
 		number, name = selected.split(":")
@@ -210,7 +204,7 @@ if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT
 		"  $ echo 'core.weechat */buffer_dmenu' >> $(find ~/.weechat -type p)\n"
 		"\n"
 		"To focus the terminal containing WeeChat for the following WM:\n"
-		"  i3: requires i3-py [py2] (or i3ipc [py3]) from pip\n"
+		"  i3: requires i3ipc from pip3\n"
 		,""
 		,"dmenu_cmd_cb"
 		,""
