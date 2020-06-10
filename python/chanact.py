@@ -4,6 +4,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2020-06-10, Sébastien Helleu <flashcode@flashtux.org>
+#   version 1.0: Fix undefined variable
 # 2020-06-10, squigz
 #   version 0.9: Update for Python 3
 # 2013-09-16, d33tah
@@ -65,7 +67,7 @@ except:
 
 SCRIPT_NAME    = "chanact"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.9"
+SCRIPT_VERSION = "1.0"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Hotlist replacement, use names and keybindings instead of numbers"
 
@@ -187,7 +189,7 @@ def chanact_cb(*args):
             entry = '%s%s%s' % (
                     w.color(color),
                     number,
-                    w.color(reset))
+                    w.color('reset'))
 
         activity.append((entry, thebuffer, sort_rank(thebuffer, priority), int_number))
 
