@@ -8,6 +8,7 @@
 #
 # thanks to darrob for hard beta-testing
 #
+# 1.9.4: add compatibility with other kind of messages than irc
 # 1.9.3: add compatibility with new weechat_print modifier data (WeeChat >= 2.9)
 # 1.9.2: add: i2pr-support
 # 1.9.1: fix: uninitialized value (by arza)
@@ -66,13 +67,14 @@
 
 use strict;
 my $SCRIPT_NAME         = "parse_relayed_msg";
-my $SCRIPT_VERSION      = "1.9.3";
+my $SCRIPT_VERSION      = "1.9.4";
 my $SCRIPT_DESCR        = "proper integration of remote users' nicknames in channel and nicklist";
 my $SCRIPT_AUTHOR       = "w8rabbit";
 my $SCRIPT_LICENCE      = "GPL3";
 
 # =============== options ===============
 my %option = (  "supported_bot_names"   => "i2pr,cloudrelay*,MultiRelay*,FLIPRelayBot*,i2pRelay,u2,uuu,RelayBot,lll,iRelay,fox,wolf,hawk,muninn,gribble,vulpine,*GitterBot",
+                "supported_message_kinds" => "irc_privmsg,matrix_message",
                 "debug"                 => "off",
                 "blacklist"             => "",
                 "servername"            => "i2p,freenet",
@@ -88,6 +90,7 @@ my %option = (  "supported_bot_names"   => "i2pr,cloudrelay*,MultiRelay*,FLIPRel
 
 my %script_desc = ( "blacklist"           => "Comma-separated list of relayed nicknames to be ignored (similar to /ignore). The format is case-sensitive: <server>.<relaynick>",
                     "supported_bot_names" => "Comma-separated list of relay bots.",
+                    "supported_message_kinds" => "Comma-separated list of message kinds.",
                     "debug"               => "Enable output of raw IRC messages. This is a developer feature and should generally be turned off. The format is:  <servername>:<botname> (default: off)",
                     "servername"          => "Comma-separated list of internal servers to enable $SCRIPT_NAME for. (default: i2p,freenet)",
                     "nick_mode"           => "Prefix character used to mark relayed nicknames. (default: ⇅). Since WeeChat 0.4.2 you can use format \${color:xxx} but this doesn't affect nicklist.",
@@ -102,6 +105,7 @@ my %script_desc = ( "blacklist"           => "Comma-separated list of relayed ni
 # =============== internal values ===============
 my $weechat_version             = "";
 my @bot_nicks                   = "";
+my @message_kinds               = "";
 my @list_of_server              = "";
 my @suppress_relaynet_channels  = "";
 my @blacklist                   = "";
@@ -116,7 +120,8 @@ sub parse_relayed_msg_cb
     my ( $data, $modifier, $modifier_data, $string ) = @_;
 
     # its neither a channel nor a query buffer
-    return $string if ( index( $modifier_data,"irc_privmsg" ) == -1 or $modifier_data eq "" );
+    my $result = should_handle_modifier($modifier_data);
+    return $string unless ($result);
 
     my $buffer = "";
     my $tags = "";
@@ -140,7 +145,7 @@ sub parse_relayed_msg_cb
 
     return $string  if ( !grep /^$servername$/, @list_of_server );          # does server exists?
 
-    my $buf_ptr = weechat::buffer_search("irc",$servername . "." . $channelname);
+    my $buf_ptr = $buffer;
 
     $string =~ m/^(.*)\t(.*)/;                                              # nick[tab]string
     my $nick = $1;                                                          # get the nick name (with prefix!)
@@ -669,6 +674,7 @@ sub init_config
     }
     
     @bot_nicks = split( /,/, $option{supported_bot_names} );                                # read bot names
+    @message_kinds = split( /,/, $option{supported_message_kinds} );                        # read supported_message_kinds
     @list_of_server = split( /,/, $option{servername} );                                    # read server
     @suppress_relaynet_channels = split( /,/, $option{suppress_relaynet_channels} );        # read channels
     @blacklist = split( /,/, $option{blacklist} );                                          # read blacklist of relay nicks
@@ -693,6 +699,11 @@ sub toggle_config_by_set
     {
         @bot_nicks = "";
         @bot_nicks = split( /,/, $option{supported_bot_names} );
+    }
+    if ( $name eq "supported_message_kinds" )
+    {
+        @message_kinds = "";
+        @message_kinds = split( /,/, $option{supported_message_kinds} );
     }
     if ( $name eq "servername" )
     {
@@ -778,6 +789,21 @@ sub shutdown
         weechat::nicklist_remove_nick($buf_ptr,$ptr_nick_gui);
     }
 return weechat::WEECHAT_RC_OK;
+}
+
+sub should_handle_modifier
+{
+    my ($modifier_data) = @_;
+
+    foreach ( @message_kinds ){
+        my $message_kind = weechat::string_mask_to_regex($_);
+        if (index( $modifier_data,$message_kind ) != -1)
+        {
+            return 1;
+        }
+    }
+
+    return 0;
 }
 
 # ========= string_mask_to_regex() =========
