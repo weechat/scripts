@@ -8,6 +8,7 @@
 #
 # thanks to darrob for hard beta-testing
 #
+# 1.9.5: add compatibility with matrix-appservice-irc
 # 1.9.4: add compatibility with other kind of messages than irc
 # 1.9.3: add compatibility with new weechat_print modifier data (WeeChat >= 2.9)
 # 1.9.2: add: i2pr-support
@@ -67,7 +68,7 @@
 
 use strict;
 my $SCRIPT_NAME         = "parse_relayed_msg";
-my $SCRIPT_VERSION      = "1.9.4";
+my $SCRIPT_VERSION      = "1.9.5";
 my $SCRIPT_DESCR        = "proper integration of remote users' nicknames in channel and nicklist";
 my $SCRIPT_AUTHOR       = "w8rabbit";
 my $SCRIPT_LICENCE      = "GPL3";
@@ -205,6 +206,25 @@ sub parse_relayed_msg_cb
         elsif ( $line =~ m/^[\(\[`](.+?)\/(.+?)[\)\]`] (.+)$/ )
         {
             my ($relayserver,$relaynick,$relaymsg) = ($1,$2,$3);
+            if ( grep /^$servername.$relaynick$/, @blacklist )              # check for ignored relay nicks
+            {
+                return '';                                                  # delete message from ignored relaynick
+            }
+            my $nick_mode = "";
+            ($relaynick,$nick_mode) = check_nick_mode($buf_ptr,$relaynick);
+            add_relay_nick_to_nicklist($buf_ptr,$relaynick,"");
+            (undef, $relaymsg) = colorize_lines($modifier_data,$relaynick, $relaymsg);
+
+            $string = create_string_without_relaynet($servername,$channelname,$relaynick,$nick_mode,$relaymsg);
+
+            $modifier_data = change_tags_for_message( $buf_ptr,$relaynick,"",$modifier_data,"" );
+            weechat::print_date_tags($buf_ptr,0,$modifier_data,$string);
+            return "";
+        }
+        # message from matrix-appservice-irc
+        elsif ( $line =~ m/^\[\w\] <@([^>]+)> (.+)$/ )
+        {
+            my ($relaynick,$relaymsg) = ($1,$2);
             if ( grep /^$servername.$relaynick$/, @blacklist )              # check for ignored relay nicks
             {
                 return '';                                                  # delete message from ignored relaynick
