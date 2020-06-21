@@ -40,6 +40,8 @@
 #
 #
 # History:
+# 2020-06-21, Sebastien Helleu <flashcode@flashtux.org>:
+#       v1.2:   Make call to bar_new compatible with WeeChat >= 2.9.
 # 2013-04-06, R1cochet <deltaxrho@gmail.com>:
 #       v1.1:   Added option "rssagg.engine.autostop". Added "last" option to /rssagg command.
 #               Muted filter in rssagg buffer. Fixed partial feed callback. Other bug fixes.
@@ -53,7 +55,7 @@ use POSIX qw(strftime);
 use XML::FeedPP;
 
 my $SCRIPT_NAME = "rssagg";
-my $VERSION     = "1.1";
+my $VERSION     = "1.2";
 my $SCRIPT_DESC = "RSS/RDF/Atom feed aggregator for WeeChat";
 
 ######################### Global Vars #########################
@@ -657,7 +659,11 @@ sub set_current_line {
 sub bar_create {
     $rssagg_bar = weechat::bar_search("rssagg");
     if ($rssagg_bar eq "") {
-        $rssagg_bar = weechat::bar_new("rssagg", "off", 0, "root", "", "top", "vertical", "vertical", "4", "20", "default", "cyan", "default", 'off', "rssagg");
+        if ($wee_version_number >= 0x02090000) {
+            $rssagg_bar = weechat::bar_new("rssagg", "off", 0, "root", "", "top", "vertical", "vertical", "4", "20", "default", "cyan", "default", "default", 'off', "rssagg");
+        } else {
+            $rssagg_bar = weechat::bar_new("rssagg", "off", 0, "root", "", "top", "vertical", "vertical", "4", "20", "default", "cyan", "default", 'off', "rssagg");
+        }
     }
     weechat::bar_item_new("rssagg", "rssagg_bar_build", "");
     return weechat::WEECHAT_RC_OK;
