@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2.0   : make call to bar_new compatible with WeeChat >= 2.9
 # 1.9   : added: cursor support
 # 1.8   : fixed: problem with temporary server
 #       : added: %h variable for filename
@@ -82,7 +83,7 @@
 use strict;
 
 my $prgname		= "buddylist";
-my $version		= "1.9";
+my $version		= "2.0";
 my $description		= "display status from your buddies a bar-item.";
 
 # -------------------------------[ config ]-------------------------------------
@@ -172,9 +173,15 @@ init();
 buddylist_read();
 
 weechat::bar_item_new($prgname, "build_buddylist", "");
-weechat::bar_new($prgname, "1", "0", "root", "", "left", "horizontal",
-                 "vertical", "0", "0", "default", "default", "default", "1",
-                 $prgname);
+if ($weechat_version >= 0x02090000) {
+    weechat::bar_new($prgname, "1", "0", "root", "", "left", "horizontal",
+                     "vertical", "0", "0", "default", "default", "default", "default", "1",
+                     $prgname);
+} else {
+    weechat::bar_new($prgname, "1", "0", "root", "", "left", "horizontal",
+                     "vertical", "0", "0", "default", "default", "default", "1",
+                     $prgname);
+}
 
 weechat::hook_signal("buffer_*", "buddylist_signal_buffer", "");
 
