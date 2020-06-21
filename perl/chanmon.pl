@@ -1,6 +1,5 @@
 #
 # chanmon.pl - Channel Monitoring for weechat 0.3.0
-# Version 2.5
 #
 # Add 'Channel Monitor' buffer/bar that you can position to show IRC channel
 # messages in a single location without constantly switching buffers
@@ -74,6 +73,8 @@
 # Bugs and feature requests at: https://github.com/KenjiE20/chanmon
 
 # History:
+# 2020-06-21, Sebastien Helleu <flashcode@flashtux.org>:
+#	v2.6: make call to bar_new compatible with WeeChat >= 2.9
 # 2014-08-16, KenjiE20 <longbow@longbowslair.co.uk>:
 #	v2.5:	-add: clearbar command to clear bar output
 #			-add: firstrun output prompt to check the help text for set up hints as they were being missed
@@ -305,7 +306,15 @@ sub chanmon_bar_open
 	# Make the bar item
 	weechat::bar_item_new("chanmon", "chanmon_bar_build", "");
 
-	$chanmon_bar = weechat::bar_new ("chanmon", "off", 100, "root", "", "bottom", "vertical", "vertical", 0, 0, "default", "cyan", "default", "on", "chanmon");
+        my $weechat_version = weechat::info_get("version_number", "");
+        if ($weechat_version >= 0x02090000)
+        {
+            $chanmon_bar = weechat::bar_new ("chanmon", "off", 100, "root", "", "bottom", "vertical", "vertical", 0, 0, "default", "cyan", "default", "default", "on", "chanmon");
+        }
+        else
+        {
+            $chanmon_bar = weechat::bar_new ("chanmon", "off", 100, "root", "", "bottom", "vertical", "vertical", 0, 0, "default", "cyan", "default", "on", "chanmon");
+        }
 
 	return weechat::WEECHAT_RC_OK;
 }
@@ -1182,7 +1191,7 @@ sub format_buffer_name
 }
 
 # Check result of register, and attempt to behave in a sane manner
-if (!weechat::register("chanmon", "KenjiE20", "2.5", "GPL3", "Channel Monitor", "", ""))
+if (!weechat::register("chanmon", "KenjiE20", "2.6", "GPL3", "Channel Monitor", "", ""))
 {
 	# Double load
 	weechat::print ("", "\tChanmon is already loaded");
