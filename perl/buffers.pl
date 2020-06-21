@@ -20,6 +20,8 @@
 #
 # History:
 #
+# 2020-06-21, Sebastien Helleu <flashcode@flashtux.org>:
+#     v5.7: make call to bar_new compatible with WeeChat >= 2.9
 # 2017-03-17, arza <arza@arza.us>:
 #     v5.6: fix truncating buffer names that contain multibyte characters
 # 2017-02-21, arza <arza@arza.us>:
@@ -179,7 +181,7 @@ use strict;
 use Encode qw( decode encode );
 # -----------------------------[ internal ]-------------------------------------
 my $SCRIPT_NAME = "buffers";
-my $SCRIPT_VERSION = "5.6";
+my $SCRIPT_VERSION = "5.7";
 
 my $BUFFERS_CONFIG_FILE_NAME = "buffers";
 my $buffers_config_file;
@@ -209,9 +211,18 @@ buffers_config_init();
 buffers_config_read();
 
 weechat::bar_item_new($SCRIPT_NAME, "build_buffers", "");
-weechat::bar_new($SCRIPT_NAME, "0", "0", "root", "", "left", "columns_vertical",
-                 "vertical", "0", "0", "default", "default", "default", "1",
-                 $SCRIPT_NAME);
+if ($weechat_version >= 0x02090000)
+{
+    weechat::bar_new($SCRIPT_NAME, "0", "0", "root", "", "left", "columns_vertical",
+                     "vertical", "0", "0", "default", "default", "default", "default", "1",
+                     $SCRIPT_NAME);
+}
+else
+{
+    weechat::bar_new($SCRIPT_NAME, "0", "0", "root", "", "left", "columns_vertical",
+                     "vertical", "0", "0", "default", "default", "default", "1",
+                     $SCRIPT_NAME);
+}
 
 if ( check_bar_item() == 0 )
 {
