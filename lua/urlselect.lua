@@ -16,7 +16,7 @@ local w = weechat
 local g = {
    script = {
       name = "urlselect",
-      version = "0.4",
+      version = "0.5",
       author = "tomoe-mami <rumia.youkai.of.dusk@gmail.com>",
       license = "WTFPL",
       description = "Interactively select URL"
@@ -1501,22 +1501,43 @@ function setup_bar()
    for key, info in pairs(g.bar) do
       local bar = w.bar_search(info.name)
       if not bar or bar == "" then
-         bar = w.bar_new(
-            info.name,                 -- name
-            "on",                      -- hidden?
-            settings[key].priority,    -- priority
-            "root",                    -- type
-            "active",                  -- condition
-            "top",                     -- position
-            settings[key].filling_tb,  -- filling top/bottom
-            "vertical",                -- filling left/right
-            0,                         -- size
-            settings[key].max_size,    -- max size
-            "default",                 -- text fg
-            "cyan",                    -- delim fg
-            "default",                 -- bar bg
-            "on",                      -- separator
-            settings[key].items)       -- items
+         local wee_ver = tonumber(w.info_get("version_number", "") or 0)
+         if wee_ver >= 0x02090000 then
+            bar = w.bar_new(
+               info.name,                 -- name
+               "on",                      -- hidden?
+               settings[key].priority,    -- priority
+               "root",                    -- type
+               "active",                  -- condition
+               "top",                     -- position
+               settings[key].filling_tb,  -- filling top/bottom
+               "vertical",                -- filling left/right
+               0,                         -- size
+               settings[key].max_size,    -- max size
+               "default",                 -- text fg
+               "cyan",                    -- delim fg
+               "default",                 -- bar bg
+               "default",                 -- bar bg inactive
+               "on",                      -- separator
+               settings[key].items)       -- items
+         else
+            bar = w.bar_new(
+               info.name,                 -- name
+               "on",                      -- hidden?
+               settings[key].priority,    -- priority
+               "root",                    -- type
+               "active",                  -- condition
+               "top",                     -- position
+               settings[key].filling_tb,  -- filling top/bottom
+               "vertical",                -- filling left/right
+               0,                         -- size
+               settings[key].max_size,    -- max size
+               "default",                 -- text fg
+               "cyan",                    -- delim fg
+               "default",                 -- bar bg
+               "on",                      -- separator
+               settings[key].items)       -- items
+         end
       end
       g.bar[key].ptr = bar
    end
