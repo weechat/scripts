@@ -194,6 +194,9 @@
 #
 #
 #   History:
+#   2020-06-21
+#   version 0.3.2: make call to bar_new compatible with WeeChat >= 2.9
+#
 #   2013-05-24
 #   version 0.3.1: bug fixes
 #   * fix exceptions while fetching bans with /mode
@@ -280,7 +283,7 @@ WEECHAT_VERSION = (0x30200, '0.3.2')
 
 SCRIPT_NAME    = "chanop"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.3.1"
+SCRIPT_VERSION = "0.3.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Helper script for IRC Channel Operators"
 
@@ -767,10 +770,19 @@ class Bar(object):
         assert not self._pointer, "Bar %s already created" % self.name
         pointer = weechat.bar_search(self.name)
         if not pointer:
-            pointer = weechat.bar_new(self.name, boolDict[self.hidden], '0', 'window',
-                                      'active', 'bottom', 'horizontal', 'vertical',
-                                      '0', '1', 'default', 'cyan', 'blue', 'off',
-                                      self._items)
+            version = int(weechat.info_get('version_number', '')) or 0
+            if version >= 0x02090000:
+                pointer = weechat.bar_new(
+                    self.name, boolDict[self.hidden], '0', 'window',
+                    'active', 'bottom', 'horizontal', 'vertical',
+                    '0', '1', 'default', 'cyan', 'blue', 'blue', 'off',
+                    self._items)
+            else:
+                pointer = weechat.bar_new(
+                    self.name, boolDict[self.hidden], '0', 'window',
+                    'active', 'bottom', 'horizontal', 'vertical',
+                    '0', '1', 'default', 'cyan', 'blue', 'off',
+                    self._items)
             if not pointer:
                 raise Exception("bar_new failed: %s %s" % (SCRIPT_NAME, self.name))
 
