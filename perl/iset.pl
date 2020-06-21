@@ -19,6 +19,8 @@
 #
 # History:
 #
+# 2020-06-21, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 4.4: make call to bar_new compatible with WeeChat >= 2.9
 # 2017-04-14, nils_2 <freenode.#weechat>
 #     version 4.3: add option "use_color" (https://github.com/weechat/scripts/issues/93)
 # 2016-07-08, nils_2 <weechatter@arcor.de>
@@ -132,7 +134,7 @@
 use strict;
 
 my $PRGNAME = "iset";
-my $VERSION = "4.3";
+my $VERSION = "4.4";
 my $DESCR   = "Interactive Set for configuration options";
 my $AUTHOR  = "Sebastien Helleu <flashcode\@flashtux.org>";
 my $LICENSE = "GPL3";
@@ -1618,9 +1620,18 @@ weechat::hook_signal("upgrade_ended", "iset_upgrade_ended", "");
 weechat::hook_signal("window_scrolled", "iset_signal_window_scrolled_cb", "");
 weechat::hook_signal("buffer_switch", "iset_signal_buffer_switch_cb","");
 weechat::bar_item_new("isetbar_help", "iset_item_cb", "");
-weechat::bar_new("isetbar", "on", "0", "window", "", "top", "horizontal",
-                 "vertical", "3", "3", "default", "cyan", "default", "1",
-                 "isetbar_help");
+if ($wee_version_number >= 0x02090000)
+{
+    weechat::bar_new("isetbar", "on", "0", "window", "", "top", "horizontal",
+                     "vertical", "3", "3", "default", "cyan", "default", "default", "1",
+                     "isetbar_help");
+}
+else
+{
+    weechat::bar_new("isetbar", "on", "0", "window", "", "top", "horizontal",
+                     "vertical", "3", "3", "default", "cyan", "default", "1",
+                     "isetbar_help");
+}
 weechat::hook_modifier("bar_condition_isetbar", "iset_check_condition_isetbar_cb", "");
 weechat::hook_config("*", "iset_config_cb", "");
 $iset_buffer = weechat::buffer_search($LANG, $PRGNAME);
