@@ -50,6 +50,9 @@
 # -----------------------------------------------------------------------------
 #
 # Changelog:
+# Version 0.19 2020-06-21, Sébastien Helleu
+#   * FIX: make call to bar_new compatible with WeeChat >= 2.9
+#
 # Version 0.18 2014-10-26, nils_2
 #   * IMPROVED: use hook_print() instead of hook_signal() for private messages
 #   * ADD: option "blacklist_buffers" (idea by Pixelz)
@@ -221,7 +224,7 @@ my %SETTINGS = (
 
 my $weechat_version;
 my $SCRIPT              = "newsbar";
-my $SCRIPT_VERSION      = "0.18";
+my $SCRIPT_VERSION      = "0.19";
 my $SCRIPT_AUTHOR       = "rettub";
 my $SCRIPT_LICENCE      = "GPL3";
 my $SCRIPT_DESCRIPTION  = "Print highlights or text given by commands into bar 'NewsBar'. Auto popup on top of weechat if needed. 'beeps' can be executed local or remote";
@@ -987,18 +990,34 @@ sub init_bar {
             weechat::config_get_plugin('away_only')
         );
         weechat::bar_item_new( $bar_name, "build_bar", "" );
-        weechat::bar_new(
-            $bar_name,                              $Bar_hidden,
-            "1000",                                 "root",
-            "",                                     "top",
-            "vertical",                             "vertical",
-            "0",
-            weechat::config_get_plugin('bar_visible_lines'),
-            "default",                              "default",
-            weechat::config_string(weechat::config_get('weechat.bar.newsbar.color_bg')),
-            weechat::config_get_plugin('bar_seperator'),
-            $bar_name
-        );
+        if ($weechat_version >= 0x02090000) {
+            weechat::bar_new(
+                $bar_name,                              $Bar_hidden,
+                "1000",                                 "root",
+                "",                                     "top",
+                "vertical",                             "vertical",
+                "0",
+                weechat::config_get_plugin('bar_visible_lines'),
+                "default",                              "default",
+                weechat::config_string(weechat::config_get('weechat.bar.newsbar.color_bg')),
+                weechat::config_string(weechat::config_get('weechat.bar.newsbar.color_bg')),
+                weechat::config_get_plugin('bar_seperator'),
+                $bar_name
+            );
+        } else {
+            weechat::bar_new(
+                $bar_name,                              $Bar_hidden,
+                "1000",                                 "root",
+                "",                                     "top",
+                "vertical",                             "vertical",
+                "0",
+                weechat::config_get_plugin('bar_visible_lines'),
+                "default",                              "default",
+                weechat::config_string(weechat::config_get('weechat.bar.newsbar.color_bg')),
+                weechat::config_get_plugin('bar_seperator'),
+                $bar_name
+            );
+        }
     }
 
     my $c;
@@ -1009,17 +1028,31 @@ sub init_bar {
 
     unless (defined $Bar_title) {
         weechat::bar_item_new( $Bar_title_name, "build_bar_title", "" );
-        weechat::bar_new(
-            $Bar_title_name,                        $Bar_hidden,
-            "1010",                                 "root",
-            "",                                     "top",
-            "vertical",                             "vertical",
-            "0",                                    '1',
-            "default",                              "default",
-            $c,
-            'off',
-            $Bar_title_name
-        );
+        if ($weechat_version >= 0x02090000) {
+            weechat::bar_new(
+                $Bar_title_name,                        $Bar_hidden,
+                "1010",                                 "root",
+                "",                                     "top",
+                "vertical",                             "vertical",
+                "0",                                    '1',
+                "default",                              "default",
+                $c, $c,
+                'off',
+                $Bar_title_name
+            );
+        } else {
+            weechat::bar_new(
+                $Bar_title_name,                        $Bar_hidden,
+                "1010",                                 "root",
+                "",                                     "top",
+                "vertical",                             "vertical",
+                "0",                                    '1',
+                "default",                              "default",
+                $c,
+                'off',
+                $Bar_title_name
+            );
+        }
     }
 
     weechat::bar_item_update($Bar_title_name);
