@@ -251,7 +251,7 @@ for full pod documentation, filter this script with
 =cut
 
 use constant SCRIPT_NAME => 'menu';
-our $VERSION = '0.9';
+our $VERSION = '1.0';
 
 #$$$ autoloaded{
 BEGIN { { package WeeP::Tie::hash_accessor;
@@ -1681,24 +1681,42 @@ sub setup_menu_bar {
 	$bar->{items} = '*,main_menu' unless $bar->_infolist->{items} =~ /\bmain_menu\b/;
     }
     else {
-	W->bar_new('main_menu', 'off', 10000, 'root', '', 'top', 'horizontal', 'vertical',
-		   0, 0, 'gray', 'lightblue', 'darkgray', 'off', '*,main_menu');
+        if ((W->info_get('version_number', '') || 0) >= 0x02090000) {
+            W->bar_new('main_menu', 'off', 10000, 'root', '', 'top', 'horizontal', 'vertical',
+                       0, 0, 'gray', 'lightblue', 'darkgray', 'darkgray', 'off', '*,main_menu');
+        }
+        else {
+            W->bar_new('main_menu', 'off', 10000, 'root', '', 'top', 'horizontal', 'vertical',
+                       0, 0, 'gray', 'lightblue', 'darkgray', 'off', '*,main_menu');
+        }
     }
     if (my $bar = W->bar_search('sub_menu')) {
 	$bar->{hidden} = 1;
 	$bar->{items} = '*sub_menu' unless $bar->_infolist->{items} =~ /\bsub_menu\b/;
     }
     else {
-	W->bar_new('sub_menu', 'on', 9999, 'root', '', 'top', 'columns_vertical', 'vertical',
-		   0, 0, 'black', 'lightmagenta', 'gray', 'on', '*sub_menu');
+        if ((W->info_get('version_number', '') || 0) >= 0x02090000) {
+            W->bar_new('sub_menu', 'on', 9999, 'root', '', 'top', 'columns_vertical', 'vertical',
+                       0, 0, 'black', 'lightmagenta', 'gray', 'gray', 'on', '*sub_menu');
+        }
+        else {
+            W->bar_new('sub_menu', 'on', 9999, 'root', '', 'top', 'columns_vertical', 'vertical',
+                       0, 0, 'black', 'lightmagenta', 'gray', 'on', '*sub_menu');
+        }
     }
     if (my $bar = W->bar_search('menu_help')) {
 	$bar->{hidden} = 1;
 	$bar->{items} = 'menu_help' unless $bar->_infolist->{items} =~ /\bmenu_help\b/;
     }
     else {
-	W->bar_new('menu_help', 'on', 9998, 'root', '', 'top', 'horizontal', 'vertical',
-		   0, 0, 'darkgray', 'default', 'gray', 'on', 'menu_help');
+        if ((W->info_get('version_number', '') || 0) >= 0x02090000) {
+            W->bar_new('menu_help', 'on', 9998, 'root', '', 'top', 'horizontal', 'vertical',
+                       0, 0, 'darkgray', 'default', 'gray', 'gray', 'on', 'menu_help');
+        }
+        else {
+            W->bar_new('menu_help', 'on', 9998, 'root', '', 'top', 'horizontal', 'vertical',
+                       0, 0, 'darkgray', 'default', 'gray', 'on', 'menu_help');
+        }
     }
 
     if (my $bar = W->bar_search('window_popup_menu')) {
@@ -1706,8 +1724,14 @@ sub setup_menu_bar {
 	$bar->{items} = '*window_popup_menu' unless $bar->_infolist->{items} =~ /\bwindow_popup_menu\b/;
     }
     else {
-	W->bar_new('window_popup_menu', 'on', 0, 'window', 'active', 'bottom', 'columns_vertical', 'vertical',
-		   0, 0, 'black', 'lightmagenta', 'gray', 'on', '*window_popup_menu');
+        if ((W->info_get('version_number', '') || 0) >= 0x02090000) {
+            W->bar_new('window_popup_menu', 'on', 0, 'window', 'active', 'bottom', 'columns_vertical', 'vertical',
+                       0, 0, 'black', 'lightmagenta', 'gray', 'gray', 'on', '*window_popup_menu');
+        }
+        else {
+            W->bar_new('window_popup_menu', 'on', 0, 'window', 'active', 'bottom', 'columns_vertical', 'vertical',
+                       0, 0, 'black', 'lightmagenta', 'gray', 'on', '*window_popup_menu');
+        }
     }
 
     WC->RC_OK
