@@ -2,6 +2,7 @@
 # History:
 # 2020-07-02, Pascal Poitras Dubois <pascalpoitras@gmail.com>:
 #	v0.3:	-add: add a tag, mass_hl, to the message
+#		-change: remove leading channel membership prefixes (~&@%+)
 
 weechat::register('mass_hl_blocker', 'arza <arza\@arza.us>', '0.3', 'GPL3', 'Block mass highlights', '', '');
 
@@ -45,6 +46,7 @@ sub block { my $message=$_[3];
 
 	my $count=0;
 	foreach my $word (split(' ', $message)){
+		$word =~ s/^[~&@%+]//;
 		my $infolist=weechat::infolist_get('irc_nick', '', "$server,$channel,$word");
 		if($infolist){ $count++; }
 		weechat::infolist_free($infolist);
