@@ -19,6 +19,8 @@
 #
 # idea by azizLIGHTS
 #
+# 2020-07-08: r3m, (freenode.#weechat)
+#       0.7 : fix help
 # 2017-01-06: nils_2, (freenode.#weechat)
 #       0.6 : fix problem with non existing server (reported by Niols)
 # 2016-12-19: nils_2, (freenode.#weechat)
@@ -47,7 +49,7 @@ except Exception:
 
 SCRIPT_NAME     = "autojoinem"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.6"
+SCRIPT_VERSION  = "0.7"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "add/del channel(s) to/from autojoin option"
 
@@ -374,7 +376,7 @@ if __name__ == "__main__":
                              ' add current channel to corresponding server option:\n'
                              '  /' + SCRIPT_NAME + ' add\n'
                              ' add all channels from all server to corresponding server option:\n'
-                             '  /allchan /' + SCRIPT_NAME + ' add\n'
+                             '  /allchan /' + SCRIPT_NAME + ' add ${irc_server.name} ${irc_channel.name}${if:${irc_channel.key}? -key ${irc_channel.key}}\n'
                              ' add channel #weechat to autojoin option on server freenode:\n'
                              '  /' + SCRIPT_NAME + ' add freenode #weechat\n'
                              ' add channel #weechat and #weechat-de to autojoin option on server freenode, with channel key for channel #weechat:\n'
