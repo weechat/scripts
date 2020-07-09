@@ -1,6 +1,10 @@
 # Mass highlight blocker for WeeChat by arza <arza@arza.us>, distributed freely and without any warranty, licensed under GPL3 <http://www.gnu.org/licenses/gpl.html>
+# History:
+# 2020-07-02, Pascal Poitras Dubois <pascalpoitras@gmail.com>:
+#	v0.3:	-add: add a tag, mass_hl, to the message
+#		-change: remove leading channel membership prefixes (~&@%+)
 
-weechat::register('mass_hl_blocker', 'arza <arza\@arza.us>', '0.2', 'GPL3', 'Block mass highlights', '', '');
+weechat::register('mass_hl_blocker', 'arza <arza\@arza.us>', '0.3', 'GPL3', 'Block mass highlights', '', '');
 
 my $version=weechat::info_get('version_number', '') || 0;
 
@@ -42,13 +46,14 @@ sub block { my $message=$_[3];
 
 	my $count=0;
 	foreach my $word (split(' ', $message)){
+		$word =~ s/^[~&@%+]//;
 		my $infolist=weechat::infolist_get('irc_nick', '', "$server,$channel,$word");
 		if($infolist){ $count++; }
 		weechat::infolist_free($infolist);
 	}
 
 	if($count>=$limit){
-		weechat::print_date_tags(weechat::buffer_search($plugin, "$server.$channel"), 0, "$tags,no_highlight", $message);
+		weechat::print_date_tags(weechat::buffer_search($plugin, "$server.$channel"), 0, "$tags,no_highlight,mass_hl", $message);
 		return '';
 	}
 
