@@ -378,7 +378,7 @@ if __name__ == "__main__":
                              ' add all channels from all server to corresponding server option:\n'
                              '  /allchan /' + SCRIPT_NAME + ' add\n'
                              ' add all channels from all server to corresponding server option, works with key (WeeChat ≥ 3.0):\n'
-                             '  /allchan /' + SCRIPT_NAME + ' add ${irc_server.name} ${irc_channel.name}${if:${irc_channel.key}? -key ${irc_channel.key}}\n'
+                             '  /allchan /' + SCRIPT_NAME + ' add ${if:${irc_channel.key}? $server $channel -key ${irc_channel.key}}\n'
                              ' add channel #weechat to autojoin option on server freenode:\n'
                              '  /' + SCRIPT_NAME + ' add freenode #weechat\n'
                              ' add channel #weechat and #weechat-de to autojoin option on server freenode, with channel key for channel #weechat:\n'
