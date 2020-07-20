@@ -42,6 +42,9 @@
 # 2019-09-06: nils_2, (freenode.#weechat)
 #       0.7 : fix: ignore "slack" for signal "buffer_switch"
 #
+# 2020-07-20: Sébastien Helleu
+#       0.8 : fix: add missing "/" in /allchan command
+#
 # idea and testing by DJ-ArcAngel
 
 try:
@@ -54,7 +57,7 @@ except Exception:
 
 SCRIPT_NAME     = "collapse_channel"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.7"
+SCRIPT_VERSION  = "0.8"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "collapse channel buffers from servers without focus"
 
@@ -175,7 +178,7 @@ def hotlist_changed_cb(data, signal, signal_data):
         plugin_name = weechat.buffer_get_string(weechat.current_buffer(), 'localvar_plugin')
         # TODO how about matrix script or other non-irc channel buffer? no idea! help is welcome
         if plugin_name != 'irc':                                                    # for example /fset, /color etc.pp buffer
-            weechat.command('', '/allchan buffer hide')
+            weechat.command('', '/allchan /buffer hide')
     if OPTIONS['activity'].lower() == 'no' or OPTIONS['activity'].lower() == 'off' or OPTIONS['activity'].lower() == '0':
         exclude_server()
         single_channel_exclude()
