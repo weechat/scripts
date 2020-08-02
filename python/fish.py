@@ -687,7 +687,7 @@ def bytes2int(b):
     n = 0
     for p in b:
         n *= 256
-        n += ord(p)
+        n += ord(p) if isinstance(p, str) else p
     return n
 
 
