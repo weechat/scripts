@@ -704,7 +704,7 @@ def int2bytes(n):
 
 def sha256(s):
     """sha256"""
-    return hashlib.sha256(s).digest()
+    return hashlib.sha256(s.encode()).digest()
 
 
 ##
