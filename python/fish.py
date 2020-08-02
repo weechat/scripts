@@ -500,7 +500,8 @@ def dh1080_b64encode(s):
     m = 0x80
     i, j, k, t = 0, 0, 0, 0
     while i < L:
-        if ord(s[i >> 3]) & m:
+        o = ord(s[i >> 3]) if isinstance(s, str) else s[i >> 3]
+        if o & m:
             t |= 1
         j += 1
         m >>= 1
