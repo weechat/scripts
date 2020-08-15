@@ -61,7 +61,7 @@ from os import urandom
 
 SCRIPT_NAME = "fish"
 SCRIPT_AUTHOR = "David Flatz <david@upcs.at>"
-SCRIPT_VERSION = "0.9.4"
+SCRIPT_VERSION = "0.9.5"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "FiSH for weechat"
 CONFIG_FILE_NAME = SCRIPT_NAME
@@ -500,7 +500,8 @@ def dh1080_b64encode(s):
     m = 0x80
     i, j, k, t = 0, 0, 0, 0
     while i < L:
-        if ord(s[i >> 3]) & m:
+        o = ord(s[i >> 3]) if isinstance(s, str) else s[i >> 3]
+        if o & m:
             t |= 1
         j += 1
         m >>= 1
@@ -687,7 +688,7 @@ def bytes2int(b):
     n = 0
     for p in b:
         n *= 256
-        n += ord(p)
+        n += ord(p) if isinstance(p, str) else p
     return n
 
 
@@ -704,7 +705,7 @@ def int2bytes(n):
 
 def sha256(s):
     """sha256"""
-    return hashlib.sha256(s).digest()
+    return hashlib.sha256(s.encode()).digest()
 
 
 ##
@@ -1379,10 +1380,10 @@ if (
     fish_config_read()
     fish_secure()
 
-    weechat.hook_modifier("irc_in_notice", "fish_modifier_in_notice_cb", "")
-    weechat.hook_modifier("irc_in_privmsg", "fish_modifier_in_privmsg_cb", "")
-    weechat.hook_modifier("irc_in_topic", "fish_modifier_in_topic_cb", "")
-    weechat.hook_modifier("irc_in_332", "fish_modifier_in_332_cb", "")
+    weechat.hook_modifier("irc_in2_notice", "fish_modifier_in_notice_cb", "")
+    weechat.hook_modifier("irc_in2_privmsg", "fish_modifier_in_privmsg_cb", "")
+    weechat.hook_modifier("irc_in2_topic", "fish_modifier_in_topic_cb", "")
+    weechat.hook_modifier("irc_in2_332", "fish_modifier_in_332_cb", "")
     weechat.hook_modifier(
         "irc_out_privmsg", "fish_modifier_out_privmsg_cb", ""
     )
