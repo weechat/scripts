@@ -21,6 +21,8 @@
 #
 #
 # History:
+# 2020-08-17: Thore Bödecker <me@foxxx0.de>
+#   version 28: fix nick colorization in input for colon completer char
 # 2020-05-09: Sébastien Helleu <flashcode@flashtux.org>
 #   version 27: add compatibility with new weechat_print modifier data
 #               (WeeChat >= 2.9)
@@ -96,6 +98,7 @@ SCRIPT_DESC    = "Use the weechat nick colors in the chat area"
 # of anything but " ,*?.!@".
 VALID_NICK = r'([@~&!%+-])?([^\s,\*?\.!@]+)'
 valid_nick_re = re.compile(VALID_NICK)
+nick_completer = ''
 ignore_channels = []
 ignore_nicks = []
 
@@ -305,7 +308,8 @@ def colorize_input_cb(data, modifier, modifier_data, line):
     reset = w.color('reset')
 
     for words in valid_nick_re.findall(line):
-        nick = words[1]
+        # always remove trailing nick_completer char
+        nick = words[1].rstrip(nick_completer)
         # Check that nick is not ignored and longer than minimum length
         if len(nick) < min_length or nick in ignore_nicks:
             continue
@@ -384,6 +388,12 @@ def update_blacklist(*args):
     ignore_nicks = w.config_string(colorize_config_option['blacklist_nicks']).split(',')
     return w.WEECHAT_RC_OK
 
+def update_nick_completer(*args):
+    ''' Retrieve nick_completer config setting. '''
+    global nick_completer
+    nick_completer = w.config_string(w.config_get("weechat.completion.nick_completer"))
+    return w.WEECHAT_RC_OK
+
 if __name__ == "__main__":
     if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
                   SCRIPT_DESC, "", ""):
@@ -392,6 +402,7 @@ if __name__ == "__main__":
 
         # Run once to get data ready
         update_blacklist()
+        update_nick_completer()
         populate_nicks()
 
         w.hook_signal('nicklist_nick_added', 'add_nick', '')
@@ -406,3 +417,5 @@ if __name__ == "__main__":
         w.hook_modifier('250|input_text_display', 'colorize_input_cb', '')
         # Hook for updating blacklist (this could be improved to use fnmatch)
         weechat.hook_config('%s.look.blacklist*' % SCRIPT_NAME, 'update_blacklist', '')
+        # Hook for updating the value of nick_completer
+        weechat.hook_config('weechat.completion.nick_completer', 'update_nick_completer', '')
