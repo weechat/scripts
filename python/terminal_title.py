@@ -18,11 +18,11 @@ import os
 import sys
 import re
 import string
-from collections import Mapping
+from collections.abc import Mapping
 import weechat
 
 SCRIPT_NAME = 'terminal-title'
-VERSION = '1'
+VERSION = '2'
 AUTHOR = 'Guido Berhoerster'
 DESCRIPTION = 'Displays user defined information in the terminal title'
 DEFAULT_SETTINGS = {
@@ -109,7 +109,7 @@ def config_hook(data, option, value):
 if __name__ == '__main__':
     weechat.register(SCRIPT_NAME, AUTHOR, VERSION, 'GPL3', DESCRIPTION, '', '')
 
-    for option, (value, description) in DEFAULT_SETTINGS.iteritems():
+    for option, (value, description) in DEFAULT_SETTINGS.items():
         if not weechat.config_is_set_plugin(option):
             weechat.config_set_plugin(option, value)
         weechat.config_set_desc_plugin(option, '%s (default: "%s")' %
