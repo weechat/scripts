@@ -274,8 +274,8 @@ def qu_cb(data, buffer, args):
 	else:
 		rainbowit=1
 
-        if args == "":
-                return weechat.WEECHAT_RC_OK
+	if args == "":
+		return weechat.WEECHAT_RC_OK
 
 	argv = args.split()
 	arglist = ['add', 'del', 'new', 'dellist', 'list', 'clear', 'exec', 'listview', 'save', 'set']
