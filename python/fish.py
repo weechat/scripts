@@ -61,7 +61,7 @@ from os import urandom
 
 SCRIPT_NAME = "fish"
 SCRIPT_AUTHOR = "David Flatz <david@upcs.at>"
-SCRIPT_VERSION = "0.9.5"
+SCRIPT_VERSION = "0.9.6"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "FiSH for weechat"
 CONFIG_FILE_NAME = SCRIPT_NAME
@@ -585,7 +585,7 @@ def dh1080_b64decode(s):
         else:
             break
         k += 1
-    return "".join(map(chr, d[0 : i - 1]))
+    return bytes(d[:i-1])
 
 
 def dh_validate_public(public, q, p):
@@ -685,27 +685,19 @@ def dh1080_secret(ctx):
 
 def bytes2int(b):
     """Variable length big endian to integer."""
-    n = 0
-    for p in b:
-        n *= 256
-        n += ord(p) if isinstance(p, str) else p
-    return n
+    return int.from_bytes(b,byteorder='big')
 
 
 def int2bytes(n):
     """Integer to variable length big endian."""
-    if n == 0:
-        return "\x00"
-    b = ""
-    while n:
-        b = chr(n % 256) + b
-        n //= 256
-    return b
+    return n.to_bytes((n.bit_length() + 7) // 8, byteorder='big')
 
 
 def sha256(s):
     """sha256"""
-    return hashlib.sha256(s.encode()).digest()
+    return hashlib.sha256(s).digest()
+
+
 
 
 ##
