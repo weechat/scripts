@@ -22,10 +22,11 @@
 # 0.1 drubin     - First release.
 #                - Basic functionality to save version history of your config files (only git, bzr)
 # 0.2 ShockkPony - Fixed massive weechat startup time caused by initial config loading
+# 0.3 noctux     - Adapt to python 3
 
 SCRIPT_NAME    = "confversion"
 SCRIPT_AUTHOR  = "drubin <drubin at smartcube.co.za>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Stores version controlled history of your configuration files"
 
@@ -34,8 +35,8 @@ import subprocess
 try:
     import weechat
 except ImportError:
-    print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print("This script must be run under WeeChat.")
+    print("Get WeeChat now at: http://www.weechat.org/")
     import_ok = False
 
 
@@ -53,11 +54,11 @@ settings = {
 
 def shell_in_home(cmd):
     try:
-        output = file("/dev/null","w")
+        output = open("/dev/null","w")
         subprocess.Popen(ver_method()+" "+cmd, cwd = weechat_home(),
             stdout= output, stderr=output, shell=True)
     except Exception as e:
-        print e
+        print(e)
 
 def weechat_home():
     return weechat.info_get ("weechat_dir", "")
@@ -113,7 +114,7 @@ def confversion_cmd(data, buffer, args):
 
 if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
                     SCRIPT_DESC, "", ""):
-    for option, default_value in settings.iteritems():
+    for option, default_value in settings.items():
         if weechat.config_get_plugin(option) == "":
             weechat.config_set_plugin(option, default_value)
 
