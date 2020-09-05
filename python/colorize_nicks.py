@@ -21,6 +21,9 @@
 #
 #
 # History:
+# 2020-09-05: noctux
+#   version 28: fix highlighting of forms of address (nick: or @nick)
+#               for `colorize_input`
 # 2020-05-09: Sébastien Helleu <flashcode@flashtux.org>
 #   version 27: add compatibility with new weechat_print modifier data
 #               (WeeChat >= 2.9)
@@ -170,6 +173,36 @@ def colorize_nick_color(nick, my_nick):
     else:
         return w.info_get('irc_nick_color', nick)
 
+
+def isolate_nick(nick_or_formofaddress, buffer):
+    """Isolate the nick (if required) out of a form of address
+
+    Currently, it attempts to drop the first (@nickname) or last (nickname:)
+    character to extract a valid nickname within buffer `buffer` if necessary.
+    """
+
+    global colored_nicks
+
+    nick = nick_or_formofaddress
+
+    # If the matched word is not a known nick, we try to match the
+    # word without its first or last character (if not a letter).
+    # This is necessary as "foo:" is a valid nick, which could be
+    # adressed as "foo::".
+    if nick not in colored_nicks[buffer]:
+        if not nick[-1].isalpha() and not nick[0].isalpha():
+            if nick[1:-1] in colored_nicks[buffer]:
+                nick = nick[1:-1]
+        elif not nick[0].isalpha():
+            if nick[1:] in colored_nicks[buffer]:
+                nick = nick[1:]
+        elif not nick[-1].isalpha():
+            if nick[:-1] in colored_nicks[buffer]:
+                nick = nick[:-1]
+
+    return nick
+
+
 def colorize_cb(data, modifier, modifier_data, line):
     ''' Callback that does the colorizing, and returns new line if changed '''
 
@@ -209,21 +242,7 @@ def colorize_cb(data, modifier, modifier_data, line):
         if len(nick) < min_length or nick in ignore_nicks:
             continue
 
-        # If the matched word is not a known nick, we try to match the
-        # word without its first or last character (if not a letter).
-        # This is necessary as "foo:" is a valid nick, which could be
-        # adressed as "foo::".
-        if nick not in colored_nicks[buffer]:
-            if not nick[-1].isalpha() and not nick[0].isalpha():
-                if nick[1:-1] in colored_nicks[buffer]:
-                    nick = nick[1:-1]
-            elif not nick[0].isalpha():
-                if nick[1:] in colored_nicks[buffer]:
-                    nick = nick[1:]
-            elif not nick[-1].isalpha():
-                if nick[:-1] in colored_nicks[buffer]:
-                    nick = nick[:-1]
-
+        nick = isolate_nick(nick, buffer)
         # Check that nick is in the dictionary colored_nicks
         if nick in colored_nicks[buffer]:
             nick_color = colored_nicks[buffer][nick]
@@ -305,7 +324,7 @@ def colorize_input_cb(data, modifier, modifier_data, line):
     reset = w.color('reset')
 
     for words in valid_nick_re.findall(line):
-        nick = words[1]
+        nick = isolate_nick(words[1], buffer)
         # Check that nick is not ignored and longer than minimum length
         if len(nick) < min_length or nick in ignore_nicks:
             continue
