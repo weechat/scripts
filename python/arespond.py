@@ -23,11 +23,14 @@
 #
 # History:
 #
-#  - Sample History-Entry
+#  - 2020-09-06, mumixam
+#    0.1.1 - Added supported for python3 while keeping support for python2
+#          - fixed issue with command not being executed in the right buffer
+#          - renamed option 'muted' to 'enabled' so its more intuitive
 
 SCR_NAME    = "arespond"
 SCR_AUTHOR  = "Stephan Huebner <shuebnerfun01@gmx.org>"
-SCR_VERSION = "0.1.0"
+SCR_VERSION = "0.1.1"
 SCR_LICENSE = "GPL3"
 SCR_DESC    = "An autoresponder (sending a notice on other users' messages)"
 SCR_COMMAND = "arespond"
@@ -37,7 +40,7 @@ import_ok = True
 try:
    import weechat as w
 except:
-   print "Script must be run under weechat. http://www.weechat.org"
+   print("Script must be run under weechat. http://www.weechat.org")
    import_ok = False
 
 import time
@@ -46,7 +49,7 @@ settings = {
    "responderText" : "Hello. %s isn't available at the moment. This message " +
                      "won't appear anymore for the next %d minutes.",
    "respondAfterMinutes" : "10",
-   "muted" :      "off"
+   "enabled" :      "off"
 }
 
 def errMsg(myMsg):
@@ -57,7 +60,7 @@ def fn_privmsg(data, bufferp, tm, tags, display, is_hilight, prefix, msg):
    global settings
    servername = (w.buffer_get_string(bufferp, "name").split("."))[0]
    ownNick = w.info_get("irc_nick", servername)
-   if prefix != ownNick and settings["muted"] != "off":
+   if prefix != ownNick and settings["enabled"] != "off":
       # alert("messagetags: " + tags)
       if w.buffer_get_string(bufferp, "localvar_type") == "private":
          oldTime = w.buffer_get_string(bufferp, "localvar_btime")
@@ -67,11 +70,11 @@ def fn_privmsg(data, bufferp, tm, tags, display, is_hilight, prefix, msg):
             nowTime = time.time()
             tdelta = int(nowTime)-int(oldTime)
             if int(settings["respondAfterMinutes"])*60 <= tdelta:
-               w.command("", "/notice " + prefix + " " + rmdTxt)
+               w.command(bufferp, "/notice " + prefix + " " + rmdTxt)
                w.buffer_set(bufferp, "localvar_set_btime", str(int(nowTime)))
          else:
             w.buffer_set(bufferp, "localvar_set_btime", str(int(time.time())))
-            w.command("", "/notice " + prefix + " " + rmdTxt)
+            w.command(bufferp, "/notice " + prefix + " " + rmdTxt)
    return w.WEECHAT_RC_OK
 
 def fn_command(data, buffer, args):
@@ -79,7 +82,7 @@ def fn_command(data, buffer, args):
    args = args.split()
    for listIndex in range(len(args)):
       if "on" in args[listIndex] or "off" in args[listIndex]:
-         w.config_set_plugin("muted", args[listIndex])
+         w.config_set_plugin("enabled", args[listIndex])
       else:
          try:
             myMinutes = float(args[listIndex])
@@ -99,7 +102,7 @@ def fn_configchange(data, option, value):
    myOption = fields[-1]
    try:
       settings[myOption] = value
-      alert("Option {0} is now {1}".format(myOption, settings[myOption]))
+      alert("Option {0} is now {1}:".format(myOption, settings[myOption]))
    except KeyError:
       errMsg("There is no option named %s" %myOption)
    return w.WEECHAT_RC_OK
@@ -116,10 +119,10 @@ if __name__ == "__main__" and import_ok:
       w.hook_print("", "", "", 1, "fn_privmsg", "") # catch prvmsg
       w.hook_config("plugins.var.python." + SCR_NAME + ".*",
                     "fn_configchange", "") # catch configchanges
-      w.hook_command(SCR_COMMAND, SCR_DESC, "[muted] [n] [text]",
+      w.hook_command(SCR_COMMAND, SCR_DESC, "[enabled] [n] [text]",
 """
 Available options are:
-- muted:               can be "on" or "off"
+- enabled:             can be "on" or "off" (controls auto responds)
 - respondAfterMinutes: integer (in minutes), after which responderText is
                        sent again
 - responderText:       Text to be shown when necessary conditions are met.
