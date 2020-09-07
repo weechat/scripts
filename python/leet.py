@@ -36,13 +36,17 @@
 # Changelog
 # 0.1
 # First version
+#
+# 0.2
+# Added support for python3 while retaining python2 support
+#
 
 import weechat as w
 import re
 
 SCRIPT_NAME    = "leet"
 SCRIPT_AUTHOR  = "Lenoob"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Convert text to leet"
 
@@ -103,7 +107,7 @@ replacements = {
 
 if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
                     SCRIPT_DESC, "", ""):
-    for option, default_value in settings.iteritems():
+    for option, default_value in settings.items():
         if not w.config_is_set_plugin(option):
             w.config_set_plugin(option, default_value)
     w.hook_command("leet",
@@ -124,7 +128,12 @@ def leet_cmd_cb(data, buffer, args):
         if char in replacements:
             char = replacements[char]
         outstring += char
-    outstring = outstring.encode('UTF-8')
+    if isinstance(outstring, str):
+        pass
+    elif isinstance(outstring, bytes):
+        outstring = outstring.decode('UTF-8')
+    elif isinstance(outstring, unicode):
+        outstring = outstring.encode('UTF-8')
     w.buffer_set(buffer, 'input', outstring)
     w.buffer_set(buffer, 'input_pos', '%d' % len(outstring))
     return w.WEECHAT_RC_OK
