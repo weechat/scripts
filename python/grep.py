@@ -68,6 +68,8 @@
 #
 #
 #   History:
+#   2020-10-11, Thom Wiggers <thom@thomwiggers.nl>
+#   version 0.8.4: Python3 compatibility fix
 #
 #   2020-05-06, Dominique Martinet <asmadeus@codewreck.org> and hexa-
 #   version 0.8.3: more python3 compatibility fixes...
@@ -233,7 +235,7 @@ except ImportError:
 
 SCRIPT_NAME    = "grep"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.8.3"
+SCRIPT_VERSION = "0.8.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Search in buffers and logs"
 SCRIPT_COMMAND = "grep"
@@ -891,8 +893,7 @@ def grep_buffer(buffer, head, tail, after_context, before_context, count, regexp
         check = lambda s: check_string(s, regexp, hilight, exact)
 
     if before_context:
-        before_context_range = range(1, before_context + 1)
-        before_context_range.reverse()
+        before_context_range = reversed(range(1, before_context + 1))
 
     while infolist_next(infolist):
         line = get_line(infolist)
