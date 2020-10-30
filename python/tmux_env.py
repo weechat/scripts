@@ -24,6 +24,9 @@ History:
 
     2020-01-03 dobbymoodge <john.w.lamb [at] gmail . com> ( https://github.com/dobbymoodge/ )
       version 3: python 3.x compatibility
+
+    2020-10-30 Friedrich Delgado <taupan [at] gmail . com>
+      version 3.1: fix python 3.6 compatibility and remove python 2 support
 """
 
 from __future__ import absolute_import, unicode_literals
@@ -34,24 +37,9 @@ import fnmatch
 import os
 import subprocess
 
-if not hasattr(subprocess, 'check_output'):
-    def check_output(*popenargs, **kwargs):
-        process = subprocess.Popen(stdout=subprocess.PIPE,
-                                   *popenargs, **kwargs)
-        output, unused_err = process.communicate()
-        retcode = process.poll()
-        if retcode:
-            cmd = kwargs.get("args")
-            if cmd is None:
-                cmd = popenargs[0]
-            raise subprocess.CalledProcessError(retcode, cmd)
-        return output
-    subprocess.check_output = check_output
-    del check_output
-
 SCRIPT_NAME = "tmux_env"
 SCRIPT_AUTHOR = "Aron Griffis <agriffis@n01se.net>"
-SCRIPT_VERSION = "3"
+SCRIPT_VERSION = "3.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Update weechat environment from tmux"
 
@@ -69,8 +57,6 @@ settings = {
     'include': '*,-*',  # Env vars to include, default all
     'exclude': '',      # Env vars to exclude, default all
     }
-
-check_output_kwargs = {'text': True}
 
 TIMER = None
 
@@ -102,21 +88,10 @@ def timer_cb(buffer, args):
     return w.WEECHAT_RC_OK
 
 
-def do_check_output(command_args):
-    """Wrap `subprocess.check_output` to detect and account for
-    python2/python3 variations"""
-    global check_output_kwargs
-    try:
-        return subprocess.check_output(command_args, **check_output_kwargs)
-    except TypeError:
-        del(check_output_kwargs['text'])
-        return subprocess.check_output(command_args, **check_output_kwargs)
-
-
 def update_environment():
     """Updates environment from tmux showenv"""
 
-    env = subprocess.check_output(['tmux', 'showenv'], text=True)
+    env = subprocess.check_output(['tmux', 'showenv']).decode()
     for line in env.splitlines():
         name = line.split('=', 1)[0]
         if check_include(name) and not check_exclude(name):
