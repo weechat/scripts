@@ -26,7 +26,7 @@ History:
       version 3: python 3.x compatibility
 
     2020-10-30 Friedrich Delgado <taupan [at] gmail . com>
-      version 3.1: fix one missing instance of **check_output_kwargs
+      version 3.1: fix python 3.6 compatibility and remove python 2 support
 """
 
 from __future__ import absolute_import, unicode_literals
