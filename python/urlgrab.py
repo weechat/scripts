@@ -652,7 +652,7 @@ def init():
         weechat.buffer_set(urlgrab_buffer, "key_bind_meta2-A",       "/url **up")
         weechat.buffer_set(urlgrab_buffer, "key_bind_meta2-B",       "/url **down")
         weechat.buffer_set(urlgrab_buffer, "key_bind_meta-ctrl-J",   "/url **enter")
-        weechat.buffer_set(urlgrab_buffer, "key_bind_meta-ctrl-M",   "/url **enter")
+        weechat.buffer_set(urlgrab_buffer, "key_bind_ctrl-M",        "/url **enter")
         weechat.buffer_set(urlgrab_buffer, "key_bind_meta-meta2-1./~", "/url **scroll_top")
         weechat.buffer_set(urlgrab_buffer, "key_bind_meta-meta2-4~", "/url **scroll_bottom")
         weechat.buffer_set(urlgrab_buffer, "title","Lists the urls in the applications")
@@ -687,7 +687,7 @@ if ( import_ok and
                              "Url Grabber",
                              "[open <url> | <url> | show | copy [n] | [n] | list]",
                              "open or <url>: opens the url\n"
-                             "show: Opens the select buffer to allow for url selection\n"
+                             "show: Opens a buffer where you can select a URL. Using <return> or <ctrl><alt>j opens it.\n"
                              "copy: Copies the nth url to the system clipboard\n"
                              "list: Lists the urls in the current buffer\n",
                              "open %(urlgrab_urls) || %(urlgrab_urls) || "
