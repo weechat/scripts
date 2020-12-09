@@ -28,7 +28,7 @@ import weechat
 
 
 __author__ = 'Simeon Simeonov'
-__version__ = '4.0'
+__version__ = '4.1'
 __license__ = 'GPL3'
 
 
@@ -521,7 +521,7 @@ def beinc_init():
         beinc_prnt(f'Parsing {beinc_config_file_str}...')
         custom_error = 'load error'
         with open(beinc_config_file_str, 'r') as fp:
-            config_dict = json.load(fp, encoding='utf-8')
+            config_dict = json.load(fp)
         custom_error = 'target parse error'
         global_values['use_current_buffer'] = bool(
             config_dict['irc_client'].get(
