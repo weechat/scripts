@@ -1,7 +1,7 @@
 ---
 name: Bug report
 about: Create a bug report for a script (please do not report security issues here)
-title: script_name.py: 
+title: "script_name.py: "
 labels: bug
 
 ---
