@@ -730,7 +730,7 @@ def grep_file(file, head, tail, after_context, before_context, count, regexp, hi
         check = lambda s: check_string(s, regexp, hilight, exact)
 
     try:
-        file_object = open(file, 'r')
+        file_object = open(file, 'r', errors='ignore')
     except IOError:
         # file doesn't exist
         return lines
