@@ -21,7 +21,7 @@ try:
     import sqlite3
     import time
     import re
-    from urlparse import urldefrag
+    from urllib.parse import urldefrag
     IMPORT_ERR = 0
 except ImportError:
     IMPORT_ERR = 1
