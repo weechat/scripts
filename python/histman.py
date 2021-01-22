@@ -60,7 +60,7 @@ except Exception:
 
 SCRIPT_NAME     = 'histman'
 SCRIPT_AUTHOR   = 'nils_2 <weechatter@arcor.de>'
-SCRIPT_VERSION  = '0.8'
+SCRIPT_VERSION  = '0.8.1'
 SCRIPT_LICENSE  = 'GPL'
 SCRIPT_DESC     = 'save and restore global and/or buffer command history'
 
