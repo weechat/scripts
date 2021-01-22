@@ -389,7 +389,7 @@ if __name__ == '__main__':
                             'The command history of a buffer will be saved \"only\", if the the local variable \"save_history\" is set.\n'
                             'You will need script \"buffer_autoset.py\" to make a local variabe persistent (see examples, below)!!\n'
                             '\n'
-                            'You can use option \"save_buffer\ to save command history for *all* buffers, localvar will be ignored using\n'
+                            'You can use option \"save_buffer\" to save command history for *all* buffers, localvar will be ignored using\n'
                             'this option.\n'
                             'You can use following values for local variable:\n'
                             '  command: save commands only\n'
