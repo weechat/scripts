@@ -63,7 +63,7 @@ def mpv_msg(world,world_eol,userdata):
         weechat.prnt('', '%s: mpv socket not properly configurated or mpv is not running' % MPV['SCRIPT_NAME'])
         return weechat.WEECHAT_RC_ERROR
 
-weechat.register(MPV['SCRIPT_NAME'], "llua", "0.1", "The Beer-ware License", "Now Playing for mpv", "", "")
+weechat.register(MPV['SCRIPT_NAME'], "llua", "0.2", "The Beer-ware License", "Now Playing for mpv", "", "")
 set_default_options()
 load_options()
 weechat.hook_config('plugins.var.python.' + MPV['SCRIPT_NAME'] + '.*', 'reload_options_cb', '')
