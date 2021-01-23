@@ -46,14 +46,14 @@ def mpv_msg(world,world_eol,userdata):
         metadata_short = loads(output_short.decode('utf8'))
         if 'album' not in metadata['data']:
             title = metadata_short['data'].encode('utf-8')
-            all = '%s' % MPV['message'] + title
+            all = '%s' % MPV['message'] + str(title)
             weechat.command(weechat.current_buffer(), all)
             return weechat.WEECHAT_RC_OK
 
         if 'album' in metadata['data']:
             title = metadata['data']['title'].encode('utf-8')
             artist = metadata['data']['artist'].encode('utf-8')
-            np = artist + ' ' + title
+            np = str(artist) + ' ' + str(title)
             all = '%s' %  MPV['message'] + np
             weechat.command(weechat.current_buffer(), all)
             return weechat.WEECHAT_RC_OK
@@ -63,7 +63,7 @@ def mpv_msg(world,world_eol,userdata):
         weechat.prnt('', '%s: mpv socket not properly configurated or mpv is not running' % MPV['SCRIPT_NAME'])
         return weechat.WEECHAT_RC_ERROR
 
-weechat.register(MPV['SCRIPT_NAME'], "llua", "0.1", "The Beer-ware License", "Now Playing for mpv", "", "")
+weechat.register(MPV['SCRIPT_NAME'], "llua", "0.2", "The Beer-ware License", "Now Playing for mpv", "", "")
 set_default_options()
 load_options()
 weechat.hook_config('plugins.var.python.' + MPV['SCRIPT_NAME'] + '.*', 'reload_options_cb', '')
