@@ -46,14 +46,14 @@ def mpv_msg(world,world_eol,userdata):
         metadata_short = loads(output_short.decode('utf8'))
         if 'album' not in metadata['data']:
             title = metadata_short['data'].encode('utf-8')
-            all = '%s' % MPV['message'] + title
+            all = '%s' % MPV['message'] + str(title)
             weechat.command(weechat.current_buffer(), all)
             return weechat.WEECHAT_RC_OK
 
         if 'album' in metadata['data']:
             title = metadata['data']['title'].encode('utf-8')
             artist = metadata['data']['artist'].encode('utf-8')
-            np = artist + ' ' + title
+            np = str(artist) + ' ' + str(title)
             all = '%s' %  MPV['message'] + np
             weechat.command(weechat.current_buffer(), all)
             return weechat.WEECHAT_RC_OK
