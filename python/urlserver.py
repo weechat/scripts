@@ -44,6 +44,8 @@
 #
 # History:
 #
+# 2021-03-06, Sébastien Helleu <flashcode@flashtux.org>:
+#     v2.5: replace cgi by html in Python 3
 # 2018-10-01, Pol Van Aubel <dev@polvanaubel.com>:
 #     v2.4: rework URL matching to positive regex match with heuristics
 # 2018-09-30, Sébastien Helleu <flashcode@flashtux.org>:
@@ -116,7 +118,7 @@
 
 SCRIPT_NAME = 'urlserver'
 SCRIPT_AUTHOR = 'Sébastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '2.4'
+SCRIPT_VERSION = '2.5'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC = 'Shorten URLs with own HTTP server'
 
@@ -133,9 +135,13 @@ except ImportError:
     import_ok = False
 
 try:
+    import html  # python 3.x
+except ImportError:
+    import cgi as html  # python 2.x
+
+try:
     import ast
     import base64
-    import cgi
     import datetime
     import os
     import re
@@ -528,7 +534,7 @@ def urlserver_server_reply_list(conn, sort='-time'):
         content += '  <tr>'
         url = item[3]
         obj = ''
-        message = (cgi.escape(item[4].replace(url, '\x01\x02\x03\x04'))
+        message = (html.escape(item[4].replace(url, '\x01\x02\x03\x04'))
                    .split('\t', 1))
         message[0] = '<span class="prefix">%s</span>' % message[0]
         message[1] = '<span class="message">%s</span>' % message[1]
@@ -594,22 +600,22 @@ def urlserver_server_reply_list(conn, sort='-time'):
                    urlserver_settings['http_bg_color'],
                    urlserver_settings['http_fg_color']))
 
-    html = ('<html>\n'
-            '<head>\n'
-            '<title>%s</title>\n'
-            '<meta http-equiv="content-type" content="text/html; '
-            'charset=utf-8" />\n'
-            '%s\n'
-            '<base href="%s" />\n'
-            '<link rel="icon" type="image/png" href="favicon.png" />\n'
-            '</head>\n'
-            '<body>\n%s\n</body>\n'
-            '</html>' % (
-                urlserver_settings['http_title'],
-                css,
-                urlserver_get_base_url(),
-                content))
-    urlserver_server_reply(conn, '200 OK', '', html)
+    html_code = ('<html>\n'
+                 '<head>\n'
+                 '<title>%s</title>\n'
+                 '<meta http-equiv="content-type" content="text/html; '
+                 'charset=utf-8" />\n'
+                 '%s\n'
+                 '<base href="%s" />\n'
+                 '<link rel="icon" type="image/png" href="favicon.png" />\n'
+                 '</head>\n'
+                 '<body>\n%s\n</body>\n'
+                 '</html>' % (
+                     urlserver_settings['http_title'],
+                     css,
+                     urlserver_get_base_url(),
+                     content))
+    urlserver_server_reply(conn, '200 OK', '', html_code)
 
 
 def urlserver_check_auth(data):
