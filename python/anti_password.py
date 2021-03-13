@@ -20,6 +20,8 @@
 #
 # History:
 #
+# 2021-03-13, Sébastien Helleu <flashcode@flashtux.org>:
+#     version 1.2.1: simplify regex condition
 # 2021-03-12, Sébastien Helleu <flashcode@flashtux.org>:
 #     version 1.2.0: add option "allowed_regex"
 # 2021-02-26, Sébastien Helleu <flashcode@flashtux.org>:
@@ -41,7 +43,7 @@ except ImportError:
 
 SCRIPT_NAME = 'anti_password'
 SCRIPT_AUTHOR = 'Sébastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '1.2.0'
+SCRIPT_VERSION = '1.2.1'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC = 'Prevent a password from being accidentally sent to a buffer'
 
@@ -175,9 +177,8 @@ def ap_input_return_cb(data, buf, command):
         return weechat.WEECHAT_RC_OK
 
     # check if input matches the allowed regex
-    if ap_settings['allowed_regex'] \
-            and re.search(ap_settings['allowed_regex'], input_text,
-                          re.IGNORECASE):
+    regex = ap_settings['allowed_regex']
+    if regex and re.search(regex, input_text, re.IGNORECASE):
         # allowed regex
         ap_reject['input'] = ''
         ap_reject['count'] = 0
