@@ -17,13 +17,16 @@
 #
 
 
-# Select a buffer from dmenu or rofi
+# Select a buffer from dmenu, rofi, or fzf-tmux
+# Screenshot with fzf-tmux: https://seirdy.one/misc/buffer-dmenu-tmux.png
 # To call externally (IE: from i3), enable weechat fifo and run:
 #  $ echo "core.weechat */buffer_dmenu" >> $(find ~/.weechat -type p)
 #
 # Optionally requires i3-py [py2] (or i3ipc [py3]) to focus weechat in i3
 #
 # History:
+# 2021-03-19, Seirdy
+#     version 0.2.1: add support for fzf-tmux
 # 2020-06-08, Ferus
 #     version 0.2: drop support of py2 and fix error when closing
 #                  dmenu/rofi with no choice selected
@@ -43,10 +46,10 @@
 
 SCRIPT_NAME = "buffer_dmenu"
 SCRIPT_AUTHOR = "Ferus <ferus+weechat@airmail.cc>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.2.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = (
-    "List buffers in dmenu (or rofi), changes active window to selected buffer"
+    "List buffers in dmenu (or rofi/fzf-tmux), changes active window to selected buffer"
 )
 SCRIPT_COMMAND = "buffer_dmenu"
 
@@ -67,7 +70,7 @@ except ImportError as e:
     have_i3 = False
 
 settings = {
-    "launcher": ("dmenu", "launcher to use (supported: dmenu/rofi)"),
+    "launcher": ("dmenu", "launcher to use (supported: dmenu, rofi, fzf_tmux)"),
     "focus": (
         "false",
         "whether to immediately focus the terminal after selecting buffer",
@@ -77,6 +80,10 @@ settings = {
     "rofi.command": (
         "rofi -p '# ' -dmenu -lines 10 -columns 8 -auto-select -mesg '<big>Pick a <b>buffer</b> to jump to:</big>'",
         "command used to call rofi",
+    ),
+    "fzf_tmux.command": (
+        "sed -e \"s/b'//\" -e s#\\\\n#\\n#g | fzf-tmux -w 40 -h 70%",
+        "command used to call fzf-tmux",
     ),
     "title.regex": ("WeeChat \d+\.\d+", "regex used to match weechat's title window"),
 }
@@ -94,6 +101,12 @@ def check_rofi():
     return True if retcode == 0 else False
 
 
+def check_fzf_tmux():
+    devnull = open(os.devnull)
+    retcode = subprocess.call(["which", "fzf-tmux"], stdout=devnull, stderr=devnull)
+    return True if retcode == 0 else False
+
+
 def get_launcher():
     launcher = w.config_get_plugin("launcher")
     command = None
@@ -103,6 +116,9 @@ def get_launcher():
     elif launcher == "rofi":
         if check_rofi():
             command = w.config_get_plugin("rofi.command")
+    elif launcher == "fzf_tmux":
+        if check_fzf_tmux():
+            command = w.config_get_plugin("fzf_tmux.command")
     return command
 
 
