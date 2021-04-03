@@ -9,7 +9,7 @@ New scripts are added with pull requests against master branch of this repositor
 - pull request:
   - fill the pull request template
   - make only one commit with one new file (the new script) in the appropriate directory, for example `python/` if you add a new Python script
-  - use this commit message: `New script name.py: short description of the script…`
+  - use this commit message: `New script name.py: short description…`
 - script feature:
   - check that no script or [pending script](https://github.com/weechat/scripts/pulls) does exactly same thing as your script
 - script name:
