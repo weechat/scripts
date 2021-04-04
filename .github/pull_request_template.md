@@ -1,8 +1,7 @@
 ---
-name: Add a script
-about: Add a new script in repository
-title: "script_name.py X.Y: fix..."
-labels: new script
+name: Add/update a script
+about: Add or update a script in repository
+title: "script_name.py X.Y: …"
 
 ---
 
@@ -12,7 +11,6 @@ labels: new script
 
 - Script name: 
 - Version: 
-- License: 
 
 <!-- Optional: external dependencies -->
 - Requirements: 
@@ -25,13 +23,15 @@ labels: new script
 
 ## Description
 
-<!-- Describe the script in a few sentences -->
+<!-- Describe the new script or your changes in a few sentences -->
 
 
 
-## Checklist
+## Checklist (new script)
 
-<!-- Please check each item with "[x]" and ensure your script is compliant -->
+<!-- To fill only if you are adding a new script -->
+
+<!-- Please check each item with "[x]" and ensure your new script is compliant -->
 <!-- See file Contributing.md for more information -->
 
 - [ ] Single commit, single file added
@@ -44,4 +44,17 @@ labels: new script
 - [ ] Only English in code/comments
 - [ ] Pure WeeChat API used, no extra API
 - [ ] Function `hook_process` is used for blocking calls
+- [ ] For Python script: works with Python 3 (Python 2 support is optional)
+
+## Checklist (script update)
+
+<!-- To fill only if you are updating an existing script -->
+
+<!-- Please check each item with "[x]" and ensure the script is compliant -->
+<!-- See file Contributing.md for more information -->
+
+- [ ] Author has been contacted
+- [ ] Single commit, single file added
+- [ ] Commit message format: `script_name.py X.Y: …`
+- [ ] Script version and Changelog have been updated
 - [ ] For Python script: works with Python 3 (Python 2 support is optional)
