@@ -31,8 +31,7 @@ title: "script_name.py X.Y: …"
 
 <!-- To fill only if you are adding a new script -->
 
-<!-- Please check each item with "[x]" and ensure your new script is compliant -->
-<!-- See file Contributing.md for more information -->
+<!-- Please validate and check each item with "[x]" (see file Contributing.md) -->
 
 - [ ] Single commit, single file added
 - [ ] Commit message: `New script name.py: short description…`
@@ -50,11 +49,20 @@ title: "script_name.py X.Y: …"
 
 <!-- To fill only if you are updating an existing script -->
 
-<!-- Please check each item with "[x]" and ensure the script is compliant -->
-<!-- See file Contributing.md for more information -->
+<!-- Please validate and check each item with "[x]" (see file Contributing.md) -->
 
 - [ ] Author has been contacted
 - [ ] Single commit, single file added
 - [ ] Commit message format: `script_name.py X.Y: …`
 - [ ] Script version and Changelog have been updated
 - [ ] For Python script: works with Python 3 (Python 2 support is optional)
+
+## Checklist (script deletion)
+
+<!-- To fill only if you are deleting an existing script -->
+
+<!-- Please validate and check each item with "[x]" (see file Contributing.md) -->
+
+- [ ] Author has been contacted
+- [ ] Single commit, single file deleted
+- [ ] Commit message format: `Remove script name.py` with reasons in description

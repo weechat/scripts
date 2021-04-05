@@ -1,5 +1,10 @@
 # Contributing to WeeChat scripts
 
+## Reporting an issue
+
+Before reporting an issue, it is recommended to contact the author of script directly.\
+If you have no answer, or if the author has no time to fix the problem, then you can report the issue in the tracker or send an update of the script if you are able to fix yourself.
+
 ## Adding a new script
 
 New scripts are added with pull requests against master branch of this repository, using the pull request template called `Add script`.
@@ -31,7 +36,7 @@ New scripts are added with pull requests against master branch of this repositor
 
 ### Contacting the author
 
-Before updating a script, you **must** contact the author of script directly, and discuss about your changes to check if it's OK, especially if you are adding new features or if you are changing the behavior of the script.
+Before updating a script, if you are not the author of the script, you **must** contact the author of script directly, and discuss about your changes to check if it's OK, especially if you are adding new features or if you are changing the behavior of the script.
 
 For example, if the author uses a GitHub repository for the script, you can send a pull request to the author instead of sending directly to this repository.\
 Then the author will send a pull request on this repository.
@@ -48,14 +53,26 @@ Scripts updates are made with pull requests against master branch of this reposi
 
 - pull request:
   - fill the pull request template
-  - make only one commit on one file in the pull request (the script actually updated)
+  - make only one commit on one file in the pull request (the script actually updated); exceptions are allowed if motivated in the pull request description
   - use this commit message: `name.py 1.3: fix some bug…` (`1.3` being the new version of script `name.py`)
 - script content:
   - update the version number in the script (used in `register` function) and the ChangeLog, if there is one
   - do **NOT** update the author name in script (used in `register` function), it must always contain the original script author, even if you are doing large updates in the script
   - make any Python script compatible with Python 3.x, the support of Python 2.x is now optional.
 
-## Reporting an issue
+## Deleting a script
 
-Before reporting an issue, it is recommended to contact the author of script directly.\
-If you have no answer, or if the author has no time to fix the problem, then you can report the issue in the tracker or send an update of the script if you are able to fix yourself.
+Deleting a script must be done for a justified decision, for example such reasons are valid:
+
+- the feature implemented by the script has been implemented in WeeChat itself, so the script is no longer of interest
+- the web service used by the script has been discontinued, so the script can not work at all any more
+- the script uses dependencies that are not maintained any more or subject to vulnerabilities not fixed, thus impacting WeeChat itself.
+
+If you are not the author of the script, you must first contact the author to discuss about the deletion: the author could have a different opinion or could make changes to keep the script.
+
+**Important:** please fill the pull request template and follow **all** these rules, otherwise your script deletion will be rejected:
+
+- pull request:
+  - fill the pull request template
+  - make only one commit to delete only one script
+  - use this commit message: `Remove script name.py`, and it is recommended to explain the reasons in the commit description
