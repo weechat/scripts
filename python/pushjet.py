@@ -15,7 +15,7 @@ from urllib import urlencode
 
 SCRIPT_NAME = 'pushjet'
 SCRIPT_AUTHOR = 'p3lim'
-SCRIPT_VERSION = '0.1.0'
+SCRIPT_VERSION = '0.1.1'
 SCRIPT_LICENSE = 'MIT'
 SCRIPT_DESC = 'Send highlights and mentions through Pushjet.io'
 
@@ -133,6 +133,7 @@ def should_send(buffer, tags, nick, highlighted):
 			infolist = weechat.infolist_get('irc_nick', '', ','.join(infolist_args))
 			if infolist:
 				away_status = weechat.infolist_integer(infolist, 'away')
+				weechat.infolist_free(infolist)
 				if not away_status:
 					# user is not away, bail
 					return False
