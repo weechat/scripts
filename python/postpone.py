@@ -20,6 +20,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2021-04-05, Sébastien Helleu <flashcode@flashtux.org>
+#   version 0.2.5: remove commented infolist code
 # 2019-07-24, Sébastien Helleu <flashcode@flashtux.org>
 #   version 0.2.4: make script compatible with Python 3
 # 2015-04-29, Colgate Minuette <rabbit@minuette.net>
@@ -40,7 +42,7 @@ from time import strftime
 
 SCRIPT_NAME    = "postpone"
 SCRIPT_AUTHOR  = "Alexander Schremmer <alex@alexanderweb.de>"
-SCRIPT_VERSION = "0.2.4"
+SCRIPT_VERSION = "0.2.5"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Postpones written messages for later dispatching if target nick is not on channel"
 
@@ -108,11 +110,6 @@ def command_run_input(data, buffer, command):
                 postpone_data.setdefault(server, {}).setdefault(channel,
                         {}).setdefault(nick.lower(), []).append(save)
                 w.buffer_set(buffer, 'input', "")
-                # XXX why doesn't this work? i want to have the typed text
-                # in the history
-                #history_list = w.infolist_get("history", buffer, "")
-                #history_item = w.infolist_new_item(history_list)
-                #w.infolist_new_var_string(history_item, "text", input_s)
     return w.WEECHAT_RC_OK
 
 
