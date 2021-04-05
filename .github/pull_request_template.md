@@ -1,10 +1,3 @@
----
-name: Add/update a script
-about: Add or update a script in repository
-title: "script_name.py X.Y: …"
-
----
-
 ## Script info
 
 <!-- MANDATORY INFO: -->
