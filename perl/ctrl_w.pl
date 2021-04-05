@@ -3,7 +3,7 @@ use Encode qw(encode_utf8);
 weechat::register(
     'ctrl_w',
     'Juerd <#####@juerd.nl>',
-    '1.01',
+    '1.02',
     'PD',
     'Implement readline-like ^W',
     '',
@@ -40,3 +40,4 @@ while (weechat::infolist_next($i)) {
     weechat::print("", "$k is still bound to $c; to use the ctrl_w script, use /key bind $k /ctrl_w");
     last;
 }
+weechat::infolist_free($i);
