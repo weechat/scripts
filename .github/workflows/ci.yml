@@ -1,0 +1,18 @@
+name: CI
+
+on:
+  - push
+  - pull_request
+
+jobs:
+  check-scripts:
+    runs-on: ubuntu-20.04
+    name: Check scripts
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.9"
+      - name: Check scripts
+        run: make partial-check
