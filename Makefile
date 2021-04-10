@@ -15,6 +15,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+CHECKER ?= ./tools/check_scripts.py
+
 .PHONY: all check flake8 pylint
 
 all: lint check
@@ -22,18 +24,18 @@ all: lint check
 lint: flake8 pylint mypy
 
 flake8:
-	flake8 ./tools/check_scripts.py --count --select=E9,F63,F7,F82 --show-source --statistics
-	flake8 ./tools/check_scripts.py --count --exit-zero --max-complexity=10 --statistics
+	flake8 "$(CHECKER)" --count --select=E9,F63,F7,F82 --show-source --statistics
+	flake8 "$(CHECKER)" --count --exit-zero --max-complexity=10 --statistics
 
 pylint:
-	pylint ./tools/check_scripts.py
+	pylint "$(CHECKER)"
 
 mypy:
-	mypy ./tools/check_scripts.py
+	mypy "$(CHECKER)"
 
 # this target will be removed once the ignored scripts are fixed
 partial-check:
-	./tools/check_scripts.py -i announce_url_title.py,country.py,gateway_rename.scm,inotify.py,menu.pl,notifo.py,weather.py,wtwitter.py -r .
+	"$(CHECKER)" -i announce_url_title.py,country.py,gateway_rename.scm,inotify.py,menu.pl,notifo.py,weather.py,wtwitter.py -r .
 
 check:
-	./tools/check_scripts.py -r .
+	"$(CHECKER)" -r .
