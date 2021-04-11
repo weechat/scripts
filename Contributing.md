@@ -32,6 +32,8 @@ New scripts are added with pull requests against master branch of this repositor
   - make your Python script compatible with Python 3.x, the support of Python 2.x is now optional
   - use the official WeeChat URL: [https://weechat.org](https://weechat.org) (`https` and no `www.`) in any link to the WeeChat website.
 
+Your script is automatically checked in CI, see [Automatic checks on scripts](#automatic-checks-on-scripts).
+
 ## Updating a script
 
 ### Contacting the author
@@ -60,6 +62,8 @@ Scripts updates are made with pull requests against master branch of this reposi
   - do **NOT** update the author name in script (used in `register` function), it must always contain the original script author, even if you are doing large updates in the script
   - make any Python script compatible with Python 3.x, the support of Python 2.x is now optional.
 
+The script is automatically checked in CI, see [Automatic checks on scripts](#automatic-checks-on-scripts).
+
 ## Deleting a script
 
 Deleting a script must be done for a justified decision, for example such reasons are valid:
@@ -76,3 +80,28 @@ If you are not the author of the script, you must first contact the author to di
   - fill the pull request template
   - make only one commit to delete only one script
   - use this commit message: `Remove script name.py`, and it is recommended to explain the reasons in the commit description
+
+## Automatic checks on scripts
+
+Whenever a script is added or updated, the script [check_scripts.py](tools/check_scripts.py) is executed by CI in GitHub Actions and looks for errors in the script.
+
+The following checks are performed (only errors are fatal for the CI job):
+
+- errors:
+  - the author e-mail is missing
+  - missing call to `infolist_free` (when `infolist_get` is called)
+  - the info `python2_bin` is used: it is deprecated and must not be used any more (Python script only)
+- warnings:
+  - the function `sys.exit()` is called: this causes WeeChat itself to exit (Python script only)
+- info:
+  - the first line of the script is a shebang: it's not needed
+  - the WeeChat URL is not exactly `https://weechat.org`
+
+If errors are detected in the script, you must fix them before the script is manually tested/merged by the WeeChat team.
+
+It is recommended to run yourself this script prior to submit the pull request.\
+For example if your script is called `name.py`, you can check it with this command:
+
+```
+$ /path/to/scripts/tools/check_scripts.py name.py
+```
