@@ -7,7 +7,7 @@ It converts emoji shortcodes to Unicode emoji.
 This package is based on the emoji_aliases.py script by Mike Reinhardt.
 
 License: CC0
-Author: Thom Wiggers
+Author: Thom Wiggers <thom@thomwiggers.nl>
 Repository: https://github.com/thomwiggers/weechat-emojize
 
 This plugin supports python 3 and requires the 'emoji' python package.
