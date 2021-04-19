@@ -83,7 +83,7 @@ If you are not the author of the script, you must first contact the author to di
 
 ## Automatic checks on scripts
 
-Whenever a script is added or updated, the script [check_scripts.py](tools/check_scripts.py) is executed by CI in GitHub Actions and looks for errors in the script.
+Whenever a script is added or updated, the script [weechat-script-lint](https://github.com/weechat/weechat-script-lint) is executed by CI in GitHub Actions and looks for errors in the script.
 
 The following checks are performed (only errors are fatal for the CI job):
 
@@ -99,9 +99,16 @@ The following checks are performed (only errors are fatal for the CI job):
 
 If errors are detected in the script, you must fix them before the script is manually tested/merged by the WeeChat team.
 
-It is recommended to run yourself this script prior to submit the pull request.\
-For example if your script is called `name.py`, you can check it with this command:
+It is recommended to run yourself this script prior to submit the pull request.
+
+You can install it with:
 
 ```
-$ /path/to/scripts/tools/check_scripts.py name.py
+$ pip install weechat-script-lint
+```
+
+And then check your script called `name.py` with this command:
+
+```
+$ weechat-script-lint name.py
 ```

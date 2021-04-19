@@ -15,27 +15,15 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-CHECKER ?= ./tools/check_scripts.py
+CHECKER ?= weechat-script-lint
 
-.PHONY: all check flake8 pylint
+.PHONY: all check
 
-all: lint check
-
-lint: flake8 pylint mypy
-
-flake8:
-	flake8 "$(CHECKER)" --count --select=E9,F63,F7,F82 --show-source --statistics
-	flake8 "$(CHECKER)" --count --exit-zero --max-complexity=10 --statistics
-
-pylint:
-	pylint "$(CHECKER)"
-
-mypy:
-	mypy "$(CHECKER)"
+all: check
 
 # this target will be removed once the ignored scripts are fixed
 partial-check:
-	"$(CHECKER)" -i announce_url_title.py,country.py,gateway_rename.scm,inotify.py,menu.pl,notifo.py,weather.py,wtwitter.py -r .
+	"$(CHECKER)" --ignore-files announce_url_title.py,country.py,gateway_rename.scm,inotify.py,menu.pl,notifo.py,weather.py,wtwitter.py --recursive .
 
 check:
-	"$(CHECKER)" -r .
+	"$(CHECKER)" --recursive .
