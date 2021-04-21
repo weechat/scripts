@@ -83,32 +83,9 @@ If you are not the author of the script, you must first contact the author to di
 
 ## Automatic checks on scripts
 
-Whenever a script is added or updated, the script [weechat-script-lint](https://github.com/weechat/weechat-script-lint) is executed by CI in GitHub Actions and looks for errors in the script.
-
-The following checks are performed (only errors are fatal for the CI job):
-
-- errors:
-  - the author e-mail is missing
-  - missing call to `infolist_free` (when `infolist_get` is called)
-  - the info `python2_bin` is used: it is deprecated and must not be used any more (Python script only)
-- warnings:
-  - the function `sys.exit()` is called: this causes WeeChat itself to exit (Python script only)
-- info:
-  - the first line of the script is a shebang: it's not needed
-  - the WeeChat URL is not exactly `https://weechat.org`
-
-If errors are detected in the script, you must fix them before the script is manually tested/merged by the WeeChat team.
-
+Whenever a script is added or updated, the script `weechat-script-lint` is executed by CI in GitHub Actions and looks for errors in the script.\
 It is recommended to run yourself this script prior to submit the pull request.
 
-You can install it with:
+If errors or warnings are detected in the script, you must fix them before the script is manually tested/merged by the WeeChat team.
 
-```
-$ pip install weechat-script-lint
-```
-
-And then check your script called `name.py` with this command:
-
-```
-$ weechat-script-lint name.py
-```
+See the [weechat-script-lint repository](https://github.com/weechat/weechat-script-lint) for more information about the checks performed and how to use the script.
