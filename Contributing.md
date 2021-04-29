@@ -5,6 +5,15 @@
 Before reporting an issue, it is recommended to contact the author of script directly.\
 If you have no answer, or if the author has no time to fix the problem, then you can report the issue in the tracker or send an update of the script if you are able to fix yourself.
 
+## Testing pending scripts
+
+Your can help WeeChat team by testing the pending scripts (new scripts or updates): this makes script approbation faster and this ensures there are no major bugs in the script itself.
+
+To do that, you can download the script in the pull request and load it manually in WeeChat (for example: `/script load /path/to/new_script.py`).\
+Whether the script is working or not, please comment the pull request accordingly.
+
+Thank you for your help!
+
 ## Adding a new script
 
 New scripts are added with pull requests against master branch of this repository, using the pull request template called `Add script`.
