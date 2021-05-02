@@ -23,10 +23,11 @@
 #                - Basic functionality to save version history of your config files (only git, bzr)
 # 0.2 ShockkPony - Fixed massive weechat startup time caused by initial config loading
 # 0.3 noctux     - Adapt to python 3
+# 0.4 FlashCode  - Add compatibility with WeeChat >= 3.2 (XDG directories)
 
 SCRIPT_NAME    = "confversion"
 SCRIPT_AUTHOR  = "drubin <drubin at smartcube.co.za>"
-SCRIPT_VERSION = "0.3"
+SCRIPT_VERSION = "0.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Stores version controlled history of your configuration files"
 
@@ -61,7 +62,8 @@ def shell_in_home(cmd):
         print(e)
 
 def weechat_home():
-    return weechat.info_get ("weechat_dir", "")
+    return weechat.info_get("weechat_config_dir", "") \
+        or weechat.info_get("weechat_dir", "")
 
 def ver_method():
     return weechat.config_get_plugin("versioning_method")
