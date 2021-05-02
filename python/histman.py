@@ -17,6 +17,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2021-05-02, Sébastien Helleu <flashcode@flashtux.org>
+#       0.8.2 : add compatibility with WeeChat >= 3.2 (XDG directories)
+#
 # 2018-08-04: nils_2 (freenode.#weechat)
 #       0.8 : add option 'save_buffer'
 #           : thanks catbeard for revise the help text
@@ -60,7 +63,7 @@ except Exception:
 
 SCRIPT_NAME     = 'histman'
 SCRIPT_AUTHOR   = 'nils_2 <weechatter@arcor.de>'
-SCRIPT_VERSION  = '0.8.1'
+SCRIPT_VERSION  = '0.8.2'
 SCRIPT_LICENSE  = 'GPL'
 SCRIPT_DESC     = 'save and restore global and/or buffer command history'
 
@@ -68,7 +71,7 @@ OPTIONS         = { 'number'       : ('0','number of history commands/text to sa
                     'pattern'      : ('(.*password|.*nickserv|/quit)','a simple regex to ignore commands/text. Empty value disable pattern matching'),
                     'skip_double'  : ('on','skip lines that already exists (case sensitive)'),
                     'save'         : ('all','define what should be saved from history. Possible values are \"command\", \"text\", \"all\". This is a fallback option (see /help ' + SCRIPT_NAME +')'),
-                    'history_dir'  : ('%h/history','locale cache directory for history files (\"%h\" will be replaced by WeeChat home, \"~/.weechat\" by default)'),
+                    'history_dir'  : ('%h/history','locale cache directory for history files (\"%h\" will be replaced by WeeChat data directory)'),
                     'save_global'  : ('off','save global history, possible values are \"command\", \"text\", \"all\" or \"off\"(default: off)'),
                     'save_buffer'  : ('off','save buffer history from all buffers, possible values are \"on\", \"off\". Using this option, localvar from buffer will be ignored (default: off)'),
                     'min_length'   : ('2','minimum length of command/text (default: 2)'),
@@ -285,11 +288,17 @@ def write_history(filename):
         raise
 
 def get_filename_with_path(filename):
-    path = OPTIONS['history_dir'].replace("%h",weechat.info_get("weechat_dir", ""))
-    return os.path.join(path,filename)
+    options = {
+        'directory': 'data',
+    }
+    path = weechat.string_eval_path_home(OPTIONS['history_dir'], {}, {}, options)
+    return os.path.join(path, filename)
 
 def config_create_dir():
-    dir = OPTIONS['history_dir'].replace("%h",weechat.info_get("weechat_dir", ""))
+    options = {
+        'directory': 'data',
+    }
+    dir = weechat.string_eval_path_home(OPTIONS['history_dir'], {}, {}, options)
     if not os.path.isdir(dir):
         os.makedirs(dir, mode=0o700)
 
