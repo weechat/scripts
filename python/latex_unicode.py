@@ -19,6 +19,8 @@
 #
 # History:
 #
+# 2021-05-02, Sébastien Helleu <flashcode@flashtux.org>:
+#   version 1.2: add compatibility with WeeChat >= 3.2 (XDG directories)
 # 2019-06-27, Simmo Saan <simmo.saan@gmail.com>
 #   version 1.1: fix completion newlines
 # 2018-06-19, Simmo Saan <simmo.saan@gmail.com>
@@ -51,7 +53,7 @@ from __future__ import print_function
 
 SCRIPT_NAME = "latex_unicode"
 SCRIPT_AUTHOR = "Simmo Saan <simmo.saan@gmail.com>"
-SCRIPT_VERSION = "1.1"
+SCRIPT_VERSION = "1.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Replace LaTeX with unicode representations"
 
@@ -210,7 +212,10 @@ def setup():
 	"""Load replacements from available resource."""
 
 	global xml_path
-	xml_path = weechat.string_eval_path_home("%h/latex_unicode.xml", "", "", "")
+	options = {
+		"directory": "cache",
+	}
+	xml_path = weechat.string_eval_path_home("%h/latex_unicode.xml", {}, {}, options)
 
 	if os.path.isfile(xml_path):
 		setup_from_file()
