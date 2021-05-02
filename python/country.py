@@ -48,6 +48,10 @@
 #
 #
 #   History:
+#
+#   2021-05-02
+#   version 0.6.2: add compatibility with WeeChat >= 3.2 (XDG directories).
+#
 #   2013-04-28
 #   version 0.6:
 #   * Improved support for target msgbuffer. Takes the following settings into account:
@@ -88,7 +92,7 @@
 
 SCRIPT_NAME    = "country"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.6.1"
+SCRIPT_VERSION = "0.6.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Prints user's country and local time in whois replies"
 SCRIPT_COMMAND = "country"
@@ -188,8 +192,10 @@ def string_time(dt):
 ### functions
 def get_script_dir():
     """Returns script's dir, creates it if needed."""
-    script_dir = weechat.info_get('weechat_dir', '')
-    script_dir = os.path.join(script_dir, 'country')
+    options = {
+        'directory': 'cache',
+    }
+    script_dir = weechat.string_eval_path_home('%h/country', {}, {}, options)
     if not os.path.isdir(script_dir):
         os.makedirs(script_dir)
     return script_dir
