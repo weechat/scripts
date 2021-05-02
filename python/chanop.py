@@ -195,6 +195,10 @@
 #
 #   History:
 #
+#
+#   2021-05-02
+#   version 0.3.4: add compatibility with WeeChat >= 3.2 (XDG directories)
+#
 #   2020-10-18
 #   version 0.3.3: make script compatible with Python 3 only
 #                  (drop Python 2 compatibility)
@@ -288,7 +292,7 @@ WEECHAT_VERSION = (0x30200, '0.3.2')
 
 SCRIPT_NAME    = "chanop"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.3.3"
+SCRIPT_VERSION = "0.3.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Helper script for IRC Channel Operators"
 
@@ -314,7 +318,6 @@ except ImportError:
     print("Get WeeChat now at: http://www.weechat.org/")
     import_ok = False
 
-import os
 import re
 import time
 import string
@@ -1370,7 +1373,10 @@ class MaskCache(ServerChannelDict):
 
 class ChanopCache(Shelf):
     def __init__(self, filename):
-        path = os.path.join(weechat.info_get('weechat_dir', ''), filename)
+        options = {
+            'directory': 'data',
+        }
+        path = weechat.string_eval_path_home('%%h/%s' % filename, {}, {}, options)
         Shelf.__init__(self, path, writeback=True)
 
 class ModeCache(ChanopCache):
