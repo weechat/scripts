@@ -68,6 +68,10 @@
 #
 #
 #   History:
+#
+#   2021-05-02, Sébastien Helleu <flashcode@flashtux.org>
+#   version 0.8.5: add compatibility with WeeChat >= 3.2 (XDG directories)
+#
 #   2020-10-11, Thom Wiggers <thom@thomwiggers.nl>
 #   version 0.8.4: Python3 compatibility fix
 #
@@ -235,7 +239,7 @@ except ImportError:
 
 SCRIPT_NAME    = "grep"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.8.4"
+SCRIPT_VERSION = "0.8.5"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Search in buffers and logs"
 SCRIPT_COMMAND = "grep"
@@ -451,9 +455,13 @@ def get_config_log_filter():
         return []
 
 def get_home():
-    home = weechat.config_string(weechat.config_get('logger.file.path'))
-    home = home.replace('%h', weechat.info_get('weechat_dir', ''))
-    home = path.abspath(path.expanduser(home))
+    options = {
+        'directory': 'data',
+    }
+    home = weechat.string_eval_path_home(
+        weechat.config_string(weechat.config_get('logger.file.path')),
+        {}, {}, options,
+    )
     return home
 
 def strip_home(s, dir=''):
