@@ -28,7 +28,7 @@
 #
 #   Settings:
 #   * plugins.var.python.chanstat.path:
-#     path where to store stat files, deault '%h/chanstat'
+#     path where to store stat files, default '%h/chanstat'
 #
 #   * plugins.var.python.chanstat.averge_period:
 #     Period of time for calculate the average stats. This means the avegare will be calculated with
@@ -46,12 +46,14 @@
 #   History:
 #   2010-06-08
 #   version 0.1: initial release.
+#   2021-05-02
+#   version 0.2: add compatibility with WeeChat >= 3.2 (XDG directories)
 #
 ###
 
 SCRIPT_NAME    = "chanstat"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Channel statistics"
 
@@ -118,7 +120,10 @@ def get_config_int(config):
 
 def get_dir(filename):
     import os
-    basedir = weechat.config_get_plugin('path').replace('%h', weechat.info_get('weechat_dir', ''))
+    options = {
+        'directory': 'data',
+    }
+    basedir = weechat.string_eval_path_home(weechat.config_get_plugin('path'), {}, {}, options)
     if not os.path.isdir(basedir):
         os.makedirs(basedir)
     return os.path.join(basedir, filename.lower())
