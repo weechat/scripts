@@ -28,7 +28,7 @@ import weechat
 
 
 __author__ = 'Simeon Simeonov'
-__version__ = '4.1'
+__version__ = '4.2'
 __license__ = 'GPL3'
 
 
@@ -515,9 +515,11 @@ def beinc_init():
     global_values['use_current_buffer'] = False
 
     try:
-        beinc_config_file_str = os.path.join(
-            weechat.info_get('weechat_dir', ''),
-            'beinc_weechat.json')
+        options = {
+            'directory': 'config',
+        }
+        beinc_config_file_str = weechat.string_eval_path_home(
+            '%h/beinc_weechat.json', {}, {}, options)
         beinc_prnt(f'Parsing {beinc_config_file_str}...')
         custom_error = 'load error'
         with open(beinc_config_file_str, 'r') as fp:
