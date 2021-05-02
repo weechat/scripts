@@ -5,7 +5,7 @@
 # ===============================================================
 SCRIPT_NAME    = "axolotl"
 SCRIPT_AUTHOR  = "David R. Andersen <k0rx@rxcomm.net>"
-SCRIPT_VERSION = "0.1.0"
+SCRIPT_VERSION = "0.1.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "encrypt/decrypt PRIVMSGs using axolotl ratchet and GPG"
 
@@ -169,19 +169,20 @@ def encryption_statusbar(data, item, window):
 # register plugin
 if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, \
                     SCRIPT_LICENSE, SCRIPT_DESC, "", "UTF-8"):
-    weechat_dir = weechat.info_get("weechat_dir","")
-    key_dir = weechat.config_get_plugin('key_dir')
     version = weechat.info_get("version_number", "") or 0
     if int(version) < 0x00030000:
-      weechat.prnt("", "%s%s: WeeChat 0.3.0 is required for this script."
-              % (weechat.prefix("error"), SCRIPT_NAME))
+        weechat.prnt("", "%s%s: WeeChat 0.3.0 is required for this script."
+                     % (weechat.prefix("error"), SCRIPT_NAME))
     else:
-      weechat.bar_item_new('axolotl', 'encryption_statusbar', '')
-      for option, default_value in script_options.iteritems():
-          if not weechat.config_is_set_plugin(option):
-                  weechat.config_set_plugin(option, default_value)
+        weechat_dir = weechat.info_get("weechat_data_dir", "") \
+            or weechat.info_get("weechat_dir", "")
+        key_dir = weechat.config_get_plugin('key_dir')
+        weechat.bar_item_new('axolotl', 'encryption_statusbar', '')
+        for option, default_value in script_options.iteritems():
+            if not weechat.config_is_set_plugin(option):
+                weechat.config_set_plugin(option, default_value)
 
-      # register the modifiers
-      weechat.hook_modifier("irc_in_privmsg", "decrypt", "")
-      weechat.hook_modifier("irc_out_privmsg", "encrypt", "")
-      weechat.hook_signal("buffer_switch","update_encryption_status","")
+        # register the modifiers
+        weechat.hook_modifier("irc_in_privmsg", "decrypt", "")
+        weechat.hook_modifier("irc_out_privmsg", "encrypt", "")
+        weechat.hook_signal("buffer_switch","update_encryption_status","")
