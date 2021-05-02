@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2010-2012 Sebastien Helleu <flashcode@flashtux.org>
+# Copyright (C) 2010-2021 Sébastien Helleu <flashcode@flashtux.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,21 +22,23 @@
 #
 # History:
 #
-# 2012-01-03, Sebastien Helleu <flashcode@flashtux.org>:
+# 2021-05-02, Sébastien Helleu <flashcode@flashtux.org>:
+#     version 0.5: add compatibility with WeeChat >= 3.2 (XDG directories)
+# 2012-01-03, Sébastien Helleu <flashcode@flashtux.org>:
 #     version 0.4: make script compatible with Python 3.x
-# 2011-02-13, Sebastien Helleu <flashcode@flashtux.org>:
+# 2011-02-13, Sébastien Helleu <flashcode@flashtux.org>:
 #     version 0.3: use new help format for command arguments
-# 2010-07-31, Sebastien Helleu <flashcode@flashtux.org>:
+# 2010-07-31, Sébastien Helleu <flashcode@flashtux.org>:
 #     version 0.2: add keyword "commands" to run many commands
-# 2010-07-26, Sebastien Helleu <flashcode@flashtux.org>:
+# 2010-07-26, Sébastien Helleu <flashcode@flashtux.org>:
 #     version 0.1: initial release
-# 2010-07-20, Sebastien Helleu <flashcode@flashtux.org>:
+# 2010-07-20, Sébastien Helleu <flashcode@flashtux.org>:
 #     script creation
 #
 
 SCRIPT_NAME    = "cron"
-SCRIPT_AUTHOR  = "Sebastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.4"
+SCRIPT_AUTHOR  = "Sébastien Helleu <flashcode@flashtux.org>"
+SCRIPT_VERSION = "0.5"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Time-based scheduler, like cron and at"
 
@@ -242,7 +244,11 @@ class CronJob(object):
 
 def cron_filename():
     """ Get crontab filename. """
-    return weechat.config_get_plugin("filename").replace("%h", weechat.info_get("weechat_dir", ""))
+    options = {
+        'directory': 'config',
+    }
+    return weechat.string_eval_path_home(
+        weechat.config_get_plugin("filename"), {}, {}, options)
 
 def cron_str_job_count(number):
     """ Get string with "%d jobs". """
