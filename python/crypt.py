@@ -3,7 +3,7 @@
 # ===============================================================
 SCRIPT_NAME    = "crypt"
 SCRIPT_AUTHOR  = "Nicolai Lissner <nlissne@linux01.org>"
-SCRIPT_VERSION = "1.4.4"
+SCRIPT_VERSION = "1.4.5"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "encrypt/decrypt PRIVMSGs using a pre-shared key and openssl"
 
@@ -125,7 +125,8 @@ PIPE=-1
 
 # register plugin
 if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, "", "UTF-8"):
-    weechat_dir = weechat.info_get("weechat_dir","")
+    weechat_dir = weechat.info_get("weechat_data_dir", "") \
+        or weechat.info_get("weechat_dir", "")
     version = weechat.info_get("version_number", "") or 0
     if int(version) < 0x00030000:
       weechat.prnt("", "%s%s: WeeChat 0.3.0 is required for this script."
