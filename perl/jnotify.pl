@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 1.2: add compatibility with WeeChat >= 3.2 (XDG directories)
 # 1.1: fix:  invalid pointer for function infolist_get()
 # 1.0: added: allow internal WeeChat command(s)
 # v0.9: fixed: mem leak, infolist not removed with infolist_free()
@@ -44,7 +45,7 @@
 # /set plugins.var.perl.jnotify.blacklist = "jn-blacklist.txt"
 # /set plugins.var.perl.jnotify.whitelist = "jn-whitelist.txt"
 # /set plugins.var.perl.jnotify.block_current_buffer = "on"
-# /set plugins.var.perl.jnotify.cmd = "echo -en "\a"" 
+# /set plugins.var.perl.jnotify.cmd = "echo -en "\a""
 # /set plugins.var.perl.jnotify.status = "on"
 #
 # Development is currently hosted at
@@ -67,7 +68,7 @@ my $extern_command = qq(echo -en "\a");
 
 
 # default values in setup file (~/.weechat/plugins.conf)
-my $version		= "1.1";
+my $version		= "1.2";
 my $prgname 		= "jnotify";
 my $description 	= "starts an internal command or external program if a user or one of your buddies JOIN a channel you are in";
 my $status		= "status";
@@ -89,7 +90,7 @@ weechat::register($prgname, "Nils Görs <weechatter\@arcor.de>", $version,
 # commands used by jnotify. Type: /help jnotify
 weechat::hook_command($prgname, $description,
 
-        "<toggle> | <status> | <block> | <wl> | <wl> | <wl_add> / <wl_del> / <bl_add> / <bl_del> [nick_1 [... nick_n]]", 
+        "<toggle> | <status> | <block> | <wl> | <wl> | <wl_add> / <wl_del> / <bl_add> / <bl_del> [nick_1 [... nick_n]]",
 
         "<toggle>           $prgname between on and off\n".
         "<status>           tells you if $prgname is on or off\n".
@@ -132,7 +133,7 @@ weechat::hook_command($prgname, $description,
 init();
 weechat::hook_config( "plugins.var.perl.$prgname.$status", 'toggled_by_set', "" );
 
-# create hook_signal for IRC command JOIN 
+# create hook_signal for IRC command JOIN
 hook() if (weechat::config_get_plugin($status) eq "on");
 
 # return 0 on error
@@ -430,12 +431,14 @@ sub init{
 		if (weechat::config_get_plugin($status) eq "");
 
 	if ( weechat::config_get_plugin($whitelist) eq '' ) {
-		my $wd = weechat::info_get( "weechat_dir", "" );
+		my $wd = weechat::info_get("weechat_config_dir", "");
+		$wd = weechat::info_get("weechat_dir", "") if (!$wd);
 		$wd =~ s/\/$//;
 		weechat::config_set_plugin($whitelist, $wd . "/" . $default_whitelist );
 	}
 	if ( weechat::config_get_plugin($blacklist) eq '' ) {
-		my $wd = weechat::info_get( "weechat_dir", "" );
+		my $wd = weechat::info_get("weechat_config_dir", "");
+		$wd = weechat::info_get("weechat_dir", "") if (!$wd);
 		$wd =~ s/\/$//;
 		weechat::config_set_plugin($blacklist, $wd . "/" . $default_blacklist );
 	}
