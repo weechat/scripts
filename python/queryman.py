@@ -19,6 +19,9 @@
 #
 # idea by lasers@freenode.#weechat
 #
+# 2021-05-05: Sébastien Helleu <flashcode@flashtux.org>
+#       0.6 : add compatibility with XDG directories (WeeChat >= 3.2)
+#
 # 2018-08-08: nils_2, (freenode.#weechat)
 #       0.5 : fix TypeError with python3.6
 #
@@ -56,7 +59,7 @@ except Exception:
 
 SCRIPT_NAME     = 'queryman'
 SCRIPT_AUTHOR   = 'nils_2 <weechatter@arcor.de>'
-SCRIPT_VERSION  = '0.5'
+SCRIPT_VERSION  = '0.6'
 SCRIPT_LICENSE  = 'GPL'
 SCRIPT_DESC     = 'save and restore query buffers after /quit and on open/close of queries'
 DEBUG           = False
@@ -132,7 +135,8 @@ def irc_server_connected_signal_cb(data, signal, signal_data):
 # ================================[ file ]===============================
 def get_filename_with_path():
     global queryman_filename
-    path = weechat.info_get("weechat_dir", "")
+    path = weechat.info_get("weechat_data_dir", "") \
+        or weechat.info_get("weechat_dir", "")
     return os.path.join(path,queryman_filename)
 
 # ======== [ Stored Query Buffers List ] ==========
