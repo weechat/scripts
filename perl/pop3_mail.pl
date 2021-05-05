@@ -20,6 +20,8 @@
 # Add [mail] to your weechat.bar.status.items
 #
 #
+# 2021-05-05: Sébastien Helleu <flashcode@flashtux.org>
+#       0.4 : add compatibility with XDG directories (WeeChat >= 3.2)
 # 2013-09-15: nils_2 (freenode.#weechat)
 #       0.3 : add: option prefix_item
 #
@@ -57,7 +59,7 @@ use Crypt::Rijndael;
 use Encode;
 
 my $prgname             = "pop3_mail";
-my $SCRIPT_version      = "0.3";
+my $SCRIPT_version      = "0.4";
 my $description         = "check POP3 server for mails and display mail header";
 my $item_name           = "mail";
 
@@ -547,13 +549,8 @@ sub read_file
 
 sub weechat_dir
 {
-    my $dir = weechat::config_get_plugin("pop3_list");
-    if ( $dir =~ /%h/ )
-    {
-        my $weechat_dir = weechat::info_get( 'weechat_dir', '');
-        $dir =~ s/%h/$weechat_dir/;
-    }
-    return $dir;
+    my $options = { "directory" => "config" };
+    return weechat::string_eval_path_home(weechat::config_get_plugin("pop3_list"), {}, {}, $options);
 }
 
 sub shutdown{
