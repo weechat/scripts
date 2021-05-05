@@ -20,9 +20,14 @@
 #
 # Version History:
 #
+# 0.4.3 - May 5th, 2021
+#    Add Python 3 compatibility.
+#    Add compatibility with XDG directories (WeeChat >= 3.2).
+#
 # 0.4.2 - Nov 22nd, 2015
 #    Add saving of static queues to disk and reloading them on startup.
 #    Added by Tim Kuhlman - https://github.com/tkuhlman
+#
 # 0.4.1 - Jan 20th, 2011
 #    Multi-list queuing seems to work flawlessly so far. Expanded on the /help qu text.
 #    Properties are fully-functional. As for loading/saving of lists, I want to hold off until
@@ -159,7 +164,7 @@ class Queue():
 
 SCRIPT_NAME		= "queue"
 SCRIPT_AUTHOR	= "walk"
-SCRIPT_VERSION	= "0.4.2"
+SCRIPT_VERSION	= "0.4.3"
 SCRIPT_LICENSE	= "GPL3"
 SCRIPT_DESC		= "Command queuing"
 
@@ -204,9 +209,11 @@ def __config__():
 def load():
     """ Load saved queues from pickle. """
     global COMMAND_QU
-    pickle_path = os.path.join(weechat.info_get("weechat_dir", ""), 'queue.pickle')
+    data_dir = weechat.info_get("weechat_data_dir", "") \
+        or weechat.info_get("weechat_dir", "")
+    pickle_path = os.path.join(data_dir, 'queue.pickle')
     if os.path.exists(pickle_path):
-        with open(pickle_path, 'r') as qu_pickle:
+        with open(pickle_path, 'rb') as qu_pickle:
             COMMAND_QU = pickle.load(qu_pickle)
 
     if 'default' not in COMMAND_QU:
@@ -247,13 +254,15 @@ def prntcore(data, essential=0, rb=0):
 def save():
     """ Save to disk all static lists as a pickle. """
     global COMMAND_QU
-    pickle_path = os.path.join(weechat.info_get("weechat_dir", ""), 'queue.pickle')
+    data_dir = weechat.info_get("weechat_data_dir", "") \
+        or weechat.info_get("weechat_dir", "")
+    pickle_path = os.path.join(data_dir, 'queue.pickle')
     to_save = {}
-    for name, qu in COMMAND_QU.iteritems():
+    for name, qu in COMMAND_QU.items():
         if not qu.__clearable__:  # Note isClear method doesn't show status it sets it
             to_save[name] = qu
 
-    with open(pickle_path, 'w') as qu_pickle:
+    with open(pickle_path, 'wb') as qu_pickle:
         pickle.dump(to_save, qu_pickle, pickle.HIGHEST_PROTOCOL)
 
 def rejoin(data, delimiter=' '):
@@ -274,8 +283,8 @@ def qu_cb(data, buffer, args):
 	else:
 		rainbowit=1
 
-        if args == "":
-                return weechat.WEECHAT_RC_OK
+	if args == "":
+	        return weechat.WEECHAT_RC_OK
 
 	argv = args.split()
 	arglist = ['add', 'del', 'new', 'dellist', 'list', 'clear', 'exec', 'listview', 'save', 'set']
