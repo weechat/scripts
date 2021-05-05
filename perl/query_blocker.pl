@@ -38,6 +38,9 @@
 #
 # -----------------------------------------------------------------------------
 # History:
+# 2021-05-05: Sébastien Helleu <flashcode@flashtux.org>:
+#     version 1.3:
+#     FIX: add compatibility with XDG directories (WeeChat >= 3.2)
 # 2018-07-30, usefulz & nils_2:
 #     version 1.2:
 #     FIX: undefine subroutine
@@ -113,7 +116,7 @@ use strict;
 
 my $SCRIPT      = 'query_blocker';
 my $AUTHOR      = 'rettub <rettub@gmx.net>';
-my $VERSION     = '1.2';
+my $VERSION     = '1.3';
 my $LICENSE     = 'GPL3';
 my $DESCRIPTION = 'Simple blocker for private message (i.e. spam)';
 my $COMMAND     = "query_blocker";             # new command name
@@ -801,8 +804,10 @@ if ( weechat::register( $SCRIPT, $AUTHOR, $VERSION, $LICENSE, $DESCRIPTION, "", 
         weechat::command("","/wait 1ms /perl unload $SCRIPT");
   }
 
+    my $weechat_dir = weechat::info_get("weechat_config_dir", "");
+    $weechat_dir = weechat::info_get("weechat_dir", "") if (!$weechat_dir);
     if ( weechat::config_get_plugin("whitelist") eq '' ) {
-        weechat::config_set_plugin( "whitelist", weechat::info_get( "weechat_dir", "" ) . "/" . $SETTINGS{"whitelist"} );
+        weechat::config_set_plugin( "whitelist", $weechat_dir . "/" . $SETTINGS{"whitelist"} );
     }
     while ( my ( $option, $default_value ) = each(%SETTINGS) ) {
         weechat::config_set_plugin( $option, $default_value )
