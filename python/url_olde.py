@@ -11,8 +11,8 @@ TODO
 """
 
 SCRIPT_NAME = "url_olde"
-SCRIPT_AUTHOR = "Charlie Allom <charlie@evilforbeginners.com"
-SCRIPT_VERSION = "0.6"
+SCRIPT_AUTHOR = "Charlie Allom <charlie@evilforbeginners.com>"
+SCRIPT_VERSION = "0.7"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "tells you how long ago a URL was first posted and by whom, for bragging rights."
 
@@ -21,7 +21,7 @@ try:
     import sqlite3
     import time
     import re
-    from urlparse import urldefrag
+    from urllib.parse import urldefrag
     IMPORT_ERR = 0
 except ImportError:
     IMPORT_ERR = 1
