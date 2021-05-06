@@ -37,7 +37,9 @@ Some new functions:
       - cooldown (max. n replies in t time)
       - random delay, so more human-like
       - even more randomness: can specify randomness of the reply/replies group.
-05-09-20 - new function - actions
+2020-09-05 - new function - actions
+2021-05-06 - Sébastien Helleu <flashcode@flashtux.org>
+Add compatibility with WeeChat >= 3.2 (XDG directories).
 
 Bugs: not that i'm aware of.
 """
@@ -54,7 +56,7 @@ import os
 
 SCRIPT_NAME = "triggerreply"
 SCRIPT_AUTHOR = "Vlad Stoica <stoica.vl@gmail.com>"
-SCRIPT_VERSION = "0.4.2"
+SCRIPT_VERSION = "0.4.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Auto replies when someone sends a specified trigger. Now with 100% more regex!"
 pcooldown  = 1
@@ -391,7 +393,10 @@ def command_input_callback(data, buffer, argv):
 
 
 if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, "", ""):
-    db_file = "%s/trigge.rs" % weechat.info_get("weechat_dir", "")
+    options = {
+        'directory': 'data',
+    }
+    db_file = weechat.string_eval_path_home("%h/trigge.rs", {}, {}, options)
     if weechat.config_get_plugin('debug') == "":
         weechat.config_set_plugin('debug', "0")
 
