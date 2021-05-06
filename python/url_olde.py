@@ -12,7 +12,7 @@ TODO
 
 SCRIPT_NAME = "url_olde"
 SCRIPT_AUTHOR = "Charlie Allom <charlie@evilforbeginners.com>"
-SCRIPT_VERSION = "0.7"
+SCRIPT_VERSION = "0.8"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "tells you how long ago a URL was first posted and by whom, for bragging rights."
 
@@ -134,7 +134,10 @@ if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION,
               SCRIPT_LICENSE, SCRIPT_DESC, '', ''):
     if IMPORT_ERR:
         w.prnt("", "You need sqlite3 to run this plugin.")
-    DBFILE = "%s/olde.sqlite3" % w.info_get("weechat_dir", "")
+    options = {
+        'directory': 'data',
+    }
+    DBFILE = w.string_eval_path_home("%h/olde.sqlite3", {}, {}, options)
     if not os.path.isfile(DBFILE):
         create_db()  # init on load if file doesn't exist.
 
