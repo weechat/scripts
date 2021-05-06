@@ -44,6 +44,8 @@
 #
 # History:
 #
+# 2021-05-06, Sébastien Helleu <flashcode@flashtux.org>:
+#     v2.6: add compatibility with WeeChat >= 3.2 (XDG directories)
 # 2021-03-06, Sébastien Helleu <flashcode@flashtux.org>:
 #     v2.5: replace cgi by html in Python 3
 # 2018-10-01, Pol Van Aubel <dev@polvanaubel.com>:
@@ -118,7 +120,7 @@
 
 SCRIPT_NAME = 'urlserver'
 SCRIPT_AUTHOR = 'Sébastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '2.5'
+SCRIPT_VERSION = '2.6'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC = 'Shorten URLs with own HTTP server'
 
@@ -1136,8 +1138,11 @@ def urlserver_config_cb(data, option, value):
 
 def urlserver_filename():
     """Return name of file used to store list of urls."""
-    return os.path.join(weechat.info_get('weechat_dir', ''),
-                        'urlserver_list.txt')
+    options = {
+        'directory': 'data',
+    }
+    return weechat.string_eval_path_home('%h/urlserver_list.txt',
+                                         {}, {}, options)
 
 
 def urlserver_read_urls():
