@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2021-06-02, Sébastien Helleu <flashcode@flashtux.org>:
+#     version 1.2: fix /help buffer_autoset
 # 2018-04-14, Kim B. Heino:
 #     version 1.1: on startup apply settings to already opened buffers
 # 2017-06-21, Sébastien Helleu <flashcode@flashtux.org>:
@@ -31,9 +33,9 @@
 # 2015-07-12, Sébastien Helleu <flashcode@flashtux.org>:
 #     version 0.8: add option buffer_autoset.look.timer to add a small timer
 #                  before setting buffer properties
-# 2015-04-05, Nils Görs <freenode@#weechat>:
+# 2015-04-05, Nils Görs <libera@#weechat>:
 #     version 0.7: increase priority of hook_signal('buffer_opened')
-# 2012-12-09, Nils Görs <freenode@#weechat>:
+# 2012-12-09, Nils Görs <libera@#weechat>:
 #     version 0.6: add support of core buffer
 # 2012-03-09, Sébastien Helleu <flashcode@flashtux.org>:
 #     version 0.5: fix reload of config file
@@ -50,7 +52,7 @@
 
 SCRIPT_NAME = "buffer_autoset"
 SCRIPT_AUTHOR = "Sébastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "1.1"
+SCRIPT_VERSION = "1.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Auto-set buffer properties when a buffer is opened"
 
@@ -291,26 +293,25 @@ if __name__ == "__main__" and import_ok:
                 "[add buffer property value] | [del option]",
                 "     add: add a buffer/property/value in configuration file\n"
                 "     del: delete an option from configuration file\n"
-                "  buffer: name of a buffer (can start or end with \"*\" as "
-                "wildcard)\n"
+                "  buffer: name of a buffer (wildcard \"*\" is allowed)\n"
                 "property: buffer property\n"
                 "   value: value for property\n"
                 "  option: name of option from configuration file\n\n"
                 "Examples:\n"
                 "  disable timestamp on channel #weechat:\n"
-                "    /" + SCRIPT_COMMAND + " add irc.freenode.#weechat "
+                "    /" + SCRIPT_COMMAND + " add irc.libera.#weechat "
                 "time_for_each_line 0\n"
                 "  add word \"weechat\" in highlight list on channel "
                 "#savannah:\n"
-                "    /" + SCRIPT_COMMAND + " add irc.freenode.#savannah "
+                "    /" + SCRIPT_COMMAND + " add irc.libera.#savannah "
                 "highlight_words_add weechat\n"
-                "  disable highlights from nick \"mike\" on freenode server, "
+                "  disable highlights from nick \"mike\" on libera server, "
                 "channel #weechat (requires WeeChat >= 0.3.4):\n"
-                "    /" + SCRIPT_COMMAND + " add irc.freenode.#weechat "
+                "    /" + SCRIPT_COMMAND + " add irc.libera.#weechat "
                 "hotlist_max_level_nicks_add mike:2\n"
-                "  disable hotlist changes for nick \"bot\" on freenode "
+                "  disable hotlist changes for nick \"bot\" on libera "
                 "server (all channels) (requires WeeChat >= 0.3.4):\n"
-                "    /" + SCRIPT_COMMAND + " add irc.freenode.* "
+                "    /" + SCRIPT_COMMAND + " add irc.libera.* "
                 "hotlist_max_level_nicks_add bot:-1",
                 "add %(buffers_plugins_names)|"
                 "%(buffer_autoset_current_buffer) "
