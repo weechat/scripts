@@ -19,6 +19,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # Version History:
+# 0.4.5 - November 9th, 2021
+#    Fix inconsistent use of tabs and spaces (now uses spaces as sugggested by PEP 8)
+#    Improve formatting of code for better readability
 #
 # 0.4.4 - Sep 11th, 2021
 #    Rename script to cmdqueue.py.
@@ -87,94 +90,95 @@ import pickle
 
 import_ok = True
 try:
-	import weechat
+    import weechat
 except ImportError:
-	print("This script requires WeeChat")
-	print("To obtain a copy, for free, visit http://weechat.org")
-	import_ok = False
+    print("This script requires WeeChat")
+    print("To obtain a copy, for free, visit http://weechat.org")
+    import_ok = False
 
 
 class Queue():
-	""" A Queuing Class """
-	def __init__(self):
-		self.data = []
-		self.index = len(self.data)
-		self.__clearable__ = True
-		self.__ldl__ = ''
-		self.__locked__ = False
+    """ A Queuing Class """
 
-	def __iter__(self):
-		for char in range(self.index):
-			yield self.data[char]
+    def __init__(self):
+        self.data = []
+        self.index = len(self.data)
+        self.__clearable__ = True
+        self.__ldl__ = ""
+        self.__locked__ = False
 
-	def __len__(self):
-		return len(self.data)
+    def __iter__(self):
+        for char in range(self.index):
+            yield self.data[char]
 
-	def add(self, queue_text):
-		if self.__locked__ == False:
-			self.data.append(queue_text)
-			self.index = len(self.data)
+    def __len__(self):
+        return len(self.data)
 
-	def remove(self, info):
-		if self.__locked__ == False:
-			tmp = ''
-			if info > 0:
-				tmp = str(self.data[info-1])
-				del self.data[info-1]
-				self.__ldl__ = tmp
-				self.index = len(self.data)
-			elif info == 0:
-				tmp = str(self.data[info])
-				del self.data[info]
-				self.__ldl__ = tmp
-				self.index = len(self.data)
+    def add(self, queue_text):
+        if self.__locked__ == False:
+            self.data.append(queue_text)
+            self.index = len(self.data)
 
-		return self.__ldl__
+    def remove(self, info):
+        if self.__locked__ == False:
+            tmp = ""
+            if info > 0:
+                tmp = str(self.data[info-1])
+                del self.data[info-1]
+                self.__ldl__ = tmp
+                self.index = len(self.data)
+            elif info == 0:
+                tmp = str(self.data[info])
+                del self.data[info]
+                self.__ldl__ = tmp
+                self.index = len(self.data)
 
-	def viewqueue(self):
-		list = ''
-		if not len(self.data) == 0:
-			for each in range(len(self.data)):
-				list+=str(each+1) + ". " + str(self.data[each]) + "\n"
-		else:
-			list='Nothing in queue'
+        return self.__ldl__
 
-		return list.strip("\n")
+    def viewqueue(self):
+        list = ""
+        if not len(self.data) == 0:
+            for each in range(len(self.data)):
+                list += str(each+1) + ". " + str(self.data[each]) + "\n"
+        else:
+            list = "Nothing in queue"
 
-	def clearqueue(self):
-		if self.__clearable__ == True:
-			self.data = []
-			self.index = 0
+        return list.strip("\n")
 
-	def isClear(self, cOpt):
-		if not cOpt in (True, False):
-			return
+    def clearqueue(self):
+        if self.__clearable__ == True:
+            self.data = []
+            self.index = 0
 
-		self.__clearable__ = cOpt
+    def isClear(self, cOpt):
+        if not cOpt in (True, False):
+            return
 
-	def isLocked(self, lockOpt):
-		if not lockOpt in (True, False):
-			return
+        self.__clearable__ = cOpt
 
-		self.__locked__ = lockOpt
+    def isLocked(self, lockOpt):
+        if not lockOpt in (True, False):
+            return
 
-	def isEmpty(self):
-		if len(self.data) == 0:
-			return True
-		else:
-			return False
+        self.__locked__ = lockOpt
+
+    def isEmpty(self):
+        if len(self.data) == 0:
+            return True
+        else:
+            return False
 
 
-SCRIPT_NAME	= "cmdqueue"
-SCRIPT_AUTHOR	= "walk"
-SCRIPT_VERSION	= "0.4.4"
-SCRIPT_LICENSE	= "GPL3"
-SCRIPT_DESC	= "Command queuing"
+SCRIPT_NAME = "cmdqueue"
+SCRIPT_AUTHOR = "walk"
+SCRIPT_VERSION = "0.4.5"
+SCRIPT_LICENSE = "GPL3"
+SCRIPT_DESC = "Command queuing"
 
-COMM_CMD	= "qu"
-COMM_DESC	= "Queuing commands in WeeChat"
-COMM_ARGS	= "[add [command] | del [index] | new [list] | dellist [list] | set [property] [on|off] |list | clear | exec | listview]"
-COMM_ARGS_DESC	= "Examples: \n\
+COMM_CMD = "qu"
+COMM_DESC = "Queuing commands in WeeChat"
+COMM_ARGS = "[add [command] | del [index] | new [list] | dellist [list] | set [property] [on|off] |list | clear | exec | listview]"
+COMM_ARGS_DESC = "Examples: \n\
    /qu add /msg chanserv op #foo bar \n\
    /qu del 1 \n\
    /qu new weechat \n\
@@ -191,256 +195,265 @@ COMM_ARGS_DESC	= "Examples: \n\
    PROPERTIES (for set command):\n \
    static - prevents a list from clearing manually or automatically but can still add and del commands.\n \
    lock - prevents the user from adding/deleting entries to a list. Can be combined with static."
-COMM_COMPL		= "add|del|list|exec|new|listview|dellist"
+COMM_COMPL = "add|del|list|exec|new|listview|dellist"
 
-COMMAND_QU = {'default': Queue()}
-CURR_LIST = 'default'
+COMMAND_QU = {"default": Queue()}
+CURR_LIST = "default"
+
 
 def __config__():
-	""" Configuration initialization """
+    """ Configuration initialization """
 
-	if not weechat.config_get_plugin("core_output_only") in ("yes", "no"):
-		weechat.config_set_plugin("core_output_only", "yes")
-	if not weechat.config_get_plugin("rainbow_allow") in ("yes", "no"):
-		weechat.config_set_plugin("rainbow_allow", "no")
-	if not weechat.config_get_plugin("verbose") in ("yes", "no"):
-		weechat.config_set_plugin("verbose", "yes")
+    if not weechat.config_get_plugin("core_output_only") in ("yes", "no"):
+        weechat.config_set_plugin("core_output_only", "yes")
+    if not weechat.config_get_plugin("rainbow_allow") in ("yes", "no"):
+        weechat.config_set_plugin("rainbow_allow", "no")
+    if not weechat.config_get_plugin("verbose") in ("yes", "no"):
+        weechat.config_set_plugin("verbose", "yes")
 
-	load()
-	return weechat.WEECHAT_RC_OK
+    load()
+    return weechat.WEECHAT_RC_OK
+
 
 def load():
     """ Load saved queues from pickle. """
     global COMMAND_QU
     data_dir = weechat.info_get("weechat_data_dir", "") \
         or weechat.info_get("weechat_dir", "")
-    pickle_path = os.path.join(data_dir, 'queue.pickle')
+    pickle_path = os.path.join(data_dir, "queue.pickle")
     if os.path.exists(pickle_path):
-        with open(pickle_path, 'rb') as qu_pickle:
+        with open(pickle_path, "rb") as qu_pickle:
             COMMAND_QU = pickle.load(qu_pickle)
 
-    if 'default' not in COMMAND_QU:
-        COMMAND_QU['default'] = Queue()
+    if "default" not in COMMAND_QU:
+        COMMAND_QU["default"] = Queue()
+
 
 def rainbow(data):
-	""" Not my favorite option but a requested one """
+    """ Not my favorite option but a requested one """
 
-	colors='red yellow green blue magenta'
-	c=colors.split()
-	count=0
-	colorHolder=''
+    colors = "red yellow green blue magenta"
+    c = colors.split()
+    count = 0
+    colorHolder = ""
 
-	for each in data:
-		if count > 4: count = 0
-		if not each == " ":
-			colorHolder+=weechat.color(c[count])+each
-			count += 1
-		else:
-			colorHolder+=" "
+    for each in data:
+        if count > 4:
+            count = 0
+        if not each == " ":
+            colorHolder += weechat.color(c[count])+each
+            count += 1
+        else:
+            colorHolder += " "
 
-	return str(colorHolder)
+    return str(colorHolder)
+
 
 def prntcore(data, essential=0, rb=0):
-	""" Built more on weechat.prnt """
+    """ Built more on weechat.prnt """
 
-	if weechat.config_get_plugin("verbose") == 'yes' or essential==1:
-		if weechat.config_get_plugin("core_output_only") =='yes':
-			buffer = ''
-		else:
-			buffer = weechat.current_buffer()
-		if rb == 0:
-			weechat.prnt(buffer, data)
-		else:
-			weechat.prnt(buffer, rainbow(data))
-	return weechat.WEECHAT_RC_OK
+    if weechat.config_get_plugin("verbose") == "yes" or essential == 1:
+        if weechat.config_get_plugin("core_output_only") == "yes":
+            buffer = ""
+        else:
+            buffer = weechat.current_buffer()
+        if rb == 0:
+            weechat.prnt(buffer, data)
+        else:
+            weechat.prnt(buffer, rainbow(data))
+    return weechat.WEECHAT_RC_OK
+
 
 def save():
     """ Save to disk all static lists as a pickle. """
     global COMMAND_QU
     data_dir = weechat.info_get("weechat_data_dir", "") \
         or weechat.info_get("weechat_dir", "")
-    pickle_path = os.path.join(data_dir, 'queue.pickle')
+    pickle_path = os.path.join(data_dir, "queue.pickle")
     to_save = {}
     for name, qu in COMMAND_QU.items():
         if not qu.__clearable__:  # Note isClear method doesn't show status it sets it
             to_save[name] = qu
 
-    with open(pickle_path, 'wb') as qu_pickle:
+    with open(pickle_path, "wb") as qu_pickle:
         pickle.dump(to_save, qu_pickle, pickle.HIGHEST_PROTOCOL)
 
-def rejoin(data, delimiter=' '):
-	""" Rejoins a split string """
-	tmpString = ''
-	for each in data:
-		tmpString+=each+delimiter
 
-	tmpString = tmpString.strip()
-	return tmpString
+def rejoin(data, delimiter=" "):
+    """ Rejoins a split string """
+    tmpString = ""
+    for each in data:
+        tmpString += each+delimiter
+
+    tmpString = tmpString.strip()
+    return tmpString
+
 
 def qu_cb(data, buffer, args):
-	""" Process hook_command info """
+    """ Process hook_command info """
 
-	global CURR_LIST, COMMAND_QU
-	if weechat.config_get_plugin('rainbow_allow') == 'no':
-		rainbowit=0
-	else:
-		rainbowit=1
+    global CURR_LIST, COMMAND_QU
+    if weechat.config_get_plugin("rainbow_allow") == "no":
+        rainbowit = 0
+    else:
+        rainbowit = 1
 
-	if args == "":
-	        return weechat.WEECHAT_RC_OK
+    if args == "":
+        return weechat.WEECHAT_RC_OK
 
-	argv = args.split()
-	arglist = ['add', 'del', 'new', 'dellist', 'list', 'clear', 'exec', 'listview', 'save', 'set']
+    argv = args.split()
+    arglist = ["add", "del", "new", "dellist", "list", "clear", "exec", "listview", "save", "set"]
 
-	if not argv[0] in arglist:
-		prntcore('[ queue -> not a valid argument: {0}'.format(argv[0]), rb=rainbowit)
-		return weechat.WEECHAT_RC_OK
+    if not argv[0] in arglist:
+        prntcore("[ queue -> not a valid argument: {0}".format(argv[0]), rb=rainbowit)
+        return weechat.WEECHAT_RC_OK
 
-	if argv[0].lower() == "add" and len(argv) > 1:
-		if not COMMAND_QU[CURR_LIST].__locked__ == True:
-			COMMAND_QU[CURR_LIST].add(rejoin(argv[1:]))
-			prntcore("[ queue added -> "+str(rejoin(argv[1:])) + " ]", rb=rainbowit)
-		else:
-			prntcore("[ queue -> the lock property is enabled for this list ({0}). please disable it before adding/deleting. ]", rb=rainbowit)
+    if argv[0].lower() == "add" and len(argv) > 1:
+        if not COMMAND_QU[CURR_LIST].__locked__ == True:
+            COMMAND_QU[CURR_LIST].add(rejoin(argv[1:]))
+            prntcore("[ queue added -> "+str(rejoin(argv[1:])) + " ]", rb=rainbowit)
+        else:
+            prntcore("[ queue -> the lock property is enabled for this list ({0}). please disable it before adding/deleting. ]", rb=rainbowit)
 
-	elif argv[0].lower() == "del" and len(argv) > 1:
-		if not COMMAND_QU[CURR_LIST].__locked__ == True:
-			try:
-				rmd = COMMAND_QU[CURR_LIST].remove(int(argv[1]))
-				prntcore("[ queue -> deleted: ({0}) {1} ]".format(argv[1],rmd), rb=rainbowit)
-			except (IndexError, ValueError):
-				prntcore("[ queue -> invalid reference. please check /qu list and try again. ]", rb=rainbowit)
-		else:
-			prntcore("[ queue -> the lock property is enabled for this list ({0}). please disable it before adding/deleting. ]".format(CURR_LIST), rb=rainbowit)
+    elif argv[0].lower() == "del" and len(argv) > 1:
+        if not COMMAND_QU[CURR_LIST].__locked__ == True:
+            try:
+                rmd = COMMAND_QU[CURR_LIST].remove(int(argv[1]))
+                prntcore("[ queue -> deleted: ({0}) {1} ]".format(argv[1], rmd), rb=rainbowit)
+            except (IndexError, ValueError):
+                prntcore("[ queue -> invalid reference. please check /qu list and try again. ]", rb=rainbowit)
+        else:
+            prntcore("[ queue -> the lock property is enabled for this list ({0}). please disable it before adding/deleting. ]".format(CURR_LIST), rb=rainbowit)
 
-	elif argv[0].lower() == "clear":
-		this_list = None
-		if len(argv) > 1 and argv[1].lower() in COMMAND_QU.keys():
-			this_list = CURR_LIST
-			CURR_LIST = argv[1].lower()
+    elif argv[0].lower() == "clear":
+        this_list = None
+        if len(argv) > 1 and argv[1].lower() in COMMAND_QU.keys():
+            this_list = CURR_LIST
+            CURR_LIST = argv[1].lower()
 
-		if COMMAND_QU[CURR_LIST].__clearable__ == True:
-			if not COMMAND_QU[CURR_LIST].isEmpty():
-				COMMAND_QU[CURR_LIST].clearqueue()
-				prntcore('[ queue -> command queue list cleared. ]', rb=rainbowit)
-			else:
-				prntcore('[ queue -> command queue already empty. ]', rb=rainbowit)
-		else:
-			prntcore('[ queue -> please turn off the static property to clear the {0} list. ]'.format(CURR_LIST), rb=rainbowit)
+        if COMMAND_QU[CURR_LIST].__clearable__ == True:
+            if not COMMAND_QU[CURR_LIST].isEmpty():
+                COMMAND_QU[CURR_LIST].clearqueue()
+                prntcore("[ queue -> command queue list cleared. ]", rb=rainbowit)
+            else:
+                prntcore("[ queue -> command queue already empty. ]", rb=rainbowit)
+        else:
+            prntcore("[ queue -> please turn off the static property to clear the {0} list. ]".format(CURR_LIST), rb=rainbowit)
 
-		if not this_list == None:
-			CURR_LIST = this_list
-			this_list = None
+        if not this_list == None:
+            CURR_LIST = this_list
+            this_list = None
 
-	elif argv[0].lower() == "list":
-		this_list = None
-		if len(argv) > 1 and argv[1].lower() in COMMAND_QU.keys():
-			this_list = CURR_LIST
-			CURR_LIST = argv[1].lower()
+    elif argv[0].lower() == "list":
+        this_list = None
+        if len(argv) > 1 and argv[1].lower() in COMMAND_QU.keys():
+            this_list = CURR_LIST
+            CURR_LIST = argv[1].lower()
 
-		qHeader = '[ COMMAND QUEUE: {0} ]'.format(CURR_LIST)
-		prntcore(" ", 1)
-		prntcore("-"*len(qHeader), 1, rb=rainbowit)
-		prntcore(qHeader, 1, rainbowit)
-		prntcore("-"*len(qHeader), 1, rainbowit)
-		prntcore(COMMAND_QU[CURR_LIST].viewqueue(), 1, rb=rainbowit)
+        qHeader = "[ COMMAND QUEUE: {0} ]".format(CURR_LIST)
+        prntcore(" ", 1)
+        prntcore("-"*len(qHeader), 1, rb=rainbowit)
+        prntcore(qHeader, 1, rainbowit)
+        prntcore("-"*len(qHeader), 1, rainbowit)
+        prntcore(COMMAND_QU[CURR_LIST].viewqueue(), 1, rb=rainbowit)
 
-		if not this_list == None:
-			CURR_LIST = this_list
-			this_list = None
+        if not this_list == None:
+            CURR_LIST = this_list
+            this_list = None
 
-	elif argv[0].lower() == "exec":
+    elif argv[0].lower() == "exec":
 
-		this_list = None
-		if len(argv) > 1 and argv[1].lower() in COMMAND_QU.keys():
-			this_list = CURR_LIST
-			CURR_LIST = argv[1].lower()
+        this_list = None
+        if len(argv) > 1 and argv[1].lower() in COMMAND_QU.keys():
+            this_list = CURR_LIST
+            CURR_LIST = argv[1].lower()
 
-		if len(COMMAND_QU[CURR_LIST]) > 0:
+        if len(COMMAND_QU[CURR_LIST]) > 0:
 
-			for each in COMMAND_QU[CURR_LIST]:
-				weechat.command(buffer, each)
-			COMMAND_QU[CURR_LIST].clearqueue()
-			if COMMAND_QU[CURR_LIST].__clearable__ == True:
-				prntcore('[ queue -> finished executing list: {0}. command list cleared. ]'.format(CURR_LIST), rb=rainbowit)
-			else:
-				prntcore('[ queue -> finished executing list: {0} ]'.format(CURR_LIST), rb=rainbowit)
-		else:
-			prntcore("[ queue -> nothing to execute. please add to the queue using /qu add <command>", rb=rainbowit)
+            for each in COMMAND_QU[CURR_LIST]:
+                weechat.command(buffer, each)
+            COMMAND_QU[CURR_LIST].clearqueue()
+            if COMMAND_QU[CURR_LIST].__clearable__ == True:
+                prntcore("[ queue -> finished executing list: {0}. command list cleared. ]".format(CURR_LIST), rb=rainbowit)
+            else:
+                prntcore("[ queue -> finished executing list: {0} ]".format(CURR_LIST), rb=rainbowit)
+        else:
+            prntcore("[ queue -> nothing to execute. please add to the queue using /qu add <command>", rb=rainbowit)
 
-		if not this_list == None:
-			CURR_LIST = this_list
-			this_list = None
+        if not this_list == None:
+            CURR_LIST = this_list
+            this_list = None
 
-	elif argv[0].lower() == "new" and len(args.split()) > 1:
-		if argv[1].lower() in COMMAND_QU.keys():
-			CURR_LIST = argv[1].lower()
-			prntcore("[ queue -> switched queue list to: {0}".format(CURR_LIST), rb=rainbowit)
-		else:
-			COMMAND_QU[argv[1].lower()] = Queue()
-			CURR_LIST = argv[1].lower()
-			prntcore("[ queue -> created new list. current list is: {0}".format(CURR_LIST), rb=rainbowit)
+    elif argv[0].lower() == "new" and len(args.split()) > 1:
+        if argv[1].lower() in COMMAND_QU.keys():
+            CURR_LIST = argv[1].lower()
+            prntcore("[ queue -> switched queue list to: {0}".format(CURR_LIST), rb=rainbowit)
+        else:
+            COMMAND_QU[argv[1].lower()] = Queue()
+            CURR_LIST = argv[1].lower()
+            prntcore("[ queue -> created new list. current list is: {0}".format(CURR_LIST), rb=rainbowit)
 
-	elif argv[0].lower() == "listview":
-		qHeader = 'QUEUE LISTS'
-		listCount = 1
+    elif argv[0].lower() == "listview":
+        qHeader = "QUEUE LISTS"
+        listCount = 1
 
-		prntcore(' ', 1)
-		prntcore('-'*len(qHeader), 1, rb=rainbowit)
-		prntcore(qHeader, 1, rb=rainbowit)
-		prntcore('-'*len(qHeader), 1, rb=rainbowit)
+        prntcore(" ", 1)
+        prntcore("-"*len(qHeader), 1, rb=rainbowit)
+        prntcore(qHeader, 1, rb=rainbowit)
+        prntcore("-"*len(qHeader), 1, rb=rainbowit)
 
-		for each in COMMAND_QU.keys():
-			prntcore(str(listCount) + ". " + str(each), 1, rb=rainbowit)
-			listCount += 1
+        for each in COMMAND_QU.keys():
+            prntcore(str(listCount) + ". " + str(each), 1, rb=rainbowit)
+            listCount += 1
 
-	elif argv[0].lower() == "dellist" and len(args.split()) > 1:
-		if not argv[1].lower() in COMMAND_QU.keys():
-			prntcore('[ queue -> {0} is not a list. ]'.format(argv[1].lower()), rb=rainbowit)
-		elif argv[1].lower() == 'default':
-			prntcore('[ queue -> cannot delete the default list. ]', rb=rainbowit)
-		else:
-			if argv[1].lower() == CURR_LIST:
-				CURR_LIST = 'default'
-			del COMMAND_QU[argv[1].lower()]
-			prntcore('[ queue -> {0} successfully deleted.'.format(argv[1].lower()), rb=rainbowit)
+    elif argv[0].lower() == "dellist" and len(args.split()) > 1:
+        if not argv[1].lower() in COMMAND_QU.keys():
+            prntcore("[ queue -> {0} is not a list. ]".format(argv[1].lower()), rb=rainbowit)
+        elif argv[1].lower() == "default":
+            prntcore("[ queue -> cannot delete the default list. ]", rb=rainbowit)
+        else:
+            if argv[1].lower() == CURR_LIST:
+                CURR_LIST = "default"
+            del COMMAND_QU[argv[1].lower()]
+            prntcore("[ queue -> {0} successfully deleted.".format(argv[1].lower()), rb=rainbowit)
 
-	elif argv[0].lower() == "save":
-		save()
-	elif argv[0].lower() == "set" and len(argv) == 4:
-		setargs = args.split()
-		list_name = setargs[1].lower()
-		set_prop = setargs[2].lower()
-		toggle = setargs[3].lower()
-		properties = ['static', 'lock']
+    elif argv[0].lower() == "save":
+        save()
+    elif argv[0].lower() == "set" and len(argv) == 4:
+        setargs = args.split()
+        list_name = setargs[1].lower()
+        set_prop = setargs[2].lower()
+        toggle = setargs[3].lower()
+        properties = ["static", "lock"]
 
-		if not list_name in COMMAND_QU.keys():
-			prntcore('[ queue -> list must be created before you can set properties ]', rb=rainbowit)
-		elif not set_prop in properties:
-			prntcore('[ queue -> invalid property. please try again. ]', rb=rainbowit)
-		elif not toggle in ('on', 'off'):
-			prntcore('[ queue -> only valid options for a property are ON or OFF ]', rb=rainbowit)
-		else:
-			if set_prop == 'static':
-				if toggle=='on':
-					COMMAND_QU[list_name].isClear(False)
-					prntcore('[ queue -> static property toggled on for: {0} ]'.format(list_name), rb=rainbowit)
-					save()
-				else:
-					COMMAND_QU[list_name].isClear(True)
-					prntcore('[ queue -> static property toggled off for: {0} ]'.format(list_name), rb=rainbowit)
-					save()
+        if not list_name in COMMAND_QU.keys():
+            prntcore("[ queue -> list must be created before you can set properties ]", rb=rainbowit)
+        elif not set_prop in properties:
+            prntcore("[ queue -> invalid property. please try again. ]", rb=rainbowit)
+        elif not toggle in ("on", "off"):
+            prntcore("[ queue -> only valid options for a property are ON or OFF ]", rb=rainbowit)
+        else:
+            if set_prop == "static":
+                if toggle == "on":
+                    COMMAND_QU[list_name].isClear(False)
+                    prntcore("[ queue -> static property toggled on for: {0} ]".format(list_name), rb=rainbowit)
+                    save()
+                else:
+                    COMMAND_QU[list_name].isClear(True)
+                    prntcore("[ queue -> static property toggled off for: {0} ]".format(list_name), rb=rainbowit)
+                    save()
 
-			elif set_prop == 'lock':
-				if toggle=='on':
-					COMMAND_QU[list_name].isLocked(True)
-					prntcore('[ queue -> lock property toggled on for: {0} ]'.format(list_name), rb=rainbowit)
-				else:
-					COMMAND_QU[list_name].isLocked(False)
-					prntcore('[ queue -> lock property toggled off for: {0} ]'.format(list_name), rb=rainbowit)
+            elif set_prop == "lock":
+                if toggle == "on":
+                    COMMAND_QU[list_name].isLocked(True)
+                    prntcore("[ queue -> lock property toggled on for: {0} ]".format(list_name), rb=rainbowit)
+                else:
+                    COMMAND_QU[list_name].isLocked(False)
+                    prntcore("[ queue -> lock property toggled off for: {0} ]".format(list_name), rb=rainbowit)
 
-	return weechat.WEECHAT_RC_OK
+    return weechat.WEECHAT_RC_OK
+
 
 if import_ok and weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, "", ""):
-	weechat.hook_command(COMM_CMD, COMM_DESC, COMM_ARGS, COMM_ARGS_DESC, COMM_COMPL, "qu_cb", "")
-	__config__()
+    weechat.hook_command(COMM_CMD, COMM_DESC, COMM_ARGS, COMM_ARGS_DESC, COMM_COMPL, "qu_cb", "")
+    __config__()
