@@ -61,7 +61,7 @@ from os import urandom
 
 SCRIPT_NAME = "fish"
 SCRIPT_AUTHOR = "David Flatz <david@upcs.at>"
-SCRIPT_VERSION = "0.9.6"
+SCRIPT_VERSION = "0.9.7"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "FiSH for weechat"
 CONFIG_FILE_NAME = SCRIPT_NAME
@@ -377,7 +377,7 @@ class Blowfish:
             if len(key) > 72:
                 key = key[:72]
             self.blowfish = Crypto.Cipher.Blowfish.new(
-                key, Crypto.Cipher.Blowfish.MODE_ECB
+                key.encode('utf-8'), Crypto.Cipher.Blowfish.MODE_ECB
             )
 
     def decrypt(self, data):
