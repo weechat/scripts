@@ -19,6 +19,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2021-06-28: nils_2, (libera.#weechat)
+#       0.2 : make script less greedy
 # 2021-06-23: nils_2, (libera.#weechat)
 #       0.1 : initial release
 #
@@ -52,7 +54,7 @@ except Exception:
 
 SCRIPT_NAME     = 'weefusables'
 SCRIPT_AUTHOR   = 'nils_2 <weechatter@arcor.de>'
-SCRIPT_VERSION  = '0.1'
+SCRIPT_VERSION  = '0.2'
 SCRIPT_LICENSE  = 'GPL'
 SCRIPT_DESC     = 'set message tag when confusables chars will be used in words'
 
@@ -102,7 +104,7 @@ def confusables(data, line):
         regex = re.compile(regex_string)
 
         conf_result = regex.search(message)                             # get match to test with original string later
-        if regex.search(message) and conf_result.group() != i:          # matching string is original string?
+        if regex.search(message) and conf_result.group().lower() != i.lower():  # matching string is original string?
             return {"tags": tags + ',' + OPTIONS['tags']}
 
 #    weechat.prnt_date_tags(buf_ptr,0,tags + ',' + OPTIONS['tags'],message)
