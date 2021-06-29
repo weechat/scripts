@@ -5,7 +5,7 @@
 
 import weechat
 
-weechat.register("soju", "soju", "0.1.0", "AGPL3", "soju bouncer integration", "", "")
+weechat.register("soju", "soju", "0.1.1", "AGPL3", "soju bouncer integration", "", "")
 
 bouncer_cap = "soju.im/bouncer-networks"
 caps_option = weechat.config_get("irc.server_default.capabilities")
@@ -47,7 +47,7 @@ def handle_bouncer_msg(data, signal, signal_data):
     # Don't connect twice to the same network
     netid = args[1]
     if netid in added_networks:
-        return weechat.WEECHAT_RC_OK
+        return weechat.WEECHAT_RC_OK_EAT
 
     # Retrieve the network name from the attributes
     net_name = None
@@ -79,7 +79,7 @@ def handle_bouncer_msg(data, signal, signal_data):
     weechat.command(weechat.buffer_search("core", "weechat"), " ".join(add_server))
     weechat.command(weechat.buffer_search("core", "weechat"), "/connect " + net_name)
 
-    return weechat.WEECHAT_RC_OK
+    return weechat.WEECHAT_RC_OK_EAT
 
 weechat.hook_signal("*,irc_raw_in_376", "handle_isupport_end_msg", "") # RPL_ENDOFMOTD
 weechat.hook_signal("*,irc_raw_in_422", "handle_isupport_end_msg", "") # ERR_NOMOTD
