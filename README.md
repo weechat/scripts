@@ -8,4 +8,4 @@ They are also displayed on [https://weechat.org/scripts/](https://weechat.org/sc
 
 ## Contributing
 
-To add/update a script or report an issue, see the file [Contributing.md](Contributing.md).
+To add/update a script or report an issue, see the [Contributing guide](Contributing.md).
