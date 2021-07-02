@@ -8,6 +8,7 @@
 #
 # thanks to darrob for hard beta-testing
 #
+# 1.9.6: fix: nick parsing with messages containing @ and >
 # 1.9.5: add compatibility with matrix-appservice-irc
 # 1.9.4: add compatibility with other kind of messages than irc
 # 1.9.3: add compatibility with new weechat_print modifier data (WeeChat >= 2.9)
@@ -68,7 +69,7 @@
 
 use strict;
 my $SCRIPT_NAME         = "parse_relayed_msg";
-my $SCRIPT_VERSION      = "1.9.5";
+my $SCRIPT_VERSION      = "1.9.6";
 my $SCRIPT_DESCR        = "proper integration of remote users' nicknames in channel and nicklist";
 my $SCRIPT_AUTHOR       = "w8rabbit";
 my $SCRIPT_LICENCE      = "GPL3";
@@ -165,7 +166,7 @@ sub parse_relayed_msg_cb
         my $blacklist_raw = weechat::config_get_plugin("blacklist");
         @blacklist = split( /,/,$blacklist_raw);
         # message from muninn bot!
-        if ( $line =~ m/^<([^@]+)@([^>]+)\>\s(.+)$/ )
+        if ( $line =~ m/^<([^@>]+)@([^>]+)\>\s(.+)$/ )
         {
             my ($relaynick, $relaynet, $relaymsg) = ($1,$2,$3);
             if ( grep /^$servername.$relaynick$/, @blacklist )              # check for ignored relay nicks
