@@ -37,6 +37,7 @@
 - [ ] Pure WeeChat API used, no extra API
 - [ ] Function `hook_process` is used for any blocking call
 - [ ] For Python script: works with Python 3 (Python 2 support is optional)
+- [ ] Score 100 / 100 displayed by [weechat-script-lint](https://github.com/weechat/weechat-script-lint)
 
 ## Checklist (script update)
 
@@ -49,6 +50,7 @@
 - [ ] Commit message format: `script_name.py X.Y: …`
 - [ ] Script version and Changelog have been updated
 - [ ] For Python script: works with Python 3 (Python 2 support is optional)
+- [ ] Score 100 / 100 displayed by [weechat-script-lint](https://github.com/weechat/weechat-script-lint)
 
 ## Checklist (script deletion)
 
