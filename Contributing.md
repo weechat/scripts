@@ -94,7 +94,7 @@ If you are not the author of the script, you must first contact the author to di
 
 Whenever a script is added or updated, the script `weechat-script-lint` is executed by CI in GitHub Actions and looks for errors in the script.
 
-It is recommended to run yourself this script prior to submit the pull request.\
+You must run this script prior to submit the pull request, and the score displayed must be 100 / 100.
 If errors or warnings are detected in the script, you must fix them before the script is manually tested/merged by the WeeChat team.
 
 See the [weechat-script-lint repository](https://github.com/weechat/weechat-script-lint) for more information about the checks performed and how to use the script.
