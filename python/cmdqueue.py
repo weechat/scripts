@@ -1,5 +1,5 @@
 # ==================================================== #
-# Script Name: queue.py	
+# Script Name: cmdqueue.py
 # Script Author: walk <KingPython@gmx.com>
 # Script Purpose: Command queing at its finest. Hopefully.
 #
@@ -162,7 +162,7 @@ class Queue():
 			return False
 
 
-SCRIPT_NAME		= "queue"
+SCRIPT_NAME		= "cmdqueue"
 SCRIPT_AUTHOR	= "walk"
 SCRIPT_VERSION	= "0.4.3"
 SCRIPT_LICENSE	= "GPL3"
