@@ -5,7 +5,7 @@
 
 import weechat
 
-weechat.register("soju", "soju", "0.1.1", "AGPL3", "soju bouncer integration", "", "")
+weechat.register("soju", "soju", "0.1.2", "AGPL3", "soju bouncer integration", "", "")
 
 bouncer_cap = "soju.im/bouncer-networks"
 caps_option = weechat.config_get("irc.server_default.capabilities")
@@ -22,22 +22,29 @@ added_networks = {}
 def handle_isupport_end_msg(data, signal, signal_data):
     global main_server
 
-    server = signal.split(",")[0]
-    netid = weechat.info_get("irc_server_isupport_value", server + ",BOUNCER_NETID")
+    server_name = signal.split(",")[0]
+    netid = weechat.info_get("irc_server_isupport_value", server_name + ",BOUNCER_NETID")
 
     if netid != "":
         added_networks[netid] = True
 
+    hdata = weechat.hdata_get("irc_server")
+    server_list = weechat.hdata_get_list(hdata, "irc_servers")
+    server = weechat.hdata_search(hdata, server_list, "${irc_server.name} == " + server_name, 1)
+    cap_list = weechat.hdata_hashtable(hdata, server, "cap_list")
+    if not bouncer_cap in cap_list:
+        return weechat.WEECHAT_RC_OK
+
     if main_server is not None:
         return weechat.WEECHAT_RC_OK
-    main_server = server
+    main_server = server_name
 
-    weechat.command(weechat.buffer_search("irc", "server." + server), "/quote BOUNCER LISTNETWORKS")
+    weechat.command(weechat.buffer_search("irc", "server." + server_name), "/quote BOUNCER LISTNETWORKS")
 
     return weechat.WEECHAT_RC_OK
 
 def handle_bouncer_msg(data, signal, signal_data):
-    server = signal.split(",")[0]
+    server_name = signal.split(",")[0]
     msg = weechat.info_get_hashtable("irc_message_parse", { "message": signal_data })
 
     args = msg["arguments"].split(" ")
@@ -58,8 +65,8 @@ def handle_bouncer_msg(data, signal, signal_data):
             net_name = v
             break
 
-    addr = weechat.config_string(weechat.config_get("irc.server." + server + ".addresses"))
-    username = weechat.config_string(weechat.config_get("irc.server." + server + ".username"))
+    addr = weechat.config_string(weechat.config_get("irc.server." + server_name + ".addresses"))
+    username = weechat.config_string(weechat.config_get("irc.server." + server_name + ".username"))
     if "/" in username:
         username = username.split("/")[0]
     add_server = [
@@ -73,7 +80,7 @@ def handle_bouncer_msg(data, signal, signal_data):
     ]
 
     for k in ["password", "sasl_mechanism", "sasl_username", "sasl_password"]:
-        v = weechat.config_string(weechat.config_get("irc.server." + server + "." + k))
+        v = weechat.config_string(weechat.config_get("irc.server." + server_name + "." + k))
         add_server.append("-" + k + "=" + v)
 
     weechat.command(weechat.buffer_search("core", "weechat"), " ".join(add_server))
