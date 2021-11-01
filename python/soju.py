@@ -5,7 +5,7 @@
 
 import weechat
 
-weechat.register("soju", "soju", "0.1.2", "AGPL3", "soju bouncer integration", "", "")
+weechat.register("soju", "soju", "0.1.3", "AGPL3", "soju bouncer integration", "", "")
 
 bouncer_cap = "soju.im/bouncer-networks"
 caps_option = weechat.config_get("irc.server_default.capabilities")
@@ -64,6 +64,9 @@ def handle_bouncer_msg(data, signal, signal_data):
         if k == "name":
             net_name = v
             break
+
+    check_char = lambda ch: ch.isalnum() or ch in ".-_"
+    net_name = "".join(ch if check_char(ch) else "_" for ch in net_name)
 
     addr = weechat.config_string(weechat.config_get("irc.server." + server_name + ".addresses"))
     username = weechat.config_string(weechat.config_get("irc.server." + server_name + ".username"))
