@@ -19,6 +19,9 @@
 #
 # History:
 #
+# 2021-11-06, Sébastien Helleu <flashcode@flashtux.org>
+#   version 0.3: make script compatible with WeeChat >= 3.4
+#                (new parameters in function hdata_search)
 # 2019-10-20, Simmo Saan <simmo.saan@gmail.com>
 #   version 0.2: improve script description
 # 2019-10-18, Simmo Saan <simmo.saan@gmail.com>
@@ -47,7 +50,7 @@ from __future__ import print_function
 
 SCRIPT_NAME = "buffer_open"
 SCRIPT_AUTHOR = "Simmo Saan <simmo.saan@gmail.com>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Open buffers by full name, reopen closed recently closed buffers, open layout buffers"
 
@@ -144,10 +147,26 @@ def irc_server_open(server, noswitch):
     command_plugin("irc", "/connect {}".format(server))  # /connect doesn't have -noswitch
 
 
+def hdata_search(hdata, pointer, expr, name):
+    weechat_version = int(weechat.info_get("version_number", "") or 0)
+    if weechat_version >= 0x03040000:
+        return weechat.hdata_search(
+            hdata,
+            pointer,
+            expr + " == ${name}",
+            {},
+            {"name": name},
+            {},
+            1,
+        )
+    return weechat.hdata_search(hdata, pointer, expr + " == " + name, 1)
+
+
 def irc_buffer_open(server, name, noswitch):
     hdata_irc_server = weechat.hdata_get("irc_server")
     irc_servers = weechat.hdata_get_list(hdata_irc_server, "irc_servers")
-    irc_server = weechat.hdata_search(hdata_irc_server, irc_servers, "${irc_server.name} == " + server, 1)
+    irc_server = hdata_search(hdata_irc_server, irc_servers,
+                              "${irc_server.name}", server)
     chantypes = weechat.hdata_string(hdata_irc_server, irc_server, "chantypes")
     is_channel = name[0] in chantypes
 
@@ -183,7 +202,8 @@ def buffer_open_full_name_irc_cb(data, signal, hashtable):
 
         hdata_irc_server = weechat.hdata_get("irc_server")
         irc_servers = weechat.hdata_get_list(hdata_irc_server, "irc_servers")
-        irc_server = weechat.hdata_search(hdata_irc_server, irc_servers, "${irc_server.name} == " + server, 1)
+        irc_server = hdata_search(hdata_irc_server, irc_servers,
+                                  "${irc_server.name} == ", server)
         if irc_server:
             is_connected = bool(weechat.hdata_integer(hdata_irc_server, irc_server, "is_connected"))
             is_connecting = bool(weechat.hdata_pointer(hdata_irc_server, irc_server, "hook_connect"))
@@ -271,7 +291,8 @@ def layout_apply_cb(data, buffer, command):
             layout_name = m.group(1) or "default"
             hdata_layout = weechat.hdata_get("layout")
             layouts = weechat.hdata_get_list(hdata_layout, "gui_layouts")
-            layout = weechat.hdata_search(hdata_layout, layouts, "${layout.name} == " + layout_name, 1)
+            layout = hdata_search(hdata_layout, layouts,
+                                  "${layout.name}", layout_name)
             if layout:
                 hdata_layout_buffer = weechat.hdata_get("layout_buffer")
                 layout_buffer = weechat.hdata_pointer(hdata_layout, layout, "layout_buffers")
