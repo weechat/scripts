@@ -45,6 +45,10 @@
 # 2020-07-20: Sébastien Helleu
 #       0.8 : fix: add missing "/" in /allchan command
 #
+# 2021-11-06: Sébastien Helleu
+#       0.9 : make script compatible with WeeChat >= 3.4
+#             (new parameters in function hdata_search)
+#
 # idea and testing by DJ-ArcAngel
 
 try:
@@ -52,12 +56,12 @@ try:
 
 except Exception:
     print("This script must be run under WeeChat.")
-    print("Get WeeChat now at: http://www.weechat.org/")
+    print("Get WeeChat now at: https://weechat.org/")
     quit()
 
 SCRIPT_NAME     = "collapse_channel"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.8"
+SCRIPT_VERSION  = "0.9"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "collapse channel buffers from servers without focus"
 
@@ -150,7 +154,23 @@ def exclude_server():
         # search exclude server in list of servers
         hdata = weechat.hdata_get('irc_server')
         servers = weechat.hdata_get_list(hdata, 'irc_servers')
-        server = weechat.hdata_search(hdata, servers, '${irc_server.name} =* %s' % server_exclude, 1)
+        if int(version) >= 0x03040000:
+            server = weechat.hdata_search(
+                hdata,
+                servers,
+                '${irc_server.name} =* ${server_name}',
+                {},
+                {'server_name': server_exclude},
+                {},
+                1,
+            )
+        else:
+            server = weechat.hdata_search(
+                hdata,
+                servers,
+                '${irc_server.name} =* %s' % server_exclude,
+                1,
+            )
         if server:
 #            is_connected    = weechat.hdata_integer(hdata, server, "is_connected")
 #            nick_modes      = weechat.hdata_string(hdata, server, "nick_modes")
