@@ -5,7 +5,7 @@
 
 import weechat
 
-weechat.register("soju", "soju", "0.1.3", "AGPL3", "soju bouncer integration", "", "")
+weechat.register("soju", "soju", "0.1.4", "AGPL3", "soju bouncer integration", "", "")
 
 bouncer_cap = "soju.im/bouncer-networks"
 caps_option = weechat.config_get("irc.server_default.capabilities")
@@ -22,6 +22,8 @@ added_networks = {}
 def handle_isupport_end_msg(data, signal, signal_data):
     global main_server
 
+    weechat_version = int(weechat.info_get("version_number", "") or 0)
+
     server_name = signal.split(",")[0]
     netid = weechat.info_get("irc_server_isupport_value", server_name + ",BOUNCER_NETID")
 
@@ -30,7 +32,23 @@ def handle_isupport_end_msg(data, signal, signal_data):
 
     hdata = weechat.hdata_get("irc_server")
     server_list = weechat.hdata_get_list(hdata, "irc_servers")
-    server = weechat.hdata_search(hdata, server_list, "${irc_server.name} == " + server_name, 1)
+    if weechat_version >= 0x03040000:
+        server = weechat.hdata_search(
+            hdata,
+            server_list,
+            "${irc_server.name} == ${name}",
+            {},
+            {"name": server_name},
+            {},
+            1,
+        )
+    else:
+        server = weechat.hdata_search(
+            hdata,
+            server_list,
+            "${irc_server.name} == " + server_name,
+            1,
+        )
     cap_list = weechat.hdata_hashtable(hdata, server, "cap_list")
     if not bouncer_cap in cap_list:
         return weechat.WEECHAT_RC_OK
