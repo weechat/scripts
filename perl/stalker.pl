@@ -21,6 +21,9 @@
 #
 # History:
 #
+# version 1.6.3: Sébastien Helleu <flashcode@flashtux.org>
+# 2021-11-06: add: compatibility with WeeChat >= 3.4 (new parameters in function hdata_search)
+#
 # version 1.6.2: Sébastien Helleu <flashcode@flashtux.org>
 # 2021-05-06: add: compatibility with WeeChat >= 3.2 (XDG directories)
 #
@@ -112,7 +115,7 @@ use File::Spec;
 use DBI;
 
 my $SCRIPT_NAME         = "stalker";
-my $SCRIPT_VERSION      = "1.6.2";
+my $SCRIPT_VERSION      = "1.6.3";
 my $SCRIPT_AUTHOR       = "Nils Görs <weechatter\@arcor.de>";
 my $SCRIPT_LICENCE      = "GPL3";
 my $SCRIPT_DESC         = "Records and correlates nick!user\@host information";
@@ -985,6 +988,9 @@ sub command_must_be_executed_on_irc_buffer
 # hdata: hdata pointer
 # pointer: pointer to a WeeChat/plugin object
 # search: expression to evaluate, default pointer in expression is the name of hdata (and this pointer changes for each element in list); for help on expression, see command /eval in WeeChat User’s guide
+# pointers: pointers for evaluated expression
+# extra_vars: extra variables for evaluated expression
+# options: options for evaluated expression
 # move: number of jump(s) to execute after unsuccessful search (negative or positive integer, different from 0)
 
 sub channel_scan_41
@@ -1000,10 +1006,38 @@ sub channel_scan_41
     my $hdata_channel = weechat::hdata_get("irc_channel");
     my $hdata_nick = weechat::hdata_get("irc_nick");
 
-    my $ptr_server = weechat::hdata_search($hdata_server, weechat::hdata_get_list($hdata_server, 'irc_servers'), '${irc_server.name} == ' . $server_name, 1);
+    my $ptr_server;
+    if ($weechat_version >= 0x03040000)
+    {
+        $ptr_server = weechat::hdata_search($hdata_server,
+                                            weechat::hdata_get_list($hdata_server, 'irc_servers'),
+                                            '${irc_server.name} == ${server_name}',
+                                            {},
+                                            {'server_name' => $server_name},
+                                            {},
+                                            1);
+    }
+    else
+    {
+        $ptr_server = weechat::hdata_search($hdata_server, weechat::hdata_get_list($hdata_server, 'irc_servers'), '${irc_server.name} == ' . $server_name, 1);
+    }
     if ($ptr_server)
     {
-        my $ptr_channel = weechat::hdata_search($hdata_channel, weechat::hdata_pointer($hdata_server, $ptr_server, 'channels'), '${irc_channel.name} == ' . $channel_name, 1);
+        my $ptr_channel;
+        if ($weechat_version >= 0x03040000)
+        {
+            $ptr_channel = weechat::hdata_search($hdata_channel,
+                                                 weechat::hdata_pointer($hdata_server, $ptr_server, 'channels'),
+                                                 '${irc_channel.name} == ${channel_name}',
+                                                 {},
+                                                 {'channel_name' => $channel_name},
+                                                 {},
+                                                 1);
+        }
+        else
+        {
+            $ptr_channel = weechat::hdata_search($hdata_channel, weechat::hdata_pointer($hdata_server, $ptr_server, 'channels'), '${irc_channel.name} == ' . $channel_name, 1);
+        }
 
         if ($ptr_channel)
         {
@@ -1022,14 +1056,8 @@ sub channel_scan_41
         }
 
     }
-#    weechat::print("",$ptr_buffer);
-#    weechat::print("",$server_name);
-
-#    if ($ptr_servers)
-#    {
-#        my $channel = weechat::hdata_search(hdata['channel'], weechat.hdata_pointer(hdata['server'], server, 'channels'), '${irc_channel.name} == #test', 1)
-#    }
 }
+
 sub channel_scan
 {
     my $ptr_buffer = $_[0];
