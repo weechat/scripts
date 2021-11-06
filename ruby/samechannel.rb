@@ -1,3 +1,4 @@
+# coding: utf-8
 #
 # (c) 2013 Hendrik 'henk' Jaeger <weechat@henk.geekmail.org>
 # (c) 2015 arza <arza@arza.us>
@@ -22,12 +23,15 @@
 # 2015-09-24 0.1 arza:
 #  - option -m/--minimum for minimum count of mutual channels
 #  - fixed completion
+# 2021-11-06 0.2 Sébastien Helleu:
+#  - make script compatible with WeeChat >= 3.4
+#    (new parameters in function hdata_search)
 
 def weechat_init
   Weechat.register(
     "samechannel",
     "henk",
-    "0.1",
+    "0.2",
     "GPL3",
     "Lists multiple occurences of the same nick(s) in a set of channels.",
     "",
@@ -156,10 +160,17 @@ def find_channels( names, serverptr )
 end
 
 def find_servers( names )
+  weechat_version = Weechat.info_get('version_number', '').to_i
   serverptrlist = Weechat.hdata_get_list($hdata_ircserver, 'irc_servers')
   if names
     matching_servers = names.map do |name|
-      foundserverptr = Weechat.hdata_search($hdata_ircserver, serverptrlist, '${irc_server.name} =~ ' + name, 1)
+      if weechat_version >= 0x03040000
+        foundserverptr = Weechat.hdata_search($hdata_ircserver, serverptrlist,
+                                              '${irc_server.name} =~ ${name}',
+                                              {}, {'name' => name}, {}, 1)
+      else
+        foundserverptr = Weechat.hdata_search($hdata_ircserver, serverptrlist, '${irc_server.name} =~ ' + name, 1)
+      end
     end
   else
     return hhh_get_ptrarray($hdata_ircserver, serverptrlist)
