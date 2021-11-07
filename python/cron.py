@@ -22,6 +22,9 @@
 #
 # History:
 #
+# 2021-11-07, Sébastien Helleu <flashcode@flashtux.org>:
+#     version 0.6: replace calls to function hook_completion_list_add by
+#                  completion_list_add
 # 2021-05-02, Sébastien Helleu <flashcode@flashtux.org>:
 #     version 0.5: add compatibility with WeeChat >= 3.2 (XDG directories)
 # 2012-01-03, Sébastien Helleu <flashcode@flashtux.org>:
@@ -38,7 +41,7 @@
 
 SCRIPT_NAME    = "cron"
 SCRIPT_AUTHOR  = "Sébastien Helleu <flashcode@flashtux.org>"
-SCRIPT_VERSION = "0.5"
+SCRIPT_VERSION = "0.6"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Time-based scheduler, like cron and at"
 
@@ -48,7 +51,7 @@ try:
     import weechat
 except:
     print("This script must be run under WeeChat.")
-    print("Get WeeChat now at: http://www.weechat.org/")
+    print("Get WeeChat now at: https://weechat.org/")
     import_ok = False
 
 try:
@@ -382,14 +385,14 @@ def cron_at_time(strtime):
 
 def cron_completion_time_cb(data, completion_item, buffer, completion):
     """ Complete with time, for command '/cron'. """
-    weechat.hook_completion_list_add(completion, "*",
-                                     0, weechat.WEECHAT_LIST_POS_BEGINNING)
+    weechat.completion_list_add(completion, "*",
+                                0, weechat.WEECHAT_LIST_POS_BEGINNING)
     return weechat.WEECHAT_RC_OK
 
 def cron_completion_repeat_cb(data, completion_item, buffer, completion):
     """ Complete with repeat, for command '/cron'. """
-    weechat.hook_completion_list_add(completion, "*",
-                                     0, weechat.WEECHAT_LIST_POS_BEGINNING)
+    weechat.completion_list_add(completion, "*",
+                                0, weechat.WEECHAT_LIST_POS_BEGINNING)
     return weechat.WEECHAT_RC_OK
 
 def cron_completion_buffer_cb(data, completion_item, buffer, completion):
@@ -398,22 +401,22 @@ def cron_completion_buffer_cb(data, completion_item, buffer, completion):
     while weechat.infolist_next(infolist):
         plugin_name = weechat.infolist_string(infolist, "plugin_name")
         name = weechat.infolist_string(infolist, "name")
-        weechat.hook_completion_list_add(completion,
-                                         "%s.%s" % (plugin_name, name),
-                                         0, weechat.WEECHAT_LIST_POS_SORT)
+        weechat.completion_list_add(completion,
+                                    "%s.%s" % (plugin_name, name),
+                                    0, weechat.WEECHAT_LIST_POS_SORT)
     weechat.infolist_free(infolist)
-    weechat.hook_completion_list_add(completion, "current",
-                                     0, weechat.WEECHAT_LIST_POS_BEGINNING)
-    weechat.hook_completion_list_add(completion, "core.weechat",
-                                     0, weechat.WEECHAT_LIST_POS_BEGINNING)
+    weechat.completion_list_add(completion, "current",
+                                0, weechat.WEECHAT_LIST_POS_BEGINNING)
+    weechat.completion_list_add(completion, "core.weechat",
+                                0, weechat.WEECHAT_LIST_POS_BEGINNING)
     return weechat.WEECHAT_RC_OK
 
 def cron_completion_keyword_cb(data, completion_item, buffer, completion):
     """ Complete with cron keyword, for command '/cron'. """
     global cron_commands
     for command in sorted(cron_commands.keys()):
-        weechat.hook_completion_list_add(completion, command,
-                                         0, weechat.WEECHAT_LIST_POS_END)
+        weechat.completion_list_add(completion, command,
+                                    0, weechat.WEECHAT_LIST_POS_END)
     return weechat.WEECHAT_RC_OK
 
 def cron_completion_commands_cb(data, completion_item, buffer, completion):
@@ -424,8 +427,8 @@ def cron_completion_commands_cb(data, completion_item, buffer, completion):
         if command.startswith("/"):
             command = command[1:]
         if command:
-            weechat.hook_completion_list_add(completion, "/%s" % command,
-                                             0, weechat.WEECHAT_LIST_POS_SORT)
+            weechat.completion_list_add(completion, "/%s" % command,
+                                        0, weechat.WEECHAT_LIST_POS_SORT)
     weechat.infolist_free(infolist)
     return weechat.WEECHAT_RC_OK
 
@@ -434,16 +437,16 @@ def cron_completion_number_cb(data, completion_item, buffer, completion):
     global crontab
     if len(crontab) > 0:
         for i in reversed(range(0, len(crontab))):
-            weechat.hook_completion_list_add(completion, "%d" % (i + 1),
-                                             0, weechat.WEECHAT_LIST_POS_BEGINNING)
+            weechat.completion_list_add(completion, "%d" % (i + 1),
+                                        0, weechat.WEECHAT_LIST_POS_BEGINNING)
     return weechat.WEECHAT_RC_OK
 
 def cron_completion_at_time_cb(data, completion_item, buffer, completion):
     """ Complete with time, for command '/at'. """
-    weechat.hook_completion_list_add(completion, "+5m",
-                                     0, weechat.WEECHAT_LIST_POS_END)
-    weechat.hook_completion_list_add(completion, "20:00",
-                                     0, weechat.WEECHAT_LIST_POS_END)
+    weechat.completion_list_add(completion, "+5m",
+                                0, weechat.WEECHAT_LIST_POS_END)
+    weechat.completion_list_add(completion, "20:00",
+                                0, weechat.WEECHAT_LIST_POS_END)
     return weechat.WEECHAT_RC_OK
 
 def cron_cmd_cb(data, buffer, args):
