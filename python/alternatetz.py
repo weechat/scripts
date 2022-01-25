@@ -7,6 +7,8 @@
 # plugin to get alternate timezones in a weechat bar
 #
 # Changelog:
+#  0.4 Sébastien Helleu <flashcode@flashtux.org>
+#      Remove trailing tabs
 #  0.3 Pol Van Aubel <dev@polvanaubel.com>
 #      Fix tab/space usage for Python3 compatibility
 #  0.2 Added help, and multiple timezeones
@@ -19,15 +21,15 @@ import datetime
 
 SCRIPT_NAME    = "alternatetz"
 SCRIPT_AUTHOR  = "Chmouel Boudjnah <chmouel@chmouel.com>"
-SCRIPT_VERSION = "0.3"
+SCRIPT_VERSION = "0.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Display Alternate Time from different Timezones"
 
 SCRIPT_COMMAND = 'alternatetz'
 
-OPTIONS		= {
-'timezone'	: ('GMT', 'list of timezones to display. The list is comprised of space separated list timezones using the Olson tz database'),
-'timeformat'	: ('%H:%M', 'strftime compatible format')
+OPTIONS = {
+'timezone': ('GMT', 'list of timezones to display. The list is comprised of space separated list timezones using the Olson tz database'),
+'timeformat': ('%H:%M', 'strftime compatible format')
 }
 
 def alternatetz_item_cb(*kwargs):
