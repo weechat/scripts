@@ -23,7 +23,7 @@ all: check
 
 # this target will be removed once the ignored scripts are fixed
 partial-check:
-	"$(CHECKER)" --ignore-files gateway_rename.scm,inotify.py,menu.pl,notifo.py --recursive .
+	"$(CHECKER)" --ignore-files gateway_rename.scm,menu.pl --recursive .
 
 check:
 	"$(CHECKER)" --recursive .
