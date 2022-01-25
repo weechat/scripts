@@ -23,6 +23,8 @@
 #
 # History:
 #
+#  - 2022-01-25, Sébastien Helleu <flashcode@flashtux.org>
+#    0.1.2 - Fix mixed spaces and tabs for indentation
 #  - 2020-09-06, mumixam
 #    0.1.1 - Added supported for python3 while keeping support for python2
 #          - fixed issue with command not being executed in the right buffer
@@ -30,7 +32,7 @@
 
 SCR_NAME    = "arespond"
 SCR_AUTHOR  = "Stephan Huebner <shuebnerfun01@gmx.org>"
-SCR_VERSION = "0.1.1"
+SCR_VERSION = "0.1.2"
 SCR_LICENSE = "GPL3"
 SCR_DESC    = "An autoresponder (sending a notice on other users' messages)"
 SCR_COMMAND = "arespond"
@@ -93,8 +95,8 @@ def fn_command(data, buffer, args):
    return w.WEECHAT_RC_OK
 
 def alert(myString):
-	w.prnt("", myString)
-	return
+   w.prnt("", myString)
+   return
 
 def fn_configchange(data, option, value):
    global settings
