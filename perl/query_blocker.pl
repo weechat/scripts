@@ -4,7 +4,7 @@
 #
 # -----------------------------------------------------------------------------
 # Copyright (c) 2009-2014 by rettub <rettub@gmx.net>
-# Copyright (c) 2011-2018 by nils_2 <weechatter@arcor.de>
+# Copyright (c) 2011-2022 by nils_2 <weechatter@arcor.de>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -38,6 +38,10 @@
 #
 # -----------------------------------------------------------------------------
 # History:
+# 2022-02-18: nils_2@libera.#weechat:
+#     version 1.4:
+#     FIX: https://github.com/weechat/scripts/issues/493
+#
 # 2021-05-05: Sébastien Helleu <flashcode@flashtux.org>:
 #     version 1.3:
 #     FIX: add compatibility with XDG directories (WeeChat >= 3.2)
@@ -116,7 +120,7 @@ use strict;
 
 my $SCRIPT      = 'query_blocker';
 my $AUTHOR      = 'rettub <rettub@gmx.net>';
-my $VERSION     = '1.3';
+my $VERSION     = '1.4';
 my $LICENSE     = 'GPL3';
 my $DESCRIPTION = 'Simple blocker for private message (i.e. spam)';
 my $COMMAND     = "query_blocker";             # new command name
@@ -398,9 +402,12 @@ sub modifier_irc_in_privmsg {
     return $arg if (weechat::buffer_get_string(weechat::buffer_search("irc", "server.".$server), 'localvar_query_blocker'));
 
     # check for query message
-    if ( $arg =~ m/:(.+?)!.+? PRIVMSG $my_nick :(.*)/i ) {
+    if ( $arg =~ m/:(.+?)!.+? PRIVMSG (.+?) :(.*)/i ) {
         my $query_nick = $1;
-        my $query_msg  = $2;
+        my $my_nick_msg = $2;
+        my $query_msg  = $3;
+
+        return if ($my_nick ne $my_nick_msg);
 
         # always allow own queries
         return $arg if ($query_nick eq $my_nick);
