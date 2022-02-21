@@ -407,7 +407,7 @@ sub modifier_irc_in_privmsg {
         my $my_nick_msg = $2;
         my $query_msg  = $3;
 
-        return if ($my_nick ne $my_nick_msg);
+        return $arg if ($my_nick ne $my_nick_msg);
 
         # always allow own queries
         return $arg if ($query_nick eq $my_nick);
