@@ -38,6 +38,10 @@
 #
 # -----------------------------------------------------------------------------
 # History:
+# 2022-02-21: CrazyCat <crazycat@c-p-f.org>
+#     version 1.5:
+#     FIX: regression from https://github.com/weechat/scripts/issues/493
+#
 # 2022-02-18: nils_2@libera.#weechat:
 #     version 1.4:
 #     FIX: https://github.com/weechat/scripts/issues/493
@@ -45,6 +49,7 @@
 # 2021-05-05: Sébastien Helleu <flashcode@flashtux.org>:
 #     version 1.3:
 #     FIX: add compatibility with XDG directories (WeeChat >= 3.2)
+#
 # 2018-07-30, usefulz & nils_2:
 #     version 1.2:
 #     FIX: undefine subroutine
@@ -120,7 +125,7 @@ use strict;
 
 my $SCRIPT      = 'query_blocker';
 my $AUTHOR      = 'rettub <rettub@gmx.net>';
-my $VERSION     = '1.4';
+my $VERSION     = '1.5';
 my $LICENSE     = 'GPL3';
 my $DESCRIPTION = 'Simple blocker for private message (i.e. spam)';
 my $COMMAND     = "query_blocker";             # new command name
