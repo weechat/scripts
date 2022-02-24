@@ -20,6 +20,10 @@
 #
 # History:
 #
+# 2020-06-21, Sebastien Helleu <flashcode@flashtux.org>:
+#     version 1.9: make call to bar_new compatible with WeeChat >= 2.9
+# 2019-10-16, Benjamin Neff <info@benjaminneff.ch>:
+#     version 1.8: - add python 3 support
 # 2009-10-26, Benjamin Neff <info@benjaminneff.ch>:
 #     version 1.7.3: - Bugfix ( "/me" --> "output_nothing" ) 2
 # 2009-10-25, Benjamin Neff <info@benjaminneff.ch>:
@@ -37,9 +41,11 @@
 #     version 1.5: initial release / port to weechat 0.3.0
 #
 
+from __future__ import print_function
+
 SCRIPT_NAME    = "moc_control"
 SCRIPT_AUTHOR  = "SuperTux88 (Benjamin Neff) <info@benjaminneff.ch>"
-SCRIPT_VERSION = "1.7.3"
+SCRIPT_VERSION = "1.9"
 SCRIPT_LICENSE = "GPL2"
 SCRIPT_DESC    = "moc control and now playing script for Weechat"
 
@@ -50,16 +56,16 @@ import_ok      = True
 try:
     import weechat
 except ImportError:
-    print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print("This script must be run under WeeChat.")
+    print("Get WeeChat now at: https://weechat.org/")
     import_ok = False
 
 try:
     import os
     import subprocess
     import traceback
-except ImportError, message:
-    print "Missing package(s) for %s: %s" % (SCRIPT_NAME, message)
+except ImportError as message:
+    print('Missing package(s) for {}: {}'.format(SCRIPT_NAME, message))
     import_ok = False
 
 # =================================[ config ]=================================
@@ -193,7 +199,7 @@ def moc_infobar_update(data, buffer, args):
     else:
         song = _get_song_info()
         return _format_np(infobar['format'], song, 'infobar')
-    
+
 def moc_infobar_updater(data,cals):
     """Update the bar item"""
     if infobar['enabled']:
@@ -202,8 +208,12 @@ def moc_infobar_updater(data,cals):
 
 def _add_infobar():
     """add the infobar for moc_control"""
-    weechat.bar_new(SCRIPT_NAME, "off", "750", "window", "", "bottom", "horizontal", "vertical", "1", "0", "default", "blue", "cyan", "off", "[moc_infobar]")
-    
+    version = int(weechat.info_get('version_number', '')) or 0
+    if version >= 0x02090000:
+        weechat.bar_new(SCRIPT_NAME, "off", "750", "window", "", "bottom", "horizontal", "vertical", "1", "0", "default", "blue", "cyan", "cyan", "off", "[moc_infobar]")
+    else:
+        weechat.bar_new(SCRIPT_NAME, "off", "750", "window", "", "bottom", "horizontal", "vertical", "1", "0", "default", "blue", "cyan", "off", "[moc_infobar]")
+
 def _remove_infobar():
     """remove the infobar for moc_control"""
     weechat.bar_remove(weechat.bar_search(SCRIPT_NAME))
@@ -316,13 +326,13 @@ def _execute_command(cmd):
     """execute a command"""
     from subprocess import PIPE
     proc = subprocess.Popen(cmd, shell = True, stderr = PIPE, stdout = PIPE, close_fds = True)
-    error = proc.stderr.read()
+    error = proc.stderr.read().decode('utf-8')
     if error != '':
         for line in error.split('\n'):
             if line == 'FATAL_ERROR: The server is not running':
                 return STATUS_NOT_RUNNING
-            
-    output = proc.stdout.read()
+
+    output = proc.stdout.read().decode('utf-8')
     proc.wait()
     return output
 
@@ -374,7 +384,7 @@ if __name__ == "__main__" and import_ok:
         )
 
 # ==================================[ end ]===================================
-        
+
 def moc_unload():
     """Unload the plugin from weechat"""
     if infobar['enabled']:

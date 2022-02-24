@@ -8,6 +8,8 @@
 # Based on the 'notify' plugin version 0.0.5 by lavaramano <lavaramano AT gmail DOT com>:
 # <http://www.weechat.org/scripts/source/stable/notify.py.html/>
 #
+# 2021-03-03, Johannes Rabenschlag <j.rabenschlag@gmail.com>
+#     Version 0.8: Fixed urllib error
 # 2014-05-10, Sébastien Helleu <flashcode@flashtux.org>
 #     Version 0.7: Change hook_print callback argument type of
 #                  displayed/highlight (WeeChat >= 1.0)
@@ -27,9 +29,9 @@
 # 2012-03-25, Josh Dick <josh@joshdick.net>
 #     Version 0.1: Initial release
 
-import urllib, weechat
+import urllib.parse, weechat
 
-weechat.register('weeprowl', 'Josh Dick', '0.7', 'GPL', 'Prowl notifications for WeeChat', '', '')
+weechat.register('weeprowl', 'Josh Dick', '0.8', 'GPL', 'Prowl notifications for WeeChat', '', '')
 
 # Plugin settings
 settings = {
@@ -110,7 +112,7 @@ def send_prowl_notification(chan, message, isPrivate):
         return
 
     # Build the Prowl API request parameters
-    params = urllib.urlencode({
+    params = urllib.parse.urlencode({
         'apikey': prowl_api_key,
         'application': 'weechat',
         'event': 'IRC ' + 'Private Message' if isPrivate else 'Mention/Hilight',

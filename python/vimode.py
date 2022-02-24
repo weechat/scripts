@@ -40,7 +40,7 @@ import weechat
 
 SCRIPT_NAME = "vimode"
 SCRIPT_AUTHOR = "GermainZ <germanosz@gmail.com>"
-SCRIPT_VERSION = "0.7"
+SCRIPT_VERSION = "0.8.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = ("Add vi/vim-like modes and keybindings to WeeChat.")
 
@@ -1558,6 +1558,7 @@ def cb_vimode_cmd(data, buf, args):
             key = weechat.infolist_string(infolist, "key")
             if re.match(REGEX_PROBLEMATIC_KEYBINDINGS, key):
                 commands.append("/key unbind %s" % key)
+        weechat.infolist_free(infolist)
         if args == "bind_keys":
             weechat.prnt("", "Running commands:")
             for command in commands:
@@ -1796,6 +1797,7 @@ def check_warnings():
         command = weechat.infolist_string(infolist, "command")
         if re.match(REGEX_PROBLEMATIC_KEYBINDINGS, key):
             problematic_keybindings.append("%s -> %s" % (key, command))
+    weechat.infolist_free(infolist)
     if problematic_keybindings:
         user_warned = True
         print_warning("Problematic keybindings detected:")
@@ -1852,9 +1854,14 @@ if __name__ == "__main__":
     weechat.bar_item_new("cmd_completion", "cb_cmd_completion", "")
     weechat.bar_item_new("vi_buffer", "cb_vi_buffer", "")
     weechat.bar_item_new("line_numbers", "cb_line_numbers", "")
-    weechat.bar_new("vi_line_numbers", "on", "0", "window", "", "left",
-                    "vertical", "vertical", "0", "0", "default", "default",
-                    "default", "0", "line_numbers")
+    if int(VERSION) >= 0x02090000:
+        weechat.bar_new("vi_line_numbers", "on", "0", "window", "", "left",
+                        "vertical", "vertical", "0", "0", "default", "default",
+                        "default", "default", "0", "line_numbers")
+    else:
+        weechat.bar_new("vi_line_numbers", "on", "0", "window", "", "left",
+                        "vertical", "vertical", "0", "0", "default", "default",
+                        "default", "0", "line_numbers")
     weechat.hook_config("plugins.var.python.%s.*" % SCRIPT_NAME, "cb_config",
                         "")
     weechat.hook_signal("key_pressed", "cb_key_pressed", "")

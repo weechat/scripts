@@ -15,7 +15,7 @@
 
 SCRIPT_NAME = 'lastfm2'
 SCRIPT_AUTHOR = "timss <timsateroy@gmail.com>"
-SCRIPT_VERSION = '0.1'
+SCRIPT_VERSION = '0.2'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC = "Sends latest played track for a Last.fm user to the current buffer"
 
@@ -83,7 +83,7 @@ def get_recent_track(data, command, rc, out, err):
     try:
         data = json.loads(out)
 
-        if data.has_key('error'):
+        if 'error' in data:
             weechat.prnt('', "Last.fm API error: '{}'".format(data['message']))
         else:
             artist = data['recenttracks']['track'][0]['artist']['#text']
@@ -101,7 +101,7 @@ def get_recent_track(data, command, rc, out, err):
             cmd = cmd.format(user=user, track=track)
 
             weechat.command(weechat.current_buffer(), cmd)
-    except IndexError, KeyError:
+    except (IndexError, KeyError):
         weechat.prnt('', "Error parsing Last.fm data")
 
     return weechat.WEECHAT_RC_OK

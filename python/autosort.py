@@ -25,6 +25,13 @@
 
 #
 # Changelog:
+# 3.9:
+#   * Remove `buffers.pl` from recommended settings.
+# 3,8:
+#   * Fix relative sorting on script name in default rules.
+#   * Document a useful property of stable sort algorithms.
+# 3.7:
+#   * Make default rules work with bitlbee, matrix and slack.
 # 3.6:
 #   * Add more documentation on provided info hooks.
 # 3.5:
@@ -80,7 +87,7 @@ import weechat
 
 SCRIPT_NAME     = 'autosort'
 SCRIPT_AUTHOR   = 'Maarten de Vries <maarten@de-vri.es>'
-SCRIPT_VERSION  = '3.6'
+SCRIPT_VERSION  = '3.9'
 SCRIPT_LICENSE  = 'GPL3'
 SCRIPT_DESC     = 'Flexible automatic (or manual) buffer sorting based on eval expressions.'
 
@@ -173,22 +180,21 @@ class Config:
 
 	default_rules = json.dumps([
 		'${core_first}',
-		'${irc_last}',
-		'${buffer.plugin.name}',
+		'${info:autosort_order,${info:autosort_escape,${script_or_plugin}},core,*,irc,bitlbee,matrix,slack}',
+		'${script_or_plugin}',
 		'${irc_raw_first}',
-		'${if:${plugin}==irc?${server}}',
-		'${if:${plugin}==irc?${info:autosort_order,${type},server,*,channel,private}}',
-		'${if:${plugin}==irc?${hashless_name}}',
+		'${server}',
+		'${info:autosort_order,${type},server,*,channel,private}',
+		'${hashless_name}',
 		'${buffer.full_name}',
 	])
 
 	default_helpers = json.dumps({
-		'core_first':     '${if:${buffer.full_name}!=core.weechat}',
-		'irc_first':      '${if:${buffer.plugin.name}!=irc}',
-		'irc_last':       '${if:${buffer.plugin.name}==irc}',
-		'irc_raw_first':  '${if:${buffer.full_name}!=irc.irc_raw}',
-		'irc_raw_last':   '${if:${buffer.full_name}==irc.irc_raw}',
-		'hashless_name':  '${info:autosort_replace,#,,${info:autosort_escape,${buffer.name}}}',
+		'core_first':       '${if:${buffer.full_name}!=core.weechat}',
+		'irc_raw_first':    '${if:${buffer.full_name}!=irc.irc_raw}',
+		'irc_raw_last':     '${if:${buffer.full_name}==irc.irc_raw}',
+		'hashless_name':    '${info:autosort_replace,#,,${info:autosort_escape,${buffer.name}}}',
+		'script_or_plugin': '${if:${script_name}?${script_name}:${plugin}}',
 	})
 
 	default_signal_delay = 5
@@ -961,6 +967,9 @@ order can be customized by defining your own sort rules, but the default should
 be sane enough for most people. It can also group IRC channel/private buffers
 under their server buffer if you like.
 
+Autosort uses a stable sorting algorithm, meaning that you can manually move buffers
+to change their relative order, if they sort equal with your rule set.
+
 {*white}# Sort rules{reset}
 Autosort evaluates a list of eval expressions (see {*default}/help eval{reset}) and sorts the
 buffers based on evaluated result. Earlier rules will be considered first. Only
@@ -993,12 +1002,9 @@ If you remove all signals you can still sort your buffers manually with the
 {*white}# Recommended settings
 For the best visual effect, consider setting the following options:
   {*white}/set {cyan}irc.look.server_buffer{reset} {brown}independent{reset}
-  {*white}/set {cyan}buffers.look.indenting{reset} {brown}on{reset}
 
-The first setting allows server buffers to be sorted independently, which is
+This setting allows server buffers to be sorted independently, which is
 needed to create a hierarchical tree view of the server and channel buffers.
-The second one indents channel and private buffers in the buffer list of the
-`{*default}buffers.pl{reset}` script.
 
 If you are using the {*default}buflist{reset} plugin you can (ab)use Unicode to draw a tree
 structure with the following setting (modify to suit your need):

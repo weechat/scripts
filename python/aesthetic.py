@@ -2,13 +2,13 @@
 #
 # Script Name: aesthetic.py
 # Script Author: Wojciech Siewierski
-# Script License: GPLv3
+# Script License: GPL3
 # Contact: vifon @ irc.freenode.net
 
 SCRIPT_NAME = 'aesthetic'
 SCRIPT_AUTHOR = 'Wojciech Siewierski'
-SCRIPT_VERSION = '1.0.5'
-SCRIPT_LICENSE = 'GPLv3'
+SCRIPT_VERSION = '1.0.6'
+SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC = 'Make messages more A E S T H E T I C A L L Y pleasing.'
 
 import_ok = True

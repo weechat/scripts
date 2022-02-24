@@ -21,6 +21,8 @@
 #
 # History:
 #
+# 2021-05-25, Tomáš Janoušek <tomi@nomi.cz>:
+#     version 2.7: add new option to prefix short names with server names
 # 2019-07-11, Simmo Saan <simmo.saan@gmail.com>
 #     version 2.6: fix detection of "/input search_text_here"
 # 2017-04-01, Sébastien Helleu <flashcode@flashtux.org>:
@@ -94,7 +96,7 @@ from __future__ import print_function
 
 SCRIPT_NAME = 'go'
 SCRIPT_AUTHOR = 'Sébastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '2.6'
+SCRIPT_VERSION = '2.7'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC = 'Quick jump to buffers'
 
@@ -137,6 +139,9 @@ SETTINGS = {
     'short_name': (
         'off',
         'display and search in short names instead of buffer name'),
+    'short_name_server': (
+        'off',
+        'prefix short names with server names for search and display'),
     'sort': (
         'number,beginning',
         'comma-separated list of keys to sort buffers '
@@ -317,9 +322,14 @@ def go_matching_buffers(strinput):
     strinput = strinput.lower()
     infolist = weechat.infolist_get('buffer', '', '')
     while weechat.infolist_next(infolist):
+        pointer = weechat.infolist_pointer(infolist, 'pointer')
         short_name = weechat.infolist_string(infolist, 'short_name')
+        server = weechat.buffer_get_string(pointer, 'localvar_server')
         if go_option_enabled('short_name'):
-            name = weechat.infolist_string(infolist, 'short_name')
+            if go_option_enabled('short_name_server') and server:
+                name = server + '.' + short_name
+            else:
+                name = short_name
         else:
             name = weechat.infolist_string(infolist, 'name')
         if name == 'weechat' \
@@ -332,7 +342,6 @@ def go_matching_buffers(strinput):
             full_name = '%s.%s' % (
                 weechat.infolist_string(infolist, 'plugin_name'),
                 weechat.infolist_string(infolist, 'name'))
-        pointer = weechat.infolist_pointer(infolist, 'pointer')
         matching = name.lower().find(strinput) >= 0
         if not matching and strinput[-1] == ' ':
             matching = name.lower().endswith(strinput.strip())

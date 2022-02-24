@@ -1,6 +1,5 @@
 #
 # chanmon.pl - Channel Monitoring for weechat 0.3.0
-# Version 2.5
 #
 # Add 'Channel Monitor' buffer/bar that you can position to show IRC channel
 # messages in a single location without constantly switching buffers
@@ -53,6 +52,10 @@
 #  Changes the amount of lines the output bar will hold.
 #  (Only appears once output has been set to bar, defaults to 10)
 #
+# /set plugins.var.perl.chanmon.tags
+#  A comma seperated list of tags. chanmon will only work on lines matching one of these tags
+#  (default: "irc_privmsg,irc_topic")
+#
 # /set plugins.var.perl.chanmon.nick_prefix
 # /set plugins.var.perl.chanmon.nick_suffix
 #  Sets the prefix and suffix chars in the chanmon buffer
@@ -74,6 +77,10 @@
 # Bugs and feature requests at: https://github.com/KenjiE20/chanmon
 
 # History:
+# 2021-04-13, Tobias Rehbein <tobias.rehbein@web.de>
+# 	v2.7: add configurable list of tags that chanmon should work on
+# 2020-06-21, Sebastien Helleu <flashcode@flashtux.org>:
+#	v2.6: make call to bar_new compatible with WeeChat >= 2.9
 # 2014-08-16, KenjiE20 <longbow@longbowslair.co.uk>:
 #	v2.5:	-add: clearbar command to clear bar output
 #			-add: firstrun output prompt to check the help text for set up hints as they were being missed
@@ -235,6 +242,10 @@ Command wrapper for chanmon commands
  Changes the amount of lines the output bar will hold.
  (Only appears once output has been set to bar, defaults to 10)
 
+".weechat::color("bold")."/set plugins.var.perl.chanmon.tags".weechat::color("-bold")."
+ A comma seperated list of tags. chanmon will only work on lines matching one of these tags
+ (default: \"irc_privmsg,irc_topic\")
+
 ".weechat::color("bold")."/set plugins.var.perl.chanmon.nick_prefix".weechat::color("-bold")."
 ".weechat::color("bold")."/set plugins.var.perl.chanmon.nick_suffix".weechat::color("-bold")."
  Sets the prefix and suffix chars in the chanmon buffer
@@ -305,7 +316,15 @@ sub chanmon_bar_open
 	# Make the bar item
 	weechat::bar_item_new("chanmon", "chanmon_bar_build", "");
 
-	$chanmon_bar = weechat::bar_new ("chanmon", "off", 100, "root", "", "bottom", "vertical", "vertical", 0, 0, "default", "cyan", "default", "on", "chanmon");
+        my $weechat_version = weechat::info_get("version_number", "");
+        if ($weechat_version >= 0x02090000)
+        {
+            $chanmon_bar = weechat::bar_new ("chanmon", "off", 100, "root", "", "bottom", "vertical", "vertical", 0, 0, "default", "cyan", "default", "default", "on", "chanmon");
+        }
+        else
+        {
+            $chanmon_bar = weechat::bar_new ("chanmon", "off", 100, "root", "", "bottom", "vertical", "vertical", 0, 0, "default", "cyan", "default", "on", "chanmon");
+        }
 
 	return weechat::WEECHAT_RC_OK;
 }
@@ -586,6 +605,12 @@ sub chanmon_config_init
 		weechat::config_set_plugin("merge_private", "off");
 	}
 
+	# Messages to work on
+	if (!(weechat::config_is_set_plugin ("tags")))
+	{
+		weechat::config_set_plugin("tags", "irc_privmsg,irc_topic");
+	}
+
 	# Check for exisiting prefix/suffix chars, and setup accordingly
 	$prefix = weechat::config_get("irc.look.nick_prefix");
 	$prefix = weechat::config_string($prefix);
@@ -723,6 +748,9 @@ sub chanmon_new_message
 	my $window_displayed = "";
 	my $dyncheck = "0";
 
+	my @tags = split(/,/, weechat::config_get_plugin("tags"));
+	my $tag_matched = 0;
+
 #	DEBUG point
 #	$string = "\t"."0: ".$_[0]." 1: ".$_[1]." 2: ".$_[2]." 3: ".$_[3]." 4: ".$_[4]." 5: ".$_[5]." 6: ".$_[6]." 7: ".$_[7];
 #	weechat::print("", "\t".$string);
@@ -736,8 +764,17 @@ sub chanmon_new_message
 	$cb_prefix = $_[6];
 	$cb_msg = $_[7];
 
-	# Only work on messages and topic notices
-	if ($cb_tags =~ /irc_privmsg/ || $cb_tags =~ /irc_topic/)
+	# Only work on specific messages
+	foreach (@tags)
+	{
+		if ($cb_tags =~ $_)
+		{
+			$tag_matched = 1;
+			last;
+		}
+	}
+
+	if ($tag_matched)
 	{
 		# Check buffer name is an IRC channel or private message when enabled
 		$bufname = weechat::buffer_get_string($cb_bufferp, 'name');
@@ -1182,7 +1219,7 @@ sub format_buffer_name
 }
 
 # Check result of register, and attempt to behave in a sane manner
-if (!weechat::register("chanmon", "KenjiE20", "2.5", "GPL3", "Channel Monitor", "", ""))
+if (!weechat::register("chanmon", "KenjiE20", "2.7", "GPL3", "Channel Monitor", "", ""))
 {
 	# Double load
 	weechat::print ("", "\tChanmon is already loaded");

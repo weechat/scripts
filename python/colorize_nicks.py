@@ -21,6 +21,11 @@
 #
 #
 # History:
+# 2020-11-29: jess
+#   version 28: fix ignore_tags having been broken by weechat 2.9 changes
+# 2020-05-09: Sébastien Helleu <flashcode@flashtux.org>
+#   version 27: add compatibility with new weechat_print modifier data
+#               (WeeChat >= 2.9)
 # 2018-04-06: Joey Pabalinas <joeypabalinas@gmail.com>
 #   version 26: fix freezes with too many nicks in one line
 # 2018-03-18: nils_2
@@ -85,7 +90,7 @@ w = weechat
 
 SCRIPT_NAME    = "colorize_nicks"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "26"
+SCRIPT_VERSION = "28"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Use the weechat nick colors in the chat area"
 
@@ -172,11 +177,17 @@ def colorize_cb(data, modifier, modifier_data, line):
 
     global ignore_nicks, ignore_channels, colored_nicks
 
+    if modifier_data.startswith('0x'):
+        # WeeChat >= 2.9
+        buffer, tags = modifier_data.split(';', 1)
+    else:
+        # WeeChat <= 2.8
+        plugin, buffer_name, tags = modifier_data.split(';', 2)
+        buffer = w.buffer_search(plugin, buffer_name)
 
-    full_name = modifier_data.split(';')[1]
-    channel = '.'.join(full_name.split('.')[1:])
+    channel = w.buffer_get_string(buffer, 'localvar_channel')
+    tags = tags.split(',')
 
-    buffer = w.buffer_search('', full_name)
     # Check if buffer has colorized nicks
     if buffer not in colored_nicks:
         return line
@@ -188,12 +199,10 @@ def colorize_cb(data, modifier, modifier_data, line):
     reset = w.color('reset')
 
     # Don't colorize if the ignored tag is present in message
-    tags_line = modifier_data.rsplit(';')
-    if len(tags_line) >= 3:
-        tags_line = tags_line[2].split(',')
-        for i in w.config_string(colorize_config_option['ignore_tags']).split(','):
-            if i in tags_line:
-                return line
+    tag_ignores = w.config_string(colorize_config_option['ignore_tags']).split(',')
+    for tag in tags:
+        if tag in tag_ignores:
+            return line
 
     for words in valid_nick_re.findall(line):
         nick = words[1]

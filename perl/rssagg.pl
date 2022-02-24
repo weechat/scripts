@@ -40,6 +40,10 @@
 #
 #
 # History:
+# 2021-05-06, Sébastien Helleu <flashcode@flashtux.org>:
+#       v1.3:   Add compatibility with XDG directories (WeeChat >= 3.2).
+# 2020-06-21, Sébastien Helleu <flashcode@flashtux.org>:
+#       v1.2:   Make call to bar_new compatible with WeeChat >= 2.9.
 # 2013-04-06, R1cochet <deltaxrho@gmail.com>:
 #       v1.1:   Added option "rssagg.engine.autostop". Added "last" option to /rssagg command.
 #               Muted filter in rssagg buffer. Fixed partial feed callback. Other bug fixes.
@@ -53,7 +57,7 @@ use POSIX qw(strftime);
 use XML::FeedPP;
 
 my $SCRIPT_NAME = "rssagg";
-my $VERSION     = "1.1";
+my $VERSION     = "1.3";
 my $SCRIPT_DESC = "RSS/RDF/Atom feed aggregator for WeeChat";
 
 ######################### Global Vars #########################
@@ -261,7 +265,8 @@ sub init_config {
     }
 
     my %init_hash = ();
-    my $home_dir = weechat::info_get("weechat_dir", "");
+    my $home_dir = weechat::info_get("weechat_config_dir", "");
+    $home_dir = weechat::info_get("weechat_dir", "") if (!$home_dir);
     if (-e "$home_dir/$SCRIPT_NAME.conf") {
         open(my $fh, "<:encoding(UTF-8)", "$home_dir/$SCRIPT_NAME.conf") || weechat::print("", "can't open UTF-8 encoded filename: $!");
         my $section;
@@ -322,7 +327,8 @@ config_read();              # get options if already in config file
 sub tmp_dir {
     my $dir = weechat::config_string($config{'options'}{'tmp_dir'});
     if ($dir =~ /%h/) {
-        my $homedir = weechat::info_get("weechat_dir", "");
+        my $homedir = weechat::info_get("weechat_cache_dir", "");
+        $homedir = weechat::info_get("weechat_dir", "") if (!$homedir);
         $dir =~ s/%h/$homedir/;
     }
     if ($dir !~ /\/$/) { $dir .= "/"; }
@@ -657,7 +663,11 @@ sub set_current_line {
 sub bar_create {
     $rssagg_bar = weechat::bar_search("rssagg");
     if ($rssagg_bar eq "") {
-        $rssagg_bar = weechat::bar_new("rssagg", "off", 0, "root", "", "top", "vertical", "vertical", "4", "20", "default", "cyan", "default", 'off', "rssagg");
+        if ($wee_version_number >= 0x02090000) {
+            $rssagg_bar = weechat::bar_new("rssagg", "off", 0, "root", "", "top", "vertical", "vertical", "4", "20", "default", "cyan", "default", "default", 'off', "rssagg");
+        } else {
+            $rssagg_bar = weechat::bar_new("rssagg", "off", 0, "root", "", "top", "vertical", "vertical", "4", "20", "default", "cyan", "default", 'off', "rssagg");
+        }
     }
     weechat::bar_item_new("rssagg", "rssagg_bar_build", "");
     return weechat::WEECHAT_RC_OK;

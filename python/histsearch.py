@@ -24,6 +24,8 @@
 #
 # History:
 #
+# 2019-10-31, Simmo Saan <simmo.saan@gmail.com>
+#     version 0.6: fix hook_command_run hooks not being unhooked
 # 2019-07-11, Sébastien Helleu <flashcode@flashtux.org>:
 #     version 0.5: make script compatible with Python 3
 # 2019-07-11, Simmo Saan <simmo.saan@gmail.com>
@@ -41,7 +43,7 @@ weechat = w
 
 SCRIPT_NAME    = "histsearch"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.5"
+SCRIPT_VERSION = "0.6"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Quick search in command history (think ctrl-r in bash)"
 SCRIPT_COMMAND = 'histsearch'
@@ -100,7 +102,8 @@ def unhook_all():
     """ Unhook all """
     global hook_command_run
     unhook_one("modifier")
-    map(unhook_one, hook_command_run.keys())
+    for hook in hook_command_run.keys():
+        unhook_one(hook)
     return w.WEECHAT_RC_OK
 
 def hook_all():

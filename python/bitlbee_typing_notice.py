@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Copyright (c) 2010 by Alexander Schremmer <alex@alexanderweb.de>
-# Copyright (c) 2013 by Corey Halpin <chalpin@cs.wisc.edu>
+# Copyright (c) 2013,2020 by Corey Halpin <chalpin@cs.wisc.edu>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,6 +21,12 @@
 # (this script requires WeeChat 0.3.6 or newer)
 #
 # History:
+# 2020-05-10, Sébastien Helleu <flascode@flashtux.org>
+#  version 0.7: remove useless list() around .items()
+# 2020-04-15, Corey Halpin <chalpin@cs.wisc.edu>
+#  version 0.6:
+#    * Update for python3, fixing issues pointed out by 2to3.
+#    * Fix complaints from pycodestyle.
 # 2014-02-15, Corey Halpin <chalpin@cs.wisc.edu>
 #  version 0.5:
 #    * Improve documentation for the 'server' setting
@@ -34,8 +40,8 @@
 #    * Send typing = 0 at message completion in private buffers
 #    * Make server, channel, and timeout configurable w/o editing plugin code.
 # 2010-05-20, Alexander Schremmer <alex@alexanderweb.de>
-#   version 0.2: also handle users that do not send a TYPING 0 msg before quitting
-#                removed InfoList code
+#   version 0.2: also handle users that do not send a TYPING 0 msg before
+#     quitting removed InfoList code
 # 2010-05-16, Alexander Schremmer <alex@alexanderweb.de>
 #   version 0.1: initial release
 
@@ -63,21 +69,28 @@
 import weechat as w
 import re
 
-SCRIPT_NAME    = "bitlbee_typing_notice"
-SCRIPT_AUTHOR  = "Alexander Schremmer <alex@alexanderweb.de>"
-SCRIPT_VERSION = "0.5"
+SCRIPT_NAME = "bitlbee_typing_notice"
+SCRIPT_AUTHOR = "Alexander Schremmer <alex@alexanderweb.de>"
+SCRIPT_VERSION = "0.7"
 SCRIPT_LICENSE = "GPL3"
-SCRIPT_DESC    = "Shows when somebody is typing on bitlbee and sends the notice as well"
+SCRIPT_DESC = "Sends and displays bitlbee typing notices."
 
-typing = {} # Record nicks who sent typing notices.  key = subject nick, val = typing level.
 
-sending_typing = {} # Nicks to whom we're sending typing notices.
-#  key = target nick, val = sequence number used to determine when the typing notice
-#    should be removed.
+# Record nicks who sent typing notices.
+#   key = subject nick, val = typing level.
+typing = {}
+
+
+# Nicks to whom we're sending typing notices.
+#  key = target nick, val = sequence number used to determine when the typing
+#    notice should be removed.
+sending_typing = {}
+
 
 def channel_has_nick(server, channel, nick):
     buffer = w.buffer_search("", "%s.%s" % (server, channel))
     return bool(w.nicklist_search_nick(buffer, "", nick))
+
 
 # Callback which checks for ctcp typing notices sent to us.
 # Updates typing data, hides the ctcp notices.
@@ -85,7 +98,7 @@ def ctcp_cb(data, modifier, modifier_data, string):
     if modifier_data != w.config_get_plugin("server"):
         return string
     msg_hash = w.info_get_hashtable(
-        "irc_message_parse", {"message": string} )
+        "irc_message_parse", {"message": string})
     if msg_hash["command"] != "PRIVMSG":
         return string
     match = re.search('\001TYPING ([0-9])\001', msg_hash["arguments"])
@@ -104,11 +117,12 @@ def ctcp_cb(data, modifier, modifier_data, string):
 
 def stop_typing(data, signal, signal_data):
     msg_hash = w.info_get_hashtable(
-        "irc_message_parse", {"message": signal_data } )
+        "irc_message_parse", {"message": signal_data})
     if msg_hash["nick"] in typing:
         del typing[msg_hash["nick"]]
     w.bar_item_update("bitlbee_typing_notice")
     return w.WEECHAT_RC_OK
+
 
 def typed_char(data, signal, signal_data):
     buffer = w.current_buffer()
@@ -120,8 +134,8 @@ def typed_char(data, signal, signal_data):
     if server != w.config_get_plugin("server") or input_s.startswith("/"):
         return w.WEECHAT_RC_OK
     if buffer_type == "private":
-        if len(input_s)==0:
-            send_typing(channel, 0) # Line sent or deleted -- no longer typing
+        if len(input_s) == 0:
+            send_typing(channel, 0)  # Line sent or deleted -- no longer typing
         else:
             send_typing(channel, 1)
     elif channel == w.config_get_plugin("channel"):
@@ -136,7 +150,7 @@ def typed_char(data, signal, signal_data):
 def typing_disable_timer(data, remaining_calls):
     nick, cookie = data.rsplit(":", 1)
     cookie = int(cookie)
-    if nick in sending_typing and sending_typing[nick]==cookie:
+    if nick in sending_typing and sending_typing[nick] == cookie:
         send_typing_ctcp(nick, 0)
         del sending_typing[nick]
     return w.WEECHAT_RC_OK
@@ -146,9 +160,11 @@ def send_typing_ctcp(nick, level):
     if not channel_has_nick(w.config_get_plugin("server"),
                             w.config_get_plugin("channel"), nick):
         return
-    buffer = w.buffer_search("irc", "%s.%s" %
-                             (w.config_get_plugin("server"),
-                              w.config_get_plugin("channel")) )
+
+    server = w.config_get_plugin("server")
+    channel = w.config_get_plugin("channel")
+    buffer = w.buffer_search(
+      "irc", "%s.%s" % (server, channel))
     w.command(buffer, "/mute -all /ctcp %s TYPING %i" % (nick, level))
 
 
@@ -156,13 +172,14 @@ def send_typing(nick, level):
     if level == 0 and nick in sending_typing:
         send_typing_ctcp(nick, 0)
         del sending_typing[nick]
-    elif level > 0 :
+    elif level > 0:
         if nick not in sending_typing:
             send_typing_ctcp(nick, level)
         cookie = sending_typing.get(nick, 0) + 1
         sending_typing[nick] = cookie
-        w.hook_timer( int(1000 * float(w.config_get_plugin('timeout'))), 0, 1,
-                      "typing_disable_timer", "%s:%i" % (nick, cookie))
+        timeout = int(1000 * float(w.config_get_plugin('timeout')))
+        w.hook_timer(
+          timeout, 0, 1, "typing_disable_timer", "%s:%i" % (nick, cookie))
 
 
 def typing_notice_item_cb(data, buffer, args):
@@ -180,7 +197,7 @@ def typing_notice_item_cb(data, buffer, args):
 # Main
 if __name__ == "__main__":
     if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
-                    SCRIPT_DESC, "", ""):
+                  SCRIPT_DESC, "", ""):
 
         if not w.config_get_plugin('channel'):
             w.config_set_plugin('channel', "&bitlbee")
@@ -189,8 +206,10 @@ if __name__ == "__main__":
         if not w.config_get_plugin('timeout'):
             w.config_set_plugin('timeout', "4")
 
+        server = w.config_get_plugin("server")
+
         w.hook_signal("input_text_changed", "typed_char", "")
-        w.hook_signal(w.config_get_plugin("server")+",irc_in_quit", "stop_typing", "")
-        w.hook_signal(w.config_get_plugin("server")+",irc_in_privmsg", "stop_typing", "")
+        w.hook_signal(server+",irc_in_quit", "stop_typing", "")
+        w.hook_signal(server+",irc_in_privmsg", "stop_typing", "")
         w.bar_item_new('bitlbee_typing_notice', 'typing_notice_item_cb', '')
         w.hook_modifier("irc_in_privmsg", "ctcp_cb", "")

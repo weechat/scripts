@@ -17,6 +17,8 @@
 #
 
 # Changelog:
+# 2020-05-09, FlashCode
+#     version 1.6: add compatibility with new weechat_print modifier data (WeeChat >= 2.9)
 # 2013-01-16, R1cochet
 #     version 1.5: Fixed error where filtered lines would still show blank lines (found by Nei). Added option to hide prefix on formatted lines (suggested by Nei).
 # 2013-01-15, R1cochet
@@ -27,7 +29,7 @@ use strict;
 use warnings;
 use Text::Format;
 
-my $VERSION = "1.5";
+my $VERSION = "1.6";
 my $SCRIPT_DESC = "format the output of each line.";
 
 weechat::register("format_lines", "R1cochet", $VERSION, "GPL3", $SCRIPT_DESC, "", "");
@@ -216,9 +218,25 @@ sub format_lines_cb {
         return $string if ($string eq "");
     }
 
-    my ($plugin, $buffer_name, $tags) = split ";", $modifier_data;
-    my $buffer = weechat::buffer_search($plugin, $buffer_name);
-    my ($server, $channel) = split /\./, $buffer_name, 2;
+    my $buffer = "";
+    my $tags = "";
+    if ($modifier_data =~ /0x/)
+    {
+        # WeeChat >= 2.9
+        $modifier_data =~ m/([^;]*);(.*)/;
+        $buffer = $1;
+        $tags = $2;
+    }
+    else {
+        # WeeChat <= 2.8
+        $modifier_data =~ m/([^;]*);([^;]*);(.*)/;
+        $buffer = weechat::buffer_search($1, $2);
+        $tags = $3;
+    }
+    my $plugin = weechat::buffer_get_string($buffer, "plugin");
+    my $server = weechat::buffer_get_string($buffer, "localvar_server");
+    my $channel = weechat::buffer_get_string($buffer, "localvar_channel");
+
     my ($prefix, $msg) = split /\t/, $string;
 
     # whitelists

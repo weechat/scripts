@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2013-2017 by nils_2 <weechatter@arcor.de>
+# Copyright (c) 2013-2020 by nils_2 <weechatter@arcor.de>
 #
 # add/del channel(s) to/from autojoin option
 #
@@ -19,6 +19,8 @@
 #
 # idea by azizLIGHTS
 #
+# 2020-10-20: nils_2, (freenode.#weechat)
+#       0.7 : fix problem with empty fields (reported by MutantMummy: https://github.com/weechat/scripts/issues/438)
 # 2017-01-06: nils_2, (freenode.#weechat)
 #       0.6 : fix problem with non existing server (reported by Niols)
 # 2016-12-19: nils_2, (freenode.#weechat)
@@ -47,7 +49,7 @@ except Exception:
 
 SCRIPT_NAME     = "autojoinem"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.6"
+SCRIPT_VERSION  = "0.7"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "add/del channel(s) to/from autojoin option"
 
@@ -59,6 +61,10 @@ def add_autojoin_cmd_cb(data, buffer, args):
         return weechat.WEECHAT_RC_OK
 
     argv = args.strip().split(' ')
+
+    # remove empty fields
+    argv2 = [feld for feld in argv if feld != '']
+    argv = argv2
 
 #    if (len(argv) <= 1):
 #        weechat.prnt(buffer,"%s%s: too few arguments." % (weechat.prefix('error'),SCRIPT_NAME))

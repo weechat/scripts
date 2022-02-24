@@ -6,6 +6,8 @@
 # To make it work, you may need to download: python-notify2 (and libnotify - libgtk)
 # Requires Weechat 0.3.0
 # Released under GNU GPL v2
+# 2020-05-10, Balint Reczey <balint.reczey@canonical.com>
+#     version 0.0.9: make script compatible with Python 3
 # 2014-05-10, Sébastien Helleu <flashcode@flashtux.org>
 #     version 0.0.8: change hook_print callback argument type of
 #                    displayed/highlight (WeeChat >= 1.0)
@@ -35,10 +37,12 @@
 # 2009-05-02, FlashCode <flashcode@flashtux.org>:
 #     version 0.0.2.1: sync with last API changes
 
+from __future__ import print_function
+
 # script variables
 SCRIPT_NAME = "notify"
 SCRIPT_AUTHOR = "lavaramano"
-SCRIPT_VERSION = "0.0.8"
+SCRIPT_VERSION = "0.0.9"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC = "notify: A real time notification system for weechat"
 
@@ -47,15 +51,15 @@ import_ok = True
 try:
     import weechat
 except ImportError:
-    print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
+    print("This script must be run under WeeChat.")
+    print("Get WeeChat now at: http://www.weechat.org/")
     import_ok = False
 # make sure we have notify2.
 try:
     import notify2
-except ImportError, message:
-    print "Missing package(s) for %s: %s" % (SCRIPT_NAME, message)
-    print "You must have notify2 installed."
+except ImportError as message:
+    print("Missing package(s) for %s: %s" % (SCRIPT_NAME, message))
+    print("You must have notify2 installed.")
     import_ok = False
 
 # script options
@@ -113,7 +117,7 @@ def show_notification(chan, message):
     try:
         wn.show()
         return None
-    except Exception, e:
+    except Exception as e:
         return "Exception trying to show notification: {0}".format(e)
 
 if __name__ == "__main__":

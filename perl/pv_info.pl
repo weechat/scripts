@@ -36,7 +36,7 @@ my $bar_item_refresh = 120;
 use constant DEBUG => (0);
 use if DEBUG, 'Data::Dumper';
 my $script_name = 'pv_info';
-my $script_version = '0.0.5';
+my $script_version = '0.0.6';
 my $script_description = 'Attach a new bar in query windows, showing `whois` information of chat partners';
 my (%whois, %hooks);
 
@@ -54,9 +54,15 @@ if ((weechat::info_get('version_number', '') // 0) < 0x00040000) {
   }
 
   weechat::bar_item_new($bar_item_name, 'init_bar_item', '');
-  weechat::bar_new($bar_name, 'off', '500', 'window', '${type} == private', 'top',
-                   'vertical', 'horizontal', '0', '0', 'default', 'default', 'default',
-                   'on', $bar_item_name);
+  if ((weechat::info_get('version_number', '') // 0) >= 0x02090000) {
+      weechat::bar_new($bar_name, 'off', '500', 'window', '${type} == private', 'top',
+                       'vertical', 'horizontal', '0', '0', 'default', 'default', 'default', 'default',
+                       'on', $bar_item_name);
+  } else {
+      weechat::bar_new($bar_name, 'off', '500', 'window', '${type} == private', 'top',
+                       'vertical', 'horizontal', '0', '0', 'default', 'default', 'default',
+                       'on', $bar_item_name);
+  }
 
   # -- Hooks --
   $hooks{'sigwhois'}    = weechat::hook_hsignal('irc_redirection_sigwhois_whois', 'sigwhois_cb', '');

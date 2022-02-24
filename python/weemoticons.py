@@ -27,9 +27,11 @@
 # Commands:
 # /weemoticons - List supported emoticons in the current buffer
 
+from __future__ import print_function
+
 SCRIPT_NAME    = "weemoticons"
 SCRIPT_AUTHOR  = "Stefan Wold <ratler@stderr.eu>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Convert ascii emotes to unicode emoticons."
 SCRIPT_COMMAND = "weemoticons"
@@ -40,7 +42,7 @@ try:
     import weechat
     import re
 except ImportError:
-    print "This script must be run under WeeChat."
+    print("This script must be run under WeeChat.")
     import_ok = False
 
 ICONS = {
@@ -112,7 +114,13 @@ def icon(match):
 def convert_icon_cb(data, modifier, modifier_data, message):
     global ICON_PATTERN
 
-    plugin, buf, tags = modifier_data.split(';')
+    if modifier_data.startswith('0x'):
+        # WeeChat >= 2.9
+        buffer, tags = modifier_data.split(';', 1)
+    else:
+        # WeeChat <= 2.8
+        plugin, buffer_name, tags = modifier_data.split(';', 2)
+
     tags = tags.split(',')
 
     if 'irc_privmsg' in tags or 'irc_notice' in tags:

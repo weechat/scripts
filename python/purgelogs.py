@@ -29,6 +29,8 @@
 # /set plugins.var.python.purgelogs.blacklist "#weechat,#weechat-fr,nils_2"
 #
 # History:
+# 2021-05-05: Sébastien Helleu <flashcode@flashtux.org>
+#       0.5 : add compatibility with XDG directories (WeeChat >= 3.2)
 # 2013-01-25: nils_2, (freenode.#weechat)
 #       0.4 : make script compatible with Python 3.x
 # 2011-09-18: nils_2, (freenode.#weechat)
@@ -57,7 +59,7 @@ except Exception:
 
 SCRIPT_NAME    = "purgelogs"
 SCRIPT_AUTHOR  = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION = "0.4"
+SCRIPT_VERSION = "0.5"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "delete weechatlog-files by age or size (YOU ARE USING THIS SCRIPT AT YOUR OWN RISK!)"
 
@@ -124,7 +126,13 @@ def purgelogs_cb(data, buffer, args):
 
 def get_path():
     """ get logger path """
-    return w.config_string(w.config_get("logger.file.path")).replace("%h", w.info_get("weechat_dir", ""))
+    options = {
+        'directory': 'data',
+    }
+    return w.string_eval_path_home(
+        w.config_string(w.config_get("logger.file.path")),
+        {}, {}, options
+    )
 
 def is_number(s): 
     """ check if value is a number """

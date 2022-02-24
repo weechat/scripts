@@ -19,6 +19,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # history:
+# 4.0: add compatibility with XDG directories (WeeChat >= 3.2)
+# 3.9: add compatibility with new weechat_print modifier data (WeeChat >= 2.9)
+# 3.8: new option custom_action_text (https://github.com/weechat/scripts/issues/313) (idea by 3v1n0)
 # 3.7: new option "alternate_color" (https://github.com/weechat/scripts/issues/333) (idea by snuffkins)
 # 3.6: new option "own_lines_color" (idea by Linkandzelda)
 #    : add help about "localvar" to option
@@ -85,7 +88,7 @@
 
 use strict;
 my $PRGNAME     = "colorize_lines";
-my $VERSION     = "3.7";
+my $VERSION     = "4.0";
 my $AUTHOR      = "Nils Görs <weechatter\@arcor.de>";
 my $LICENCE     = "GPL3";
 my $DESCR       = "Colorize users' text in chat area with their nick color, including highlights";
@@ -102,13 +105,14 @@ my %config = ("buffers"                 => "all",       # all, channel, query
               "highlight_words"         => "off",       # on, off
               "highlight_words_color"   => "black,darkgray",
               "alternate_color"         => "",
+              "custom_action_text"      => "",
 );
 
 my %help_desc = ("buffers"                  => "Buffer type affected by the script (all/channel/query, default: all)",
                  "blacklist_buffers"        => "Comma-separated list of channels to be ignored (e.g. freenode.#weechat,*.#python)",
                  "lines"                    => "Apply nickname color to the lines (off/on/nicks). The latter will limit highlighting to nicknames in option 'nicks'. You can use a localvar to color all lines with a given color (eg: /buffer set localvar_set_colorize_lines *yellow). You'll have enable this option to use alternate_color.",
                  "highlight"                => "Apply highlight color to the highlighted lines (off/on/nicks). The latter will limit highlighting to nicknames in option 'nicks'. Options 'weechat.color.chat_highlight' and 'weechat.color.chat_highlight_bg' will be used as colors.",
-                 "nicks"                    => "Comma-separater list of nicks (e.g. freenode.cat,*.dog) OR file name starting with '/' (e.g. /file.txt). In the latter case, nicknames will get loaded from that file inside weechat folder (e.g. from ~/.weechat/file.txt). Nicknames in file are newline-separated (e.g. freenode.dog\\n*.cat)",
+                 "nicks"                    => "Comma-separater list of nicks (e.g. freenode.cat,*.dog) OR file name starting with '/' (e.g. /file.txt). In the latter case, nicknames will get loaded from that file inside weechat config folder. Nicknames in file are newline-separated (e.g. freenode.dog\\n*.cat)",
                  "own_lines"                => "Apply nickname color to own lines (off/on/only). The latter turns off all other kinds of coloring altogether. This option has an higher priority than alternate_color option.",
                  "own_lines_color"          => "this color will be used for own messages. Set an empty value to use weechat.color.chat_nick_self option",
                  "tags"                     => "Comma-separated list of tags to accept (see /debug tags)",
@@ -116,6 +120,7 @@ my %help_desc = ("buffers"                  => "Buffer type affected by the scri
                  "highlight_words"          => "highlight word(s) in text, matching word(s) in weechat.look.highlight",
                  "highlight_words_color"    => "color for highlight word in text (format: fg,bg)",
                  "alternate_color"          => "alternate between two colors for messages (format: fg,bg:fg,bg)",
+                 "custom_action_text"       => "customise the text attributes of ACTION message (note: content is evaluated, see /help eval)",
 );
 
 my @ignore_tags_array;
@@ -143,9 +148,21 @@ sub colorize_cb
         return $string unless (@tags_found);
     }
 
-# find buffer pointer
-    $modifier_data =~ m/([^;]*);([^;]*);/;
-    my $buf_ptr = weechat::buffer_search($1, $2);
+    # find buffer pointer and tags
+    my $buf_ptr = "";
+    my $tags = "";
+    if ($modifier_data =~ /^0x/)
+    {
+        # WeeChat >= 2.9
+        $modifier_data =~ m/([^;]*);(.*)/;
+        $buf_ptr = $1;
+        $tags = $2;
+    } else {
+        # WeeChat <= 2.8
+        $modifier_data =~ m/([^;]*);([^;]*);(.*)/;
+        $buf_ptr = weechat::buffer_search($1, $2);
+        $tags = $3;
+    }
     return $string if ($buf_ptr eq "");
 
     # find buffer name, server name
@@ -161,8 +178,8 @@ sub colorize_cb
 
     # find nick of the sender
     # find out if we are doing an action
-    my $nick = ($modifier_data =~ m/(^|,)nick_([^,]*)/) ? $2 : weechat::string_remove_color($left, "");
-    my $action = ($modifier_data =~ m/\birc_action\b/) ? 1 : 0;
+    my $nick = ($tags =~ m/(^|,)nick_([^,]*)/) ? $2 : weechat::string_remove_color($left, "");
+    my $action = ($tags =~ m/\birc_action\b/) ? 1 : 0;
 
     ######################################## get color
 
@@ -262,6 +279,7 @@ sub colorize_cb
         # remove the first color reset - after * nick
         # make other resets reset to our color
         $right =~ s/\34//;
+        $color = weechat::string_eval_expression($config{custom_action_text}, {}, {}, {}) if ( $config{custom_action_text} ne "");
         $right =~ s/\34/\34$color/g;
         $out = $left . "\t" . $right . "\34"
     } else {
@@ -307,7 +325,8 @@ sub get_alternate_color
 sub nicklist_read
 {
     return if (substr($config{nicks}, 0, 1) ne "/");
-    my $file = weechat::info_get("weechat_dir", "") . $config{nicks};
+    my $options = { "directory" => "config" };
+    my $file = weechat::string_eval_path_home("%h" . $config{nicks}, {}, {}, $options);
     return unless -e $file;
     my $nili = "";
     open (WL, "<", $file) || DEBUG("$file: $!");

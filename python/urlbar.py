@@ -22,6 +22,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2020-06-21, Sébastien Helleu <flashcode@flashtux.org>
+#     version 14: make call to bar_new compatible with WeeChat >= 2.9
 # 2019-07-06, Sébastien Helleu <flashcode@flashtux.org>
 #     version 13: make script compatible with Python 3, fix PEP8 errors
 # 2015-08-25, Simmo Saan <simmo.saan@gmail.com>
@@ -58,7 +60,7 @@ from time import strftime, localtime
 
 SCRIPT_NAME = "urlbar"
 SCRIPT_AUTHOR = "FlashCode <flashcode@flashtux.org>"
-SCRIPT_VERSION = "13"
+SCRIPT_VERSION = "14"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Bar with URLs. For easy clicking or selecting."
 SCRIPT_COMMAND = "urlbar"
@@ -281,7 +283,15 @@ if __name__ == "__main__" and import_ok:
         weechat.hook_completion("urlbar_urls", "list of URLs",
                                 "urlbar_completion_urls_cb", "")
         weechat.bar_item_new("urlbar_urls", "urlbar_item_cb", "")
-        weechat.bar_new("urlbar", "on", "0", "root", "", "top", "horizontal",
-                        "vertical", "0", "0", "default", "default", "default",
-                        "0", "urlbar_urls")
+        version = int(weechat.info_get('version_number', '')) or 0
+        if version >= 0x02090000:
+            weechat.bar_new("urlbar", "on", "0", "root", "",
+                            "top", "horizontal", "vertical", "0", "0",
+                            "default", "default", "default", "default",
+                            "0", "urlbar_urls")
+        else:
+            weechat.bar_new("urlbar", "on", "0", "root", "",
+                            "top", "horizontal", "vertical", "0", "0",
+                            "default", "default", "default",
+                            "0", "urlbar_urls")
         weechat.hook_print("", "", "://", 1, "urlbar_print_cb", "")

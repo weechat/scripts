@@ -1,6 +1,5 @@
 #
 # highmon.pl - Highlight Monitoring for weechat 0.3.0
-# Version 2.6
 #
 # Add 'Highlight Monitor' buffer/bar to log all highlights in one spot
 #
@@ -73,6 +72,8 @@
 # Bugs and feature requests at: https://github.com/KenjiE20/highmon
 
 # History:
+# 2020-06-21, Sebastien Helleu <flashcode@flashtux.org>:
+#	v2.7: make call to bar_new compatible with WeeChat >= 2.9
 # 2019-05-13, HubbeKing <hubbe128@gmail.com>
 #	v2.6:	-add: send "logger_backlog" signal on buffer open if logging is enabled
 # 2014-08-16, KenjiE20 <longbow@longbowslair.co.uk>:
@@ -266,7 +267,14 @@ sub highmon_bar_open
 	# Make the bar item
 	weechat::bar_item_new("highmon", "highmon_bar_build", "");
 
-	$highmon_bar = weechat::bar_new ("highmon", "off", 100, "root", "", "bottom", "vertical", "vertical", 0, 0, "default", "cyan", "default", "on", "highmon");
+        if (weechat::info_get("version_number", "") >= 0x02090000)
+        {
+            $highmon_bar = weechat::bar_new ("highmon", "off", 100, "root", "", "bottom", "vertical", "vertical", 0, 0, "default", "cyan", "default", "default", "on", "highmon");
+        }
+        else
+        {
+            $highmon_bar = weechat::bar_new ("highmon", "off", 100, "root", "", "bottom", "vertical", "vertical", 0, 0, "default", "cyan", "default", "on", "highmon");
+        }
 
 	return weechat::WEECHAT_RC_OK;
 }
@@ -717,7 +725,7 @@ sub highmon_new_message
 	if ($cb_high == "1" || (weechat::config_get_plugin("merge_private") eq "on" && $cb_tags =~ /notify_private/))
 	{
 		# Pre bug #29618 (0.3.3) away detect
-		if (weechat::info_get("version_number", "") <= 197120)
+		if (weechat::info_get("version_number", "") <= 0x00030200)
 		{
 			$away = '';
 			# Get infolist for this server
@@ -1131,7 +1139,7 @@ sub format_buffer_name
 }
 
 # Check result of register, and attempt to behave in a sane manner
-if (!weechat::register("highmon", "KenjiE20", "2.6", "GPL3", "Highlight Monitor", "", ""))
+if (!weechat::register("highmon", "KenjiE20", "2.7", "GPL3", "Highlight Monitor", "", ""))
 {
 	# Double load
 	weechat::print ("", "\tHighmon is already loaded");

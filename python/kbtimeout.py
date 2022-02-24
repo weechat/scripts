@@ -20,6 +20,8 @@
 #
 # History:
 #
+# 2022-01-25, Sébastien Helleu <flashcode@flashtux.org>
+#       version 0.3, fix mixed spaces and tabs for indentation
 # 2018-07-22, kinabalu (https://mysticcoders.com)
 #       version 0.2, script cleanup and ensure py3 compatibility
 # 2009-05-03, kinabalu
@@ -60,22 +62,22 @@ except ImportError:
 
 SCRIPT_NAME = 'kbtimeout'
 SCRIPT_AUTHOR = 'kinabalu (https://mysticcoders.com)'
-SCRIPT_VERSION = '0.2'
+SCRIPT_VERSION = '0.3'
 SCRIPT_LICENSE = 'GPL3'
 
 def handler(data, buffer, argList):
 
   split_args = argList.split(" ")
   if len(split_args) < 2:
-  	weechat.prnt("", "Wrong number of parameters for kbtimeout")
-  	return weechat.WEECHAT_RC_ERROR;
+    weechat.prnt("", "Wrong number of parameters for kbtimeout")
+    return weechat.WEECHAT_RC_ERROR;
 
   nick = split_args[0]
   timeout = split_args[1]
 
   message = ""
   if len(split_args) > 2:
-  	message = argList.split(" ", 2)[2]
+    message = argList.split(" ", 2)[2]
 
   nick_ptr = weechat.nicklist_search_nick(buffer, "", nick)
   infolist = weechat.infolist_get("irc_nick", "", "{},{}".format("freenode", "##kbtimeout"))

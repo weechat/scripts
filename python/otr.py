@@ -164,7 +164,7 @@ This script supports only OTR protocol version 2.
 
 SCRIPT_AUTHOR = 'Matthew M. Boedicker'
 SCRIPT_LICENCE = 'GPL3'
-SCRIPT_VERSION = '1.9.2'
+SCRIPT_VERSION = '1.9.3'
 
 OTR_DIR_NAME = 'otr'
 
@@ -2006,7 +2006,7 @@ def create_dir():
     """Create the OTR subdirectory in the WeeChat config directory if it does
     not exist."""
     if not os.path.exists(OTR_DIR):
-        weechat.mkdir_home(OTR_DIR_NAME, 0o700)
+        weechat.mkdir_parents(OTR_DIR, 0o700)
 
 def git_info():
     """If this script is part of a git repository return the repo state."""
@@ -2083,7 +2083,11 @@ if weechat.register(
     if weechat_version_ok():
         init_config()
 
-        OTR_DIR = os.path.join(info_get('weechat_dir', ''), OTR_DIR_NAME)
+        options = {
+            'directory': 'data',
+        }
+        OTR_DIR = weechat.string_eval_path_home('%%h/%s' % OTR_DIR_NAME,
+                                                {}, {}, options)
         create_dir()
 
         ACCOUNTS = AccountDict()

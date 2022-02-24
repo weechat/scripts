@@ -28,7 +28,7 @@ import re
 
 SCRIPT_NAME     = 'unhighlight'
 SCRIPT_AUTHOR   = 'xiagu'
-SCRIPT_VERSION  = '0.1.2'
+SCRIPT_VERSION  = '0.1.3'
 SCRIPT_LICENSE  = 'GPL3'
 SCRIPT_DESC     = 'Allows per-buffer specification of a regex that prevents highlights.'
 
@@ -40,18 +40,16 @@ def matches_unhighlight_strings(msg, regex):
 def unhighlight_cb(data, modifier, modifier_data, message):
     """Check if the line matches the unhighlight regular expression, and if it does, clear the message and reprint it with the no_highlight tag added."""
 
-    # Buffer names can have ; in them, but not plugins or tags (I HOPE),
-    # so just split(';') would have weird edgecases with channels that have a ;
-    # in the name.
-    m = re.match("^(?P<plugin>\S+);(?P<full_name>\S+);(?P<tags>\S*)$", modifier_data)
+    if modifier_data.startswith('0x'):
+        # WeeChat >= 2.9
+        buffer, tags = modifier_data.split(';', 1)
+    else:
+        # WeeChat <= 2.8
+        plugin, buffer_name, tags = modifier_data.split(';', 2)
+        buffer = weechat.buffer_search(plugin, buffer_name)
 
-    tags = m.group('tags')
     if 'no_highlight' in tags or 'notify_none' in tags:
         return message
-
-    plugin = m.group('plugin')
-    full_name = m.group('full_name')
-    buffer = weechat.buffer_search(plugin, full_name)
 
     unhighlight_regex = weechat.buffer_get_string(buffer, 'localvar_unhighlight_regex')
     if not matches_unhighlight_strings(message, unhighlight_regex):

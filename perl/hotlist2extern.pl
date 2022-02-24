@@ -22,6 +22,7 @@
 #
 # Script inspirated and tested by LaoLang_cool
 #
+# 1.0   : add compatibility with WeeChat >= 3.2 (XDG directories)
 # 0.9   : add eval_expression() for format options
 # 0.8	: escape special characters in hotlist (arza)
 # 0.7	: using %h for weechat-dir instead of hardcoded path in script (flashcode)
@@ -36,7 +37,7 @@
 
 use strict;
 my $SCRIPT_NAME         = "hotlist2extern";
-my $SCRIPT_VERSION      = "0.9";
+my $SCRIPT_VERSION      = "1.0";
 my $SCRIPT_DESC         = "Give hotlist to an external file/program/screen title";
 my $SCRIPT_AUTHOR       = "Nils Görs <weechatter\@arcor.de>";
 
@@ -206,7 +207,7 @@ weechat::hook_command($SCRIPT_NAME, $SCRIPT_DESC,
                         "",
                         "This script allows you to export the hotlist to a file or screen title.\n".
                         "use the following intern variables for the hotlist_format:\n".
-                        " %h = weechat-dir (~/.weechat), better use \${info:weechat_dir}\n".
+                        " %h = weechat_data_dir, better use \${weechat_data_dir} (or \${info:weechat_dir} with WeeChat < 3.2) \n".
                         " %H = replaces with highlight_char, if a highlight message was received. For example: *\n".
                         " %N = replaces with buffer number: 1 2 3 ....\n".
                         " %S = replaces with short name of channel: #weechat\n".
@@ -228,6 +229,7 @@ weechat::hook_command($SCRIPT_NAME, $SCRIPT_DESC,
 
 
 init_config();  # /set
-$weechat_dir = weechat::info_get("weechat_dir", "");
+$weechat_dir = weechat::info_get("weechat_data_dir", "");
+$weechat_dir = weechat::info_get("weechat_dir", "") if (!$weechat_dir);
 weechat::hook_signal("hotlist_changed", "hotlist_changed", "");
 weechat::hook_config( "plugins.var.perl.$SCRIPT_NAME.*", "toggle_config_by_set", "" );

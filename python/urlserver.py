@@ -44,6 +44,12 @@
 #
 # History:
 #
+# 2021-05-06, Sébastien Helleu <flashcode@flashtux.org>:
+#     v2.6: add compatibility with WeeChat >= 3.2 (XDG directories)
+# 2021-03-06, Sébastien Helleu <flashcode@flashtux.org>:
+#     v2.5: replace cgi by html in Python 3
+# 2018-10-01, Pol Van Aubel <dev@polvanaubel.com>:
+#     v2.4: rework URL matching to positive regex match with heuristics
 # 2018-09-30, Sébastien Helleu <flashcode@flashtux.org>:
 #     v2.3: fix regex in help of option "http_allowed_ips"
 # 2017-07-26, Sébastien Helleu <flashcode@flashtux.org>:
@@ -114,7 +120,7 @@
 
 SCRIPT_NAME = 'urlserver'
 SCRIPT_AUTHOR = 'Sébastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '2.3'
+SCRIPT_VERSION = '2.6'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC = 'Shorten URLs with own HTTP server'
 
@@ -131,9 +137,13 @@ except ImportError:
     import_ok = False
 
 try:
+    import html  # python 3.x
+except ImportError:
+    import cgi as html  # python 2.x
+
+try:
     import ast
     import base64
-    import cgi
     import datetime
     import os
     import re
@@ -144,18 +154,66 @@ except ImportError as message:
     print('Missing package(s) for %s: %s' % (SCRIPT_NAME, message))
     import_ok = False
 
-# regex are from urlbar.py, written by xt
+# regex are based on urlbar.py, written by xt
+# Extended to reflect RFC3986/3987 by MacGyver
+url_scheme = r'[a-zA-Z][a-zA-Z0-9+\-.]*'
+
 url_octet = r'(?:2(?:[0-4]\d|5[0-5])|1\d\d|\d{1,2})'
 url_ipaddr = r'%s(?:\.%s){3}' % (url_octet, url_octet)
-url_label = r'[0-9a-z][-0-9a-z]*[0-9a-z]?'
-url_domain = r'%s(?:\.%s)*\.[a-z][-0-9a-z]*[a-z]?' % (url_label, url_label)
+
+url_hexdig = r'[0-9a-fA-F]'
+url_h16 = r'%s{1,4}' % (url_hexdig)
+url_ls32 = r'(?:%s:%s|%s)' % (url_h16, url_h16, url_ipaddr)
+url_ip6addr = [r'(?:%s:){6}%s' % (url_h16, url_ls32),
+               r'::(?:%s:){5}%s' % (url_h16, url_ls32),
+               r'%s?::(?:%s:){4}%s' % (url_h16, url_h16, url_ls32),
+               r'(?:(?:%s:){0,1}%s)?::(?:%s:){3}%s' % (url_h16, url_h16,
+                                                       url_h16, url_ls32),
+               r'(?:(?:%s:){0,2}%s)?::(?:%s:){2}%s' % (url_h16, url_h16,
+                                                       url_h16, url_ls32),
+               r'(?:(?:%s:){0,3}%s)?::(?:%s:)%s' % (url_h16, url_h16, url_h16,
+                                                    url_ls32),
+               r'(?:(?:%s:){0,4}%s)?::%s' % (url_h16, url_h16, url_ls32),
+               r'(?:(?:%s:){0,5}%s)?::%s' % (url_h16, url_h16, url_h16),
+               r'(?:(?:%s:){0,6}%s)?::' % (url_h16, url_h16)]
+url_ip6addr = "(?:" + ")|(?:".join(url_ip6addr) + ")"
+url_iplit = r'\[(?:%s)\]' % (url_ip6addr) # We're ignoring the IPvFuture
+
+url_gendelims = r'[:/?#\[\]@]'
+url_subdelims = r"[!$&'()*+,;=]"
+url_reserved = r'(?:%s|%s)' % (url_gendelims, url_subdelims)
+url_iunreserved = r'[\w\-.~]'
+
+url_pctencoded = r'%%%s{2}' % (url_hexdig)
+
+url_iregname = r'(?:%s|%s|%s)*' % (url_iunreserved, url_pctencoded,
+                                   url_subdelims)
+
+url_iuserinfo = r'(?:%s|%s|%s|:)*' % (url_iunreserved, url_pctencoded,
+                                      url_subdelims)
+url_ihost = r'(?:%s|%s|%s)' % (url_iplit, url_ipaddr, url_iregname)
+url_iauth = r'(?:%s@)?%s(?::\d*)?' % (url_iuserinfo, url_ihost)
+
+url_ipchar = r'(?:%s|%s|%s|:|@)' % (url_iunreserved, url_pctencoded,
+                                    url_subdelims)
+url_ipath_abempty = r'(?:/%s*)*' % (url_ipchar)
+
+# Some complex stuff about reserved parts of the UCS namespace we're not doing
+# in iquery, so iquery == ifragment.
+# It seems that [ and ] are not used as delimiters in iquery and ifragment, so
+# allow them in these segments.
+url_iquery = r'(?:%s|/|\?|\[\])*' % (url_ipchar)
+url_ifragment = url_iquery
+
+# Grab one additional character (if present) so that we can later determine
+# whether the user knew what they were doing.
+url_full = r'(?P<url>(?:%s)://(?:%s)(?:%s)(?:\?%s)?(?:#%s)?)(?P<trailer>.)?' % (
+    url_scheme, url_iauth, url_ipath_abempty, url_iquery, url_ifragment)
 
 urlserver = {
     'socket': None,
     'hook_fd': None,
-    'regex': re.compile(r'(\w+://(?:%s|%s)(?::\d+)?(?:/[^\])>\s]*)?)' %
-                        (url_domain, url_ipaddr),
-                        re.IGNORECASE),
+    'regex': re.compile(url_full, re.IGNORECASE),
     'urls': {},
     'number': 0,
     'buffer': '',
@@ -478,7 +536,7 @@ def urlserver_server_reply_list(conn, sort='-time'):
         content += '  <tr>'
         url = item[3]
         obj = ''
-        message = (cgi.escape(item[4].replace(url, '\x01\x02\x03\x04'))
+        message = (html.escape(item[4].replace(url, '\x01\x02\x03\x04'))
                    .split('\t', 1))
         message[0] = '<span class="prefix">%s</span>' % message[0]
         message[1] = '<span class="message">%s</span>' % message[1]
@@ -544,22 +602,22 @@ def urlserver_server_reply_list(conn, sort='-time'):
                    urlserver_settings['http_bg_color'],
                    urlserver_settings['http_fg_color']))
 
-    html = ('<html>\n'
-            '<head>\n'
-            '<title>%s</title>\n'
-            '<meta http-equiv="content-type" content="text/html; '
-            'charset=utf-8" />\n'
-            '%s\n'
-            '<base href="%s" />\n'
-            '<link rel="icon" type="image/png" href="favicon.png" />\n'
-            '</head>\n'
-            '<body>\n%s\n</body>\n'
-            '</html>' % (
-                urlserver_settings['http_title'],
-                css,
-                urlserver_get_base_url(),
-                content))
-    urlserver_server_reply(conn, '200 OK', '', html)
+    html_code = ('<html>\n'
+                 '<head>\n'
+                 '<title>%s</title>\n'
+                 '<meta http-equiv="content-type" content="text/html; '
+                 'charset=utf-8" />\n'
+                 '%s\n'
+                 '<base href="%s" />\n'
+                 '<link rel="icon" type="image/png" href="favicon.png" />\n'
+                 '</head>\n'
+                 '<body>\n%s\n</body>\n'
+                 '</html>' % (
+                     urlserver_settings['http_title'],
+                     css,
+                     urlserver_get_base_url(),
+                     content))
+    urlserver_server_reply(conn, '200 OK', '', html_code)
 
 
 def urlserver_check_auth(data):
@@ -869,7 +927,59 @@ def urlserver_update_urllist(buffer_full_name, buffer_short_name, tags, prefix,
 
     # shorten URL(s) in message
     urls_short = []
-    for url in urlserver['regex'].findall(message):
+    for match in urlserver['regex'].finditer(message):
+        url = match.group('url')
+        trailer = match.group('trailer')
+
+        # Heuristics for dealing with valid URI characters used as URI
+        # delimiters.
+        if url[-1] == ',':
+            # Does the URL contain other commas? If so, don't strip.
+            # Is the URL followed by a space? If not, don't strip.
+            if trailer == ' ' and url[:-1].count(',') == 0:
+                url = url[:-1]
+        elif url[-1] == '.':
+            # Strip if the URL is followed by whitespace *or* nothing.
+            # Nothing seems to use a . at the end, and it's a natural
+            # sentence terminator.
+            if trailer is None or trailer == ' ':
+                url = url[:-1]
+        elif url[-1] == ')' or url[-1] == ']':
+            # Tough one. First check whether the URL is followed by
+            # a space or end of line.
+            if trailer is None or trailer == ' ':
+                closer = url[-1]
+                if closer == ')':
+                    opener = '('
+                elif closer == ']':
+                    opener = '['
+                # Check if the brackets would be balanced inside the URL.
+                opening = url.count(opener)
+                closing = url.count(closer)
+                if opening < closing:
+                    match_start, match_end = match.span('url')
+                    # Is the URL *immediately* preceded by an opener?
+                    prior = message[:match_start]
+                    if prior and prior[-1] == opener:
+                        url = url[:-1]
+                    else:
+                        after = message[match_end:]
+                        # Are brackets outside of the URL unbalanced?
+                        opening = prior.count(opener) + after.count(opener)
+                        closing = prior.count(closer) + after.count(closer)
+                        if opening > closing:
+                            url = url[:-1]
+        elif url[-1] == "'":
+            # Another doozy. Can't really work with balance because of
+            # contractions such as "can't".
+            # So let's simply check for enclosing, but only if there's not
+            # another delimiter.
+            if trailer is None or trailer == ' ':
+                match_start = match.start('url')
+                if match_start > 0 and message[match_start - 1] == "'":
+                    url = url[:-1]
+        # End heuristics
+
         if len(url) >= min_length:
             if urlserver_settings['msg_ignore_dup_urls'] == 'on':
                 same_urls = [key for key, value in urlserver['urls'].items()
@@ -1028,8 +1138,11 @@ def urlserver_config_cb(data, option, value):
 
 def urlserver_filename():
     """Return name of file used to store list of urls."""
-    return os.path.join(weechat.info_get('weechat_dir', ''),
-                        'urlserver_list.txt')
+    options = {
+        'directory': 'data',
+    }
+    return weechat.string_eval_path_home('%h/urlserver_list.txt',
+                                         {}, {}, options)
 
 
 def urlserver_read_urls():

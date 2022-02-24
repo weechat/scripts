@@ -74,6 +74,10 @@
 # 2011-01-18, fauno:
 #      - Fixed error on load when no username nor password were given
 #
+# 2020-05-09, FlashCode:
+#      - Add compatibility with new weechat_print modifier data
+#        (WeeChat >= 2.9)
+#
 # TODO - cache json requests
 
 import weechat
@@ -88,7 +92,7 @@ from random import randint
 
 SCRIPT_NAME    = 'identica'
 SCRIPT_AUTHOR  = 'fauno <fauno@kiwwwi.com.ar>'
-SCRIPT_VERSION = '0.4.2'
+SCRIPT_VERSION = '0.4.3'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC    = 'Formats identi.ca\'s bot messages'
 
@@ -469,7 +473,16 @@ def clean (message):
 def parse_in (server, modifier, data, the_string):
     '''Parses incoming messages'''
 
-    plugin, channel, flags = data.split(';')
+    if data.startswith('0x'):
+        # WeeChat >= 2.9
+        buffer, flags = data.split(';', 1)
+    else:
+        # WeeChat <= 2.8
+        plugin, buffer_name, flags = data.split(';', 2)
+        buffer = weechat.buffer_search(plugin, buffer_name)
+
+    channel = weechat.buffer_get_string(buffer, 'localvar_channel')
+
     flag = flags.split(',')
 
     if channel == weechat.config_get_plugin('channel') and 'irc_privmsg' in flag:

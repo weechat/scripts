@@ -24,7 +24,7 @@
 
 SCRIPT_NAME = 'growl'
 SCRIPT_AUTHOR = 'Sorin Ionescu <sorin.ionescu@gmail.com>'
-SCRIPT_VERSION = '1.0.6'
+SCRIPT_VERSION = '1.0.7'
 SCRIPT_LICENSE = 'MIT'
 SCRIPT_DESC = 'Sends Growl notifications upon events.'
 
@@ -447,10 +447,10 @@ def main():
     name = "WeeChat"
     hostname = weechat.config_get_plugin('hostname')
     password = weechat.config_get_plugin('password')
+    base_dir = weechat.info_get("weechat_data_dir", "") \
+        or weechat.info_get("weechat_dir", "")
     icon = 'file://{0}'.format(
-        os.path.join(
-            weechat.info_get("weechat_dir", ""),
-            weechat.config_get_plugin('icon')))
+        os.path.join(base_dir, weechat.config_get_plugin('icon')))
     notifications = [
         'Public',
         'Private',

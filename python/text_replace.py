@@ -20,6 +20,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2020-06-05, Normen Hansen <normen667@gmail.com>
+#   version 0.7: add option to change prefix of entered text
 # 2019-06-17, Brad Hubbard <bhubbard@redhat.com>
 #   version 0.6: replace iteritems with items for python3 compatability
 # 2011-07-17, Sébastien Helleu <flashcode@flashtux.org>
@@ -38,7 +40,7 @@ import re
 
 SCRIPT_NAME    = "text_replace"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.6"
+SCRIPT_VERSION = "0.7"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Replaces text you write with replacement text"
 
@@ -46,6 +48,7 @@ SCRIPT_DESC    = "Replaces text you write with replacement text"
 settings = {
         'replacement_pairs': '(:=:),):=:(',   # pairs separated by , orig text and replacement separated by =
         'replacement_words': 'hhe=heh',       # words separated by , orig text and replacement separated by =
+        'replacement_prefixes': ':=/',       # strings separated by , orig prefix and replacement separated by =
 }
 
 
@@ -87,6 +90,12 @@ def command_run_input(data, buffer, command):
                 orig, replaced = replace_item.split('=')
                 # Search for whitespace+word+whitespace and replace the word
                 input_s = re.sub('(\s+|^)%s(\s+|$)' %orig, '\\1%s\\2' %replaced, input_s)
+        # Iterate prefixes
+        for replace_item in w.config_get_plugin('replacement_prefixes').split(','):
+            if replace_item:
+                orig, replaced = replace_item.split('=')
+                if input_s.startswith(orig):
+                    input_s = input_s.replace(orig, replaced, 1)
 
         # Spit it out
         w.buffer_set(buffer, 'input', input_s)

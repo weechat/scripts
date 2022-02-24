@@ -28,7 +28,7 @@
 
 SCRIPT_NAME = 'anotify'
 SCRIPT_AUTHOR = 'magnific0'
-SCRIPT_VERSION = '1.0.1'
+SCRIPT_VERSION = '1.0.2'
 SCRIPT_LICENSE = 'MIT'
 SCRIPT_DESC = 'Sends libnotify notifications upon events.'
 
@@ -66,7 +66,7 @@ try:
     import re
     import os
     import weechat
-    import pynotify
+    import notify2
     IMPORT_OK = True
 except ImportError as error:
     IMPORT_OK = False
@@ -176,7 +176,7 @@ def notify_highlighted_message(prefix, message):
             'Highlight',
             'Highlighted Message',
             "{0}: {1}".format(prefix, message),
-            priority=pynotify.URGENCY_CRITICAL)
+            priority=notify2.URGENCY_CRITICAL)
 
 
 def notify_public_message_or_action(prefix, message, highlighted):
@@ -231,7 +231,7 @@ def notify_public_action_message(prefix, message, highlighted):
             'Action',
             'Public Action Message',
             '{0}: {1}'.format(prefix, message),
-            priority=pynotify.URGENCY_NORMAL)
+            priority=notify2.URGENCY_NORMAL)
 
 
 def notify_private_action_message(prefix, message, highlighted):
@@ -243,7 +243,7 @@ def notify_private_action_message(prefix, message, highlighted):
             'Action',
             'Private Action Message',
             '{0}: {1}'.format(prefix, message),
-            priority=pynotify.URGENCY_NORMAL)
+            priority=notify2.URGENCY_NORMAL)
 
 
 def notify_notice_message(prefix, message, highlighted):
@@ -403,7 +403,7 @@ def cb_process_message(
     return weechat.WEECHAT_RC_OK
 
 
-def a_notify(notification, title, description, priority=pynotify.URGENCY_LOW):
+def a_notify(notification, title, description, priority=notify2.URGENCY_LOW):
     '''Returns whether notifications should be sticky.'''
     is_away = STATE['is_away']
     icon = STATE['icon']
@@ -413,8 +413,8 @@ def a_notify(notification, title, description, priority=pynotify.URGENCY_LOW):
     if weechat.config_get_plugin('sticky_away') == 'on' and is_away:
         time_out = 0
     try:
-        pynotify.init("wee-notifier")
-        wn = pynotify.Notification(title, description, icon)
+        notify2.init("wee-notifier")
+        wn = notify2.Notification(title, description, icon)
         wn.set_urgency(priority)
         wn.set_timeout(time_out)
         wn.show()

@@ -19,7 +19,7 @@
 
 SCRIPT_NAME    = "weetext"
 SCRIPT_AUTHOR  = "David R. Andersen <k0rx@RXcomm.net>, Tycho Andersen <tycho@tycho.ws>"
-SCRIPT_VERSION = "0.1.2"
+SCRIPT_VERSION = "0.1.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "SMS Text Messaging script for Weechat using Google Voice"
 
@@ -280,7 +280,8 @@ PIPE=-1
 # register plugin
 if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, "", "UTF-8"):
     buffer = weechat.buffer_new("weeText", "gvOut", "", "buffer_close_cb", "")
-    weechat_dir = weechat.info_get("weechat_dir","")
+    weechat_dir = weechat.info_get("weechat_data_dir","") \
+        or weechat.info_get("weechat_dir","")
     key_dir = weechat.config_get_plugin("key_dir")
     weechat.bar_item_new('encryption', 'encryption_statusbar', '')
     for option, default_value in script_options.iteritems():

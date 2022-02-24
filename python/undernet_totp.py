@@ -37,7 +37,7 @@ from __future__ import print_function
 
 SCRIPT_NAME    = "undernet_totp"
 SCRIPT_AUTHOR  = "Stefan Wold <ratler@stderr.eu>"
-SCRIPT_VERSION = "0.4.1"
+SCRIPT_VERSION = "0.4.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Automatic OTP (OATH-TOTP) authentication with UnderNET's channel services (X) and Login on Connect (LoC)."
 SCRIPT_COMMAND = "uotp"
@@ -158,6 +158,7 @@ def get_irc_servers():
     serverlist = []
     while weechat.infolist_next(serverptrlist):
          serverlist.append(weechat.infolist_string(serverptrlist, 'name'))
+    weechat.infolist_free(serverptrlist)
     return serverlist
 
 

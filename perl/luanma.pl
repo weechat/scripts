@@ -141,7 +141,7 @@ swipe, so it is faster and the freeze is of shorter duration.
 =cut
 
 use constant SCRIPT_NAME => 'luanma';
-weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.2', 'GPL3',
+weechat::register(SCRIPT_NAME, 'Nei <anti.teamidiot.de>', '0.3', 'GPL3',
 				  'more flexibility with incoming charset', 'stop_luanma', '') || return;
 sub SCRIPT_FILE() {
 	my $infolistptr = weechat::infolist_get('perl_script', '', SCRIPT_NAME);
@@ -279,7 +279,9 @@ our @nags;
 our $nag_tag;
 our %nag_modifiers;
 
-our $CFG_FILE_NAME = weechat::info_get('weechat_dir', '').weechat::info_get('dir_separator', '').SCRIPT_NAME.'.conf';
+our $weechat_dir = weechat::info_get('weechat_config_dir', '');
+$weechat_dir = weechat::info_get('weechat_dir', '') if (!$weechat_dir);
+our $CFG_FILE_NAME = $weechat_dir.weechat::info_get('dir_separator', '').SCRIPT_NAME.'.conf';
 
 our (@CFG_TABLE, @CFG_TABLE_2);
 our @STO = (\(our (%BYTE_MSGS, %ESC_MSG, %MSG_TIME, %MSG_BUF, %MSG_NICK, %MSG_ENC, %MSG_FLT, %MSG_COLOR)));

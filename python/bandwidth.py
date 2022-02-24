@@ -25,6 +25,8 @@
 #
 # History:
 #
+# 2020-09-05, mumixam
+#     version 1.1: add python3 support while still supporting python2
 # 2011-12-02, quazgaa <quazgaa@gmail.com>
 #     version 1.0: Complete rewrite.  Make script more featureful, robust, and accurate.
 #                  Thanks to FlashCode and ze for helping debug.
@@ -41,27 +43,31 @@
 try:
     import weechat
 except:
-    print "This script must be run under WeeChat."
-    print "Get WeeChat now at: http://www.weechat.org/"
-    raise SystemExit, 0
+    print("This script must be run under WeeChat.")
+    print("Get WeeChat now at: http://www.weechat.org/")
+    raise SystemExit(0)
 
 try:
     from time import time
 except:
-    print "Error importing time module."
-    raise SystemExit, 0
+    print("Error importing time module.")
+    raise SystemExit(0)
 
+try:
+    unichr
+except NameError:
+    unichr = chr
 
 # defines
 SCRIPT_NAME     = "bandwidth"
 SCRIPT_AUTHOR   = "xt <xt@bash.no>"
-SCRIPT_VERSION  = "1.0"
+SCRIPT_VERSION  = "1.1"
 SCRIPT_LICENSE  = "GPL3"
 SCRIPT_DESC     = "Displays network interface bandwidth (KiB/s and MiB/s) on a bar"
 SCRIPT_SETTINGS = {
     "device"         : ("eth0",                           "Network interface(s) to monitor, in order, separated by ';'"),
     "refresh_rate"   : ("5",                              "Refresh rate in seconds"),
-    "format"         : (("%N(" + unichr(8595) + "%DV%DU/s " + unichr(8593) + "%UV%UU/s)").encode('utf-8'),
+    "format"         : (("%N(" + unichr(8595) + "%DV%DU/s " + unichr(8593) + "%UV%UU/s)"),
                         "Output formatting: %N = network interface, %DV = downstream value, %DU = downstream units (K or M), %UV = upstream value, %UU = upstream units (K or M).  Note: default setting uses UTF-8"),
     "separator"      : (" ",                              "String displayed between output for multiple devices"),
 }
@@ -85,9 +91,16 @@ def main():
             weechat.config_unset_plugin('display_unit')
 
         # set default settings
-        for option in SCRIPT_SETTINGS.iterkeys():
+        for option in SCRIPT_SETTINGS.keys():
             if not weechat.config_is_set_plugin(option):
-                weechat.config_set_plugin(option, SCRIPT_SETTINGS[option][0])
+                value = SCRIPT_SETTINGS[option][0]
+                if isinstance(value, str):
+                    pass
+                elif isinstance(value, bytes):
+                    pass
+                elif isinstance(value, unicode):
+                    value = value.encode('utf8')
+                weechat.config_set_plugin(option, value)
             if version >= 0x00030500:
                 weechat.config_set_desc_plugin(option, SCRIPT_SETTINGS[option][1])
 
@@ -156,7 +169,7 @@ def bandwidth_item_cb(data, buffer, args):
     device_exist = False
 
     # get the downstream and upstream byte counts
-    for i in xrange(num_devices):
+    for i in range(num_devices):
         for line in lines:
             if (device[i] + ':') in line:
                 field = line.split(':')[1].strip().split()
@@ -175,7 +188,7 @@ def bandwidth_item_cb(data, buffer, args):
         if num_last_devices != num_devices:
             new_device_list = True
         else:
-            for i in xrange(num_devices):
+            for i in range(num_devices):
                 if device[i] != last_device[i]:
                     new_device_list = True
                     break
@@ -189,7 +202,7 @@ def bandwidth_item_cb(data, buffer, args):
     # set them afresh (also if script first starting),
     if not last_device:
         if num_devices:
-            for i in xrange(num_devices):
+            for i in range(num_devices):
                 last_device.append(device[i])
                 last_down_bytes.append(current_down_bytes[i])
                 last_up_bytes.append(current_up_bytes[i])
@@ -204,7 +217,7 @@ def bandwidth_item_cb(data, buffer, args):
         time_elapsed = current_time - last_time
         last_time = current_time
 
-        for i in xrange(num_devices):
+        for i in range(num_devices):
             down_rate.append((current_down_bytes[i] - last_down_bytes[i]) / time_elapsed / 1024)
             up_rate.append((current_up_bytes[i] - last_up_bytes[i]) / time_elapsed / 1024)
             last_down_bytes[i] = current_down_bytes[i]
@@ -215,7 +228,7 @@ def bandwidth_item_cb(data, buffer, args):
     output = ''
 
     # determine downstream and upstream units; format the output
-    for i in xrange(num_devices):
+    for i in range(num_devices):
         if '%DU' in output_item[i]:
             if down_rate[i] >= 1024:
                 down_rate[i] = round((down_rate[i]/1024), 1)
