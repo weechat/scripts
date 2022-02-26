@@ -1,4 +1,4 @@
-# Copyright (c) 2016 by CrazyCat <crazycat@c-p-f.org>
+# Copyright (c) 2022 by CrazyCat <crazycat@c-p-f.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@ weechat::register $SCRIPT_NAME {CrazyCat <crazycat@c-p-f.org>} $SCRIPT_VERSION G
 weechat::hook_command ipinfo {retrieve informations about an IP} {} {Do /set *ipinfo* for settings} {} ipinfo {}
 
 if {[set output [weechat::config_get_plugin output]] eq ""} {
-    weechat::config_set_plugin output "CITY (COUNTRY) - ISP "
+    weechat::config_set_plugin output "CITY (COUNTRY) - ISP"
 }
 if {[set output [weechat::config_get_plugin lang]] eq ""} {
     weechat::config_set_plugin lang "en"
@@ -45,24 +45,29 @@ variable private {"0.0.0.0/8" "10.0.0.0/8" "100.64.0.0/10" "127.0.0.0/8" "169.25
    "203.0.113.0/24" "224.0.0.4/24" "233.252.0.0/24" "240.0.0.0/4" "255.255.255.255/32"}
 
 
-package require http
-
 proc ipinfo {data buffer args} {
 	set ip [join $args]
+	set ::ipinfo(buffer) $buffer
 	if {![isip $ip]} {
 		weechat::print $buffer [format "*** %s$ip%s is not a valid IP address" [weechat::color "red"] [weechat::color "default"]]
 		return $::weechat::WEECHAT_RC_ERROR
 	}
-	set infos [getipdatas $ip]
+	weechat::hook_process "url:http://ip-api.com/json/$ip?fields=status,message,continent,country,city,zip,lat,lon,timezone,isp,org,reverse,mobile,proxy,hosting,query&lang=[weechat::config_get_plugin lang]" 1000 "ipinfo_process_cb" ""
+	return $::weechat::WEECHAT_RC_OK
+}
+
+proc ipinfo_process_cb {data command rc out err} {
+	set infos [json2dict $out]
 	if {[dict get $infos status]=="fail"} {
-		weechat::print $buffer [format "*** %sERROR%s : [dict get $infos message]" [weechat::color "red"] [weechat::color "default"]]
+		weechat::print $::ipinfo(buffer) [format "*** %sERROR%s : [dict get $infos message]" [weechat::color "red"] [weechat::color "default"]]
 		return $::weechat::WEECHAT_RC_ERROR
 	}
+	set ip [dict get $infos query]
 	set myout [string map [list "CITY" [dict get $infos city]\
 		"COUNTRY" [dict get $infos country]\
 		"ISP" [dict get $infos isp]\
 		] [weechat::config_get_plugin output]]
-	weechat::print $buffer [format "*** IP infos for %s$ip%s: $myout" [weechat::color "red"] [weechat::color "default"]]
+	weechat::print $::ipinfo(buffer) [format "*** IP infos for %s$ip%s: $myout" [weechat::color "red"] [weechat::color "default"]]
 	return $::weechat::WEECHAT_RC_OK
 }
 
@@ -74,14 +79,6 @@ proc isip { ip } {
 	} else {
 		return false
 	}
-}
-
-proc getipdatas { ip } {
-	::http::config -useragent "lynx"
-	set ipq [http::geturl http://ip-api.com/json/$ip?fields=status,message,continent,country,city,zip,lat,lon,timezone,isp,org,reverse,mobile,proxy,hosting,query&lang=[weechat::config_get_plugin lang]]
-	set data [json2dict [http::data $ipq]]
-	::http::cleanup $ipq
-	return $data
 }
 
 proc json2dict {JSONtext} {
