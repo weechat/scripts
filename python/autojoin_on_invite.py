@@ -20,6 +20,9 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2022-03-2, h-0-s-h <noreply@ic3.gov>
+#   version 0.8: fix reged parsing of INVITE message to account for ircv3/CAPS style/etc
+#                (@time=2022-03-02T19:00:30.041Z :XXXXX!~XXXXX@xxxxx INVITE h-0-s-h :#xxxxx)
 # 2018-10-03, Pol Van Aubel <dev@polvanaubel.com>
 #   version 0.7: Python3 compatibility. Considerations:
 #                - Settings during registration are iterated over only once, so
@@ -86,7 +89,9 @@ def join(server, channel):
 def invite_cb(data, signal, signal_data):
     server = signal.split(',')[0] # EFNet,irc_in_INVITE
     channel = signal_data.split()[-1].lstrip(':') # :nick!ident@host.name INVITE yournick :#channel
-    from_nick = re.match(':(?P<nick>.+)!', signal_data).groups()[0]
+    from_nick = ''
+    SearchStr = ':.*\:(?P<nick>.+)!' #@time=2022-03-02T19:00:30.041Z :XX-XXXX!~XX-XXXX@xx.xxxx INVITE yournick :#xxxx-xxx
+    from_nick = re.search(SearchStr, signal_data).groups()[0]
 
     if len(w.config_get_plugin('whitelist_nicks')) > 0 and len(w.config_get_plugin('whitelist_channels')) > 0: # if there's two whitelists, accept both
         if from_nick in w.config_get_plugin('whitelist_nicks').split(',') or channel in w.config_get_plugin('whitelist_channels').split(','):
