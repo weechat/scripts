@@ -52,12 +52,16 @@ proc ipinfo {data buffer args} {
 		weechat::print $buffer [format "*** %s$ip%s is not a valid IP address" [weechat::color "red"] [weechat::color "default"]]
 		return $::weechat::WEECHAT_RC_ERROR
 	}
-	weechat::hook_process "url:http://ip-api.com/json/$ip?fields=status,message,continent,country,city,zip,lat,lon,timezone,isp,org,reverse,mobile,proxy,hosting,query&lang=[weechat::config_get_plugin lang]" 1000 "ipinfo_process_cb" ""
+	weechat::hook_process "url:http://ip-api.com/json/$ip?fields=status,message,continent,country,city,zip,lat,lon,timezone,isp,org,reverse,mobile,proxy,hosting,query&lang=[weechat::config_get_plugin lang]" 5000 "ipinfo_process_cb" ""
 	return $::weechat::WEECHAT_RC_OK
 }
 
 proc ipinfo_process_cb {data command rc out err} {
 	set infos [json2dict $out]
+	if {![dict exists $infos status]} {
+		weechat::print $::ipinfo(buffer) [format "*** %sERROR%s : Cannot retrieve informations from ip-api.com" [weechat::color "red"] [weechat::color "default"]]
+		return $::weechat::WEECHAT_RC_ERROR
+	}
 	if {[dict get $infos status]=="fail"} {
 		weechat::print $::ipinfo(buffer) [format "*** %sERROR%s : [dict get $infos message]" [weechat::color "red"] [weechat::color "default"]]
 		return $::weechat::WEECHAT_RC_ERROR
