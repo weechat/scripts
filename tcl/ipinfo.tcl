@@ -46,8 +46,12 @@ variable private {"0.0.0.0/8" "10.0.0.0/8" "100.64.0.0/10" "127.0.0.0/8" "169.25
 
 
 proc ipinfo {data buffer args} {
-	set ip [join $args]
+	set ip [string trim [join $args]]
 	set ::ipinfo(buffer) $buffer
+	if {$ip eq ""} {
+		weechat::print $buffer "Error : Syntax is /ipinfo ip.to.check"
+		return $::weechat::WEECHAT_RC_ERROR
+	}
 	if {![isip $ip]} {
 		weechat::print $buffer [format "*** %s$ip%s is not a valid IP address" [weechat::color "red"] [weechat::color "default"]]
 		return $::weechat::WEECHAT_RC_ERROR
