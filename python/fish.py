@@ -56,11 +56,12 @@ import re
 import struct
 import hashlib
 import base64
+import sys
 from os import urandom
 
 SCRIPT_NAME = "fish"
 SCRIPT_AUTHOR = "David Flatz <david@upcs.at>"
-SCRIPT_VERSION = "0.11"
+SCRIPT_VERSION = "0.12"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "FiSH for weechat"
 CONFIG_FILE_NAME = SCRIPT_NAME
@@ -300,6 +301,8 @@ def blowcrypt_unpack(msg, cipher, key):
 
     if rest.startswith('*'):  # CBC mode
         rest = rest[1:]
+        if len(rest) % 4:
+            rest += '=' * (4 - len(rest) % 4)
         raw = base64.b64decode(rest)
 
         iv = raw[:8]
@@ -308,7 +311,7 @@ def blowcrypt_unpack(msg, cipher, key):
         cbcCipher = Crypto.Cipher.Blowfish.new(
                 key.encode('utf-8'), Crypto.Cipher.Blowfish.MODE_CBC, iv)
 
-        plain = cbcCipher.decrypt(raw)
+        plain = cbcCipher.decrypt(padto(raw, 8))
 
     else:
 
@@ -1201,3 +1204,7 @@ if (__name__ == "__main__" and import_ok and
     weechat.hook_modifier(
             "input_text_for_buffer", "fish_modifier_input_text", "")
     weechat.hook_config("fish.secure.key", "fish_secure_key_cb", "")
+elif (__name__ == "__main__" and len(sys.argv) == 3):
+    key = sys.argv[1]
+    msg = sys.argv[2]
+    print(blowcrypt_unpack(msg, Blowfish(key), key))
