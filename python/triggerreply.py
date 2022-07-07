@@ -41,6 +41,12 @@ Some new functions:
 2021-05-06 - Sébastien Helleu <flashcode@flashtux.org>
 Add compatibility with WeeChat >= 3.2 (XDG directories).
 
+2022-07-22 - Nils Görs (libera.#weechat)
+      - fix bug: https://github.com/weechat/scripts/issues/459
+      - add autocompletion
+      - add option for sqlite3 filename
+      - help text will be displayed using /help command
+
 Bugs: not that i'm aware of.
 """
 
@@ -56,7 +62,7 @@ import os
 
 SCRIPT_NAME = "triggerreply"
 SCRIPT_AUTHOR = "Vlad Stoica <stoica.vl@gmail.com>"
-SCRIPT_VERSION = "0.4.3"
+SCRIPT_VERSION = "0.4.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Auto replies when someone sends a specified trigger. Now with 100% more regex!"
 pcooldown  = 1
@@ -69,55 +75,9 @@ def cooldown_timer_cb(data, remaining_calls):
          pcooldown -= 1
     return weechat.WEECHAT_RC_OK
 
-
 def print_help():
-    """ print the help message """
-    weechat.prnt("", """
-Triggerreply (trigge.rs) plugin. Automatically replies over specified triggers.
-------------
-Usage: /triggerreply [list | add | remove | ignore | parse] ARGUMENTS
-
-Commands:
-    list   - lists the triggers with replies, and ignored channels
-    add    - three arguments: "trigger", "reply" and probability
-           - adds a trigger with the specified reply and probability
-           - probability 1 = 1/1 (100%), 5 = 1/5 (20 %) - optional, default is 1 (100%)
-           - negative probability means action, see examples
-           - %n in the reply will be replaced by the nick of the matching line
-           - %N replaced by "my" nick
-           - %m replaced by host and mask *!*@
-           - %c replaced by channel name
-
-    remove - one argument: "trigger"
-           - remove a trigger
-    ignore - one argument: "server.#channel"
-           - ignores a particular channel from a server
-    parse  - one argument: "server.#channel"
-           - removes a channel from ignored list
-ignorenick - one argument: "server.#channel.Nick"
-           - ignores a particular nick from a server.#channel
-watchnick  - one argument: "server.#channel.Nick"
-           - removes a nick from ignored list
-
-Examples:
-    /triggerreply add "^H(i|ello|ey)[ .!]*" "Hey there!|Hi matey|Aloha!" "1"
-    /triggerreply add "lol" "not funny tho" "5"
-    /triggerreply remove 2
-    /triggerreply ignore rizon.#help
-    /triggerreply parse rizon.#help
-    /triggerreply ignore rizon.#help.
-    /triggerreply ignorenick rizon.#help.Bot
-    /triggerreply watchnick rizon.#help.Bot
-
-Auto greetings:
-/triggerreply add "(hi|hello|hey|howdy)[,: ]+%N" "Hi, %n.|Hello, %n." "1"
-/triggerreply add "%N[,: ]+(hi|hello|hey|howdy)" "Hi, %n.|Helllo, %n." "1"
-
-
-Kick on adult content. Probability -1 means the strings between | are command executed in order:
-/triggerreply add "https?://(www\.)?pornhub\.com|https?://(www\.)?xhamster\.com" "/msg chanserv op %c %N|/kick %n No adult content here, bye|/ban *!*@%m|/msg chanserv deop %c %N" "-1"
-
-""")
+    weechat.prnt('','%s%s %s %s' % (weechat.prefix('error'),SCRIPT_NAME,': see /help',SCRIPT_NAME))
+    return weechat.WEECHAT_RC_OK
 
 def debug(mlevel, message):
     if int(weechat.config_get_plugin('debug')) >= int(mlevel):
@@ -203,7 +163,7 @@ def search_trig_cb(data, buf, date, tags, displayed, highlight, prefix, message)
         replydata = row[2].encode('utf8')
         prob = int(row[3])
 
-        for ccode, chex in colorcodes.items():
+        for ccode, chex in list(colorcodes.items()):
             replydata = replydata.replace(ccode,chex)
 
         try:
@@ -272,13 +232,13 @@ def command_input_callback(data, buffer, argv):
     command = argv.split()
 
     if len(command) == 0:
-        print_help()
         return weechat.WEECHAT_RC_ERROR
 
     if command[0] == "list":
         weechat.prnt("", "List of triggers with replies:")
         for row in cursor.execute("SELECT * FROM triggers;"):
-            weechat.prnt("", str(row[0]) + ". " + row[1].encode('utf8') + " -> " + row[2].encode('utf8') + "  [Prob: " + str(row[3]) + "]")
+            weechat.prnt("", (str(row[0]) + ". " + str(row[1]) + " -> " + str(row[2]) + "  [Prob: " + str(row[3]) + "]"))
+#            weechat.prnt("", str(row[0]) + ". " + row[1].encode('utf8') + " -> " + row[2].encode('utf8') + "  [Prob: " + str(row[3]) + "]")
 
         weechat.prnt("", "\nList of ignored channels:")
         for row in cursor.execute("SELECT ignored FROM banchans;"):
@@ -286,7 +246,7 @@ def command_input_callback(data, buffer, argv):
 
         weechat.prnt("", "\nList of ignored nicks:")
         for row in cursor.execute("SELECT ignored FROM ignorenicks;"):
-            weechat.prnt("", row[0])
+            weechat.prnt("", str(row[0]))
 
     elif command[0] == "add":
         if len(argv) == len(command[0]):
@@ -314,7 +274,9 @@ def command_input_callback(data, buffer, argv):
             prob = int(argv[pos[4] + 1:pos[5]])
 
         try:
-            cursor.execute("INSERT INTO triggers(trig, reply, prob) VALUES (?,?,?)", (trigger.decode('utf8'), reply.decode('utf8'), prob))
+            cursor.execute("INSERT INTO triggers(trig, reply, prob) VALUES (?,?,?)", (trigger, reply, prob))
+#            cursor.execute("INSERT INTO triggers(trig, reply, prob) VALUES (?,?,?)", (trigger.encode('utf8'), reply.encode('utf8'), prob))
+#            cursor.execute("INSERT INTO triggers(trig, reply, prob) VALUES (?,?,?)", (trigger.decode('utf8'), reply.decode('utf8'), prob))
         except:
             print_help()
             weechat.prnt("", "DB Insert error.")
@@ -396,7 +358,13 @@ if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, 
     options = {
         'directory': 'data',
     }
-    db_file = weechat.string_eval_path_home("%h/trigge.rs", {}, {}, options)
+
+    if weechat.config_get_plugin('database') == "":
+        weechat.config_set_plugin('database', "%h/trigge.rs")
+        db_file = weechat.string_eval_path_home("%h/trigge.rs", {}, {}, options)
+    else:
+       db_file = weechat.string_eval_path_home(weechat.config_get_plugin('database'), {}, {}, options)
+
     if weechat.config_get_plugin('debug') == "":
         weechat.config_set_plugin('debug', "0")
 
@@ -408,7 +376,42 @@ if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, 
     check_db()
 
     weechat.hook_print("", "", "", 1, "search_trig_cb", "")
-    weechat.hook_command(SCRIPT_NAME, SCRIPT_DESC, "See `/triggerreply' for more information.", "", "",
+    weechat.hook_command(SCRIPT_NAME, SCRIPT_DESC, 'Triggerreply (trigge.rs) script. Automatically replies over specified triggers.\n'
+'Usage: /triggerreply [list | add | remove | ignore | parse] ARGUMENTS\n\n'
+'Commands:\n'
+'    list   - lists the triggers with replies, and ignored channels\n'
+'    add    - three arguments: "trigger", "reply" and probability\n'
+'           - adds a trigger with the specified reply and probability\n'
+'           - probability 1 = 1/1 (100%), 5 = 1/5 (20 %) - optional, default is 1 (100%)\n'
+'           - negative probability means action, see examples\n'
+'           - %n in the reply will be replaced by the nick of the matching line\n'
+'           - %N replaced by "my" nick\n'
+'           - %m replaced by host and mask *!*@\n'
+'           - %c replaced by channel name\n\n'
+'    remove - one argument: "trigger"\n'
+'           - remove a trigger\n'
+'    ignore - one argument: "server.#channel"\n'
+'           - ignores a particular channel from a server\n'
+'    parse  - one argument: "server.#channel"\n'
+'           - removes a channel from ignored list\n'
+'ignorenick - one argument: "server.#channel.Nick"\n'
+'           - ignores a particular nick from a server.#channel\n'
+'watchnick  - one argument: "server.#channel.Nick"\n'
+'           - removes a nick from ignored list\n\n'
+'Examples:\n'
+'    /triggerreply add "^H(i|ello|ey)[ .!]*" "Hey there!|Hi matey|Aloha!" "1"\n'
+'    /triggerreply add "lol" "not funny tho" "5"\n'
+'    /triggerreply remove 2\n'
+'    /triggerreply ignore rizon.#help\n'
+'    /triggerreply parse rizon.#help\n'
+'    /triggerreply ignore rizon.#help.\n'
+'    /triggerreply ignorenick rizon.#help.Bot\n'
+'    /triggerreply watchnick rizon.#help.Bot\n\n'
+'Auto greetings:\n'
+'/triggerreply add "(hi|hello|hey|howdy)[,: ]+%N" "Hi, %n.|Hello, %n." "1"\n'
+'/triggerreply add "%N[,: ]+(hi|hello|hey|howdy)" "Hi, %n.|Helllo, %n." "1"\n\n\n'
+'Kick on adult content. Probability -1 means the strings between | are command executed in order:\n'
+'/triggerreply add "https?://(www\.)?pornhub\.com|https?://(www\.)?xhamster\.com" "/msg chanserv op %c %N|/kick %n No adult content here, bye|/ban *!*@%m|/msg chanserv deop %c %N" "-1"', "", "list||add||remove||ignore||parse||ignorenick||watchnick",
                          "command_input_callback", "")
 
     """ fire every sec """
