@@ -27,6 +27,8 @@
 # Happy chat, enjoy :)
 #
 # History:
+# 2022-07-17, Marcel Robohm <mrobohm@gmx.de>:
+#     version 0.2: adapts to new yowsup version
 # 2015-12-30, Jochen Sprickerhof <weechat@jochen.sprickerhof.de>:
 #     version 0.1: Reworked for Whatsapp
 # 2013-09-30, Nils Görs <freenode.nils_2>:
@@ -90,7 +92,7 @@
 
 SCRIPT_NAME    = "whatsapp"
 SCRIPT_AUTHOR  = "Jochen Sprickerhof <weechat@jochen.sprickerhof.de>"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Whatsapp protocol for WeeChat"
 SCRIPT_COMMAND = SCRIPT_NAME
@@ -109,11 +111,10 @@ except:
 try:
     from yowsup.common import YowConstants
     from yowsup.layers import YowLayerEvent
-    from yowsup.layers.auth import AuthError
     from yowsup.layers.interface import YowInterfaceLayer, ProtocolEntityCallback
     from yowsup.layers.network import YowNetworkLayer
-    from yowsup.layers.protocol_contacts.protocolentities.iq_statuses_get import GetStatusesIqProtocolEntity
-    from yowsup.layers.protocol_contacts.protocolentities.iq_statuses_result import ResultStatusesIqProtocolEntity
+    from yowsup.layers.protocol_profiles.protocolentities.iq_statuses_get import GetStatusesIqProtocolEntity
+    from yowsup.layers.protocol_profiles.protocolentities.iq_statuses_result import ResultStatusesIqProtocolEntity
     from yowsup.layers.protocol_iq import YowIqProtocolLayer
     from yowsup.layers.protocol_iq.protocolentities.iq import IqProtocolEntity
     from yowsup.layers.protocol_iq.protocolentities.iq_ping import PingIqProtocolEntity
@@ -631,15 +632,7 @@ class Server(YowInterfaceLayer):
 
     def recv(self):
         """ Receive something from whatsapp server. """
-        try:
-            self.getStack().getLayer(0).handle_read()
-        except AuthError as e:
-            weechat.prnt('', '%s: Error from server: %s' %(SCRIPT_NAME, e))
-            self.disconnect()
-            if weechat.config_boolean(self.options['autoreconnect']):
-                autoreconnect_delay = 30
-                weechat.command('', '/wait %s /%s connect %s' %
-                                (autoreconnect_delay, SCRIPT_COMMAND, self.name))
+        self.getStack().getLayer(0).handle_read()
 
     def recv_message(self, buddy, message):
         """ Receive a message from buddy. """
