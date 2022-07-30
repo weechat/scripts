@@ -21,7 +21,7 @@
 
 #
 # whatsapp protocol for WeeChat.
-# (this script requires WeeChat 0.3.0 (or newer) and the yowsup library)
+# (this script requires WeeChat 2.9.0 (or newer) and the yowsup library)
 #
 # For help, see /help whatsapp
 # Happy chat, enjoy :)
@@ -105,7 +105,7 @@ try:
     import weechat
 except:
     print("This script must be run under WeeChat.")
-    print("Get WeeChat now at: http://www.weechat.org/")
+    print("Get WeeChat now at: https://weechat.org/")
     import_ok = False
 
 try:
@@ -1543,16 +1543,16 @@ def whatsapp_completion_servers(data, completion_item, buffer, completion):
     """ Completion with whatsapp server names. """
     global whatsapp_servers
     for server in whatsapp_servers:
-        weechat.hook_completion_list_add(completion, server.name,
-                                         0, weechat.WEECHAT_LIST_POS_SORT)
+        weechat.completion_list_add(completion, server.name,
+                                    0, weechat.WEECHAT_LIST_POS_SORT)
     return weechat.WEECHAT_RC_OK
 
 def whatsapp_completion_jid_aliases(data, completion_item, buffer, completion):
     """ Completion with whatsapp alias names. """
     global whatsapp_jid_aliases
     for alias, jid in sorted(whatsapp_jid_aliases.items()):
-        weechat.hook_completion_list_add(completion, alias,
-                                         0, weechat.WEECHAT_LIST_POS_SORT)
+        weechat.completion_list_add(completion, alias,
+                                    0, weechat.WEECHAT_LIST_POS_SORT)
     return weechat.WEECHAT_RC_OK
 
 # ==================================[ fd ]====================================
