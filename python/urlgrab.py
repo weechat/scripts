@@ -62,6 +62,12 @@
 #     The file where the command output (if any) is saved.  Overwritten
 #     each time you launch a new URL.  Default is ~/.weechat/urllaunch.log
 #
+#   use_full_name
+#     Whether or not to use the buffer's full name to store the URL. This can
+#     help if you have such issues as URLs getting saved under buffers that 
+#     have a typing indicator active, or you have the same channel name in
+#     two different networks.
+#
 #   default
 #     The command that will be run if no arguemnts to /url are given.
 #     Default is show
@@ -69,7 +75,7 @@
 # Requirements:
 #
 #  - Designed to run with weechat version 0.3 or better.
-#      http://www.weechat.org/
+#      https://weechat.org/
 #
 # Acknowlegements:
 #
@@ -125,6 +131,8 @@
 #           - Updated script for python3 support (now python2 and 3 are both supported)
 #  - V3.0 Sébastien Helleu <flashcode@flashtux.org>:
 #           - Fix python 3 compatibility (replace "has_key" by "in")
+#  - V3.1 Ron Alleva <ron.alleva@gmail.com>:
+#           - Add 'use_full_name' setting, to allow storing URLs by full name of buffer
 #
 # Copyright (C) 2005 David Rubin <drubin AT smartcube dot co dot za>
 #
@@ -152,7 +160,7 @@ try:
     import_ok = True
 except:
     print("This script must be run under WeeChat.")
-    print("Get WeeChat now at: http://www.weechat.org/")
+    print("Get WeeChat now at: https://weechat.org")
     import_ok = False
 import subprocess
 import time
@@ -177,7 +185,7 @@ urlRe = re.compile(r'(\w+://(?:%s|%s)(?::\d+)?(?:/[^\]>\s]*)?)' % (domain, ipAdd
 
 SCRIPT_NAME    = "urlgrab"
 SCRIPT_AUTHOR  = "David Rubin <drubin [At] smartcube [dot] co [dot] za>"
-SCRIPT_VERSION = "3.0"
+SCRIPT_VERSION = "3.1"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Url functionality Loggin, opening of browser, selectable links"
 CONFIG_FILE_NAME= "urlgrab"
@@ -203,7 +211,9 @@ def urlGrabPrint(message):
         weechat.prnt(bufferd,"[%s] %s" % ( SCRIPT_NAME, message ) )
 
 def hashBufferName(bufferp):
-    if not weechat.buffer_get_string(bufferp, "short_name"):
+    if(urlGrabSettings['use_full_name']):
+        bufferd = weechat.buffer_get_string(bufferp, "full_name")
+    elif not weechat.buffer_get_string(bufferp, "short_name"):
         bufferd = weechat.buffer_get_string(bufferp, "name")
     else:
         bufferd = weechat.buffer_get_string(bufferp, "short_name")
@@ -298,6 +308,13 @@ class UrlGrabSettings(UserDict):
             "remotecmd", "string", remotecmd, "", 0, 0,
             remotecmd, remotecmd, 0, "", "", "", "", "", "")
 
+        self.data['use_full_name']=weechat.config_new_option(
+            self.config_file, section_default,
+            "use_full_name", "boolean",
+            """Use full name of buffer to store URL""", "", 0, 0,
+            "0", "0", 0, "", "", "", "", "", ""
+        )
+
         self.data['url_log']=weechat.config_new_option(
             self.config_file, section_default,
             "url_log", "string", """log location""", "", 0, 0,
@@ -319,6 +336,8 @@ class UrlGrabSettings(UserDict):
         if key == "historysize":
             return weechat.config_integer(self.data[key])
         elif key == 'output_main_buffer':
+            return weechat.config_boolean(self.data[key])
+        elif key == 'use_full_name':
             return weechat.config_boolean(self.data[key])
         #elif key.startswith('color'):
         #    return weechat.config_color(self.data[key])
@@ -664,7 +683,7 @@ def completion_urls_cb(data, completion_item, bufferp, completion):
     bufferd = hashBufferName( bufferp)
     for url in urlGrab.globalUrls :
         if url['buffer'] == bufferd:
-            weechat.hook_completion_list_add(completion, url['url'], 0, weechat.WEECHAT_LIST_POS_SORT)
+            weechat.completion_list_add(completion, url['url'], 0, weechat.WEECHAT_LIST_POS_SORT)
     return weechat.WEECHAT_RC_OK
 
 def ug_unload_script():
