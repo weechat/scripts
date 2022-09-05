@@ -294,11 +294,11 @@ def go_now(buf, args):
         for index in range(len(listbuf)):
             if go_match_beginning(listbuf[index], args):
                 weechat.command(buf,
-                                '/buffer ' + str(listbuf[index]['full_name']))
+                                '/buffer ' + str(listbuf[index]['number']))
                 return
 
     # jump to first buffer in matching buffers by default
-    weechat.command(buf, '/buffer ' + str(listbuf[0]['full_name']))
+    weechat.command(buf, '/buffer ' + str(listbuf[0]['number']))
 
 
 def go_cmd(data, buf, args):
@@ -515,7 +515,7 @@ def go_command_run_input(data, buf, command):
         go_end(buf)
         if len(buffers) > 0:
             weechat.command(
-                buf, '/buffer ' + str(buffers[buffers_pos]['full_name']))
+                buf, '/buffer ' + str(buffers[buffers_pos]['number']))
         return weechat.WEECHAT_RC_OK_EAT
     return weechat.WEECHAT_RC_OK
 
