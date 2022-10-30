@@ -1,6 +1,6 @@
 # Copyright (c) 2014-2016 Ryan Huber <rhuber@gmail.com>
 # Copyright (c) 2015-2018 Tollef Fog Heen <tfheen@err.no>
-# Copyright (c) 2015-2020 Trygve Aaberge <trygveaa@gmail.com>
+# Copyright (c) 2015-2022 Trygve Aaberge <trygveaa@gmail.com>
 # Released under the MIT license.
 
 from __future__ import print_function, unicode_literals
@@ -75,8 +75,8 @@ except ImportError:
     pass
 
 SCRIPT_NAME = "slack"
-SCRIPT_AUTHOR = "Ryan Huber <rhuber@gmail.com>"
-SCRIPT_VERSION = "2.9.0"
+SCRIPT_AUTHOR = "Trygve Aaberge <trygveaa@gmail.com>"
+SCRIPT_VERSION = "2.9.1"
 SCRIPT_LICENSE = "MIT"
 SCRIPT_DESC = "Extends weechat for typing notification/search/etc on slack.com"
 REPO_URL = "https://github.com/wee-slack/wee-slack"
@@ -410,8 +410,7 @@ def get_localvar_type(slack_type):
 
 
 def get_nick_color(nick):
-    info_name_prefix = "irc_" if weechat_version < 0x1050000 else ""
-    return w.info_get(info_name_prefix + "nick_color_name", nick)
+    return w.info_get("nick_color_name", nick)
 
 
 def get_thread_color(thread_id):
@@ -669,19 +668,19 @@ class EventRouter(object):
             self.receive(message_json)
 
     def http_check_ratelimited(self, request_metadata, response):
-        headers_end_index = response.index("\r\n\r\n")
-        headers = response[:headers_end_index].split("\r\n")
-        http_status = headers[0].split(" ")[1]
+        parts = response.split("\r\n\r\nHTTP/")
+        last_header_part, body = parts[-1].split("\r\n\r\n", 1)
+        header_lines = last_header_part.split("\r\n")
+        http_status = header_lines[0].split(" ")[1]
 
         if http_status == "429":
-            for header in headers[1:]:
+            for header in header_lines[1:]:
                 name, value = header.split(":", 1)
                 if name.lower() == "retry-after":
                     retry_after = int(value.strip())
                     request_metadata.retry_time = time.time() + retry_after
                     return "", "ratelimited"
 
-        body = response[headers_end_index + 4 :]
         return body, ""
 
     def retry_request(self, request_metadata, data, return_code, err):
@@ -1237,7 +1236,7 @@ def channel_completion_cb(data, completion_item, current_buffer, completion):
     for team in other_teams:
         for channel in team.channels.values():
             if should_include_channel(channel):
-                w.hook_completion_list_add(
+                completion_list_add(
                     completion, channel.name, 0, w.WEECHAT_LIST_POS_SORT
                 )
 
@@ -1248,12 +1247,12 @@ def channel_completion_cb(data, completion_item, current_buffer, completion):
             reverse=True,
         ):
             if should_include_channel(channel):
-                w.hook_completion_list_add(
+                completion_list_add(
                     completion, channel.name, 0, w.WEECHAT_LIST_POS_BEGINNING
                 )
 
         if should_include_channel(current_channel):
-            w.hook_completion_list_add(
+            completion_list_add(
                 completion, current_channel.name, 0, w.WEECHAT_LIST_POS_BEGINNING
             )
     return w.WEECHAT_RC_OK
@@ -1267,7 +1266,7 @@ def dm_completion_cb(data, completion_item, current_buffer, completion):
     for team in EVENTROUTER.teams.values():
         for channel in team.channels.values():
             if channel.active and channel.type in ["im", "mpim"]:
-                w.hook_completion_list_add(
+                completion_list_add(
                     completion, channel.name, 0, w.WEECHAT_LIST_POS_SORT
                 )
     return w.WEECHAT_RC_OK
@@ -1282,7 +1281,7 @@ def nick_completion_cb(data, completion_item, current_buffer, completion):
     if current_channel is None or current_channel.members is None:
         return w.WEECHAT_RC_OK
 
-    base_command = w.hook_completion_get_string(completion, "base_command")
+    base_command = completion_get_string(completion, "base_command")
     if base_command in ["invite", "msg", "query", "whois"]:
         members = current_channel.team.members
     else:
@@ -1291,12 +1290,8 @@ def nick_completion_cb(data, completion_item, current_buffer, completion):
     for member in members:
         user = current_channel.team.users.get(member)
         if user and not user.deleted:
-            w.hook_completion_list_add(
-                completion, user.name, 1, w.WEECHAT_LIST_POS_SORT
-            )
-            w.hook_completion_list_add(
-                completion, "@" + user.name, 1, w.WEECHAT_LIST_POS_SORT
-            )
+            completion_list_add(completion, user.name, 1, w.WEECHAT_LIST_POS_SORT)
+            completion_list_add(completion, "@" + user.name, 1, w.WEECHAT_LIST_POS_SORT)
     return w.WEECHAT_RC_OK
 
 
@@ -1309,12 +1304,12 @@ def emoji_completion_cb(data, completion_item, current_buffer, completion):
     if current_channel is None:
         return w.WEECHAT_RC_OK
 
-    base_word = w.hook_completion_get_string(completion, "base_word")
+    base_word = completion_get_string(completion, "base_word")
     reaction = re.match(REACTION_PREFIX_REGEX_STRING + ":", base_word)
     prefix = reaction.group(0) if reaction else ":"
 
     for emoji in current_channel.team.emoji_completions:
-        w.hook_completion_list_add(
+        completion_list_add(
             completion, prefix + emoji + ":", 0, w.WEECHAT_LIST_POS_SORT
         )
     return w.WEECHAT_RC_OK
@@ -1335,7 +1330,7 @@ def thread_completion_cb(data, completion_item, current_buffer, completion):
     for thread_id, message_ts in sorted(threads, key=lambda item: item[1]):
         message = current_channel.messages.get(message_ts)
         if message and message.number_of_replies():
-            w.hook_completion_list_add(
+            completion_list_add(
                 completion, "$" + thread_id, 0, w.WEECHAT_LIST_POS_BEGINNING
             )
     return w.WEECHAT_RC_OK
@@ -1355,7 +1350,7 @@ def topic_completion_cb(data, completion_item, current_buffer, completion):
     if topic.split(" ", 1)[0] in channel_names:
         topic = "{} {}".format(current_channel.name, topic)
 
-    w.hook_completion_list_add(completion, topic, 0, w.WEECHAT_LIST_POS_SORT)
+    completion_list_add(completion, topic, 0, w.WEECHAT_LIST_POS_SORT)
     return w.WEECHAT_RC_OK
 
 
@@ -1372,7 +1367,7 @@ def usergroups_completion_cb(data, completion_item, current_buffer, completion):
         subteam.handle for subteam in current_channel.team.subteams.values()
     ]
     for group in subteam_handles + ["@channel", "@everyone", "@here"]:
-        w.hook_completion_list_add(completion, group, 1, w.WEECHAT_LIST_POS_SORT)
+        completion_list_add(completion, group, 1, w.WEECHAT_LIST_POS_SORT)
     return w.WEECHAT_RC_OK
 
 
@@ -3219,8 +3214,11 @@ class SlackThreadChannel(SlackChannelCommon):
             )
             self.buffer_rename_in_progress = False
             self.set_highlights()
-            time_format = w.config_string(
-                w.config_get("weechat.look.buffer_time_format")
+            time_format = w.string_eval_expression(
+                w.config_string(w.config_get("weechat.look.buffer_time_format")),
+                {},
+                {},
+                {},
             )
             parent_time = time.localtime(SlackTS(self.thread_ts).major)
             topic = "{} {} | {}".format(
@@ -3409,8 +3407,8 @@ class SlackMessage(object):
         if "edited" in self.message_json:
             text += " " + colorize_string(config.color_edited_suffix, "(edited)")
 
-        text += unfurl_refs(unwrap_attachments(self.message_json, text))
-        text += unfurl_refs(unwrap_files(self.message_json, text))
+        text += unfurl_refs(unwrap_attachments(self, text))
+        text += unfurl_refs(unwrap_files(self, self.message_json, text))
         text = unhtmlescape(text.lstrip().replace("\t", "    "))
 
         text += create_reactions_string(
@@ -3473,7 +3471,7 @@ class SlackMessage(object):
                 return name
             else:
                 return "{} :]".format(name)
-        return self.user_identifier or ""
+        return self.user_identifier or self.message_json.get("bot_id") or ""
 
     @property
     def sender(self):
@@ -3805,13 +3803,15 @@ def handle_conversationsinfo(channel_json, eventrouter, team, channel, metadata)
         if unread_count and channel.channel_buffer is None:
             channel.create_buffer()
         channel.set_unread_count_display(unread_count)
+    if channel_info.get("is_open") and channel.channel_buffer is None:
+        channel.create_buffer()
     if "last_read" in channel_info:
         channel.last_read = SlackTS(channel_info["last_read"])
     if "members" in channel_info:
         channel.set_members(channel_info["members"])
 
     # MPIMs don't have unread_count_display so we have to request the history to check if there are unread messages
-    if channel.type == "mpim" and not channel.channel_buffer:
+    if channel.type == "mpim" and not channel.got_history:
         s = SlackRequest(
             team,
             "conversations.history",
@@ -4651,10 +4651,10 @@ def unhtmlescape(text):
     return text.replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&")
 
 
-def unwrap_attachments(message_json, text_before):
+def unwrap_attachments(message, text_before):
     text_before_unescaped = unhtmlescape(text_before)
     attachment_texts = []
-    a = message_json.get("attachments")
+    a = message.message_json.get("attachments")
     if a:
         if text_before:
             attachment_texts.append("")
@@ -4665,7 +4665,9 @@ def unwrap_attachments(message_json, text_before):
             # $author: (if rest of line is non-empty) $title ($title_link) OR $from_url
             # $author: (if no $author on previous line) $text
             # $fields
-            if "original_url" in attachment and not config.link_previews:
+            if not config.link_previews and (
+                "original_url" in attachment or attachment.get("is_app_unfurl")
+            ):
                 continue
             t = []
             prepend_title_text = ""
@@ -4736,7 +4738,7 @@ def unwrap_attachments(message_json, text_before):
                 else:
                     t.append(field["value"])
 
-            files = unwrap_files(attachment, None)
+            files = unwrap_files(message, attachment, None)
             if files:
                 t.append(files)
 
@@ -4779,7 +4781,7 @@ def unwrap_attachments(message_json, text_before):
     return "\n".join(attachment_texts)
 
 
-def unwrap_files(message_json, text_before):
+def unwrap_files(message, message_json, text_before):
     files_texts = []
     for f in message_json.get("files", []):
         if f.get("mode", "") == "tombstone":
@@ -4789,6 +4791,11 @@ def unwrap_files(message_json, text_before):
                 config.color_deleted,
                 "(This file is hidden because the workspace has passed its storage limit.)",
             )
+        elif f.get("mimetype") == "application/vnd.slack-docs":
+            url = "{}?origin_team={}&origin_channel={}".format(
+                f["permalink"], message.team.identifier, message.channel.identifier
+            )
+            text = "{} ({})".format(url, f["title"])
         elif (
             f.get("url_private", None) is not None and f.get("title", None) is not None
         ):
@@ -7083,10 +7090,22 @@ if __name__ == "__main__":
         weechat_version = int(w.info_get("version_number", "") or 0)
         weechat_upgrading = w.info_get("weechat_upgrading", "")
 
-        if weechat_version < 0x1030000:
+        completion_get_string = (
+            w.hook_completion_get_string
+            if weechat_version < 0x2090000
+            else w.completion_get_string
+        )
+
+        completion_list_add = (
+            w.hook_completion_list_add
+            if weechat_version < 0x2090000
+            else w.completion_list_add
+        )
+
+        if weechat_version < 0x2020000:
             w.prnt(
                 "",
-                "\nERROR: Weechat version 1.3+ is required to use {}.\n\n".format(
+                "\nERROR: Weechat version 2.2+ is required to use {}.\n\n".format(
                     SCRIPT_NAME
                 ),
             )
