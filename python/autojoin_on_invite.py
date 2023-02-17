@@ -20,6 +20,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2022-10-19, Guillermo Castro <github@codegeek.dev>
+#   version 0.9: fix regex parsing of INVITE to allow non-ircv3 matching
 # 2022-03-2, h-0-s-h <noreply@ic3.gov>
 #   version 0.8: fix reged parsing of INVITE message to account for ircv3/CAPS style/etc
 #                (@time=2022-03-02T19:00:30.041Z :XXXXX!~XXXXX@xxxxx INVITE h-0-s-h :#xxxxx)
@@ -47,7 +49,7 @@ import re
 
 SCRIPT_NAME    = "autojoin_on_invite"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.8"
+SCRIPT_VERSION = "0.9"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Auto joins channels when invited"
 
@@ -90,7 +92,7 @@ def invite_cb(data, signal, signal_data):
     server = signal.split(',')[0] # EFNet,irc_in_INVITE
     channel = signal_data.split()[-1].lstrip(':') # :nick!ident@host.name INVITE yournick :#channel
     from_nick = ''
-    SearchStr = ':.*\:(?P<nick>.+)!' #@time=2022-03-02T19:00:30.041Z :XX-XXXX!~XX-XXXX@xx.xxxx INVITE yournick :#xxxx-xxx
+    SearchStr = '(?:\@.*)?:(?P<nick>.+)!' #@time=2022-03-02T19:00:30.041Z :XX-XXXX!~XX-XXXX@xx.xxxx INVITE yournick :#xxxx-xxx (works also when no message-tag is present)
     from_nick = re.search(SearchStr, signal_data).groups()[0]
 
     if len(w.config_get_plugin('whitelist_nicks')) > 0 and len(w.config_get_plugin('whitelist_channels')) > 0: # if there's two whitelists, accept both

@@ -30,6 +30,9 @@
 
 # History:
 #
+# 2022-11-09, Alvar Penning <post@0x21.biz>
+#   version 0.1.1: sane defaults for unveil
+#
 # 2022-09-18, Alvar Penning <post@0x21.biz>
 #   version 0.1.0: initial release
 
@@ -42,7 +45,7 @@ import weechat
 
 SCRIPT_NAME    = "openbsd_privdrop"
 SCRIPT_AUTHOR  = "Alvar Penning <post@0x21.biz>"
-SCRIPT_VERSION = "0.1.0"
+SCRIPT_VERSION = "0.1.1"
 SCRIPT_LICENSE = "ISC"
 SCRIPT_DESC    = "Drop WeeChat's privileges through OpenBSD's pledge(2) and unveil(2)."
 
@@ -56,7 +59,18 @@ SETTINGS = {
             "List of promises to executed processes; requires exec in pledge_promises.",
             ),
         "unveil": (
-            "~:rwc;/home:r;/usr/local/lib:r",  # WeeChat `stat`s /home while building the path to /home/$USER/...
+            ";".join([
+                # Full read/write access (no exec!) to the user's home directory.
+                # This may be tightened, especially if WeeChat is not run as a separate user.
+                "~:rwc",
+                # WeeChat `stat`s /home while building the path to /home/$USER/...
+                # Might be changed if the home directory lies somehwere else.
+                "/home:r",
+                # Other scripts might load some library or a third-party Python modules later.
+                "/usr/local/lib:r",
+                # Necessary for HTTPS validation, e.g., when downloading WeeChat scripts.
+                "/etc/ssl/cert.pem:r",
+                ]),
             "List of path and permissions for unveil(2). Format: /a/path:rwc;/another/path:rw",
             ),
 }

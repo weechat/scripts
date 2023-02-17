@@ -21,6 +21,9 @@
 #
 #
 # History:
+# 2022-11-07: mva
+#   version 30: add ":" and "," to VALID_NICK regexp,
+#               to don't reset colorization in input_line
 # 2022-07-11: ncfavier
 #   version 29: check nick for exclusion *after* stripping
 #               decrease minimum min_nick_length to 1
@@ -93,13 +96,13 @@ w = weechat
 
 SCRIPT_NAME    = "colorize_nicks"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "29"
+SCRIPT_VERSION = "30"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Use the weechat nick colors in the chat area"
 
 # Based on the recommendations in RFC 7613. A valid nick is composed
 # of anything but " ,*?.!@".
-VALID_NICK = r'([@~&!%+-])?([^\s,\*?\.!@]+)'
+VALID_NICK = r'([@~&!%+-])?([^\s,\*?\.!@:,]+)'
 valid_nick_re = re.compile(VALID_NICK)
 ignore_channels = []
 ignore_nicks = []

@@ -27,19 +27,19 @@
 # This script compares channels with a different user via WHOIS and returns which
 # channels you share. The script comes with a command that can be used to force
 # comparisons (/chancomp <nick>). Depending on your settings, the script will also
-# function during normal /WHOIS requests and alternatively offer extra messages
+# function during normal /whois requests and alternatively offer extra messages
 # when the verbose setting is turned on.
 #
 # Script options:
 #   compare_only_on_command (default: off, options: on, off)
 #     Require usage of /chancomp to do comparisons, and do not perform comparisons on
-#     normal /WHOIS requests.
+#     normal /whois requests.
 #
 #   ignored_servers (default: "", expects a comma separated string of servers to ignore.)
 #     The script does not do comparisons on ignored servers. This setting expects
 #     a comma separated list of servers (i.e.: "freenode,notfreenode") - ignored
 #     servers will stop /chancomp from functioning and will not display comparisons
-#     in your /WHOIS data.
+#     in your /whois data.
 #
 #   output_priority (default: smart, options: smart, shared, not_shared)
 #     In order to not display too much information to consume, the output_priority
@@ -68,6 +68,8 @@
 #    Script creation
 #  version 1.1 - 2015-12-16
 #    Honour irc.look.msgbuffer_fallback
+#  version 1.2 - 2023-02-05
+#    Replace command /WHOIS by /whois (compatibility with WeeChat 3.9)
 #
 # TODOs:
 #  - Possibly support a verbose output of "sharing all their channels"
@@ -90,7 +92,7 @@ import re
 
 SCRIPT_NAME = "chancomp"
 SCRIPT_AUTHOR = "Zarthus <zarthus@lovebytes.me>"
-SCRIPT_VERSION = "1.1"
+SCRIPT_VERSION = "1.2"
 SCRIPT_LICENSE = "MIT"
 SCRIPT_DESC = "List shared channels with user on command or WHOIS"
 SCRIPT_COMMAND = "chancomp"
@@ -105,7 +107,7 @@ def cmd_chancomp(data, buffer, target):
 
     global _force_comparison
     _force_comparison = True
-    w.command("", "/WHOIS {}".format(target))
+    w.command("", "/whois {}".format(target))
 
     return w.WEECHAT_RC_OK
 

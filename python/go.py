@@ -21,6 +21,8 @@
 #
 # History:
 #
+# 2023-01-08, Sébastien Helleu <flashcode@flashtux.org>:
+#     version 2.8: send buffer pointer with signal "input_text_changed"
 # 2021-05-25, Tomáš Janoušek <tomi@nomi.cz>:
 #     version 2.7: add new option to prefix short names with server names
 # 2019-07-11, Simmo Saan <simmo.saan@gmail.com>
@@ -96,7 +98,7 @@ from __future__ import print_function
 
 SCRIPT_NAME = 'go'
 SCRIPT_AUTHOR = 'Sébastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '2.7'
+SCRIPT_VERSION = '2.8'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC = 'Quick jump to buffers'
 
@@ -500,7 +502,7 @@ def go_command_run_input(data, buf, command):
         if buffers_pos >= len(buffers):
             buffers_pos = 0
         weechat.hook_signal_send('input_text_changed',
-                                 weechat.WEECHAT_HOOK_SIGNAL_STRING, '')
+                                 weechat.WEECHAT_HOOK_SIGNAL_POINTER, buf)
         return weechat.WEECHAT_RC_OK_EAT
     elif command == '/input complete_previous':
         # choose previous buffer in list
@@ -508,7 +510,7 @@ def go_command_run_input(data, buf, command):
         if buffers_pos < 0:
             buffers_pos = len(buffers) - 1
         weechat.hook_signal_send('input_text_changed',
-                                 weechat.WEECHAT_HOOK_SIGNAL_STRING, '')
+                                 weechat.WEECHAT_HOOK_SIGNAL_POINTER, buf)
         return weechat.WEECHAT_RC_OK_EAT
     elif command == '/input return':
         # switch to selected buffer (if any)

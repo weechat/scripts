@@ -24,9 +24,11 @@
 #
 # History:
 #
+# 2023-01-08, Sébastien Helleu <flashcode@flashtux.org>
+#     version 0.7: send buffer pointer with signal "input_text_changed"
 # 2019-10-31, Simmo Saan <simmo.saan@gmail.com>
 #     version 0.6: fix hook_command_run hooks not being unhooked
-# 2019-07-11, Sébastien Helleu <flashcode@flashtux.org>:
+# 2019-07-11, Sébastien Helleu <flashcode@flashtux.org>
 #     version 0.5: make script compatible with Python 3
 # 2019-07-11, Simmo Saan <simmo.saan@gmail.com>
 #     version 0.4: fix detection of "/input search_text_here"
@@ -43,7 +45,7 @@ weechat = w
 
 SCRIPT_NAME    = "histsearch"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.6"
+SCRIPT_VERSION = "0.7"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Quick search in command history (think ctrl-r in bash)"
 SCRIPT_COMMAND = 'histsearch'
@@ -220,7 +222,7 @@ def command_run_input(data, buffer, command):
         if commands_pos >= len(commands):
             commands_pos = 0
         w.hook_signal_send("input_text_changed",
-                                 w.WEECHAT_HOOK_SIGNAL_STRING, "")
+                           w.WEECHAT_HOOK_SIGNAL_POINTER, buffer)
         return w.WEECHAT_RC_OK_EAT
     elif command == "/input complete_previous":
         # choose previous buffer in list
@@ -228,7 +230,7 @@ def command_run_input(data, buffer, command):
         if commands_pos < 0:
             commands_pos = len(commands) - 1
         w.hook_signal_send("input_text_changed",
-                                 w.WEECHAT_HOOK_SIGNAL_STRING, "")
+                           w.WEECHAT_HOOK_SIGNAL_POINTER, buffer)
         return w.WEECHAT_RC_OK_EAT
     elif command == "/input return":
         # As in enter was pressed.

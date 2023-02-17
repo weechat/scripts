@@ -69,6 +69,9 @@
 #
 #   History:
 #
+#   2022-11-11, anonymous2ch
+#   version 0.8.6: ignore utf-8 decoding errors
+#
 #   2021-05-02, Sébastien Helleu <flashcode@flashtux.org>
 #   version 0.8.5: add compatibility with WeeChat >= 3.2 (XDG directories)
 #
@@ -239,7 +242,7 @@ except ImportError:
 
 SCRIPT_NAME    = "grep"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.8.5"
+SCRIPT_VERSION = "0.8.6"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Search in buffers and logs"
 SCRIPT_COMMAND = "grep"
@@ -738,7 +741,7 @@ def grep_file(file, head, tail, after_context, before_context, count, regexp, hi
         check = lambda s: check_string(s, regexp, hilight, exact)
 
     try:
-        file_object = open(file, 'r')
+        file_object = open(file, 'r', errors='ignore')
     except IOError:
         # file doesn't exist
         return lines
