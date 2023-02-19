@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2010-2018 by Nils Görs <weechatter@arcor.de>
+# Copyright (c) 2010-2023 by Nils Görs <weechatter@arcor.de>
 #
 # display the status and visited buffers of your buddies in a buddylist bar
 #
@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2.2   : fix: make /whois lower-case
 # 2.1   : add compatibility with WeeChat >= 3.2 (XDG directories)
 # 2.0   : make call to bar_new compatible with WeeChat >= 2.9
 # 1.9   : added: cursor support
@@ -84,7 +85,7 @@
 use strict;
 
 my $prgname		= "buddylist";
-my $version		= "2.1";
+my $version		= "2.2";
 my $description		= "display status from your buddies a bar-item.";
 
 # -------------------------------[ config ]-------------------------------------
@@ -1597,7 +1598,7 @@ sub buddylist_hsignal_cursor{
     if ( $hash{"_key"} eq "q" ){
         weechat::command("", "/query -server " . $hash{"server"} . " " . $hash{"nick"});
     }elsif ( $hash{"_key"} eq "w" ){
-        weechat::command(weechat::buffer_search("==","irc.server.".$hash{"server"}), "/WHOIS " . $hash{"nick"});
+        weechat::command(weechat::buffer_search("==","irc.server.".$hash{"server"}), "/whois " . $hash{"nick"});
     }
     # STOP cursor mode
     weechat::command("", "/cursor stop");
