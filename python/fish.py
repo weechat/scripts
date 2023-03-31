@@ -61,7 +61,7 @@ from os import urandom
 
 SCRIPT_NAME = "fish"
 SCRIPT_AUTHOR = "David Flatz <david@upcs.at>"
-SCRIPT_VERSION = "0.13"
+SCRIPT_VERSION = "0.14"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "FiSH for weechat"
 CONFIG_FILE_NAME = SCRIPT_NAME
@@ -76,10 +76,13 @@ except ImportError:
     import_ok = False
 
 try:
-    import Crypto.Cipher.Blowfish
+    import Crypto.Cipher.Blowfish as CryptoBlowfish
 except ImportError:
-    print("Python Cryptography Toolkit must be installed to use fish")
-    import_ok = False
+    try:
+        import Cryptodome.Cipher.Blowfish as CryptoBlowfish
+    except ImportError:
+        print("Pycryptodome must be installed to use fish")
+        import_ok = False
 
 
 #
@@ -128,8 +131,8 @@ def fish_config_keys_write_cb(data, config_file, section_name):
     for target, key in sorted(fish_keys.items()):
         if fish_secure_cipher is not None:
             weechat.config_write_line(
-                    config_file, blowcrypt_pack(target, fish_secure_cipher),
-                    blowcrypt_pack(key, fish_secure_cipher))
+                    config_file, blowcrypt_pack(target.encode(), fish_secure_cipher),
+                    blowcrypt_pack(key.encode(), fish_secure_cipher))
         else:
             weechat.config_write_line(config_file, target, key)
 
@@ -233,8 +236,8 @@ class Blowfish:
         if key:
             if len(key) > 72:
                 key = key[:72]
-            self.blowfish = Crypto.Cipher.Blowfish.new(
-                    key.encode('utf-8'), Crypto.Cipher.Blowfish.MODE_ECB)
+            self.blowfish = CryptoBlowfish.new(
+                    key.encode('utf-8'), CryptoBlowfish.MODE_ECB)
 
     def decrypt(self, data):
         return self.blowfish.decrypt(data)
@@ -308,8 +311,8 @@ def blowcrypt_unpack(msg, cipher, key):
         iv = raw[:8]
         raw = raw[8:]
 
-        cbcCipher = Crypto.Cipher.Blowfish.new(
-                key.encode('utf-8'), Crypto.Cipher.Blowfish.MODE_CBC, iv)
+        cbcCipher = CryptoBlowfish.new(
+                key.encode('utf-8'), CryptoBlowfish.MODE_CBC, iv)
 
         plain = cbcCipher.decrypt(padto(raw, 8))
 
