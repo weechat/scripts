@@ -17,6 +17,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2023-04-22: nils_2, (libera.#weechat)
+#       0.5 : make script compatible with WeeChat 4.0.0
+#
 # 2013-01-25: nils_2, (freenode.#weechat)
 #       0.4 : make script compatible with Python 3.x
 #
@@ -42,7 +45,7 @@ except Exception:
 
 SCRIPT_NAME     = "server_autoswitch"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.4"
+SCRIPT_VERSION  = "0.5"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "cycle to currently used server if you are using merged server buffer"
 
@@ -91,7 +94,7 @@ def server_switch(signal_data,servername_from_current_buffer,name):
         active = weechat.infolist_integer(infolist,"active")
         SERVER[servername] = server
         if (active == 1) and (servername_current_buffer != servername):                 # buffer active but not correct server buffer?
-            weechat.command(bufpointer,"/input switch_active_buffer")                   # switch server buffer
+            weechat.command(bufpointer,cmd_buffer_switch)                               # switch server buffer
     weechat.infolist_free(infolist)                                                     # do not forget to free infolist!
 
 # switch though all server and stop at server from current buffer
@@ -101,10 +104,10 @@ def server_switch(signal_data,servername_from_current_buffer,name):
             bufpointer = weechat.buffer_search("irc","%s" % full_name)                  # search pointer from server buffer
             if bufpointer == "":                                                        # core buffer
                 if weechat.buffer_get_integer(weechat.buffer_search_main(),'active') == 1:
-                    weechat.command(weechat.buffer_search_main(),"/input switch_active_buffer")
+                    weechat.command(weechat.buffer_search_main(), cmd_buffer_switch)
             else:                                                                       # server buffer!
                 if (servername != servername_current_buffer) and (weechat.buffer_get_integer(bufpointer,'active') == 1):
-                    weechat.command(bufpointer,"/input switch_active_buffer")
+                    weechat.command(bufpointer, cmd_buffer_switch)
                 elif (servername == servername_current_buffer) and (weechat.buffer_get_integer(bufpointer,'active') == 1):
                     i = len(SERVER)
                     break
@@ -116,5 +119,8 @@ if __name__ == "__main__":
         if int(version) >= 0x00030600:
             weechat.hook_signal("buffer_switch","buffer_switch_cb","")
             weechat.hook_signal("window_switch","window_switch_cb","")
+            cmd_buffer_switch = "/input switch_active_buffer"
+            if int(version) >= 0x00040000:
+                cmd_buffer_switch = "/buffer switch"
         else:
             weechat.prnt("","%s%s %s" % (weechat.prefix("error"),SCRIPT_NAME,": needs version 0.3.6 or higher"))
