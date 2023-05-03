@@ -21,6 +21,7 @@
 
 # Versions:
 #
+# 0.6 flashcode - add compatibility with WeeChat >= 3.2 (XDG directories)
 # 0.5 flashcode - fix URL with infos, fix download of infos, fix PEP8 errors
 #                 and refactor code
 # 0.4 drubin    - changed default weechat hostname
@@ -43,7 +44,7 @@
 
 SCRIPT_NAME = "update_notifier"
 SCRIPT_AUTHOR = "drubin <drubin at smartcube.co.za>"
-SCRIPT_VERSION = "0.5"
+SCRIPT_VERSION = "0.6"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Notifiers users of updates to weechat."
 
@@ -83,9 +84,13 @@ TIMEOUT_DOWNLOAD = 60 * 1000
 
 
 def un_cache_dir():
-    filename = os.path.join(weechat.info_get("weechat_dir", ""), SCRIPT_NAME)
+    options = {
+        'directory': 'cache',
+    }
+    filename = weechat.string_eval_path_home('%%h/%s' % SCRIPT_NAME,
+                                             {}, {}, options)
     if not os.path.isdir(filename):
-        os.makedirs(filename, mode=0700)
+        os.makedirs(filename, mode=0o700)
     return filename
 
 
@@ -166,7 +171,7 @@ def un_download_cb(filename, command, rc, stdout, stderr):
         today = year, month, day, 0, 0, 0, 0, 0, 0
         today = mktime(today)
         # calculate days till next_stable_date
-        diff_day = (next_stable_date - today)/60/60/24
+        diff_day = (next_stable_date - today) // 60 // 60 // 24
         diff_day = "%1i" % (diff_day)
 
         # diff_day = 0  # test to pop up new stable text
@@ -256,7 +261,7 @@ def un_cmd(data, buffer, args):
 if __name__ == '__main__' and import_ok and \
        weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION,
                         SCRIPT_LICENSE, SCRIPT_DESC, "", ""):
-    for option, default_value in settings.iteritems():
+    for option, default_value in settings.items():
         if not weechat.config_is_set_plugin(option):
             weechat.config_set_plugin(option, default_value)
 

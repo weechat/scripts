@@ -40,9 +40,9 @@ del: Deletes the substitution matching <name>.
 EOD
 
 def weechat_init
-  Weechat.register('substitution', 'sam113101', '0.0.1', 'GPL3',
+  Weechat.register('substitution', 'sam113101', '0.0.2', 'GPL3',
                    'Substitute strings in your messages before they are sent.', '', '')
-  @config_file = Weechat.info_get('weechat_dir', '') + Weechat.info_get('dir_separator', '') + 'substitutions.bin'
+  @config_file = Weechat.string_eval_path_home('%h/substitutions.bin', {}, {}, {'directory' => 'data'})
   load_config
   @default_options = {
     'general_rule' => ''

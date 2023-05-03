@@ -18,6 +18,8 @@
 # This script generates a file containing a formatted list of highlights to be
 # used by an external program like conky.
 #
+# 2021-05-04, Sébastien Helleu <flashcode@flashtux.org>
+#        0.3: add compatibility with WeeChat >= 3.2 (XDG directories)
 # 2014-05-10, Sébastien Helleu <flashcode@flashtux.org>
 #        0.2: change hook_print callback argument type of displayed/highlight
 #             (WeeChat >= 1.0)
@@ -36,7 +38,7 @@ from collections import Counter
 
 name = "hl2file"
 author = "nesthib <nesthib@gmail.com>"
-version = "0.2"
+version = "0.3"
 license = "GPL"
 description = "Generates a file with highlights for external programs like conky"
 shutdown_function = "shutdown"
@@ -70,7 +72,10 @@ def bufname(buffer):
 def write(my_file, content):
     if my_file == "":
         return
-    my_file = os.path.expanduser(my_file.replace("%h", w.info_get("weechat_dir", "")))
+    options = {
+        'directory': 'data',
+    }
+    my_file = w.string_eval_path_home(my_file, {}, {}, options)
     try:
         f = open(my_file, 'w')
     except IOError:
@@ -134,8 +139,11 @@ def buffer_switch_cb(data, signal, signal_data):
     return w.WEECHAT_RC_OK
 
 def shutdown():
+    options = {
+        'directory': 'data',
+    }
     for my_file in ['output_file', 'output_active_buffer']:
-        filename = w.config_get_plugin(my_file).replace("%h", w.info_get("weechat_dir", ""))
+        filename = w.string_eval_path_home(my_file, {}, {}, options)
         if os.path.exists(filename):
             os.remove(filename)
     return w.WEECHAT_RC_OK

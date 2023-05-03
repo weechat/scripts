@@ -20,29 +20,36 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # History:
-# version 1.6.1:nils_2@freenode.#weechat
+#
+# version 1.6.3: Sébastien Helleu <flashcode@flashtux.org>
+# 2021-11-06: add: compatibility with WeeChat >= 3.4 (new parameters in function hdata_search)
+#
+# version 1.6.2: Sébastien Helleu <flashcode@flashtux.org>
+# 2021-05-06: add: compatibility with WeeChat >= 3.2 (XDG directories)
+#
+# version 1.6.1: nils_2@freenode.#weechat
 # 2018-01-11: fix: wrong variable name
 #
-# version 1.6:nils_2@freenode.#weechat
+# version 1.6: nils_2@freenode.#weechat
 # 2018-01-09: add: use hook_process_hashtable() for /WHOIS
 #           : imp: use hook_process_hashtable() instead hook_process() for security reasons
 #
-# version 1.5:nils_2@freenode.#weechat
+# version 1.5: nils_2@freenode.#weechat
 # 2015-06-15: add: new option del_date
 #
-# version 1.4:nils_2@freenode.#weechat
+# version 1.4: nils_2@freenode.#weechat
 # 2014-05-14: fix: perl error under some circumstances (thanks Piotrek)
 #
-# version 1.3:nils_2@freenode.#weechat
+# version 1.3: nils_2@freenode.#weechat
 # 2014-04-28: fix: output when loading script twice
 #
-# version 1.2:nils_2@freenode.#weechat
+# version 1.2: nils_2@freenode.#weechat
 # 2014-04-13: add: support of customise irc_join messages (weechat >= 0.4.4)
 #
-# version 1.1:nils_2@freenode.#weechat
+# version 1.1: nils_2@freenode.#weechat
 # 2013-10-31: add: flood-protection on JOINs
 #
-# version 1.0:nils_2@freenode.#weechat
+# version 1.0: nils_2@freenode.#weechat
 # 2013-10-28: add: option 'additional_join_info' (idea by: arch_bcn)
 #             add: option 'timeout' time to wait for result of hook_process()
 #             add: localvar 'drop_additional_join_info'
@@ -108,7 +115,7 @@ use File::Spec;
 use DBI;
 
 my $SCRIPT_NAME         = "stalker";
-my $SCRIPT_VERSION      = "1.6.1";
+my $SCRIPT_VERSION      = "1.6.3";
 my $SCRIPT_AUTHOR       = "Nils Görs <weechatter\@arcor.de>";
 my $SCRIPT_LICENCE      = "GPL3";
 my $SCRIPT_DESC         = "Records and correlates nick!user\@host information";
@@ -140,7 +147,7 @@ my %options = ('db_name'                => '%h/nicks.db',
                'flood_max_nicks'        => '20',
 #               '' => '',
 );
-my %desc_options = ('db_name'           => 'file containing the SQLite database where information is recorded. This database is created on loading of ' . $SCRIPT_NAME . ' if it does not exist. ("%h" will be replaced by WeeChat home, "~/.weechat" by default) (default: %h/nicks.db)',
+my %desc_options = ('db_name'           => 'file containing the SQLite database where information is recorded. This database is created on loading of ' . $SCRIPT_NAME . ' if it does not exist. ("%h" will be replaced by WeeChat data directory) (default: %h/nicks.db)',
                     'debug'             => 'Prints debug output to core buffer so you know exactly what is going on. This is far too verbose to be enabled when not actively debugging something. (default: off)',
                     'max_recursion'     => 'For each correlation between nick <-> host that happens, one point of recursion happens. A corrupt database, general evilness, or misfortune can cause the recursion to skyrocket. This is a ceiling number that says if after this many correlation attempts we have not found all nickname and hostname correlations, stop the process and return the list to this point. Use this option with care on slower machines like raspberry pi.',
                     'recursive_search'  => 'When enabled, recursive search causes stalker to function better than a simple hostname to nickname map. Disabling the recursive search in effect turns stalker into a more standard hostname -> nickname map.',
@@ -861,13 +868,8 @@ sub _color_str
 # -------------------------------[ subroutines ]-------------------------------------
 sub weechat_dir
 {
-    my $dir = $options{'db_name'};
-    if ( $dir =~ /%h/ )
-    {
-        my $weechat_dir = weechat::info_get( 'weechat_dir', '');
-        $dir =~ s/%h/$weechat_dir/;
-    }
-    return $dir;
+    my $eval_options = { "directory" => "data" };
+    return weechat::string_eval_path_home($options{'db_name'}, {}, {}, $eval_options);
 }
 # -------------------------------[ main ]-------------------------------------
 sub stalker_command_cb
@@ -986,6 +988,9 @@ sub command_must_be_executed_on_irc_buffer
 # hdata: hdata pointer
 # pointer: pointer to a WeeChat/plugin object
 # search: expression to evaluate, default pointer in expression is the name of hdata (and this pointer changes for each element in list); for help on expression, see command /eval in WeeChat User’s guide
+# pointers: pointers for evaluated expression
+# extra_vars: extra variables for evaluated expression
+# options: options for evaluated expression
 # move: number of jump(s) to execute after unsuccessful search (negative or positive integer, different from 0)
 
 sub channel_scan_41
@@ -1001,10 +1006,38 @@ sub channel_scan_41
     my $hdata_channel = weechat::hdata_get("irc_channel");
     my $hdata_nick = weechat::hdata_get("irc_nick");
 
-    my $ptr_server = weechat::hdata_search($hdata_server, weechat::hdata_get_list($hdata_server, 'irc_servers'), '${irc_server.name} == ' . $server_name, 1);
+    my $ptr_server;
+    if ($weechat_version >= 0x03040000)
+    {
+        $ptr_server = weechat::hdata_search($hdata_server,
+                                            weechat::hdata_get_list($hdata_server, 'irc_servers'),
+                                            '${irc_server.name} == ${server_name}',
+                                            {},
+                                            {'server_name' => $server_name},
+                                            {},
+                                            1);
+    }
+    else
+    {
+        $ptr_server = weechat::hdata_search($hdata_server, weechat::hdata_get_list($hdata_server, 'irc_servers'), '${irc_server.name} == ' . $server_name, 1);
+    }
     if ($ptr_server)
     {
-        my $ptr_channel = weechat::hdata_search($hdata_channel, weechat::hdata_pointer($hdata_server, $ptr_server, 'channels'), '${irc_channel.name} == ' . $channel_name, 1);
+        my $ptr_channel;
+        if ($weechat_version >= 0x03040000)
+        {
+            $ptr_channel = weechat::hdata_search($hdata_channel,
+                                                 weechat::hdata_pointer($hdata_server, $ptr_server, 'channels'),
+                                                 '${irc_channel.name} == ${channel_name}',
+                                                 {},
+                                                 {'channel_name' => $channel_name},
+                                                 {},
+                                                 1);
+        }
+        else
+        {
+            $ptr_channel = weechat::hdata_search($hdata_channel, weechat::hdata_pointer($hdata_server, $ptr_server, 'channels'), '${irc_channel.name} == ' . $channel_name, 1);
+        }
 
         if ($ptr_channel)
         {
@@ -1023,14 +1056,8 @@ sub channel_scan_41
         }
 
     }
-#    weechat::print("",$ptr_buffer);
-#    weechat::print("",$server_name);
-
-#    if ($ptr_servers)
-#    {
-#        my $channel = weechat::hdata_search(hdata['channel'], weechat.hdata_pointer(hdata['server'], server, 'channels'), '${irc_channel.name} == #test', 1)
-#    }
 }
+
 sub channel_scan
 {
     my $ptr_buffer = $_[0];

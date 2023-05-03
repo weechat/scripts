@@ -25,6 +25,9 @@
 #             - Allow configuration of message and poll time
 #             - Tolerate gnome-shell crashes
 #
+# 2021-04-05: Sébastien Helleu <flashcode@flashtux.org>
+#     0.2.1 : - Add missing call to infolist_free
+#
 # Contributions welcome at:
 # https://github.com/grdryn/weechat-gnome-screensaver-away
 
@@ -39,7 +42,7 @@ except ImportError:
 
 SCRIPT_NAME    = 'gnome-screensaver-away'
 SCRIPT_AUTHOR  = 'Gerard Ryan <gerard@ryan.lt>'
-SCRIPT_VERSION = '0.2.0'
+SCRIPT_VERSION = '0.2.1'
 SCRIPT_LICENSE = 'GPLv3+'
 SCRIPT_DESC    = 'Set away status based on GNOME ScreenSaver status'
 
@@ -55,7 +58,7 @@ def get_poll_interval_safely():
     try:
         poll_interval = int(weechat.config_get_plugin('poll_interval'))
     except ValueError:
-        weechat.println('poll_interval is not an int, falling back to default')
+        weechat.prnt('', 'poll_interval is not an int, falling back to default')
 
     return poll_interval
 
@@ -71,6 +74,8 @@ def check_away_status():
         is_away_by_me = current_away_msg == auto_away_msg
         is_away       = bool(weechat.infolist_integer(irc_servers, "is_away"))
         away          = (is_away, is_away_by_me)
+
+    weechat.infolist_free(irc_servers)
 
     return away
 

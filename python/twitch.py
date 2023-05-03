@@ -30,14 +30,20 @@
 # plugins.var.python.twitch.ssl_verify (default: 1)
 # plugins.var.python.twitch.notice_notify_block (default: 1)
 # plugins.var.python.twitch.client_id (default: awtv6n371jb7uayyc4jaljochyjbfxs)
+# plugins.var.python.twitch.token (default: "")
 #
 # # History:
+#
+# 2020-07-27,
+#     v0.9: added support for Oauth token to support twitch APIs requirement -mumixam
+#           fix bug for when api returns null for game_id -mas90
 #
 # 2019-10-13, mumixam
 #     v0.8: changed input modifier hooks to use irc_in2_* instead
 #           added setting 'plugins.var.python.twitch.notice_notify_block'
 #           added setting 'plugins.var.python.twitch.client_id'
-# 2019-09-25, mumixam
+#
+# 2019-09-21, mumixam
 #     v0.7: updated script to use current api
 # 2019-03-03,
 #     v0.6: added support for CLEARMSG -MentalFS
@@ -58,7 +64,7 @@
 
 SCRIPT_NAME = "twitch"
 SCRIPT_AUTHOR = "mumixam"
-SCRIPT_VERSION = "0.8"
+SCRIPT_VERSION = "0.9"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "twitch.tv Chat Integration"
 OPTIONS={
@@ -67,9 +73,9 @@ OPTIONS={
     'debug': ('0','Debug mode'),
     'ssl_verify': ('1', 'Verify SSL/TLS certs'),
     'notice_notify_block': ('1', 'Changes notify level of NOTICEs to low'),
-    'client_id': ('awtv6n371jb7uayyc4jaljochyjbfxs', 'Twitch API Token')
+    'client_id': ('awtv6n371jb7uayyc4jaljochyjbfxs', 'Twitch App ClientID'),
+    'token': ('', 'Twitch User Token')
 }
-
 
 import weechat
 import json
@@ -80,7 +86,10 @@ import string
 import ast
 
 curlopt = {
-    "httpheader": "Client-ID: "+OPTIONS['client_id'][0],
+    "httpheader": "\n".join([
+        "Authorization: Bearer "+OPTIONS['token'][0],
+        "Client-ID: "+OPTIONS['client_id'][0],
+    ]),
     "timeout": "5",
     "verbose": "0",
     "ssl_verifypeer": "1",
@@ -153,6 +162,8 @@ def stream_api(data, command, rc, stdout, stderr):
     emote = weechat.buffer_get_string(data, 'localvar_emote')
     if not 'data' in jsonDict.keys():
         weechat.prnt(data, 'twitch.py: Error with twitch API (data key missing from json)')
+        if OPTIONS['debug']:
+            weechat.prnt(data, 'twitch.py: %s' % stdout.strip())
         return weechat.WEECHAT_RC_OK
     if not jsonDict['data']:
         line = "STREAM: %sOFFLINE%s %sCHECKED AT: (%s)" % (
@@ -178,6 +189,10 @@ def stream_api(data, command, rc, stdout, stderr):
                 if game in gameid_cache:
                     game = gameid_cache[game]
                 output += ' <%s> with' % game
+            else:
+                game_id = None
+        else:
+            game_id = None
         if 'viewer_count' in jsonDict['data']:
             viewers = jsonDict['data']['viewer_count']
             output += ' %s viewers started' % viewers
@@ -210,7 +225,7 @@ def stream_api(data, command, rc, stdout, stderr):
         if emote:
             output += " %s[EMOTE]" % title_fg
         weechat.buffer_set(data, "title", output)
-        if not game_id in gameid_cache:
+        if game_id is not None and not game_id in gameid_cache:
             url = 'https://api.twitch.tv/helix/games?id=' + game_id
             weechat.hook_process_hashtable(
                 "url:" + url, curlopt, 7 * 1000, "game_api", data)
@@ -476,6 +491,8 @@ def twitch_in_privmsg(data, modifier, server_name, string, prefix=''):
 
     if not mp['tags']:
         return string
+    if not '#' in mp['channel']:
+        return string
     if '#' + mp['nick'] == mp['channel']:
         return mp['message_without_tags'].replace(mp['nick'], '~' + mp['nick'], 1)
 
@@ -512,9 +529,9 @@ def twitch_notice(data, line):
 
 def config_setup():
     for option,value in OPTIONS.items():
-        weechat.config_set_desc_plugin(option, '%s' % value[1])
         if not weechat.config_is_set_plugin(option):
             weechat.config_set_plugin(option, value[0])
+            weechat.config_set_desc_plugin(option, '%s' % value[1])
             OPTIONS[option] = value[0]
         else:
             if option == 'prefix_nicks' or option == 'debug' or option == 'ssl_verify' or option == 'notice_notify_block':
@@ -523,19 +540,34 @@ def config_setup():
             else:
                 OPTIONS[option] = weechat.config_get_plugin(option)
             if option == 'debug':
-                if value == 0:
-                    curlopt['verbose'] = "0"
-                else:
-                    curlopt['verbose'] = "1"
+                curlopt['verbose'] = weechat.config_get_plugin(option)
             if option == 'ssl_verify':
-                if value == 0:
+                if weechat.config_get_plugin(option) == 0:
                     curlopt['ssl_verifypeer'] = "0"
                     curlopt['ssl_verifyhost'] = "0"
                 else:
                     curlopt['ssl_verifypeer'] = "1"
                     curlopt['ssl_verifyhost'] = "2"
             if option == 'client_id':
-                curlopt['httpheader'] = "Client-ID: " + value[0]
+                hlist = []
+                cidv = weechat.config_get_plugin(option)
+                tokv = weechat.config_get_plugin('token')
+                if cidv:
+                    hlist.append('Client-ID: '+cidv)
+                if tokv:
+                    hlist.append('Authorization: Bearer '+tokv)
+                if hlist:
+                    curlopt['httpheader'] = '\n'.join(hlist)
+            if option == 'token':
+                hlist = []
+                cidv = weechat.config_get_plugin('client_id')
+                tokv = weechat.config_get_plugin(option)
+                if tokv:
+                    hlist.append('Authorization: Bearer '+tokv)
+                if cidv:
+                    hlist.append('Client-ID: '+cidv)
+                if hlist:
+                    curlopt['httpheader'] = '\n'.join(hlist)
 
 
 def config_change(pointer, name, value):
@@ -555,7 +587,16 @@ def config_change(pointer, name, value):
             curlopt['ssl_verifypeer'] = "1"
             curlopt['ssl_verifyhost'] = "2"
     if option == 'client_id':
-        curlopt['httpheader'] = "Client-ID: " + value
+        for x in curlopt['httpheader'].split('\n'):
+            if x.startswith('Authorization: Bearer'):
+                curlopt['httpheader'] = x + '\n' + "Client-ID: " + value
+                break
+    if option == 'token':
+        for x in curlopt['httpheader'].split('\n'):
+            if x.startswith('Client-ID:'):
+                curlopt['httpheader'] = x + '\n' + "Authorization: Bearer " + value
+                break
+
     OPTIONS[option] = value
     return weechat.WEECHAT_RC_OK
 
@@ -601,7 +642,7 @@ if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
         "    /set irc.server.twitch.password \"oauth:My Oauth Key\"\n"
         "\n"
         "  If you do not have a oauth token one can be generated for your account here\n"
-        "    https://twitchapps.com/tmi/\n"
+        "    https://mumixam.github.io/weechat_twitch\n"
         "\n"
         "  This script now by default limits the level of NOTICEs from twitch server\n"
         "  What this does is makes it so 'Now hosting' notifications are classes as a low level message\n"
@@ -611,6 +652,11 @@ if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
         "\n"
         "  If would like to use your own Client-ID it can be set with\n"
         "    /set plugins.var.python.twitch.client_id (clientid)\n"
+        "\n"
+        "  Twitch Helix API now requires a OAuth token for any API calls. Your token has the match your ClientID\n"
+        "  One can be generated here that matches the default CleintID here:\n"
+        "    https://mumixam.github.io/weechat_twitch\n"
+        "    /set plugins.var.python.twitch.token (token from url)\n"
         "\n"
         "  This script also has whisper support that works like a standard query. \"/query user\"\n\n",
         "", "twitch_main", "")
@@ -625,7 +671,7 @@ if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
     weechat.hook_modifier("irc_in2_HOSTTARGET", "twitch_suppress", "")
     weechat.hook_modifier("irc_in2_ROOMSTATE", "twitch_roomstate", "")
     weechat.hook_modifier("irc_in2_USERNOTICE", "twitch_usernotice", "")
-    weechat.hook_modifier("irc_in2_WHISPER", "twitch_whisper", "")
+    weechat.hook_modifier("irc_in_WHISPER", "twitch_whisper", "")
     weechat.hook_modifier("irc_out_PRIVMSG", "twitch_privmsg", "")
     weechat.hook_modifier("irc_out_WHOIS", "twitch_whois", "")
     weechat.hook_modifier("irc_in2_PRIVMSG", "twitch_in_privmsg", "")

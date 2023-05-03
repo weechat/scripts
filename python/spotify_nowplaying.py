@@ -19,6 +19,10 @@
 # (this script requires Spotify for Mac v0.5.1.98 or newer)
 #
 # History:
+#
+# 2022-01-25, Sébastien Helleu <flashcode@flashtux.org>
+#     version 0.1.2: fix mixed spaces and tabs for indentation
+#
 # 2011-06-12, agreeabledragon <recognize@me.com>
 #     version 0.1.1: rewrote it to use weechat.hook_process() to prevent it from blocking weechat as requested by Sébastien
 #
@@ -30,7 +34,7 @@ import weechat as w, re, subprocess, sys
 
 SCRIPT_NAME    = "spotify_nowplaying"
 SCRIPT_AUTHOR  = "agreeabledragon <recognize@me.com>"
-SCRIPT_VERSION = "0.1.1"
+SCRIPT_VERSION = "0.1.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Current song script for Spotify (v0.5.1.98 or newer) on OS X"
 SCRIPT_COMMAND = "spotify"
@@ -48,60 +52,60 @@ if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT
                    "spotify_exec",
                    "")
 else:
-	w.prnt("", "WARNING: This now playing script for Spotify only works on OS X with Spotify version 0.5.1.98 (or newer)")
+    w.prnt("", "WARNING: This now playing script for Spotify only works on OS X with Spotify version 0.5.1.98 (or newer)")
 
 def spotify_process(data, command, rc, stdout, stderr):
-	global SCRIPT_BUFFER, SCRIPT_PROCESS
-	if stderr:
-		w.prnt("", "There was an error executing the script - make sure you meet the requirements (OS X with Spotify v0.5.1.98 or newer)")
-		SCRIPT_BUFFER  = False
-		SCRIPT_PROCESS = False
-		return w.WEECHAT_RC_ERROR
-	else:
-		w.command(SCRIPT_BUFFER, stdout)
-		SCRIPT_BUFFER  = False
-		SCRIPT_PROCESS = False
-		return w.WEECHAT_RC_OK
+    global SCRIPT_BUFFER, SCRIPT_PROCESS
+    if stderr:
+        w.prnt("", "There was an error executing the script - make sure you meet the requirements (OS X with Spotify v0.5.1.98 or newer)")
+        SCRIPT_BUFFER  = False
+        SCRIPT_PROCESS = False
+        return w.WEECHAT_RC_ERROR
+    else:
+        w.command(SCRIPT_BUFFER, stdout)
+        SCRIPT_BUFFER  = False
+        SCRIPT_PROCESS = False
+        return w.WEECHAT_RC_OK
 
 def spotify_exec(data, buffer, args):
-	global SCRIPT_TIMEOUT, SCRIPT_BUFFER, SCRIPT_PROCESS
-	if SCRIPT_PROCESS:
-		w.prnt("", "Please wait for the other command to finish")
-		return w.WEECHAT_RC_ERROR
-	else:
-		script = """set AppleScript's text item delimiters to ASCII character 10
-					set spotify_active to false
-					set theString to \\"/me is not currently running Spotify.\\"
-	
-					tell application \\"Finder\\"
-						if (get name of every process) contains \\"Spotify\\" then set spotify_active to true
-					end tell
-	
-					if spotify_active then
-						set got_track to false
-		
-						tell application \\"Spotify\\"
-							if player state is playing then
-								set theTrack to name of the current track
-								set theArtist to artist of the current track
-								set theAlbum to album of the current track
-								set isStarred to starred of the current track
-								set got_track to true
-							end if
-						end tell
-		
-						set theString to \\"/me is not playing anything in Spotify.\\"
-		
-						if got_track then
-							if isStarred then
-								set theString to \\"/me is listening to one of my favorite tracks \\\\\\"\\" & theTrack & \\"\\\\\\" by \\" & theArtist & \\" (Album: \\" & theAlbum & \\")\\"
-							else
-								set theString to \\"/me is listening to \\\\\\"\\" & theTrack & \\"\\\\\\" by \\" & theArtist & \\" (Album: \\" & theAlbum & \\")\\"
-							end if
-						end if
-					end if
-	
-					return theString"""
-		SCRIPT_BUFFER  = buffer;
-		SCRIPT_PROCESS = w.hook_process('arch -i386 osascript -e "' + script + '"', SCRIPT_TIMEOUT, "spotify_process", "")
-		return w.WEECHAT_RC_OK
+    global SCRIPT_TIMEOUT, SCRIPT_BUFFER, SCRIPT_PROCESS
+    if SCRIPT_PROCESS:
+        w.prnt("", "Please wait for the other command to finish")
+        return w.WEECHAT_RC_ERROR
+    else:
+        script = """set AppleScript's text item delimiters to ASCII character 10
+                    set spotify_active to false
+                    set theString to \\"/me is not currently running Spotify.\\"
+
+                    tell application \\"Finder\\"
+                        if (get name of every process) contains \\"Spotify\\" then set spotify_active to true
+                    end tell
+
+                    if spotify_active then
+                        set got_track to false
+
+                        tell application \\"Spotify\\"
+                            if player state is playing then
+                                set theTrack to name of the current track
+                                set theArtist to artist of the current track
+                                set theAlbum to album of the current track
+                                set isStarred to starred of the current track
+                                set got_track to true
+                            end if
+                        end tell
+
+                        set theString to \\"/me is not playing anything in Spotify.\\"
+
+                        if got_track then
+                            if isStarred then
+                                set theString to \\"/me is listening to one of my favorite tracks \\\\\\"\\" & theTrack & \\"\\\\\\" by \\" & theArtist & \\" (Album: \\" & theAlbum & \\")\\"
+                            else
+                                set theString to \\"/me is listening to \\\\\\"\\" & theTrack & \\"\\\\\\" by \\" & theArtist & \\" (Album: \\" & theAlbum & \\")\\"
+                            end if
+                        end if
+                    end if
+
+                    return theString"""
+        SCRIPT_BUFFER = buffer
+        SCRIPT_PROCESS = w.hook_process('arch -i386 osascript -e "' + script + '"', SCRIPT_TIMEOUT, "spotify_process", "")
+        return w.WEECHAT_RC_OK

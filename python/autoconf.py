@@ -19,6 +19,8 @@
 #       v0.2: add "%h" variable in option 'file'
 # 2018-10-23: fix script/issue #297
 #       v0.3: make script python 3 compatible
+# 2021-05-02:
+#       v0.4: add compatibility with WeeChat >= 3.2 (XDG directories)
 
 from __future__ import print_function
 
@@ -37,7 +39,7 @@ except Exception:
 
 NAME        = "autoconf"
 AUTHOR      = "Manu Koell <manu@koell.li>"
-VERSION     = "0.3"
+VERSION     = "0.4"
 LICENSE     = "GPL3"
 DESCRIPTION = "auto save/load changed options in a ~/.weerc file, useful to share dotfiles with"
 
@@ -55,7 +57,7 @@ SETTINGS = {
     'ignore': (
         ','.join(EXCLUDES),
         'comma separated list of patterns to exclude'),
-    'file': ('%h/.weerc', 'config file location ("%h" will be replaced by WeeChat home, "~/.weechat" by default)')
+    'file': ('%h/.weerc', 'config file location ("%h" will be replaced by WeeChat config home)')
 }
 
 def cstrip(text):
@@ -69,8 +71,11 @@ def get_config(args):
     try:
         conf = args[1]
     except Exception:
-        conf = w.config_get_plugin('file').replace("%h",w.info_get("weechat_dir", ""))
-    return os.path.expanduser(conf)
+        conf = w.config_get_plugin('file')
+    options = {
+        'directory': 'config',
+    }
+    return w.string_eval_path_home(conf, {}, {}, options)
 
 def load_conf(args):
     """send config to fifo pipe"""

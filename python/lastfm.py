@@ -11,6 +11,9 @@
    license: GPLv3
 
    history:
+       0.9 - 2022-01-25, Sébastien Helleu <flashcode@flashtux.org>
+             Fix mixed spaces and tabs for indentation
+
        0.8 - 2020-03-18, prg <prg@xannode.com>
              Port to python3
 
@@ -23,10 +26,10 @@
        0.5 - 2014-05-07, Kromonos <weechat@kromonos.net>
              fixed some simple bugs
 
-       0.4 - 2011-11-21, Jimmy Zelinskie <jimmyzelinskie@gmail.com>:
+       0.4 - 2011-11-21, Jimmy Zelinskie <jimmyzelinskie@gmail.com>
              changed default encoding to utf-8
 
-       0.3 - 2011-03-11, Sebastien Helleu <flashcode@flashtux.org>:
+       0.3 - 2011-03-11, Sébastien Helleu <flashcode@flashtux.org>
              get python 2.x binary for hook_process (fix problem when
              python 3.x is default python version)
 
@@ -40,7 +43,7 @@
 import weechat
 import requests
 
-weechat.register("lastfm", "Adam Saponara", "0.8", "GPL3", "Sends your latest Last.fm track to the current buffer", "", "")
+weechat.register("lastfm", "Adam Saponara", "0.9", "GPL3", "Sends your latest Last.fm track to the current buffer", "", "")
 
 defaults = {
         "lastfm_username" : "yourusername",
@@ -70,8 +73,8 @@ def lastfm_cmd(data, buffer, args):
                 "import sys, requests\n"
                 "r = requests.get('https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=%(username)s&api_key=618f9ef38b3d0fed172a88c45ae67f33&format=json&limit=1&extended=0')\n"
                 "if not r.status_code == requests.codes.ok:\n"
-                "	print >>sys.stderr, 'Could not fetch Last.fm RSS feed.',\n"
-                "	exit()\n"
+                "    print >>sys.stderr, 'Could not fetch Last.fm RSS feed.',\n"
+                "    exit()\n"
                 "json = r.json()['recenttracks']['track'][0]\n"
                 "print('{} – {}'.format(json['artist']['#text'], json['name'])),\n"
                 "\"" % {"username" : weechat.config_get_plugin('lastfm_username')},

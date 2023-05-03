@@ -69,6 +69,15 @@
 #
 #   History:
 #
+#   2022-11-11, anonymous2ch
+#   version 0.8.6: ignore utf-8 decoding errors
+#
+#   2021-05-02, Sébastien Helleu <flashcode@flashtux.org>
+#   version 0.8.5: add compatibility with WeeChat >= 3.2 (XDG directories)
+#
+#   2020-10-11, Thom Wiggers <thom@thomwiggers.nl>
+#   version 0.8.4: Python3 compatibility fix
+#
 #   2020-05-06, Dominique Martinet <asmadeus@codewreck.org> and hexa-
 #   version 0.8.3: more python3 compatibility fixes...
 #
@@ -233,7 +242,7 @@ except ImportError:
 
 SCRIPT_NAME    = "grep"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.8.3"
+SCRIPT_VERSION = "0.8.6"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Search in buffers and logs"
 SCRIPT_COMMAND = "grep"
@@ -449,9 +458,13 @@ def get_config_log_filter():
         return []
 
 def get_home():
-    home = weechat.config_string(weechat.config_get('logger.file.path'))
-    home = home.replace('%h', weechat.info_get('weechat_dir', ''))
-    home = path.abspath(path.expanduser(home))
+    options = {
+        'directory': 'data',
+    }
+    home = weechat.string_eval_path_home(
+        weechat.config_string(weechat.config_get('logger.file.path')),
+        {}, {}, options,
+    )
     return home
 
 def strip_home(s, dir=''):
@@ -728,7 +741,7 @@ def grep_file(file, head, tail, after_context, before_context, count, regexp, hi
         check = lambda s: check_string(s, regexp, hilight, exact)
 
     try:
-        file_object = open(file, 'r')
+        file_object = open(file, 'r', errors='ignore')
     except IOError:
         # file doesn't exist
         return lines
@@ -891,8 +904,7 @@ def grep_buffer(buffer, head, tail, after_context, before_context, count, regexp
         check = lambda s: check_string(s, regexp, hilight, exact)
 
     if before_context:
-        before_context_range = range(1, before_context + 1)
-        before_context_range.reverse()
+        before_context_range = reversed(range(1, before_context + 1))
 
     while infolist_next(infolist):
         line = get_line(infolist)

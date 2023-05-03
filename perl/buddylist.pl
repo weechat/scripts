@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2010-2018 by Nils Görs <weechatter@arcor.de>
+# Copyright (c) 2010-2023 by Nils Görs <weechatter@arcor.de>
 #
 # display the status and visited buffers of your buddies in a buddylist bar
 #
@@ -16,6 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2.2   : fix: make /whois lower-case
+# 2.1   : add compatibility with WeeChat >= 3.2 (XDG directories)
 # 2.0   : make call to bar_new compatible with WeeChat >= 2.9
 # 1.9   : added: cursor support
 # 1.8   : fixed: problem with temporary server
@@ -83,7 +85,7 @@
 use strict;
 
 my $prgname		= "buddylist";
-my $version		= "2.0";
+my $version		= "2.2";
 my $description		= "display status from your buddies a bar-item.";
 
 # -------------------------------[ config ]-------------------------------------
@@ -223,7 +225,7 @@ weechat::hook_command($prgname, $description,
                 "<list> show buddylist\n".
                 "\n".
                 "Options:\n".
-                "'plugins.var.perl.buddylist.buddylist'            : path/file-name to store your buddies. \"%h\" will be replaced by WeeChat home (by default: ~/.weechat)\n".
+                "'plugins.var.perl.buddylist.buddylist'            : path/file-name to store your buddies. \"%h\" will be replaced by WeeChat config directory\n".
                 "\n".
                 "'plugins.var.perl.buddylist.color.default         : fall back color. (default: standard weechat color)\n".
                 "'plugins.var.perl.buddylist.color.online'         : color for " . weechat::color($default_color_buddylist{online}) . "online " . weechat::color("reset") . "buddies.\n".
@@ -959,13 +961,8 @@ sub buddylist_signal_buffer
 
 sub weechat_dir
 {
-    my $dir = weechat::config_get_plugin("buddylist");
-    if ( $dir =~ /%h/ )
-    {
-        my $weechat_dir = weechat::info_get( 'weechat_dir', '');
-        $dir =~ s/%h/$weechat_dir/;
-    }
-    return $dir;
+    my $options = { "directory" => "config" };
+    return weechat::string_eval_path_home(weechat::config_get_plugin("buddylist"), {}, {}, $options);
 }
 
 # init the settings
@@ -1113,7 +1110,7 @@ sub init{
 
     if ( ($weechat_version ne "") && (weechat::info_get("version_number", "") >= 0x00030500) )  # v0.3.5
     {
-        weechat::config_set_desc_plugin("buddylist","path/file-name to store your buddies. \"%h\" will be replaced by WeeChat home (by default: ~/.weechat)");
+        weechat::config_set_desc_plugin("buddylist","path/file-name to store your buddies. \"%h\" will be replaced by WeeChat config directory");
         weechat::config_set_desc_plugin("color.default","fall back color. (default: standard weechat color)");
         weechat::config_set_desc_plugin("color.online","color for online buddies");
         weechat::config_set_desc_plugin("color.away","color for away buddies");
@@ -1601,7 +1598,7 @@ sub buddylist_hsignal_cursor{
     if ( $hash{"_key"} eq "q" ){
         weechat::command("", "/query -server " . $hash{"server"} . " " . $hash{"nick"});
     }elsif ( $hash{"_key"} eq "w" ){
-        weechat::command(weechat::buffer_search("==","irc.server.".$hash{"server"}), "/WHOIS " . $hash{"nick"});
+        weechat::command(weechat::buffer_search("==","irc.server.".$hash{"server"}), "/whois " . $hash{"nick"});
     }
     # STOP cursor mode
     weechat::command("", "/cursor stop");

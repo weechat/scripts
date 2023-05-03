@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 #
 # Project:     weechat-tts
-# Homepage:    https://git.hashtagueule.fr/raspbeguy/weechat-tts
 # Description: Text-to-speech script.
 #              Requires a TTS engine such as espeak or picospeaker.
 # License:     MIT (see below)
+# Contact:     raspbeguy @ chat.freenode.net
 #
 # Copyright (c) 2017 by raspbeguy
 #
@@ -47,7 +47,7 @@ SCRIPT_NAME = 'tts'
 SCRIPT_AUTHOR = 'raspbeguy'
 
 # Version of the script.
-SCRIPT_VERSION = '0.2.1'
+SCRIPT_VERSION = '0.2.2'
 
 # License under which the script is distributed.
 SCRIPT_LICENSE = 'MIT'

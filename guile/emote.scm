@@ -17,6 +17,8 @@
 ; (this script requires WeeChat 0.4.1 or newer)
 ;
 ; History:
+; 2023-03-18, Yuval Langer <yuval.langer@gmail.com>
+;   version 0.3.1: Replace `apply string-append` with `string-join`.
 ; 2017-02-18, nycatelos <nycatelos@riseup.net>
 ;   version 0.3: added more emotes
 ; 2016-06-03, nycatelos <nycatelos@riseup.net>
@@ -26,7 +28,7 @@
 
 (use-modules (srfi srfi-69))
 
-(weechat:register "emote" "Caleb Smith" "0.3" "GPL" "Emote" "" "")
+(weechat:register "emote" "Caleb Smith" "0.3.1" "GPL" "Emote" "" "")
 
 ; Mappings of words with their emoticons
 (define patterns (alist->hash-table '(
@@ -55,7 +57,7 @@
 
 ; Derive the tab completion string for the subcommands.
 (define tab-completions
-    (apply string-append
+    (string-join
         (map (lambda (i) (string-append "|| " i))
             (hash-table-keys patterns))))
 
@@ -78,7 +80,7 @@
 ; Handle the IRC command given by the user. Sets input buffer as a side-effect
 (define (main data buffer command)
     (weechat:buffer_set buffer "input"
-        (apply string-append (map (lambda (c)
+        (string-join (map (lambda (c)
             (string-append (hash-table-ref/default patterns c c) " "))
             (string-tokenize command))))
     weechat:WEECHAT_RC_OK)

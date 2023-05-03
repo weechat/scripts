@@ -40,7 +40,7 @@ import weechat
 
 SCRIPT_NAME = "vimode"
 SCRIPT_AUTHOR = "GermainZ <germanosz@gmail.com>"
-SCRIPT_VERSION = "0.8"
+SCRIPT_VERSION = "0.8.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = ("Add vi/vim-like modes and keybindings to WeeChat.")
 
@@ -1558,6 +1558,7 @@ def cb_vimode_cmd(data, buf, args):
             key = weechat.infolist_string(infolist, "key")
             if re.match(REGEX_PROBLEMATIC_KEYBINDINGS, key):
                 commands.append("/key unbind %s" % key)
+        weechat.infolist_free(infolist)
         if args == "bind_keys":
             weechat.prnt("", "Running commands:")
             for command in commands:
@@ -1796,6 +1797,7 @@ def check_warnings():
         command = weechat.infolist_string(infolist, "command")
         if re.match(REGEX_PROBLEMATIC_KEYBINDINGS, key):
             problematic_keybindings.append("%s -> %s" % (key, command))
+    weechat.infolist_free(infolist)
     if problematic_keybindings:
         user_warned = True
         print_warning("Problematic keybindings detected:")

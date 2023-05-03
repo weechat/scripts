@@ -25,6 +25,8 @@
 
 #
 # Changelog:
+# 3.9:
+#   * Remove `buffers.pl` from recommended settings.
 # 3,8:
 #   * Fix relative sorting on script name in default rules.
 #   * Document a useful property of stable sort algorithms.
@@ -85,7 +87,7 @@ import weechat
 
 SCRIPT_NAME     = 'autosort'
 SCRIPT_AUTHOR   = 'Maarten de Vries <maarten@de-vri.es>'
-SCRIPT_VERSION  = '3.8'
+SCRIPT_VERSION  = '3.9'
 SCRIPT_LICENSE  = 'GPL3'
 SCRIPT_DESC     = 'Flexible automatic (or manual) buffer sorting based on eval expressions.'
 
@@ -1000,12 +1002,9 @@ If you remove all signals you can still sort your buffers manually with the
 {*white}# Recommended settings
 For the best visual effect, consider setting the following options:
   {*white}/set {cyan}irc.look.server_buffer{reset} {brown}independent{reset}
-  {*white}/set {cyan}buffers.look.indenting{reset} {brown}on{reset}
 
-The first setting allows server buffers to be sorted independently, which is
+This setting allows server buffers to be sorted independently, which is
 needed to create a hierarchical tree view of the server and channel buffers.
-The second one indents channel and private buffers in the buffer list of the
-`{*default}buffers.pl{reset}` script.
 
 If you are using the {*default}buflist{reset} plugin you can (ab)use Unicode to draw a tree
 structure with the following setting (modify to suit your need):

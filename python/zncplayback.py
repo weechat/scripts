@@ -27,6 +27,10 @@
 #
 # History:
 #
+# 2022-02-02, Andreas Hackl <a@r0.at>:
+#     v0.2.2: handle invalid json in SCRIPT_SAVEFILE
+# 2021-05-06, Sébastien Helleu <flashcode@flashtux.org>:
+#     v0.2.1: add compatibility with WeeChat >= 3.2 (XDG directories)
 # 2019-07-09, Alyssa Ross <hi@alyssa.is>:
 #     v0.2.0: Make script compatible with Python 3
 # 2016-08-27, Jasper v. Blanckenburg <jasper@mezzo.de>:
@@ -36,7 +40,7 @@ from __future__ import print_function
 
 SCRIPT_NAME = "zncplayback"
 SCRIPT_AUTHOR = "jazzpi"
-SCRIPT_VERSION = "0.2.0"
+SCRIPT_VERSION = "0.2.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESCRIPTION = "Add support for the ZNC Playback module"
 
@@ -84,12 +88,12 @@ def write_last_times():
 def read_last_times():
     """Read the last message times of all servers from disk."""
     global zncplayback_last_times
-    if not path.exists(SCRIPT_SAVEFILE):
+    try:
+        with open(SCRIPT_SAVEFILE, "r") as fh:
+            zncplayback_last_times = json.load(fh)
+    except (json.decoder.JSONDecodeError,FileNotFoundError):
         for server in zncplayback_settings["servers"].split(","):
             zncplayback_last_times[server] = 0
-        return
-    with open(SCRIPT_SAVEFILE, "r") as fh:
-        zncplayback_last_times = json.load(fh)
 
 
 def zncplayback_config_cb(data, option, value):
@@ -143,8 +147,13 @@ def zncplayback_message_cb(server, signal, message):
 if __name__ == "__main__" and import_ok:
     if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION,
                         SCRIPT_LICENSE, SCRIPT_DESCRIPTION, "", ""):
-        SCRIPT_SAVEFILE = path.join(weechat.info_get("weechat_dir", ""),
-                                    SCRIPT_SAVEFILE)
+        options = {
+            'directory': 'data',
+        }
+        SCRIPT_SAVEFILE = weechat.string_eval_path_home(
+            '%%h/%s' % SCRIPT_SAVEFILE,
+            {}, {}, options,
+        )
         # Set default settings
         version = weechat.info_get("version_number", "") or 0
         for option, value in list(zncplayback_settings_default.items()):

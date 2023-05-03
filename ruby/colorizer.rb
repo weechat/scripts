@@ -33,12 +33,12 @@
 #
 # 0.1: Initial release.
 # 0.2: Add compatibility with new weechat_print modifier data (WeeChat >= 2.9).
-#
+# 0.3: Fix the compatibility checker
 
 SCRIPT_NAME    = 'colorizer'
 SCRIPT_AUTHOR  = 'Michael B. Hix'
 SCRIPT_DESC    = 'Colorize text in buffers based on rules.'
-SCRIPT_VERSION = '0.2'
+SCRIPT_VERSION = '0.3'
 SCRIPT_LICENSE = 'BSD'
 
 # A default coloring rule.
@@ -158,7 +158,7 @@ end
 # Handle message printing.
 #
 def colorize_cb( data, modifier, modifier_data, message )
-	if modifier_data.start_with?('abc')
+	if modifier_data.start_with?('0x')
 		# WeeChat >= 2.9
 		buffer, tags = modifier_data.split( ';' )
 		buffer_name = Weechat.buffer_get_string(buffer, 'name')
