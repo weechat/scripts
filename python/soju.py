@@ -4,36 +4,29 @@
 # https://www.gnu.org/licenses/agpl-3.0.en.html
 
 import weechat
+import datetime
 
-weechat.register("soju", "soju", "0.1.5", "AGPL3", "soju bouncer integration", "", "")
+weechat.register("soju", "soju", "0.3.0", "AGPL3", "soju bouncer integration", "", "")
 
-bouncer_cap = "soju.im/bouncer-networks"
+BOUNCER_CAP = "soju.im/bouncer-networks"
+
 caps_option = weechat.config_get("irc.server_default.capabilities")
 caps = weechat.config_string(caps_option)
-if bouncer_cap not in caps:
+if BOUNCER_CAP not in caps:
     if caps != "":
         caps += ","
-    caps += bouncer_cap
+    caps += BOUNCER_CAP
     weechat.config_option_set(caps_option, caps, 1)
 
 main_server = None
 added_networks = {}
 
-def handle_isupport_end_msg(data, signal, signal_data):
-    global main_server
-
-    weechat_version = int(weechat.info_get("version_number", "") or 0)
-
-    server_name = signal.split(",")[0]
-    netid = weechat.info_get("irc_server_isupport_value", server_name + ",BOUNCER_NETID")
-
-    if netid != "":
-        added_networks[netid] = True
-
+def server_by_name(server_name):
     hdata = weechat.hdata_get("irc_server")
     server_list = weechat.hdata_get_list(hdata, "irc_servers")
+    weechat_version = int(weechat.info_get("version_number", "") or 0)
     if weechat_version >= 0x03040000:
-        server = weechat.hdata_search(
+        return weechat.hdata_search(
             hdata,
             server_list,
             "${irc_server.name} == ${name}",
@@ -43,14 +36,27 @@ def handle_isupport_end_msg(data, signal, signal_data):
             1,
         )
     else:
-        server = weechat.hdata_search(
+        return weechat.hdata_search(
             hdata,
             server_list,
             "${irc_server.name} == " + server_name,
             1,
         )
+
+def handle_isupport_end_msg(data, signal, signal_data):
+    global main_server
+
+    server_name = signal.split(",")[0]
+    netid = weechat.info_get("irc_server_isupport_value", server_name + ",BOUNCER_NETID")
+
+    if netid != "":
+        added_networks[netid] = True
+
+    server = server_by_name(server_name)
+
+    hdata = weechat.hdata_get("irc_server")
     cap_list = weechat.hdata_hashtable(hdata, server, "cap_list")
-    if not bouncer_cap in cap_list:
+    if not BOUNCER_CAP in cap_list:
         return weechat.WEECHAT_RC_OK
 
     if main_server is not None:

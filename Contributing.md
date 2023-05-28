@@ -2,7 +2,8 @@
 
 ## Reporting an issue
 
-Before reporting an issue, it is recommended to contact the author of script directly.\
+Issue must be reported to upstream repository, not this one (most of times, the upstream repository is mentioned in the script itself).\
+If you don't know where is the upstream repository, please contact directly the author by e-mail.\
 If you have no answer, or if the author has no time to fix the problem, then you can report the issue in the tracker or send an update of the script if you are able to fix yourself.
 
 ## Testing pending scripts

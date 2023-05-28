@@ -8,6 +8,8 @@
 #
 # thanks to darrob for hard beta-testing
 #
+# 1.9.7: fix: a warning about declaration in same scope
+#        remove: unnecessary callback function
 # 1.9.6: fix: nick parsing with messages containing @ and >
 # 1.9.5: add compatibility with matrix-appservice-irc
 # 1.9.4: add compatibility with other kind of messages than irc
@@ -69,7 +71,7 @@
 
 use strict;
 my $SCRIPT_NAME         = "parse_relayed_msg";
-my $SCRIPT_VERSION      = "1.9.6";
+my $SCRIPT_VERSION      = "1.9.7";
 my $SCRIPT_DESCR        = "proper integration of remote users' nicknames in channel and nicklist";
 my $SCRIPT_AUTHOR       = "w8rabbit";
 my $SCRIPT_LICENCE      = "GPL3";
@@ -159,8 +161,8 @@ sub parse_relayed_msg_cb
     $nick = $2;
 
     # display_mode : 0 = /, 1 = @
-    my $result = string_mask_to_regex($nick);
-    if ($result)
+    my $result_smtr = string_mask_to_regex($nick);
+    if ($result_smtr)
 #    if ( grep /^$nick$/, @bot_nicks )                                       # does a bot exists?
     {
         my $blacklist_raw = weechat::config_get_plugin("blacklist");
@@ -652,7 +654,6 @@ sub add_relay_nick_to_nicklist
 # check out every x minutes if nick is not too old
 sub check_own_nicklist
 {
-    my ($data, $signal, $signal_data) = @_;
     my $current_time = time();
     my $timer = $option{"timer"};
     while (my ($name, $time) = each %nick_timer)

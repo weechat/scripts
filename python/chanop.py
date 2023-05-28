@@ -196,6 +196,10 @@
 #   History:
 #
 #
+#   2023-02-05
+#   version 0.3.5: replace command /VERSION by /version
+#                  (compatibility with WeeChat 3.9)
+#
 #   2021-05-02
 #   version 0.3.4: add compatibility with WeeChat >= 3.2 (XDG directories)
 #
@@ -292,7 +296,7 @@ WEECHAT_VERSION = (0x30200, '0.3.2')
 
 SCRIPT_NAME    = "chanop"
 SCRIPT_AUTHOR  = "Elián Hanisch <lambdae2@gmail.com>"
-SCRIPT_VERSION = "0.3.4"
+SCRIPT_VERSION = "0.3.5"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Helper script for IRC Channel Operators"
 
@@ -2539,7 +2543,7 @@ def get_isupport_value(server, feature):
                 if '/VERSION' in isupport[server]:
                     return ''
                 buffer = weechat.buffer_search('irc', 'server.%s' %server)
-                weechat_command(buffer, '/VERSION')
+                weechat_command(buffer, '/version')
                 isupport[server]['/VERSION'] = True
         return v
 
