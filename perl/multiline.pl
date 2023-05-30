@@ -99,12 +99,12 @@ whether the new line inserted by magic enter key will be hidden
 
 =head2 weechat_paste_fix
 
-disable ctrl-J binding when paste is detected to stop silly weechat
+disable ctrl-j binding when paste is detected to stop silly weechat
 sending out pastes without allowing to edit them
 
 =head2 ipl
 
-this setting controls override of ctrl-M (enter key) by script. Turn
+this setting controls override of ctrl-m (enter key) by script. Turn
 it off if you don't want multiline.pl to set and re-set the key binding.
 
 =head1 FUNCTION DESCRIPTION
@@ -120,7 +120,7 @@ for full pod documentation, filter this script with
 =cut
 
 use constant SCRIPT_NAME => 'multiline';
-our $VERSION = '0.6.3'; # af2e0a17b659a16
+our $VERSION = '0.6.4';
 weechat::register(SCRIPT_NAME,
 		  'Nei <anti.teamidiot.de>', # Author
 		  $VERSION,
@@ -138,6 +138,22 @@ sub SCRIPT_FILE() {
 package Nlib;
 # this is a weechat perl library
 use strict; use warnings; no warnings 'redefine';
+
+## get_key_name -- get key name valid for any weechat version
+## $key_name - name of key as valid in weechat 4.0.0; note: only supports keys used in this file, not any key
+## $secondary_code - for keys with multiple codes, set to 1 to return the second code instead of the first
+## returns key name unchanged if weechat >= 4.0.0; key name translated to old name if weechat < 4.0.0
+sub get_key_name {
+	my $key_name = shift;
+	my $secondary_code = shift;
+	return $key_name if (weechat::info_get('version_number', '') || 0) >= 0x04000000;
+	return "ctrl-H" if $key_name eq "backspace" && $secondary_code;
+	return "ctrl-?" if $key_name eq "backspace" && !$secondary_code;
+	return "meta2-A" if $key_name eq "up";
+	return "meta2-B" if $key_name eq "down";
+	$key_name =~ s/ctrl-(\w+)/ctrl-\U$1/;
+	return $key_name;
+}
 
 ## i2h -- copy weechat infolist content into perl hash
 ## $infolist - name of the infolist in weechat
@@ -325,20 +341,20 @@ sub read_manpage {
 	@keys = map { $_->{key} }
 		grep { $_->{command} eq '/input history_previous' ||
 			   $_->{command} eq '/input history_global_previous' } @wee_keys;
-	@keys = 'meta2-A' unless @keys;
+	@keys = Nlib::get_key_name('up') unless @keys;
 	weechat::buffer_set($buf, "key_bind_$_", '/window scroll -1') for @keys;
 
 	@keys = map { $_->{key} }
 		grep { $_->{command} eq '/input history_next' ||
 			   $_->{command} eq '/input history_global_next' } @wee_keys;
-	@keys = 'meta2-B' unless @keys;
+	@keys = Nlib::get_key_name('down') unless @keys;
 	weechat::buffer_set($buf, "key_bind_$_", '/window scroll +1') for @keys;
 
 	weechat::buffer_set($buf, 'key_bind_ ', '/window page_down');
 
 	@keys = map { $_->{key} }
 		grep { $_->{command} eq '/input delete_previous_char' } @wee_keys;
-	@keys = ('ctrl-?', 'ctrl-H') unless @keys;
+	@keys = (Nlib::get_key_name('backspace'), Nlib::get_key_name('backspace', 1)) unless @keys;
 	weechat::buffer_set($buf, "key_bind_$_", '/window page_up') for @keys;
 
 	weechat::buffer_set($buf, 'key_bind_g', '/window scroll_top');
@@ -375,9 +391,9 @@ our $INPUT_CHANGED_EATER_FLAG;
 our $IGNORE_INPUT_CHANGED;
 our $IGNORE_INPUT_CHANGED2;
 
-use constant KEY_RET => 'ctrl-M';
 use constant INPUT_NL => '/input insert \x0a';
 use constant INPUT_MAGIC => '/input magic_enter';
+our $KEY_RET = Nlib::get_key_name('ctrl-m');
 our $NL = "\x0a";
 
 init_multiline();
@@ -603,7 +619,7 @@ sub magic_unlock {
 	else {
 		--$MAGIC_LOCK;
 		if (!$MAGIC_LOCK && $WEECHAT_PASTE_FIX_CTRLJ_CMD) {
-			do_key_bind('ctrl-J', $WEECHAT_PASTE_FIX_CTRLJ_CMD);
+			do_key_bind(Nlib::get_key_name('ctrl-j'), $WEECHAT_PASTE_FIX_CTRLJ_CMD);
 			$WEECHAT_PASTE_FIX_CTRLJ_CMD = undef;
 		}
 	}
@@ -664,9 +680,9 @@ sub magic_enter_cancel {
 	if ($MAGIC_LOCK_TIMER && @_) {
 		if (!$MAGIC_LOCK && !$WEECHAT_PASTE_FIX_CTRLJ_CMD &&
 				weechat::config_string_to_boolean(weechat::config_get_plugin('weechat_paste_fix'))) {
-			($WEECHAT_PASTE_FIX_CTRLJ_CMD) = get_key_command('ctrl-J');
+			($WEECHAT_PASTE_FIX_CTRLJ_CMD) = get_key_command(Nlib::get_key_name('ctrl-j'));
 			$WEECHAT_PASTE_FIX_CTRLJ_CMD = '-' unless defined $WEECHAT_PASTE_FIX_CTRLJ_CMD;
-			do_key_bind('ctrl-J', '-');
+			do_key_bind(Nlib::get_key_name('ctrl-j'), '-');
 		}
 		if ($MAGIC_LOCK < 1) {
 		    my $lock_time = get_lock_time();
@@ -740,16 +756,16 @@ sub default_options {
 		weechat::config_set_plugin($_, $defaults{$_})
 			unless weechat::config_is_set_plugin($_);
 	}
-	do_key_bind(KEY_RET, INPUT_NL)
+	do_key_bind($KEY_RET, INPUT_NL)
 		if weechat::config_string_to_boolean(weechat::config_get_plugin('ipl'));
-	my ($enter_key) = get_key_command(KEY_RET);
+	my ($enter_key) = get_key_command($KEY_RET);
 	if (need_magic_enter()) {
-		do_key_bind(KEY_RET, INPUT_MAGIC)
-			if $enter_key eq INPUT_NL;
+		do_key_bind($KEY_RET, INPUT_MAGIC)
+			if defined $enter_key && $enter_key eq INPUT_NL;
 	}
 	else {
-		do_key_bind(KEY_RET, INPUT_NL)
-			if $enter_key eq INPUT_MAGIC;
+		do_key_bind($KEY_RET, INPUT_NL)
+			if defined $enter_key && $enter_key eq INPUT_MAGIC;
 	}
 	weechat::WEECHAT_RC_OK
 }
@@ -767,16 +783,16 @@ sub init_multiline {
 sub stop_multiline {
 	magic_enter_cancel();
 	if (need_magic_enter()) {
-		my ($enter_key) = get_key_command(KEY_RET);
-		do_key_bind(KEY_RET, INPUT_NL)
-			if $enter_key eq INPUT_MAGIC;
+		my ($enter_key) = get_key_command($KEY_RET);
+		do_key_bind($KEY_RET, INPUT_NL)
+			if defined $enter_key && $enter_key eq INPUT_MAGIC;
 	}
 	if ($WEECHAT_PASTE_FIX_CTRLJ_CMD) {
-		do_key_bind('ctrl-J', $WEECHAT_PASTE_FIX_CTRLJ_CMD);
+		do_key_bind(Nlib::get_key_name('ctrl-j'), $WEECHAT_PASTE_FIX_CTRLJ_CMD);
 		$WEECHAT_PASTE_FIX_CTRLJ_CMD = undef;
 	}
 	if (weechat::config_string_to_boolean(weechat::config_get_plugin('ipl'))) {
-		do_key_bind(KEY_RET, '!');
+		do_key_bind($KEY_RET, '!');
 	}
 	weechat::WEECHAT_RC_OK
 }
