@@ -134,6 +134,10 @@ class Config:
             self.sections["look"], "edited_suffix", "string",
             "The suffix for edited posts",
             "", 0, 0, "(edited)", "(edited)", 0, "", "", "", "", "", ""), "type": "string" }
+        self.options["look.file_downloaded_suffix"] = { "pointer": weechat.config_new_option(self.file,
+            self.sections["look"], "file_downloaded_suffix", "string",
+            "The suffix for downloaded files",
+            "", 0, 0, "(downloaded)", "(downloaded)", 0, "", "", "", "", "", ""), "type": "string" }
         self.options["look.nick_full_name"] = { "pointer": weechat.config_new_option(self.file,
             self.sections["look"], "nick_full_name", "boolean",
             "Use full name instead of username as nick",
@@ -212,6 +216,10 @@ class Config:
             self.sections["color"], "edited_suffix", "color",
             "Color for edited suffix on edited posts",
             "", 0, 0, "magenta", "magenta", 0, "", "", "", "", "", ""), "type": "color" }
+        self.options["color.file_downloaded_suffix"] = { "pointer": weechat.config_new_option(self.file,
+            self.sections["color"], "file_downloaded_suffix", "color",
+            "Color for the suffix of downloaded files",
+            "", 0, 0, "green", "green", 0, "", "", "", "", "", ""), "type": "color" }
         self.options["color.file_name"] = { "pointer": weechat.config_new_option(self.file,
             self.sections["color"], "file_name", "color",
             "Color for the name part of a file",
@@ -566,24 +574,34 @@ def write_command_error(args, message):
 class File:
     dir_path_tmp = tempfile.mkdtemp()
 
-    def __init__(self, server, **kwargs):
+    def __init__(self, server, post, **kwargs):
         self.id = kwargs["id"]
         self.name = kwargs["name"]
         self.extension = kwargs["extension"]
         self.server = server
+        self.post = post
         self.url = server.url + "/api/v4/files/{}".format(self.id)
         self.dir_path = os.path.expanduser(config.get_value("file", "download_location"))
 
     def render(self):
         name = colorize(config.get_value("format", "file_name").format(self.name), config.get_value("color", "file_name"))
         url = colorize(config.get_value("format", "file_url").format(self.url), config.get_value("color", "file_url"))
-        return "{}{}".format(name, url)
+
+        text = "{}{}".format(name, url)
+
+        if self._is_downloaded():
+            text += " {}".format(colorize(config.get_value("look", "file_downloaded_suffix"), config.get_value("color", "file_downloaded_suffix")))
+
+        return text
 
     def _path(self, temporary=False):
         if temporary:
             return "{}/{}.{}".format(self.dir_path_tmp, self.id, self.extension)
 
         return "{}/{}".format(self.dir_path, self.name)
+
+    def _is_downloaded(self):
+        return os.path.isfile(self._path())
 
     def download(self, temporary=False, open=False):
         file_path = self._path(temporary)
@@ -599,14 +617,15 @@ class File:
                 self.server.print_error("Failed to create directory for downloads: {}".format(self.dir_path))
                 return
 
-        run_get_file(self.id, file_path, self.server, "file_get_cb", "{}|{}|{}".format(self.server.id, file_path, int(open)))
+        cb_data = "{}|{}|{}|{}|{}".format(self.server.id, self.post.channel.id, self.post.id, file_path, int(open))
+        run_get_file(self.id, file_path, self.server, "file_get_cb", cb_data)
 
     @staticmethod
     def open(path):
         weechat.hook_process('xdg-open "{}"'.format(path), 0, "", "")
 
 def file_get_cb(data, command, rc, out, err):
-    server_id, file_path, open = data.split("|")
+    server_id, channel_id, post_id, file_path, open = data.split("|")
     server = servers[server_id]
 
     if rc != 0:
@@ -615,6 +634,10 @@ def file_get_cb(data, command, rc, out, err):
 
     if open == "1":
         File.open(file_path)
+    else:
+        channel = server.get_channel(channel_id)
+        post = channel.posts[post_id]
+        channel.update_post(post)
 
     return weechat.WEECHAT_RC_OK
 
@@ -625,8 +648,7 @@ class Post:
         self.channel = server.get_channel(kwargs["channel_id"])
         self.message = kwargs["message"]
         self.type = kwargs["type"]
-        self.date = int(kwargs["create_at"]/1000)
-        self.read = False
+        self.created_at = kwargs["create_at"]
         self.edited = kwargs["edit_at"] != 0
         self.thread_root = False
 
@@ -635,7 +657,7 @@ class Post:
         self.files = {}
         if "metadata" in kwargs and "files" in kwargs["metadata"]:
             for file_data in kwargs["metadata"]["files"]:
-                file = File(server, **file_data)
+                file = File(server, self, **file_data)
                 self.files[file.id] = file
 
         self.reactions = {}
@@ -645,12 +667,16 @@ class Post:
                 self.reactions[reaction.id] = reaction
 
         self.attachments = []
-        if "attachments" in kwargs["props"]:
+        if "attachments" in kwargs["props"] and kwargs["props"]["attachments"] is not None:
             for attachment_data in kwargs["props"]["attachments"]:
                 self.attachments.append(Attachment(**attachment_data))
 
         self.from_bot = kwargs["props"].get("from_bot", False) or kwargs["props"].get("from_webhook", False)
         self.username_override = kwargs["props"].get("override_username")
+
+    @property
+    def read(self):
+        return self.created_at <= self.channel.last_viewed_at
 
     def render_nick(self):
         prefix_string = weechat.config_string(weechat.config_get("weechat.look.nick_prefix"))
@@ -677,6 +703,8 @@ class Post:
         # where 2 tabs at the beginning of a line results in no alignment
         tab_width = weechat.config_integer(weechat.config_get("weechat.look.tab_width"))
         main_text = self.message.replace("\t", " " * tab_width)
+
+        main_text = main_text.strip('\n')
         main_text = format_markdown_links(main_text)
 
         attachments_text = "\n\n".join([ a.render() for a in self.attachments ])
@@ -829,6 +857,8 @@ class Attachment:
                 field_text = ""
                 if field["title"] and field["value"]:
                     field_text = "{}: {}".format(field["title"], field["value"])
+                elif field["title"]:
+                    field_text = "{}: ".format(field["title"])
                 elif field["value"]:
                     field_text = field["value"]
 
@@ -975,6 +1005,7 @@ class ChannelBase:
         self._is_muted = None
         self.last_post_id = None
         self.last_read_post_id = None
+        self.last_viewed_at = 0
 
         self._create_buffer()
 
@@ -1005,17 +1036,13 @@ class ChannelBase:
 
         weechat.buffer_set(self.buffer, "short_name", color + prefix + self.name)
 
-    def load(self, muted):
-        if muted:
-            self.mute()
-        else:
-            self.unmute()
-
+    # expects muted status to be set beforehand to notify loading posts accordingly
+    def load(self):
         self.set_loading(True)
 
         EVENTROUTER.enqueue_request(
-            "run_get_read_channel_posts",
-            self.id, self.server, "hydrate_channel_read_posts_cb", self.buffer
+            "run_get_channel_posts_around_oldest_unread",
+            self.id, self.server, "hydrate_channel_posts_cb", self.buffer
         )
 
         EVENTROUTER.enqueue_request(
@@ -1171,7 +1198,9 @@ class ChannelBase:
         if post.root_id:
             message = self._prefix_thread_message(message, post.root_id, root=False)
 
-        weechat.prnt_date_tags(self.buffer, post.date, tags, prefix + message)
+        date = int(post.created_at / 1000)
+
+        weechat.prnt_date_tags(self.buffer, date, tags, prefix + message)
 
         self._update_file_tags(post.id)
 
@@ -1182,8 +1211,6 @@ class ChannelBase:
             return
 
         run_post_channel_view(self.id, self.server, "singularity_cb", self.buffer)
-
-        self.last_read_post_id = self.last_post_id
 
     def add_user(self, user_id):
         if user_id not in self.server.users:
@@ -1378,6 +1405,10 @@ def hydrate_channel_posts_cb(buffer, command, rc, out, err):
 
     response = json.loads(out)
 
+    if not response["order"]:
+        channel.set_loading(False)
+        return weechat.WEECHAT_RC_OK
+
     for post_id in reversed(response["order"]):
         builded_post = Post(server, **response["posts"][post_id])
         channel.write_post(builded_post)
@@ -1385,42 +1416,7 @@ def hydrate_channel_posts_cb(buffer, command, rc, out, err):
     if "" != response["next_post_id"]:
         EVENTROUTER.enqueue_request(
             "run_get_channel_posts_after",
-            builded_post.id, builded_post.channel.id, server, "hydrate_channel_posts_cb", buffer
-        )
-    else:
-        channel.set_loading(False)
-
-    return weechat.WEECHAT_RC_OK
-
-def hydrate_channel_read_posts_cb(buffer, command, rc, out, err):
-    server = get_server_from_buffer(buffer)
-
-    if rc != 0:
-        server.print_error("An error occurred while hydrating channel")
-        return weechat.WEECHAT_RC_ERROR
-
-    channel = server.get_channel_from_buffer(buffer)
-
-    response = json.loads(out)
-
-    if not response["order"]:
-        channel.set_loading(False)
-        return weechat.WEECHAT_RC_OK
-
-    for post_id in reversed(response["order"]):
-        post = Post(server, **response["posts"][post_id])
-        post.read = True
-        channel.write_post(post)
-
-    channel.last_read_post_id = post.id
-
-    weechat.buffer_set(buffer, "unread", "-")
-    weechat.buffer_set(buffer, "hotlist", "-1")
-
-    if "" != response["next_post_id"]:
-        EVENTROUTER.enqueue_request(
-            "run_get_channel_posts_after",
-            post.id, post.channel.id, server, "hydrate_channel_posts_cb", buffer
+            builded_post.id, channel.id, server, "hydrate_channel_posts_cb", buffer
         )
     else:
         channel.set_loading(False)
@@ -1450,7 +1446,7 @@ def hydrate_channel_users_cb(data, command, rc, out, err):
 
     return weechat.WEECHAT_RC_OK
 
-def update_channel_mute_status_cb(data, command, rc, out, err):
+def load_channels_cb(data, command, rc, out, err):
     server_id, page = data.split("|")
     page = int(page)
     server = servers[server_id]
@@ -1464,14 +1460,20 @@ def update_channel_mute_status_cb(data, command, rc, out, err):
     if len(response) == 100:
         EVENTROUTER.enqueue_request(
             "run_get_user_channel_members",
-            server, page+1, "update_channel_mute_status_cb", "{}|{}".format(server_id, page+1)
+            server, page+1, "load_channels_cb", "{}|{}".format(server_id, page+1)
         )
 
     for member_data in response:
         channel = server.get_channel(member_data["channel_id"])
         if channel:
-            muted = member_data["notify_props"]["mark_unread"] != "all"
-            channel.load(muted)
+            channel.last_viewed_at = member_data["last_viewed_at"]
+
+            if member_data["notify_props"]["mark_unread"] == "all":
+                channel.unmute()
+            else:
+                channel.mute()
+
+            channel.load()
 
     return weechat.WEECHAT_RC_OK
 
@@ -1602,12 +1604,15 @@ def chat_line_event_cb(data, signal, hashtable):
         weechat.command(buffer, "/input send /mattermost delete {}".format(post_id))
     elif data == "reply":
         weechat.command(buffer, "/cursor stop")
+        weechat.command(buffer, "/input delete_line")
         weechat.command(buffer, "/input insert /mattermost reply {}\\x20".format(post_id))
     elif data == "react":
         weechat.command(buffer, "/cursor stop")
+        weechat.command(buffer, "/input delete_line")
         weechat.command(buffer, "/input insert /mattermost react {} :".format(post_id))
     elif data == "unreact":
         weechat.command(buffer, "/cursor stop")
+        weechat.command(buffer, "/input delete_line")
         weechat.command(buffer, "/input insert /mattermost unreact {} :".format(post_id))
     elif data == "post_open":
         weechat.command(buffer, "/cursor stop")
@@ -1924,7 +1929,7 @@ def connect_server_team_channel_cb(server_id, command, rc, out, err):
         server.fetch_direct_message_channels_user_status(channel)
 
     # this is only used for channel appearing so shouldn't be muted immediately
-    channel.load(muted=False)
+    channel.load()
 
     return weechat.WEECHAT_RC_OK
 
@@ -1945,7 +1950,7 @@ def connect_server_team_channels_cb(server_id, command, rc, out, err):
 
     EVENTROUTER.enqueue_request(
         "run_get_user_channel_members",
-        server, 0, "update_channel_mute_status_cb", "{}|0".format(server.id)
+        server, 0, "load_channels_cb", "{}|0".format(server.id)
     )
 
     return weechat.WEECHAT_RC_OK
@@ -2356,8 +2361,8 @@ def run_post_command(team_id, channel_id, command, server, cb, cb_data):
         build_buffer_cb_data(url, cb, cb_data)
     )
 
-def run_get_read_channel_posts(channel_id, server, cb, cb_data):
-    url = server.url + "/api/v4/users/me/channels/{}/posts/unread?limit_after=1".format(channel_id)
+def run_get_channel_posts_around_oldest_unread(channel_id, server, cb, cb_data):
+    url = server.url + "/api/v4/users/me/channels/{}/posts/unread".format(channel_id)
     weechat.hook_process_hashtable(
         "url:" + url,
         {
@@ -2450,7 +2455,7 @@ def run_post_reaction(emoji_name, post_id, server, cb, cb_data):
         "user_id": server.me.id,
         "post_id": post_id,
         "emoji_name": emoji_name,
-        "create_at": int(time.time()),
+        "create_at": int(time.time() * 1000),
     }
 
     weechat.hook_process_hashtable(
@@ -2688,13 +2693,15 @@ def handle_channel_viewed_message(server, data, broadcast):
         weechat.buffer_set(channel.buffer, "hotlist", "-1")
 
         channel.last_read_post_id = channel.last_post_id
+        channel.last_viewed_at = int(time.time() * 1000)
 
 def handle_user_added_message(server, data, broadcast):
     if data["user_id"] == server.me.id: # we are geing invited
         connect_server_team_channel(broadcast["channel_id"], server)
     else:
         channel = server.get_channel(broadcast["channel_id"])
-        channel.add_user(data["user_id"])
+        if channel:
+            channel.add_user(data["user_id"])
 
 def handle_direct_added_message(server, data, broadcast):
     connect_server_team_channel(broadcast["channel_id"], server)
@@ -2709,12 +2716,18 @@ def handle_new_user_message(server, data, broadcast):
     )
 
 def handle_user_removed_message(server, data, broadcast):
-    channel = server.get_channel(data["channel_id"])
-    if data["remover_id"] == server.me.id: # we are leaving the channel
+    if "channel_id" in data: # when we leave
+        channel = server.get_channel(data["channel_id"])
+        user_id = broadcast["user_id"]
+    else: # when someone else leaves
+        channel = server.get_channel(broadcast["channel_id"])
+        user_id = data["user_id"]
+
+    if user_id == server.me.id: # we are leaving the channel
         channel.unload()
         server.remove_channel(channel.id)
     else:
-        channel.remove_user(data["remover_id"])
+        channel.remove_user(user_id)
 
 def handle_added_to_team_message(server, data, broadcast):
     # cannot test but probably this event is only triggered on own user
@@ -2816,7 +2829,7 @@ mentions = ["@here", "@channel", "@all"]
 WEECHAT_SCRIPT_NAME = "wee_most"
 WEECHAT_SCRIPT_DESCRIPTION = "Mattermost integration"
 WEECHAT_SCRIPT_AUTHOR = "Damien Tardy-Panis <damien.dev@tardypad.me>"
-WEECHAT_SCRIPT_VERSION = "0.2.0"
+WEECHAT_SCRIPT_VERSION = "0.3.0"
 WEECHAT_SCRIPT_LICENSE = "GPL3"
 
 weechat.register(
