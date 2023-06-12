@@ -15,41 +15,36 @@
 #
 # ---------------------------------------------
 # Adds an item showing weather
-# Uses https://github.com/chubin/wttr.in
+#
 # ---------------------------------------------
 # History
-# 2023-05-29 : Initial release
+# 2023-06-xx : Initial release
 
 set SCRIPT_VERSION 1.0
 set SCRIPT_NAME wttr
 set SCRIPT_SUMMARY "Adds an item showing weather"
 
+set SCRIPT_ARGS "loc <location>|format <1-4|format>|lang <ISO lang>"
+set SCRIPT_ADESC "loc <location> : sets the new location\nformat <format>: Formats of the output, can be an integer (1-4) or a string.\n  More explanation @ https://github.com/chubin/wttr.in#one-line-output\nlang <ISO lang>: Defines the lang to use (EN for english, FR for french, ...). Default is your weechat lang."
+
 weechat::register $SCRIPT_NAME {CrazyCat <crazycat@c-p-f.org>} $SCRIPT_VERSION GPL3 $SCRIPT_SUMMARY {} {}
-weechat::hook_command wttr $SCRIPT_SUMMARY {} {Type /wttr help} {} wttr_cmds {}
+weechat::hook_command wttr $SCRIPT_SUMMARY $SCRIPT_ARGS $SCRIPT_ADESC {loc || format || lang} wttr_cmds {}
 
 # Management of settings
 proc wttr_cmds {data buffer args} {
-   lassign {*}$args cmd item value
+   set value [lassign {*}$args cmd]
    if {$cmd eq "" || [string tolower $cmd] eq "help"} {
-      weechat::print $buffer "Usage : /wttr set <loc|format|lang> value"
-      weechat::print $buffer "Example for location : /wttr set loc Paris,France"
-      weechat::print $buffer "Format can be integer (1-4) or string as explained at https://github.com/chubin/wttr.in#one-line-output"
-      weechat::print $buffer "Change language: /wttr set lang fr"
+      weechat::print $buffer "Help : /help wttr"
       return $::weechat::WEECHAT_RC_OK
    }
    set cmd [string tolower $cmd]
-   if {$cmd ne "set"} {
-      weechat::print $buffer "Use /wttr <set|help> when getting $cmd"
-      return $::weechat::WEECHAT_RC_ERROR
-   }
-   switch -nocase $item {
+   switch -nocase $cmd {
       "loc" {
          if {$value eq ""} {
             weechat::print $buffer "Use /wttr set loc City"
             return $weechat::WEECHAT_RC_ERROR
          }
          weechat::config_set_plugin city [join $value]
-         return $::weechat::WEECHAT_RC_OK
       }
       "format" {
          if {$value eq ""} {
@@ -57,7 +52,6 @@ proc wttr_cmds {data buffer args} {
             set value 4
          }
          weechat::config_set_plugin wformat [join $value]
-         return $::weechat::WEECHAT_RC_OK
       }
       "lang" {
          if {$value eq ""} {
@@ -65,20 +59,22 @@ proc wttr_cmds {data buffer args} {
             set value [lindex [split [::weechat::info_get "locale" ""] "_"] 0]
          }
          weechat::config_set_plugin lang $value
-         return $::weechat::WEECHAT_RC_OK
       }
       default {
-         weechat::print $buffer "Usage : /wttr set <loc|format|lang> value"
+         weechat::print $buffer "Usage : /wttr <loc|format|lang> value"
          return $::weechat::WEECHAT_RC_ERROR
       }
    }
+   wttr_timer_cb "wttr" ""
+   return $::weechat::WEECHAT_RC_OK
 }
 
 # Periodical call
 proc wttr_timer_cb {data remaining_calls} {
-   set url "http://wttr.in/[weechat::config_get_plugin city]?format=[weechat::config_get_plugin wformat]&lang=[weechat::config_get_plugin lang]"
-    weechat::hook_process "url:${url}" 5000 "wttr_get_cb" ""
-    return $::weechat::WEECHAT_RC_OK
+   set city [string map {" " "%20"} [weechat::config_get_plugin city]]
+   set url "http://wttr.in/$city?format=[weechat::config_get_plugin wformat]&lang=[weechat::config_get_plugin lang]"
+   weechat::hook_process "url:${url}" 5000 "wttr_get_cb" ""
+   return $::weechat::WEECHAT_RC_OK
 }
 
 # Callback when getting datas from wttr.in
