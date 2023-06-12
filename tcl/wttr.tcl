@@ -65,7 +65,7 @@ proc wttr_cmds {data buffer args} {
          return $::weechat::WEECHAT_RC_ERROR
       }
    }
-   wttr_timer_cb "wttr" ""
+   wttr_timer_cb "" 0
    return $::weechat::WEECHAT_RC_OK
 }
 
