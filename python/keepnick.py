@@ -18,6 +18,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2023-06-14: Sébastien Helleu <flashcode@flashtux.org>
+#       1.7 : remove use of infolist variable "ssl_connected"
+#
 # 2017-10-19: nils_2 (freenode.#weechat)
 #       1.6 : fix parsing error, now using weechat.info_get_hashtable() (reported by Mikaela)
 #
@@ -101,7 +104,7 @@ except Exception:
 # -------------------------------[ Constants ]-------------------------------------
 SCRIPT_NAME     = "keepnick"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "1.6"
+SCRIPT_VERSION  = "1.7"
 SCRIPT_LICENCE  = "GPL3"
 SCRIPT_DESC     = "keep your nick and recover it in case it's occupied"
 
@@ -174,11 +177,10 @@ def check_nicks(data, remaining_calls):
         servername = weechat.infolist_string(infolist, 'name')
         ptr_buffer = weechat.infolist_pointer(infolist,'buffer')
         nick = weechat.infolist_string(infolist, 'nick')
-        ssl_connected = weechat.infolist_integer(infolist,'ssl_connected')
         is_connected = weechat.infolist_integer(infolist,'is_connected')
 
         if server_enabled(servername):
-            if nick and ssl_connected + is_connected:
+            if nick and is_connected:
                 ison(servername,nick,server_nicks(servername))
     weechat.infolist_free(infolist)
     return weechat.WEECHAT_RC_OK
