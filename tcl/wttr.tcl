@@ -18,14 +18,32 @@
 #
 # ---------------------------------------------
 # History
+# 2023-06-15 : Improved help
 # 2023-06-14 : Initial release
 
-set SCRIPT_VERSION 1.0
+set SCRIPT_VERSION 1.1
 set SCRIPT_NAME wttr
 set SCRIPT_SUMMARY "Adds an item showing weather"
 
 set SCRIPT_ARGS "loc <location>|format <1-4|format>|lang <ISO lang>"
-set SCRIPT_ADESC "loc <location> : sets the new location\nformat <format>: Formats of the output, can be an integer (1-4) or a string.\n  More explanation @ https://github.com/chubin/wttr.in#one-line-output\nlang <ISO lang>: Defines the lang to use (EN for english, FR for french, ...). Default is your weechat lang."
+set SCRIPT_ADESC "loc <location> : sets the new location\n\
+:  example : /wttr loc Paris, France\n\
+* format <format>: Formats of the output, can be an integer (predefined formats from 1 to 4) or a string (custom format).\n\
+:  example : /wttr format %l:+%C+%t+(%f)+%w\n\
+-- Main format variables --\n\
+:  %l : location\n\
+:  %c / %C / %x: weather condition (icon / textual)\n\
+:  %t / %f : temperature (actual / feels like)\n\
+:  %w : wind\n\
+-- Predefined formats --\n\
+:  1 - %c+%t\n\
+:  2 - %c+%t+%w (with icons)\n\
+:  3 - %l:+%c+%t\n\
+:  4 - %l:%c+%t+%w (with icons)\n\
+:  More explanation @ https://github.com/chubin/wttr.in#one-line-output\n\
+* lang <ISO lang>: Defines the lang to use (EN for english, FR for french, ...). Default is your weechat lang.\n\
+Think to add the \[wttr\] item to a bar. Example to add it to the status bar:\n\
+  /eval /set weechat.bar.status.items \"\${weechat.bar.status.items},wttr\")"
 
 weechat::register $SCRIPT_NAME {CrazyCat <crazycat@c-p-f.org>} $SCRIPT_VERSION GPL3 $SCRIPT_SUMMARY {} {}
 weechat::hook_command wttr $SCRIPT_SUMMARY $SCRIPT_ARGS $SCRIPT_ADESC {loc || format || lang} wttr_cmds {}
