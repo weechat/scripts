@@ -19,6 +19,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # history:
+# 4.0.1: fix display of multiline messages
 # 4.0: add compatibility with XDG directories (WeeChat >= 3.2)
 # 3.9: add compatibility with new weechat_print modifier data (WeeChat >= 2.9)
 # 3.8: new option custom_action_text (https://github.com/weechat/scripts/issues/313) (idea by 3v1n0)
@@ -88,7 +89,7 @@
 
 use strict;
 my $PRGNAME     = "colorize_lines";
-my $VERSION     = "4.0";
+my $VERSION     = "4.0.1";
 my $AUTHOR      = "Nils Görs <weechatter\@arcor.de>";
 my $LICENCE     = "GPL3";
 my $DESCR       = "Colorize users' text in chat area with their nick color, including highlights";
@@ -172,7 +173,7 @@ sub colorize_cb
     my $servername = weechat::buffer_get_string($buf_ptr, "localvar_server");
 
     # find stuff between \t
-    $string =~ m/^([^\t]*)\t(.*)/;
+    $string =~ m/^([^\t]*)\t(.*)/s;
     my $left = $1;
     my $right = $2;
 
