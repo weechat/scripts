@@ -6,18 +6,20 @@
 import weechat
 import datetime
 
-weechat.register("soju", "soju", "0.4.0", "AGPL3", "soju bouncer integration", "", "")
+weechat.register("soju", "soju", "0.5.0", "AGPL3", "soju bouncer integration", "", "")
 
 BOUNCER_CAP = "soju.im/bouncer-networks"
 
-caps_option = weechat.config_get("irc.server_default.capabilities")
-caps = weechat.config_string(caps_option)
-if BOUNCER_CAP not in caps:
-    if caps != "":
-        caps += ","
-    caps += BOUNCER_CAP
-    weechat.config_option_set(caps_option, caps, 1)
 weechat_version = int(weechat.info_get("version_number", "") or 0)
+
+if weechat_version < 0x04000000:
+    caps_option = weechat.config_get("irc.server_default.capabilities")
+    caps = weechat.config_string(caps_option)
+    if BOUNCER_CAP not in caps:
+        if caps != "":
+            caps += ","
+        caps += BOUNCER_CAP
+        weechat.config_option_set(caps_option, caps, 1)
 
 main_server = None
 added_networks = {}
@@ -123,6 +125,14 @@ def handle_bouncer_msg(data, signal, signal_data):
 
     return weechat.WEECHAT_RC_OK_EAT
 
+def handle_cap_sync_req(data, modifier, modifier_data, requested):
+    supported = modifier_data.split(",")[1].split(" ")
+    if BOUNCER_CAP in supported:
+        requested += " " + BOUNCER_CAP
+    return requested
+
 weechat.hook_signal("*,irc_raw_in_376", "handle_isupport_end_msg", "") # RPL_ENDOFMOTD
 weechat.hook_signal("*,irc_raw_in_422", "handle_isupport_end_msg", "") # ERR_NOMOTD
 weechat.hook_signal("*,irc_raw_in_bouncer", "handle_bouncer_msg", "")
+if weechat_version >= 0x04000000:
+    weechat.hook_modifier("irc_cap_sync_req", "handle_cap_sync_req", "")
