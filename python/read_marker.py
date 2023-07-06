@@ -13,24 +13,26 @@
 import weechat
 import datetime
 
-weechat.register("read_marker", "emersion", "0.1.0", "AGPL3", "draft/read-marker extension support", "", "")
+weechat.register("read_marker", "emersion", "0.2.0", "AGPL3", "draft/read-marker extension support", "", "")
 
 READ_MARKER_CAP = "draft/read-marker"
 
-caps_option = weechat.config_get("irc.server_default.capabilities")
-caps = weechat.config_string(caps_option)
-if READ_MARKER_CAP not in caps:
-    if caps != "":
-        caps += ","
-    caps += READ_MARKER_CAP
-    weechat.config_option_set(caps_option, caps, 1)
+weechat_version = int(weechat.info_get("version_number", "") or 0)
+
+if weechat_version < 0x04000000:
+    caps_option = weechat.config_get("irc.server_default.capabilities")
+    caps = weechat.config_string(caps_option)
+    if READ_MARKER_CAP not in caps:
+        if caps != "":
+            caps += ","
+        caps += READ_MARKER_CAP
+        weechat.config_option_set(caps_option, caps, 1)
 
 read_times = {}
 
 def server_by_name(server_name):
     hdata = weechat.hdata_get("irc_server")
     server_list = weechat.hdata_get_list(hdata, "irc_servers")
-    weechat_version = int(weechat.info_get("version_number", "") or 0)
     if weechat_version >= 0x03040000:
         return weechat.hdata_search(
             hdata,
@@ -151,6 +153,14 @@ def handle_hotlist_change(data, signal, signal_data):
         buffer = weechat.hdata_pointer(hdata, buffer, "next_buffer")
     return weechat.WEECHAT_RC_OK
 
+def handle_cap_sync_req(data, modifier, modifier_data, requested):
+    supported = modifier_data.split(",")[1].split(" ")
+    if READ_MARKER_CAP in supported:
+        requested += " " + READ_MARKER_CAP
+    return requested
+
 weechat.hook_signal("*,irc_raw_in_markread", "handle_markread_msg", "")
 weechat.hook_signal("buffer_closed", "handle_buffer_close", "")
 weechat.hook_signal("hotlist_changed", "handle_hotlist_change", "")
+if weechat_version >= 0x04000000:
+    weechat.hook_modifier("irc_cap_sync_req", "handle_cap_sync_req", "")
