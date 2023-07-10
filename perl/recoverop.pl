@@ -48,7 +48,7 @@ use warnings;
 
 weechat::register(
     "recoverop", "AYANOKOUZI, Ryuunosuke",
-    "0.1.2", "GPL3", "recover channel operator in empty channel",
+    "0.1.3", "GPL3", "recover channel operator in empty channel",
     "", ""
 );
 my $script_name = "recoverop";
@@ -109,10 +109,10 @@ sub my_signal_irc_in_PART_cb {
     my $data        = shift;
     my $signal      = shift;
     my $type_data   = shift;
-    my $signal_data = shift;
+    my $hashtable = weechat::info_get_hashtable("irc_message_parse" => + { "message" => $type_data });
     my $server      = ( split ',', $signal )[0];
-    my ( $user, $channel ) = ( split ' ', $type_data, 4 )[ 0, 2 ];
-    my ( $nick, $username, $address ) = ( $user =~ m/:(.*)!(.*)@(.*)/ );
+    my $channel = $hashtable->{channel};
+    my $nick = $hashtable->{nick};
     part_join( $server, $channel, $nick );
     return weechat::WEECHAT_RC_OK;
 }
@@ -121,10 +121,9 @@ sub my_signal_irc_in_QUIT_cb {
     my $data        = shift;
     my $signal      = shift;
     my $type_data   = shift;
-    my $signal_data = shift;
+    my $hashtable = weechat::info_get_hashtable("irc_message_parse" => + { "message" => $type_data });
     my $server      = ( split ',', $signal )[0];
-    my $user        = ( split ' ', $type_data, 3 )[0];
-    my ( $nick, $username, $address ) = ( $user =~ m/:(.*)!(.*)@(.*)/ );
+    my $nick = $hashtable->{nick};
     my $infolist = weechat::infolist_get( "irc_channel", "", "$server" );
 
     while ( weechat::infolist_next($infolist) ) {
