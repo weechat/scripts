@@ -12,6 +12,12 @@ Repository: https://github.com/thomwiggers/weechat-emojize
 
 This plugin supports python 3 and requires the 'emoji' python package.
 Requires at least weechat 1.3
+
+Changelog:
+    1.0.1 - 2023-08-06: mva
+        Adaptation to modern version of `emoji` package
+        (use_aliases => language="alias")
+
 """
 
 
@@ -19,7 +25,7 @@ def register():
     weechat.register(
         "emojize",
         "Thom Wiggers",
-        "1.0.0",
+        "1.0.1",
         "CC0",
         "Convert emoji shortcodes to unicode emoji",
         "",  # shutdown function
@@ -60,12 +66,12 @@ def convert_emoji(_data, modifier, _modifier_data, string):
     if msg["text"] != "" and pos_text > 0:
         return (
             string[:pos_text]
-            + emoji.emojize(msg["text"], use_aliases=True)
-            + string[(pos_text + len(msg["text"])) :]
+            + emoji.emojize(msg["text"], language="alias")
+            + string[(pos_text + len(msg["text"])):]
         )
 
     if modifier == "input_text_for_buffer":
-        return emoji.emojize(string, use_aliases=True)
+        return emoji.emojize(string, language="alias")
 
     return string
 
