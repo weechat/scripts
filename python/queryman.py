@@ -19,6 +19,9 @@
 #
 # idea by lasers@freenode.#weechat
 #
+# 2023-08-01: nils_2 (libera.#weechat)
+#     0.6.1 : fix a timing problem when joining autojoin-channels (reported by thecdnhermit)
+#
 # 2021-05-05: Sébastien Helleu <flashcode@flashtux.org>
 #       0.6 : add compatibility with XDG directories (WeeChat >= 3.2)
 #
@@ -59,7 +62,7 @@ except Exception:
 
 SCRIPT_NAME     = 'queryman'
 SCRIPT_AUTHOR   = 'nils_2 <weechatter@arcor.de>'
-SCRIPT_VERSION  = '0.6'
+SCRIPT_VERSION  = '0.6.1'
 SCRIPT_LICENSE  = 'GPL'
 SCRIPT_DESC     = 'save and restore query buffers after /quit and on open/close of queries'
 DEBUG           = False
@@ -179,7 +182,7 @@ def open_query_buffer(server_name, nick):
     switch_autojoin = weechat.config_get("irc.look.buffer_switch_autojoin")
     if not weechat.config_boolean(switch_autojoin):
         noswitch = "-noswitch"
-    weechat.command('','/query %s -server %s %s' % ( noswitch, server_name, nick ))
+    weechat.command('','/wait 1 /query %s -server %s %s' % ( noswitch, server_name, nick ))
     weechat.buffer_set(starting_buffer, 'display', 'auto')
 
 def open_stored_query_buffers_for_server(server_connected):

@@ -21,6 +21,7 @@
 
 # Versions:
 #
+# 0.7 flashcode - fix error when next release is scheduled today
 # 0.6 flashcode - add compatibility with WeeChat >= 3.2 (XDG directories)
 # 0.5 flashcode - fix URL with infos, fix download of infos, fix PEP8 errors
 #                 and refactor code
@@ -44,7 +45,7 @@
 
 SCRIPT_NAME = "update_notifier"
 SCRIPT_AUTHOR = "drubin <drubin at smartcube.co.za>"
-SCRIPT_VERSION = "0.6"
+SCRIPT_VERSION = "0.7"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Notifiers users of updates to weechat."
 
@@ -202,7 +203,7 @@ def un_download_cb(filename, command, rc, stdout, stderr):
         elif (int(diff_day) <= 0):  # today a new stable version is available
             stable_number = get_info_ver("stable")
             next_stable_text = weechat.config_get_plugin("update_text_stable")
-            if "%s" in next_stable_text >= 1:  # %s in string?
+            if next_stable_text.find("%s") >= 1:  # %s in string?
                 next_stable_text = (next_stable_text % stable_number)
             return weechat.WEECHAT_RC_OK
 

@@ -38,6 +38,10 @@
 #
 # -----------------------------------------------------------------------------
 # History:
+# 2023-06-29: nils_2@libera.#weechat
+#     version 1.6:
+#     FIX: nick was not correctly parsed when message has tags.
+#
 # 2022-02-21: CrazyCat <crazycat@c-p-f.org>
 #     version 1.5:
 #     FIX: regression from https://github.com/weechat/scripts/issues/493
@@ -125,7 +129,7 @@ use strict;
 
 my $SCRIPT      = 'query_blocker';
 my $AUTHOR      = 'rettub <rettub@gmx.net>';
-my $VERSION     = '1.5';
+my $VERSION     = '1.6';
 my $LICENSE     = 'GPL3';
 my $DESCRIPTION = 'Simple blocker for private message (i.e. spam)';
 my $COMMAND     = "query_blocker";             # new command name
@@ -406,9 +410,11 @@ sub modifier_irc_in_privmsg {
     # by default, blocking is enabled for all server. except the one with a localvar
     return $arg if (weechat::buffer_get_string(weechat::buffer_search("irc", "server.".$server), 'localvar_query_blocker'));
 
+
     # check for query message
     if ( $arg =~ m/:(.+?)!.+? PRIVMSG (.+?) :(.*)/i ) {
-        my $query_nick = $1;
+        my $hashtable = weechat::info_get_hashtable("irc_message_parse" => + { "message" => $arg });
+        my $query_nick = $hashtable->{nick};
         my $my_nick_msg = $2;
         my $query_msg  = $3;
 
