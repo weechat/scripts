@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2019 by nils_2 <weechatter@arcor.de>
+# Copyright (c) 2019-2023 by nils_2 <nils_2@libera.#weechat>
 #
 # collapse channel buffers from servers without focus
 #
@@ -49,6 +49,9 @@
 #       0.9 : make script compatible with WeeChat >= 3.4
 #             (new parameters in function hdata_search)
 #
+# 2023-09-01: nils_2, (libera.#weechat)
+#       1.0 : check for buffer_ptr and for irc buffer
+
 # idea and testing by DJ-ArcAngel
 
 try:
@@ -61,7 +64,7 @@ except Exception:
 
 SCRIPT_NAME     = "collapse_channel"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.9"
+SCRIPT_VERSION  = "1.0"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "collapse channel buffers from servers without focus"
 
@@ -112,13 +115,14 @@ def buffer_switch_cb(data, signal, signal_data):
     global OPTIONS, version
 
     plugin_name = weechat.buffer_get_string(signal_data, 'localvar_plugin')     # get plugin
-    script_name = weechat.buffer_get_string(signal_data, 'localvar_script_name')
-    if script_name == "slack":                                                  # script don't support slack yet
+    if plugin_name != "irc":                                                    # script only support irc plugin!
         return weechat.WEECHAT_RC_OK
 
     # when you /join a buffer and irc.look.buffer_switch_join is ON, the new buffer pointer is not useable at this time
     server = weechat.buffer_get_string(signal_data, 'localvar_server')          # get internal servername
     buffer_ptr = weechat.buffer_search('irc', 'server.%s' % server)
+    if not buffer_ptr:                                                          # buffer pointer exists?
+        return weechat.WEECHAT_RC_OK                                            # no!
 
     if OPTIONS['activity'].lower() == 'no' or OPTIONS['activity'].lower() == 'off' or OPTIONS['activity'].lower() == '0':
         # hide all channel but use -exclude
