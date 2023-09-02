@@ -51,6 +51,10 @@
 #
 # 2023-09-01: nils_2, (libera.#weechat)
 #       1.0 : check for buffer_ptr and for irc buffer
+#
+# 2023-09-02: nils_2, (libera.#weechat)
+#       1.1 : one more check for buffer_ptr
+
 
 # idea and testing by DJ-ArcAngel
 
@@ -64,7 +68,7 @@ except Exception:
 
 SCRIPT_NAME     = "collapse_channel"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "1.0"
+SCRIPT_VERSION  = "1.1"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "collapse channel buffers from servers without focus"
 
@@ -179,7 +183,8 @@ def exclude_server():
 #            is_connected    = weechat.hdata_integer(hdata, server, "is_connected")
 #            nick_modes      = weechat.hdata_string(hdata, server, "nick_modes")
             buffer_ptr = weechat.hdata_pointer(hdata, server, 'buffer')
-            weechat.command(buffer_ptr,'/allchan -current /buffer unhide')
+            if buffer_ptr:                                                      # buffer pointer exists?
+                weechat.command(buffer_ptr,'/allchan -current /buffer unhide')  # yes!
     return
 
 def single_channel_exclude():
