@@ -1,8 +1,11 @@
 # coding=UTF-8
 
+from __future__ import print_function
+from builtins import str
+from builtins import range
 SCRIPT_NAME    = "xdccq"
 SCRIPT_AUTHOR  = "Randall Flagg <shinigami_flagg@yahoo.it>"
-SCRIPT_VERSION = "0.1.1"
+SCRIPT_VERSION = "0.1.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Queue Xdcc messages to bots"
 
@@ -119,7 +122,7 @@ def numToList(string):
                     step = int(nx[1])
                 if low > high:
                     raise ValueError("number")
-                ret += range(low, high, step)
+                ret += list(range(low, high, step))
             except ValueError:
                 raise ValueError("number")
         else:
