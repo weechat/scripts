@@ -1,6 +1,3 @@
-from __future__ import print_function
-from builtins import str
-from builtins import range
 SCRIPT_NAME    = "xdccq"
 SCRIPT_AUTHOR  = "Randall Flagg <shinigami_flagg@yahoo.it>"
 SCRIPT_VERSION = "0.1.2"
