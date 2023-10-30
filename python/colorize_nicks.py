@@ -21,6 +21,8 @@
 #
 #
 # History:
+# 2023-10-30: Sébastien Helleu <flashcode@flashtux.org>
+#   version 32: revert to info "nick_color" with WeeChat >= 4.1.1
 # 2023-10-16: Sébastien Helleu <flashcode@flashtux.org>
 #   version 31: use info "irc_nick_color" on IRC buffers with WeeChat >= 4.1.0
 # 2022-11-07: mva
@@ -98,7 +100,7 @@ w = weechat
 
 SCRIPT_NAME    = "colorize_nicks"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "31"
+SCRIPT_VERSION = "32"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Use the weechat nick colors in the chat area"
 
@@ -178,12 +180,11 @@ def colorize_nick_color(buffer, nick, my_nick):
     if nick == my_nick:
         return w.color(w.config_string(w.config_get('weechat.color.chat_nick_self')))
     else:
-        if w.buffer_get_string(buffer, 'plugin') == 'irc' \
-               and int(w.info_get('version_number', '') or 0) >= 0x4010000:
+        version = int(w.info_get('version_number', '') or 0)
+        if w.buffer_get_string(buffer, 'plugin') == 'irc' and version == 0x4010000:
             server = w.buffer_get_string(buffer, 'localvar_server')
             return w.info_get('irc_nick_color', '%s,%s' % (server, nick))
-        else:
-            return w.info_get('nick_color', nick)
+        return w.info_get('nick_color', nick)
 
 def colorize_cb(data, modifier, modifier_data, line):
     ''' Callback that does the colorizing, and returns new line if changed '''
