@@ -25,6 +25,8 @@
 
 #
 # Changelog:
+# 3.10:
+#   * Fix exception in `/autosort helpers swap`.
 # 3.9:
 #   * Remove `buffers.pl` from recommended settings.
 # 3,8:
@@ -87,7 +89,7 @@ import weechat
 
 SCRIPT_NAME     = 'autosort'
 SCRIPT_AUTHOR   = 'Maarten de Vries <maarten@de-vri.es>'
-SCRIPT_VERSION  = '3.9'
+SCRIPT_VERSION  = '3.10'
 SCRIPT_LICENSE  = 'GPL3'
 SCRIPT_DESC     = 'Flexible automatic (or manual) buffer sorting based on eval expressions.'
 
@@ -616,7 +618,6 @@ def command_helper_swap(buffer, command, args):
 	except KeyError as e:
 		raise HumanReadableError('No such helper: {0}'.format(e.args[0]))
 
-	config.helpers.swap(index_a, index_b)
 	config.save_helpers()
 	command_helper_list(buffer, command, '')
 	return weechat.WEECHAT_RC_OK
@@ -829,7 +830,7 @@ def on_autosort_command(data, buffer, args):
 
 def add_completions(completion, words):
 	for word in words:
-		weechat.hook_completion_list_add(completion, word, 0, weechat.WEECHAT_LIST_POS_END)
+		weechat.completion_list_add(completion, word, 0, weechat.WEECHAT_LIST_POS_END)
 
 def autosort_complete_rules(words, completion):
 	if len(words) == 0:
@@ -1001,14 +1002,14 @@ If you remove all signals you can still sort your buffers manually with the
 
 {*white}# Recommended settings
 For the best visual effect, consider setting the following options:
-  {*white}/set {cyan}irc.look.server_buffer{reset} {brown}independent{reset}
+{*white}/set {cyan}irc.look.server_buffer{reset} {brown}independent{reset}
 
 This setting allows server buffers to be sorted independently, which is
 needed to create a hierarchical tree view of the server and channel buffers.
 
 If you are using the {*default}buflist{reset} plugin you can (ab)use Unicode to draw a tree
 structure with the following setting (modify to suit your need):
-  {*white}/set {cyan}buflist.format.indent {brown}"${{color:237}}${{if:${{buffer.next_buffer.local_variables.type}}=~^(channel|private)$?├─:└─}}"{reset}
+{*white}/set {cyan}buflist.format.indent {brown}"${{color:237}}${{if:${{buffer.next_buffer.local_variables.type}}=~^(channel|private)$?├─:└─}}"{reset}
 '''
 
 command_completion = '%(plugin_autosort) %(plugin_autosort) %(plugin_autosort) %(plugin_autosort) %(plugin_autosort)'
