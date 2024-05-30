@@ -21,6 +21,9 @@
 #
 # History:
 #
+# 2024-05-30, Sébastien Helleu <flashcode@flashtux.org>:
+#     version 3.0: refresh immediately buffer input when /go command is executed
+#                  (needed for WeeChat >= 4.3.0)
 # 2023-06-21, Sébastien Helleu <flashcode@flashtux.org>:
 #     version 2.9: add option "min_chars"
 # 2023-01-08, Sébastien Helleu <flashcode@flashtux.org>:
@@ -100,7 +103,7 @@ from __future__ import print_function
 
 SCRIPT_NAME = 'go'
 SCRIPT_AUTHOR = 'Sébastien Helleu <flashcode@flashtux.org>'
-SCRIPT_VERSION = '2.9'
+SCRIPT_VERSION = '3.0'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC = 'Quick jump to buffers'
 
@@ -234,6 +237,7 @@ def go_hook_all():
     if 'modifier' not in hooks:
         hooks['modifier'] = weechat.hook_modifier(
             'input_text_display_with_cursor', 'go_input_modifier', '')
+        weechat.bar_item_update('input_text')
 
 
 def go_start(buf):
