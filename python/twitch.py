@@ -34,6 +34,8 @@
 #
 # # History:
 #
+# 2024-06-20, stacyharper
+#     v0.10: eval client_id and token expressions. Usefull when used with weechat secures values.
 # 2020-07-27,
 #     v0.9: added support for Oauth token to support twitch APIs requirement -mumixam
 #           fix bug for when api returns null for game_id -mas90
@@ -552,6 +554,8 @@ def config_setup():
                 hlist = []
                 cidv = weechat.config_get_plugin(option)
                 tokv = weechat.config_get_plugin('token')
+                if tokv[:6] == "${sec.":
+                    tokv = weechat.string_eval_expression(tokv, {}, {}, {})
                 if cidv:
                     hlist.append('Client-ID: '+cidv)
                 if tokv:
@@ -562,6 +566,8 @@ def config_setup():
                 hlist = []
                 cidv = weechat.config_get_plugin('client_id')
                 tokv = weechat.config_get_plugin(option)
+                if tokv[:6] == "${sec.":
+                    tokv = weechat.string_eval_expression(tokv, {}, {}, {})
                 if tokv:
                     hlist.append('Authorization: Bearer '+tokv)
                 if cidv:
@@ -592,6 +598,8 @@ def config_change(pointer, name, value):
                 curlopt['httpheader'] = x + '\n' + "Client-ID: " + value
                 break
     if option == 'token':
+        if value[:6] == "${sec.":
+            value = weechat.string_eval_expression(value, {}, {}, {})
         for x in curlopt['httpheader'].split('\n'):
             if x.startswith('Client-ID:'):
                 curlopt['httpheader'] = x + '\n' + "Authorization: Bearer " + value
