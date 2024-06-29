@@ -34,6 +34,9 @@
 #
 # # History:
 #
+# 2024-06-29, mumixam + stacyharper
+#     v1.0: eval client_id and token expressions so that /secure can be used
+#
 # 2020-07-27,
 #     v0.9: added support for Oauth token to support twitch APIs requirement -mumixam
 #           fix bug for when api returns null for game_id -mas90
@@ -64,7 +67,7 @@
 
 SCRIPT_NAME = "twitch"
 SCRIPT_AUTHOR = "mumixam"
-SCRIPT_VERSION = "0.9"
+SCRIPT_VERSION = "1.0"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "twitch.tv Chat Integration"
 OPTIONS={
@@ -336,7 +339,7 @@ def twitch_clearchat(data, modifier, modifier_data, string):
     user = mp['text']
     channel = mp['channel']
     try:
-        tags = dict([s.split('=') for s in mp['tags'].split(';')])
+        tags = dict([s.split('=',1) for s in mp['tags'].split(';')])
     except:
         tags = ''
     buffer = weechat.buffer_search("irc", "%s.%s" % (server, channel))
@@ -377,7 +380,7 @@ def twitch_clearmsg(data, modifier, modifier_data, string):
     server = modifier_data
     channel = mp['channel']
     try:
-        tags = dict([s.split('=') for s in mp['tags'].split(';')])
+        tags = dict([s.split('=',1) for s in mp['tags'].split(';')])
     except:
         tags = ''
     buffer = weechat.buffer_search("irc", "%s.%s" % (server, channel))
@@ -452,7 +455,7 @@ def twitch_usernotice(data, modifier, server, string):
     buffer = weechat.buffer_search(
         "irc", "%s.%s" % (server, mp['channel']))
     if mp['tags']:
-        tags = dict([s.split('=') for s in mp['tags'].split(';')])
+        tags = dict([s.split('=',1) for s in mp['tags'].split(';')])
         msg = tags['system-msg'].replace('\s',' ')
         if mp['text']:
             msg += ' [Comment] '+mp['text']
@@ -496,7 +499,7 @@ def twitch_in_privmsg(data, modifier, server_name, string, prefix=''):
     if '#' + mp['nick'] == mp['channel']:
         return mp['message_without_tags'].replace(mp['nick'], '~' + mp['nick'], 1)
 
-    tags = dict([s.split('=') for s in mp['tags'].split(';')])
+    tags = dict([s.split('=',1) for s in mp['tags'].split(';')])
     if tags['user-type'] == 'mod':
         prefix += '@'
     if tags['subscriber'] == '1':
@@ -552,6 +555,8 @@ def config_setup():
                 hlist = []
                 cidv = weechat.config_get_plugin(option)
                 tokv = weechat.config_get_plugin('token')
+                if tokv[:6] == "${sec.":
+                    tokv = weechat.string_eval_expression(tokv, {}, {}, {})
                 if cidv:
                     hlist.append('Client-ID: '+cidv)
                 if tokv:
@@ -562,6 +567,8 @@ def config_setup():
                 hlist = []
                 cidv = weechat.config_get_plugin('client_id')
                 tokv = weechat.config_get_plugin(option)
+                if tokv[:6] == "${sec.":
+                    tokv = weechat.string_eval_expression(tokv, {}, {}, {})
                 if tokv:
                     hlist.append('Authorization: Bearer '+tokv)
                 if cidv:
@@ -592,6 +599,8 @@ def config_change(pointer, name, value):
                 curlopt['httpheader'] = x + '\n' + "Client-ID: " + value
                 break
     if option == 'token':
+        if value[:6] == "${sec.":
+            value = weechat.string_eval_expression(value, {}, {}, {})
         for x in curlopt['httpheader'].split('\n'):
             if x.startswith('Client-ID:'):
                 curlopt['httpheader'] = x + '\n' + "Authorization: Bearer " + value
@@ -636,7 +645,7 @@ if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
         "    /set plugins.var.python.twitch.ssl_verify off\n"
         "\n\n"
         "  Required server settings:\n"
-        "    /server add twitch irc.twitch.tv\n"
+        "    /server add twitch irc.chat.twitch.tv\n"
         "    /set irc.server.twitch.capabilities \"twitch.tv/membership,twitch.tv/commands,twitch.tv/tags\"\n"
         "    /set irc.server.twitch.nicks \"My Twitch Username\"\n"
         "    /set irc.server.twitch.password \"oauth:My Oauth Key\"\n"
