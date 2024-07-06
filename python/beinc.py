@@ -1,7 +1,5 @@
-# -*- coding: utf-8 -*-
-
-# Blackmore's Enhanced IRC-Notification Collection (BEINC) v4.3
-# Copyright (C) 2013-2022 Simeon Simeonov
+# Blackmore's Enhanced IRC-Notification Collection (BEINC)
+# Copyright (C) 2013-2024 Simeon Simeonov
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,11 +14,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """BEINC client for Weechat"""
+
 import datetime
 import io
 import json
 import os
-import socket
 import ssl
 import urllib.parse
 import urllib.request
@@ -28,7 +26,7 @@ import urllib.request
 import weechat
 
 __author__ = 'Simeon Simeonov'
-__version__ = '4.3'
+__version__ = '4.4'
 __license__ = 'GPL3'
 
 
@@ -178,19 +176,18 @@ class WeechatTarget:
         try:
             title = self._fetch_formatted_str(self._pm_title_template, values)
             message = self._fetch_formatted_str(
-                self._pm_message_template,
-                values,
+                self._pm_message_template, values
             )
             if not self._send_beinc_message(title, message) and self._debug:
                 beinc_prnt(
                     f'BEINC DEBUG: send_private_message_notification-ERROR '
                     f'for "{self._name}": _send_beinc_message -> False'
                 )
-        except Exception as e:
+        except Exception as exp:
             if self._debug:
                 beinc_prnt(
                     f'BEINC DEBUG: send_private_message_notification-ERROR '
-                    f'for "{self._name}": {e}'
+                    f'for "{self._name}": {exp}'
                 )
 
     def send_channel_message_notification(self, values):
@@ -210,11 +207,11 @@ class WeechatTarget:
                     f'BEINC DEBUG: send_channel_message_notification-ERROR '
                     f'for "{self._name}": _send_beinc_message -> False'
                 )
-        except Exception as e:
+        except Exception as exp:
             if self._debug:
                 beinc_prnt(
                     f'BEINC DEBUG: send_channel_message_notification-ERROR '
-                    f'for "{self._name}": {e}'
+                    f'for "{self._name}": {exp}'
                 )
 
     def send_notify_message_notification(self, values):
@@ -234,11 +231,11 @@ class WeechatTarget:
                     f'BEINC DEBUG: send_notify_message_notification-ERROR '
                     f'for "{self._name}": _send_beinc_message -> False'
                 )
-        except Exception as e:
+        except Exception as exp:
             if self._debug:
                 beinc_prnt(
                     f'BEINC DEBUG: send_notify_message_notification-ERROR '
-                    f'for "{self._name}": {e}'
+                    f'for "{self._name}": {exp}'
                 )
 
     def send_broadcast_notification(self, message):
@@ -256,11 +253,11 @@ class WeechatTarget:
                     f'BEINC DEBUG: send_broadcast_notification-ERROR '
                     f'for "{self._name}": _send_beinc_message -> False'
                 )
-        except Exception as e:
+        except Exception as exp:
             if self._debug:
                 beinc_prnt(
                     f'BEINC DEBUG: send_broadcast_notification-ERROR '
-                    f'for "{self._name}": {e}'
+                    f'for "{self._name}": {exp}'
                 )
 
     def _context_setup(self):
@@ -282,12 +279,12 @@ class WeechatTarget:
                 context.set_ciphers(self._ssl_ciphers)
             self._context = context
             return True
-        except ssl.SSLError as e:
+        except ssl.SSLError as err:
             if self._debug:
-                beinc_prnt(f'BEINC DEBUG: SSL/TLS error: {e}\n')
-        except Exception as e:
+                beinc_prnt(f'BEINC DEBUG: SSL/TLS error: {err}\n')
+        except Exception as exp:
             if self._debug:
-                beinc_prnt(f'BEINC DEBUG: Generic context error: {e}\n')
+                beinc_prnt(f'BEINC DEBUG: Generic context error: {exp}\n')
         self._context = None
         return False
 
@@ -351,7 +348,7 @@ class WeechatTarget:
             )
             response_dict = json.loads(response.read().decode('utf-8'))
             if response.code != 200:
-                raise socket.error(response_dict.get('message', ''))
+                raise OSError(response_dict.get('message', ''))
             if self._debug:
                 beinc_prnt(
                     "BEINC DEBUG: Server responded: "
@@ -359,15 +356,15 @@ class WeechatTarget:
                 )
             self._last_message = datetime.datetime.now()
             return True
-        except ssl.SSLError as e:
+        except ssl.SSLError as err:
             if self._debug:
-                beinc_prnt(f'BEINC DEBUG: SSL/TLS error: {e}\n')
-        except socket.error as e:
+                beinc_prnt(f'BEINC DEBUG: SSL/TLS error: {err}\n')
+        except OSError as err:
             if self._debug:
-                beinc_prnt(f'BEINC DEBUG: Connection error: {e}\n')
-        except Exception as e:
+                beinc_prnt(f'BEINC DEBUG: Connection error: {err}\n')
+        except Exception as exp:
             if self._debug:
-                beinc_prnt(f'BEINC DEBUG: Unable to send message: {e}\n')
+                beinc_prnt(f'BEINC DEBUG: Unable to send message: {exp}\n')
         return False
 
 
@@ -398,7 +395,7 @@ def beinc_cmd_target_handler(cmd_tokens):
     if cmd_tokens[0] == 'list':
         beinc_prnt('--- Globals ---')
         for key, value in global_values.items():
-            beinc_prnt(f'{key} -> {str(value)}')
+            beinc_prnt(f'{key} -> {value}')
         beinc_prnt('--- Targets ---')
         for target in target_list:
             beinc_prnt(str(target))
@@ -539,8 +536,7 @@ def beinc_init():
 
     try:
         beinc_config_file_str = os.path.join(
-            weechat.info_get('weechat_dir', ''),
-            'beinc_weechat.json',
+            weechat.info_get('weechat_dir', ''), 'beinc_weechat.json'
         )
         beinc_prnt(f'Parsing {beinc_config_file_str}...')
         custom_error = 'load error'
@@ -565,8 +561,8 @@ def beinc_init():
         for target in config_dict['irc_client']['targets']:
             try:
                 new_target = WeechatTarget(target)
-            except Exception as e:
-                beinc_prnt(f'Unable to add target: {e}')
+            except Exception as exp:
+                beinc_prnt(f'Unable to add target: {exp}')
                 continue
             if new_target.channel_messages_policy:
                 global_values['global_channel_messages_policy'] = True
@@ -577,10 +573,10 @@ def beinc_init():
             target_list.append(new_target)
             beinc_prnt(f'BEINC target "{new_target.name}" added')
         beinc_prnt('Done!')
-    except Exception as e:
+    except Exception as exp:
         beinc_prnt(
             f'ERROR: unable to parse {beinc_config_file_str}: '
-            f'{custom_error} - {e}\nBEINC is now disabled'
+            f'{custom_error} - {exp}\nBEINC is now disabled'
         )
         enabled = False
         # do not return error / exit the script
@@ -594,7 +590,7 @@ weechat.register(
     __author__,
     __version__,
     __license__,
-    'Blackmore\'s Extended IRC Notification Collection (Weechat Client)',
+    "Blackmore's Extended IRC Notification Collection (Weechat Client)",
     '',
     '',
 )
