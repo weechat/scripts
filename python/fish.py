@@ -61,7 +61,7 @@ from os import urandom
 
 SCRIPT_NAME = "fish"
 SCRIPT_AUTHOR = "David Flatz <david@upcs.at>"
-SCRIPT_VERSION = "0.14"
+SCRIPT_VERSION = "0.15"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "FiSH for weechat"
 CONFIG_FILE_NAME = SCRIPT_NAME
@@ -894,7 +894,7 @@ def fish_modifier_input_text(data, modifier, server_name, string):
     targetl = target.lower()
     if targetl not in fish_keys:
         return string
-    return "%s" % (fish_msg_w_marker(string))
+    return "%s" % (fish_msg_w_marker(string.encode()).decode())
 
 
 def fish_unload_cb():
@@ -1139,11 +1139,11 @@ def fish_list_keys(buffer):
 
 
 def fish_msg_w_marker(msg):
-    marker = weechat.config_string(fish_config_option["mark_encrypted"])
+    marker = weechat.config_string(fish_config_option["mark_encrypted"]).encode()
     if weechat.config_string(fish_config_option["mark_position"]) == "end":
-        return "%s%s" % (msg, marker)
+        return b"%s%s" % (msg, marker)
     elif weechat.config_string(fish_config_option["mark_position"]) == "begin":
-        return "%s%s" % (marker, msg)
+        return b"%s%s" % (marker, msg)
     else:
         return msg
 

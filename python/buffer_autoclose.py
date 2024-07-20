@@ -20,6 +20,8 @@
 # (this script requires WeeChat 0.3.0 or newer)
 #
 # History:
+# 2024-05-04, Miklos Vajna
+#  version 0.6: Allow autoclosing explicitly listed non-private buffers as well
 # 2018-04-10, Sébastien Helleu <flashcode@flashtux.org>
 #  version 0.5: fix infolist_time for WeeChat >= 2.2 (WeeChat returns a long
 #               integer instead of a string)
@@ -37,7 +39,7 @@ import time
 
 SCRIPT_NAME    = "buffer_autoclose"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.5"
+SCRIPT_VERSION = "0.6"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Automatically close inactive private message buffers"
 
@@ -45,6 +47,7 @@ settings = {
         'interval': '1', # How often in minutes to check
         'age_limit': '30', # How old in minutes before auto close
         'ignore': '', # Buffers to ignore (use full name: server.buffer_name)
+        'prefer': '', # Buffers to prefer, even if they are not private (use full name: server.buffer_name)
 }
 
 if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE,
@@ -64,8 +67,13 @@ def get_all_buffers():
     '''Returns list with pointers of all open buffers.'''
     buffers = []
     infolist = w.infolist_get('buffer', '', '')
+    preferlist = w.config_get_plugin('prefer').split(',')
     while w.infolist_next(infolist):
         buffer_type = w.buffer_get_string(w.infolist_pointer(infolist, 'pointer'), 'localvar_type')
+        name = w.buffer_get_string(w.infolist_pointer(infolist, 'pointer'), 'name')
+        if name in preferlist:
+            buffers.append(w.infolist_pointer(infolist, 'pointer'))
+            continue
         if buffer_type == 'private': # we only close private message buffers for now
             buffers.append(w.infolist_pointer(infolist, 'pointer'))
     w.infolist_free(infolist)

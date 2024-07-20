@@ -21,6 +21,10 @@
 #
 #
 # History:
+# 2023-10-30: Sébastien Helleu <flashcode@flashtux.org>
+#   version 32: revert to info "nick_color" with WeeChat >= 4.1.1
+# 2023-10-16: Sébastien Helleu <flashcode@flashtux.org>
+#   version 31: use info "irc_nick_color" on IRC buffers with WeeChat >= 4.1.0
 # 2022-11-07: mva
 #   version 30: add ":" and "," to VALID_NICK regexp,
 #               to don't reset colorization in input_line
@@ -96,7 +100,7 @@ w = weechat
 
 SCRIPT_NAME    = "colorize_nicks"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "30"
+SCRIPT_VERSION = "32"
 SCRIPT_LICENSE = "GPL"
 SCRIPT_DESC    = "Use the weechat nick colors in the chat area"
 
@@ -171,11 +175,15 @@ def colorize_config_read():
     global colorize_config_file
     return weechat.config_read(colorize_config_file)
 
-def colorize_nick_color(nick, my_nick):
+def colorize_nick_color(buffer, nick, my_nick):
     ''' Retrieve nick color from weechat. '''
     if nick == my_nick:
         return w.color(w.config_string(w.config_get('weechat.color.chat_nick_self')))
     else:
+        version = int(w.info_get('version_number', '') or 0)
+        if w.buffer_get_string(buffer, 'plugin') == 'irc' and version == 0x4010000:
+            server = w.buffer_get_string(buffer, 'localvar_server')
+            return w.info_get('irc_nick_color', '%s,%s' % (server, nick))
         return w.info_get('nick_color', nick)
 
 def colorize_cb(data, modifier, modifier_data, line):
@@ -343,7 +351,7 @@ def populate_nicks(*args):
                 continue
 
             nick = w.infolist_string(nicklist, 'name')
-            nick_color = colorize_nick_color(nick, my_nick)
+            nick_color = colorize_nick_color(buffer_ptr, nick, my_nick)
 
             colored_nicks[buffer_ptr][nick] = nick_color
 
@@ -365,7 +373,7 @@ def add_nick(data, signal, type_data):
         colored_nicks[pointer] = {}
 
     my_nick = w.buffer_get_string(pointer, 'localvar_nick')
-    nick_color = colorize_nick_color(nick, my_nick)
+    nick_color = colorize_nick_color(pointer, nick, my_nick)
 
     colored_nicks[pointer][nick] = nick_color
 
