@@ -17,6 +17,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# 2024-07-20: nils_2, (libera.#weechat)
+#       1.1 : fix SyntaxWarning with Python 3.12 (akyag)
+#
 # 2019-07-16: nils_2, (freenode.#weechat)
 #       1.0 : fix bug when misspelled word don't have a suggestion (rafasc)
 #           : fixed typo in /help text
@@ -78,7 +81,7 @@ except Exception:
 
 SCRIPT_NAME     = "spell_correction"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "1.0"
+SCRIPT_VERSION  = "1.1"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "a spell correction script to use with spell/aspell plugin"
 
@@ -93,8 +96,8 @@ OPTIONS         = { 'auto_pop_up_item'       : ('off','automatic pop-up suggesti
                   }
 
 Hooks = {'catch_input_completion': '', 'catch_input_return': ''}
-regex_color=re.compile('\$\{([^\{\}]+)\}')
-regex_optional_tags=re.compile('%\{[^\{\}]+\}')
+regex_color=re.compile(r'\$\{([^\{\}]+)\}')
+regex_optional_tags=re.compile(r'%\{[^\{\}]+\}')
 multiline_input = 0
 plugin_name = "spell"      # WeeChat >= 2.5
 old_plugin_name = "aspell"   # WeeChat < 2.5
