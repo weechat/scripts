@@ -18,13 +18,18 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import commands
+import subprocess
 import weechat
 
+
 def weechat_np(data, buffer, args):
-    read_track = commands.getoutput('deadbeef --nowplaying "%a - (%b) - %t [%@:BPS@bit / %@:BITRATE@kbps / %@:SAMPLERATE@Hz]"').split('\n')
-    weechat.command(buffer, '/me is currently listening to: ' + read_track[1])
+    read_track = subprocess.getoutput('deadbeef --nowplaying "%a - (%b) - %t [%@:BPS@bit / %@:BITRATE@kbps / %@:SAMPLERATE@Hz]"').split('\n')
+    if len(read_track) > 1:
+        weechat.command(buffer, '/me is currently listening to: ' + read_track[1])
+    else:
+        weechat.prnt(buffer, 'deadbeef_np: error: %s' % read_track[0])
     return weechat.WEECHAT_RC_OK
 
-weechat.register("deadbeef_np", "mwgg", "0.9", "MIT", "Show name of the song currently played by DeaDBeeF", "", "")
+
+weechat.register("deadbeef_np", "mwgg", "1.0", "MIT", "Show name of the song currently played by DeaDBeeF", "", "")
 weechat.hook_command("np", "Get/send now playing info.", "", "", "", "weechat_np", "")
