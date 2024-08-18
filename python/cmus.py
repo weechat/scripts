@@ -16,11 +16,11 @@
 # Made as a port of cmus_xchat-v2.0, also made by Isaac Ross. Due to the nature of weechat's plugin/scripting API,
 # this was mostly made using find/replace in a text editor
 
-import commands
+import subprocess
 import weechat
 import os
 
-weechat.register("cmus", "Isaac Ross", "1.02", "GPL2", "Adds ability to control cmus and post the currently playing song in a channel", "", "")
+weechat.register("cmus", "Isaac Ross", "1.1", "GPL2", "Adds ability to control cmus and post the currently playing song in a channel", "", "")
 
 
 def help():
@@ -41,7 +41,7 @@ def help():
     weechat.prnt('', "Keep in mind that most problems will probably be related to cmus-remote, not this script")
 
 def np():
-    cmus = commands.getoutput('cmus-remote -Q')
+    cmus = subprocess.getoutput('cmus-remote -Q')
     lines = cmus.split('\n')
 
     #some redundant loops later, but streamline as needed
@@ -89,14 +89,14 @@ def control(data, buffer, args):
         os.system('cmus-remote -S')
         weechat.prnt('', 'Toggled shuffle on/off.')
     elif args[0].lower() == 'status':
-        status = commands.getoutput('cmus-remote -Q')
+        status = subprocess.getoutput('cmus-remote -Q')
         status = status.split('\n')
         for line in status:
             weechat.prnt('', " -- " + line)
     elif args[0].lower() == 'help':
         help()
     elif args[0].lower() == 'file':
-        filename = commands.getoutput('cmus-remote -Q')
+        filename = subprocess.getoutput('cmus-remote -Q')
         filename = filename.split('\n')
         newname  = filename[1]
         newname = newname.replace('file', '', 1)
