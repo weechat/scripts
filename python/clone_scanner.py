@@ -126,6 +126,9 @@
 #     * Updated advertise option to include /script install clone_scanner.py
 #     * Updated min version to 0.3.6, though this will prob change in the next version
 #
+### 2024-08-18: Sébastien Helleu:
+# * version 1.5: make script compatible with Python 3
+#
 ## Acknowledgements:
 # * Sebastien "Flashcode" Helleu, for developing the kick-ass chat/IRC
 #    client WeeChat
@@ -170,19 +173,18 @@
 #
 SCRIPT_NAME     = "clone_scanner"
 SCRIPT_AUTHOR   = "Filip H.F. 'FiXato' Slagter <fixato [at] gmail [dot] com>"
-SCRIPT_VERSION  = "1.4"
+SCRIPT_VERSION  = "1.5"
 SCRIPT_LICENSE  = "MIT"
 SCRIPT_DESC     = "A Clone Scanner that can manually scan channels and automatically scans joins for users on the channel with multiple nicknames from the same host."
 SCRIPT_COMMAND  = "clone_scanner"
 SCRIPT_CLOSE_CB = "cs_close_cb"
 
-import_ok = True
-
 try:
   import weechat
+  IMPORT_OK = True
 except ImportError:
-  print "This script must be run under WeeChat."
-  import_ok = False
+  print("This script must be run under WeeChat.")
+  IMPORT_OK = False
 
 import re
 cs_buffer = None
@@ -262,7 +264,7 @@ def on_join_scan_cb(data, signal, signal_data):
     return weechat.WEECHAT_RC_OK
 
   joined_nick = weechat.info_get("irc_nick_from_host", signal_data)
-  join_match_data = re.match(':[^!]+!([^@]+@(\S+)) JOIN :?([#&]\S*)', signal_data)
+  join_match_data = re.match(r':[^!]+!([^@]+@(\S+)) JOIN :?([#&]\S*)', signal_data)
   parsed_ident_host = join_match_data.group(1).lower()
   parsed_host = join_match_data.group(2).lower()
   if OPTIONS["compare_idents"] == "on":
@@ -274,7 +276,7 @@ def on_join_scan_cb(data, signal, signal_data):
   network_chan_name = "%s.%s" % (network, chan_name)
   chan_buffer = weechat.info_get("irc_buffer", "%s,%s" % (network, chan_name))
   if not chan_buffer:
-    print "No IRC channel buffer found for %s" % network_chan_name
+    weechat.prnt("", "No IRC channel buffer found for %s" % network_chan_name)
     return weechat.WEECHAT_RC_OK
 
   if OPTIONS["display_join_messages"] == "on":
@@ -293,8 +295,8 @@ def on_join_scan_cb(data, signal, signal_data):
   if clones:
     key = get_validated_key_from_config("clone_onjoin_alert_key")
 
-    filtered_clones = filter(lambda clone: clone['nick'] != joined_nick, clones[hostkey])
-    match_strings = map(lambda m: format_from_config(m[key], "colors.onjoin_alert.matches"), filtered_clones)
+    filtered_clones = [clone for clone in clones[hostkey] if clone['nick'] != joined_nick]
+    match_strings = [format_from_config(m[key], "colors.onjoin_alert.matches") for m in filtered_clones]
 
     join_string = format_from_config(' and ',"colors.onjoin_alert.message")
     masks = join_string.join(match_strings)
@@ -347,7 +349,7 @@ def get_channel_from_buffer_args(buffer, args):
   if not channel_name:
     channel_name = weechat.buffer_get_string(buffer, "localvar_channel")
 
-  match_data = re.match('\A(irc.)?([^.]+)\.([#&]\S*)\Z', channel_name)
+  match_data = re.match(r'\A(irc.)?([^.]+)\.([#&]\S*)\Z', channel_name)
   if match_data:
     channel_name = match_data.group(3)
     server_name = match_data.group(2)
@@ -360,7 +362,7 @@ def get_clones_for_buffer(infolist_buffer_name, hostname_to_match=None):
   infolist = weechat.infolist_get("irc_nick", "", infolist_buffer_name)
   while(weechat.infolist_next(infolist)):
     ident_hostname = weechat.infolist_string(infolist, "host")
-    host_matchdata = re.match('([^@]+)@(\S+)', ident_hostname)
+    host_matchdata = re.match(r'([^@]+)@(\S+)', ident_hostname)
     if not host_matchdata:
       continue
 
@@ -388,7 +390,7 @@ def get_clones_for_buffer(infolist_buffer_name, hostname_to_match=None):
   weechat.infolist_free(infolist)
 
   #Select only the results that have more than 1 match for a host
-  return dict((k, v) for (k, v) in matches.iteritems() if len(v) > 1)
+  return dict((k, v) for (k, v) in matches.items() if len(v) > 1)
 
 def report_clones(clones, scanned_buffer_name, target_buffer=None):
   # Default to clone_scanner buffer
@@ -405,7 +407,7 @@ def report_clones(clones, scanned_buffer_name, target_buffer=None):
     clone_report_header = format_from_config(clone_report_header, "colors.clone_report.header.message")
     weechat.prnt(target_buffer, clone_report_header)
 
-    for (host, clones) in clones.iteritems():
+    for (host, clones) in clones.items():
       host_message = "%s %s %s %s" % (
         format_from_config(host, "colors.clone_report.subheader.host"),
         format_from_config("is online from", "colors.clone_report.subheader.message"),
@@ -476,7 +478,7 @@ def remove_hooks():
     weechat.unhook(hook)
   hooks = set([])
 
-if __name__ == "__main__" and import_ok:
+if __name__ == "__main__" and IMPORT_OK:
   if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, SCRIPT_CLOSE_CB, ""):
     version = weechat.info_get("version_number", "") or 0
     if int(version) >= 0x00030600:
