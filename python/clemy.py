@@ -22,20 +22,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # Imports
 try:
     import weechat
-
+    IMPORT_OK = True
 except ImportError:
-    import sys
-
-    print '\nError: Script must be run under Weechat.\n'
-
-    sys.exit(2)
+    print('Error: Script must be run under Weechat.')
+    IMPORT_OK = False
 
 import dbus
 
 
-weechat.register('clemy', "Your mommy's boyfriend", '0.1.1', 'GPLv3', 'Control yo Clementine like boom-blaka!', '', '')
-
-err_message     =       '\nSomething silly just happend.  Make sure Clementine is running mah dude.'
+err_message = '\nSomething silly just happend.  Make sure Clementine is running mah dude.'
 
 
 def help():
@@ -187,9 +182,11 @@ def weechat_np(data, buffer, args):
     return weechat.WEECHAT_RC_OK
 
 
-weechat.hook_command('clemynp', 'Get/output now playing info', '', '', '', 'weechat_np', '')
-weechat.hook_command('clemy', 'Control Clementine', "[play] | [pause] | [next] | [prev] | [stop] | [vol+] | [vol-] | [vol+by <n>] | [vol-by <n>] | [playtrack <n>] | [help]",
-"""
+if __name__ == "__main__" and IMPORT_OK:
+    weechat.register('clemy', "Your mommy's boyfriend", '0.1.2', 'GPLv3', 'Control yo Clementine like boom-blaka!', '', '')
+    weechat.hook_command('clemynp', 'Get/output now playing info', '', '', '', 'weechat_np', '')
+    weechat.hook_command('clemy', 'Control Clementine', "[play] | [pause] | [next] | [prev] | [stop] | [vol+] | [vol-] | [vol+by <n>] | [vol-by <n>] | [playtrack <n>] | [help]",
+                         """
 play:           Play song.
 pause:          Pause song.
 next:           Play next song.
