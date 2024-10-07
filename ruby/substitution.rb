@@ -135,7 +135,7 @@ def update_config
 end
 
 def load_config
-  if File.exists?(@config_file)
+  if File.exist?(@config_file)
     @substitutions = Marshal.load(File.read(@config_file))
   else
     @substitutions = {}
