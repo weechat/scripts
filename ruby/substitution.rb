@@ -40,7 +40,7 @@ del: Deletes the substitution matching <name>.
 EOD
 
 def weechat_init
-  Weechat.register('substitution', 'sam113101', '0.0.2', 'GPL3',
+  Weechat.register('substitution', 'sam113101', '0.0.3', 'GPL3',
                    'Substitute strings in your messages before they are sent.', '', '')
   @config_file = Weechat.string_eval_path_home('%h/substitutions.bin', {}, {}, {'directory' => 'data'})
   load_config
@@ -135,7 +135,7 @@ def update_config
 end
 
 def load_config
-  if File.exists?(@config_file)
+  if File.exist?(@config_file)
     @substitutions = Marshal.load(File.read(@config_file))
   else
     @substitutions = {}
