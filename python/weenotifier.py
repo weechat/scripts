@@ -1,4 +1,5 @@
-"""Copyright (c) 2021 The gitlab.com/mohan43u/weenotifier Authors.
+"""
+Copyright (c) 2021-present Mohan Raman <mohan43u@gmail.com>.
 
 All rights reserved.
 
