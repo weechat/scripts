@@ -1,4 +1,5 @@
-"""Copyright (c) 2021 The gitlab.com/mohan43u/weenotifier Authors.
+"""
+Copyright (c) 2021-present Mohan Raman <mohan43u@gmail.com>.
 
 All rights reserved.
 
@@ -25,146 +26,193 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-20210-07-01: Mohan R
-      0.0.1: Initial release
+2021-07-01: Mohan R
+     0.0.1: Initial release with IrssiNotifier
+            (https://irssinotifier.appspot.com/)
 
-Description: notifier using IrssiNotifier (https://irssinotifier.appspot.com/)
+2024-10-06: Mohan R
+     0.1.0: switched to gotify (https://gotify.net/)
+            it should also support ntfy.sh (https://ntfy.sh)
+
+Description: notifier for push notification
 Project URL: https://gitlab.com/mohan43u/weenotifier
 """
 
-import os
-import base64
 from urllib.parse import urlencode
 
 try:
     import weechat
-    weechat.register('weenotifier',
-                     'Mohan R',
-                     '0.0.1',
-                     'BSD 2-Clause Simplified',
-                     'notifier using \
-                     IrssiNotifier (https://irssinotifier.appspot.com/)',
-                     'shutdown_cb',
-                     '')
+    result = weechat.register("weenotifier",
+                              "Mohan R",
+                              "0.1.0",
+                              "BSD 2-Clause Simplified",
+                              "notifier for push notification",
+                              "shutdown_cb",
+                              "")
 except ImportError as exception:
-    raise ImportError('This script has to run under \
-    WeeChat (https://weechat.org/)') from exception
-
-
-try:
-    from cryptography.hazmat.primitives import hashes, ciphers, padding
-except ImportError as exception:
-    raise ImportError('failed to import cryptography module \
-    (https://cryptography.io)') from exception
-
-
-weenotifier = None
+    raise ImportError("This script has to run under" +
+                      "WeeChat (https://weechat.org/)") from exception
 
 
 class WeeNotifier:
-    """Weenotifier - primary class."""
+    """
+    Weenotifier - primary class.
+    """
 
     def __init__(self):
-        """Weenotifier - initialization."""
+        """
+        Weenotifier - initialization.
+        """
+
         self.options = {
-            'url': 'https://irssinotifier.appspot.com/API/Message',
-            'token': '',
-            'password': 'password'
+            "url": "",  # gotify: https://selfhostedgotify.yrdomain.tld/message
+                        # ntfy.sh: https://ntfy.sh/youruniquetopic
+            "token": ""
         }
 
         for option, value in self.options.items():
             if not weechat.config_is_set_plugin(option):
-                weechat.config_set_plugin(option, value)
+                _ = weechat.config_set_plugin(option,
+                                              value)
 
-        self.url = weechat.config_get_plugin('url')
-        if self.url is None or len(self.url) <= 0:
-            raise NameError('weenotifier: url not configured')
+        self.url = weechat.config_get_plugin("url")
+        if len(self.url) <= 0:
+            raise NameError("weenotifier: 'url' not configured")
 
-        self.token = weechat.config_get_plugin('token')
-        if self.token is None or len(self.token) <= 0:
-            raise NameError('weenotifier: token not configured')
+        # for gotify
+        token = weechat.config_get_plugin("token")
+        if len(token) > 0:
+            self.url += "?token=" + token
 
-        self.password = weechat.config_get_plugin('password')
-        if self.password is None or len(self.password) <= 0:
-            raise NameError('weenotifier: password not configured')
+        self.version = weechat.info_get("version_number",
+                                        "") or "0"
+        _ = weechat.hook_print("",
+                               "",
+                               "",
+                               1,
+                               "message_cb",
+                               "")
 
-        self.version = weechat.info_get('version_number', '') or '0'
-        weechat.hook_print('', '', '', 1, 'message_cb', '')
+    def message(self,
+                _data: str,
+                buffer: str,
+                _date: int,
+                tags: list[str],
+                _displayed: int,
+                highlight: int,
+                prefix: str,
+                message: str):
+        """
+        Send message to push notification server.
+        """
 
-    def encrypt(self, password, data):
-        """Encrypt given data using md5 + salt + aes-128-cbc."""
-        # IrssiNotifier requires null at the end
-        databytes = data.encode() + bytes(1)
-        padder = padding.PKCS7(128).padder()
-        padded_data = padder.update(databytes) + padder.finalize()
-        salt = os.urandom(8)
-        key = None
-        iv = None
+        if highlight or ("notify_private" in tags):
+            channel = weechat.buffer_get_string(buffer, "short_name") or \
+                weechat.buffer_get_string(buffer, "name")
+            message = prefix + ": " + message
+            post = channel + ": " + message
 
-        for n in range(2):
-            # this following logic is similar to EVP_BytesToKey() from openssl
-            md5hash = hashes.Hash(hashes.MD5())
-            if key is not None:
-                md5hash.update(key)
-            md5hash.update(password.encode())
-            md5hash.update(salt)
-            md5 = md5hash.finalize()
-            if key is None:
-                key = md5
-                continue
-            if iv is None:
-                iv = md5
+            # format for gotify
+            if "?token=" in self.url:
+                post = urlencode({"title": channel,
+                                  "message": message,
+                                  "priority": "4"})
 
-        aes256cbc = ciphers.Cipher(ciphers.algorithms.AES(key),
-                                   ciphers.modes.CBC(iv))
-        encryptor = aes256cbc.encryptor()
-        edata = encryptor.update(padded_data) + encryptor.finalize()
-        edata = 'Salted__'.encode() + salt + edata
-        edata = base64.b64encode(edata, b'-_')
-        edata = edata.replace(b'=', b'')
-        return edata
+            _ = weechat.hook_process_hashtable("url:" + self.url,
+                                               {"post": "1",
+                                                "postfields": post},
+                                               10000,
+                                               "result_cb",
+                                               "")
+        return weechat.WEECHAT_RC_OK
 
-    def message(self, data, buffer, date, tags, isdisplayed, ishighlight,
-                prefix, message):
-        """Send message to IrssiNotifier."""
-        if int(ishighlight):
-            channel = weechat.buffer_get_string(buffer, 'sort_name') or \
-                weechat.buffer_get_string(buffer, 'name')
-            post = urlencode({'apiToken': self.token,
-                              'channel': self.encrypt(self.password, channel),
-                              'nick': self.encrypt(self.password, prefix),
-                              'message': self.encrypt(self.password, message),
-                              'version': self.version})
-            weechat.hook_process_hashtable('url:' + self.url,
-                                           {'postfields': post}, 10000, '', '')
+    def result(self,
+               data: str,
+               url: str,
+               returncode: int,
+               output: str,
+               err: str):
+        """
+        Print result of url request
+        """
+
+        if returncode != 0 or ("error" in output) or len(err) > 0:
+            print(url,
+                  data,
+                  returncode,
+                  output,
+                  err)
+            return weechat.WEECHAT_RC_ERROR
         return weechat.WEECHAT_RC_OK
 
     def shutdown(self):
-        """Shutdown callback."""
+        """
+        Shutdown
+        """
+
+        print("shutdown invoked")
         return weechat.WEECHAT_RC_OK
 
 
-def message_cb(data, buffer, date, tags, isdisplayed, ishighlight, prefix,
-               message):
-    """Message callback Which will be called by weechat-C-api."""
+weenotifier: WeeNotifier | None = None
+
+
+def message_cb(data: str,
+               buffer: str,
+               date: int,
+               tags: list[str],
+               displayed: int,
+               highlight: int,
+               prefix: str,
+               message: str):
+    """
+    Message callback by weechat-C-api.
+    """
+
     if weenotifier is not None:
-        return weenotifier.message(data, buffer, date, tags, isdisplayed,
-                                   ishighlight, prefix, message)
+        return weenotifier.message(data,
+                                   buffer,
+                                   date,
+                                   tags,
+                                   displayed,
+                                   highlight,
+                                   prefix,
+                                   message)
+    return weechat.WEECHAT_RC_ERROR
+
+
+def result_cb(data: str,
+              url: str,
+              returncode: int,
+              output: str,
+              err: str):
+    """
+    Result callback by weechat-C-api
+    """
+
+    if weenotifier is not None:
+        return weenotifier.result(data,
+                                  url,
+                                  returncode,
+                                  output,
+                                  err)
     return weechat.WEECHAT_RC_ERROR
 
 
 def shutdown_cb():
-    """Shutdown callback Which will be called by weechat-C-api."""
+    """
+    Shutdown callback by weechat-C-api
+    """
+
     if weenotifier is not None:
         return weenotifier.shutdown()
     return weechat.WEECHAT_RC_ERROR
 
 
 def main():
-    """Start point."""
     global weenotifier
     weenotifier = WeeNotifier()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
