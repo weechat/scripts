@@ -76,7 +76,7 @@ except ImportError:
 
 SCRIPT_NAME = "slack"
 SCRIPT_AUTHOR = "Trygve Aaberge <trygveaa@gmail.com>"
-SCRIPT_VERSION = "2.10.2"
+SCRIPT_VERSION = "2.11.0"
 SCRIPT_LICENSE = "MIT"
 SCRIPT_DESC = "Extends WeeChat for typing notification/search/etc on slack.com"
 REPO_URL = "https://github.com/wee-slack/wee-slack"
@@ -1691,6 +1691,7 @@ class SlackTeam(object):
             self.eventrouter.weechat_controller.register_buffer(
                 self.channel_buffer, self
             )
+            w.buffer_set(self.channel_buffer, "input_prompt", self.nick)
             w.buffer_set(self.channel_buffer, "input_multiline", "1")
             w.buffer_set(self.channel_buffer, "localvar_set_type", "server")
             w.buffer_set(self.channel_buffer, "localvar_set_slack_type", self.type)
@@ -2421,6 +2422,7 @@ class SlackChannel(SlackChannelCommon):
             self.eventrouter.weechat_controller.register_buffer(
                 self.channel_buffer, self
             )
+            w.buffer_set(self.channel_buffer, "input_prompt", self.team.nick)
             w.buffer_set(self.channel_buffer, "input_multiline", "1")
             w.buffer_set(
                 self.channel_buffer, "localvar_set_type", get_localvar_type(self.type)
@@ -2887,12 +2889,12 @@ class SlackDMChannel(SlackChannel):
     has some important differences.
     """
 
-    def __init__(self, eventrouter, users, **kwargs):
+    def __init__(self, eventrouter, users, myidentifier, **kwargs):
         dmuser = kwargs["user"]
         kwargs["name"] = users[dmuser].name if dmuser in users else dmuser
         super(SlackDMChannel, self).__init__(eventrouter, "im", **kwargs)
         self.update_color()
-        self.members = {self.user}
+        self.members = {myidentifier, self.user}
         if dmuser in users:
             self.set_topic(create_user_status_string(users[dmuser].profile))
 
@@ -3210,6 +3212,7 @@ class SlackThreadChannel(SlackChannelCommon):
             self.eventrouter.weechat_controller.register_buffer(
                 self.channel_buffer, self
             )
+            w.buffer_set(self.channel_buffer, "input_prompt", self.team.nick)
             w.buffer_set(self.channel_buffer, "input_multiline", "1")
             w.buffer_set(
                 self.channel_buffer,
@@ -3729,7 +3732,9 @@ def handle_rtmstart(login_data, eventrouter, team, channel, metadata):
                 channels[item["id"]] = SlackChannel(eventrouter, **item)
 
         for item in login_data["ims"]:
-            channels[item["id"]] = SlackDMChannel(eventrouter, users, **item)
+            channels[item["id"]] = SlackDMChannel(
+                eventrouter, users, login_data["self"]["id"], **item
+            )
 
         for item in login_data["mpims"]:
             channels[item["id"]] = SlackMPDMChannel(
@@ -4111,6 +4116,16 @@ def process_pref_change(message_json, eventrouter, team, channel, metadata):
         team.set_muted_channels(message_json["value"])
     elif message_json["name"] == "highlight_words":
         team.set_highlight_words(message_json["value"])
+    elif message_json["name"] == "all_notifications_prefs":
+        new_prefs = json.loads(message_json["value"])
+        new_muted_channels = set(
+            channel_id
+            for channel_id, prefs in new_prefs["channels"].items()
+            if prefs["muted"]
+        )
+        team.set_muted_channels(",".join(new_muted_channels))
+        global_keywords = new_prefs["global"]["global_keywords"]
+        team.set_highlight_words(global_keywords)
     else:
         dbg("Preference change not implemented: {}\n".format(message_json["name"]))
 
@@ -4123,7 +4138,9 @@ def process_user_change(message_json, eventrouter, team, channel, metadata):
     profile = message_json["user"]["profile"]
     if user:
         user.update_status(profile.get("status_emoji"), profile.get("status_text"))
-        dmchannel = team.find_channel_by_members({user.identifier}, channel_type="im")
+        dmchannel = team.find_channel_by_members(
+            {team.myidentifier, user.identifier}, channel_type="im"
+        )
         if dmchannel:
             dmchannel.set_topic(create_user_status_string(profile))
 
@@ -4373,7 +4390,8 @@ def process_channel_created(message_json, eventrouter, team, channel, metadata):
     item["is_member"] = False
     channel = SlackChannel(eventrouter, team=team, **item)
     team.channels[item["id"]] = channel
-    team.buffer_prnt("Channel created: {}".format(channel.name))
+    if config.log_channel_created:
+        team.buffer_prnt("Channel created: {}".format(channel.name))
 
 
 def process_channel_rename(message_json, eventrouter, team, channel, metadata):
@@ -4384,7 +4402,9 @@ def process_channel_rename(message_json, eventrouter, team, channel, metadata):
 
 def process_im_created(message_json, eventrouter, team, channel, metadata):
     item = message_json["channel"]
-    channel = SlackDMChannel(eventrouter, team=team, users=team.users, **item)
+    channel = SlackDMChannel(
+        eventrouter, team.users, team.myidentifier, team=team, **item
+    )
     team.channels[item["id"]] = channel
     team.buffer_prnt("IM channel created: {}".format(channel.name))
 
@@ -5251,11 +5271,14 @@ def modify_buffer_line(buffer_pointer, ts, new_text):
 
 
 def nick_from_profile(profile, username):
-    full_name = profile.get("real_name") or username
-    if config.use_full_names:
-        nick = full_name
+    if config.use_usernames:
+        nick = username
     else:
-        nick = profile.get("display_name") or full_name
+        full_name = profile.get("real_name") or username
+        if config.use_full_names:
+            nick = full_name
+        else:
+            nick = profile.get("display_name") or full_name
     return nick.replace(" ", "")
 
 
@@ -5324,7 +5347,12 @@ def tag(
 
 
 def set_own_presence_active(team):
-    slackbot = team.get_channel_map()["Slackbot"]
+    if config.use_usernames:
+        nick_slackbot = "slackbot"
+    else:
+        nick_slackbot = "Slackbot"
+
+    slackbot = team.get_channel_map()[nick_slackbot]
     channel = team.channels[slackbot]
     request = {"type": "typing", "channel": channel.identifier}
     channel.team.send_to_websocket(request, expect_reply=False)
@@ -5716,11 +5744,21 @@ def command_channels(data, current_buffer, args):
 @utf8_decode
 def command_users(data, current_buffer, args):
     """
-    /slack users
+    /slack users [regex]
     List the users in the current team.
+    If regex is given show only users that match the case-insensitive regex.
     """
     team = EVENTROUTER.weechat_controller.buffers[current_buffer].team
-    return print_users_info(team, "Users", team.users.values())
+
+    if args:
+        pat = re.compile(args, flags=re.IGNORECASE)
+        users = [v for v in team.users.values() if pat.search(v.name)]
+        header = 'Users that match "{}"'.format(args)
+    else:
+        users = team.users.values()
+        header = "Users"
+
+    return print_users_info(team, header, users)
 
 
 @slack_buffer_required
@@ -6780,15 +6818,15 @@ class PluginConfig(object):
         "colorize_private_chats": Setting(
             default="false", desc="Whether to use nick-colors in DM windows."
         ),
-        "debug_mode": Setting(
-            default="false",
-            desc="Open a dedicated buffer for debug messages and start logging"
-            " to it. How verbose the logging is depends on log_level.",
-        ),
         "debug_level": Setting(
             default="3",
             desc="Show only this level of debug info (or higher) when"
             " debug_mode is on. Lower levels -> more messages.",
+        ),
+        "debug_mode": Setting(
+            default="false",
+            desc="Open a dedicated buffer for debug messages and start logging"
+            " to it. How verbose the logging is depends on log_level.",
         ),
         "distracting_channels": Setting(default="", desc="List of channels to hide."),
         "external_user_suffix": Setting(
@@ -6812,6 +6850,10 @@ class PluginConfig(object):
         "link_previews": Setting(
             default="true", desc="Show previews of website content linked by teammates."
         ),
+        "log_channel_created": Setting(
+            default="true",
+            desc='Log "Channel created" in the Server buffer.',
+        ),
         "map_underline_to": Setting(
             default="_",
             desc="When sending underlined text to slack, use this formatting"
@@ -6827,6 +6869,10 @@ class PluginConfig(object):
             " all highlights, but not other messages. all: Show all activity,"
             " like other channels.",
         ),
+        "never_away": Setting(
+            default="false",
+            desc='Poke Slack every five minutes so that it never marks you "away".',
+        ),
         "notify_subscribed_threads": Setting(
             default="auto",
             desc="Control if you want to see a notification in the team buffer when a"
@@ -6838,10 +6884,6 @@ class PluginConfig(object):
             default="false",
             desc="Control if you want to see a notification in the team buffer when a"
             "usergroup's handle has changed, either true or false.",
-        ),
-        "never_away": Setting(
-            default="false",
-            desc='Poke Slack every five minutes so that it never marks you "away".',
         ),
         "record_events": Setting(
             default="false", desc="Log all traffic from Slack to disk as JSON."
@@ -6915,12 +6957,6 @@ class PluginConfig(object):
             default="false",
             desc="When enabled shows thread messages in the parent channel.",
         ),
-        "unfurl_ignore_alt_text": Setting(
-            default="false",
-            desc='When displaying ("unfurling") links to channels/users/etc,'
-            ' ignore the "alt text" present in the message and instead use the'
-            " canonical name of the thing being linked to.",
-        ),
         "unfurl_auto_link_display": Setting(
             default="both",
             desc='When displaying ("unfurling") links to channels/users/etc,'
@@ -6930,6 +6966,12 @@ class PluginConfig(object):
             ' addresses. Set it to "text" to only display the text written by'
             ' the user, "url" to only display the url or "both" (the default)'
             " to display both.",
+        ),
+        "unfurl_ignore_alt_text": Setting(
+            default="false",
+            desc='When displaying ("unfurling") links to channels/users/etc,'
+            ' ignore the "alt text" present in the message and instead use the'
+            " canonical name of the thing being linked to.",
         ),
         "unhide_buffers_with_activity": Setting(
             default="false",
@@ -6942,6 +6984,11 @@ class PluginConfig(object):
             desc="Use full names as the nicks for all users. When this is"
             " false (the default), display names will be used if set, with a"
             " fallback to the full name if display name is not set.",
+        ),
+        "use_usernames": Setting(
+            default="false",
+            desc="Use usernames as the nicks for all users. Takes priority"
+            " over use_full_names. Default false.",
         ),
     }
 
@@ -7259,7 +7306,9 @@ def initiate_connection(token):
 
 def create_channel_from_info(eventrouter, channel_info, team, myidentifier, users):
     if channel_info.get("is_im"):
-        return SlackDMChannel(eventrouter, users, team=team, **channel_info)
+        return SlackDMChannel(
+            eventrouter, users, myidentifier, team=team, **channel_info
+        )
     elif channel_info.get("is_mpim"):
         return SlackMPDMChannel(
             eventrouter, users, myidentifier, team=team, **channel_info
@@ -7327,6 +7376,28 @@ def create_team(token, initial_data):
                 "away" if initial_data["presence"]["manual_away"] else "active"
             )
 
+            try:
+                all_notifications_prefs = json.loads(
+                    initial_data["prefs"].get("all_notifications_prefs")
+                )
+                global_keywords = all_notifications_prefs.get("global", {}).get(
+                    "global_keywords"
+                )
+            except json.decoder.JSONDecodeError:
+                global_keywords = None
+
+            if global_keywords is None:
+                print_error(
+                    "global_keywords not found in users.prefs.get", warning=True
+                )
+                dbg(
+                    "global_keywords not found in users.prefs.get. Response of users.prefs.get: {}".format(
+                        json.dumps(initial_data["prefs"])
+                    ),
+                    level=5,
+                )
+                global_keywords = ""
+
             team_info = {
                 "id": team_id,
                 "name": response_json["team"]["id"],
@@ -7351,7 +7422,7 @@ def create_team(token, initial_data):
                     bots,
                     channels,
                     muted_channels=initial_data["prefs"]["muted_channels"],
-                    highlight_words=initial_data["prefs"]["highlight_words"],
+                    highlight_words=global_keywords,
                 )
                 eventrouter.register_team(team)
                 team.connect()
