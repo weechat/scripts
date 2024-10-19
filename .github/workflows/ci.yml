@@ -6,14 +6,14 @@ on:
 
 jobs:
   check-scripts:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     name: Check scripts
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: "3.12"
       - name: Install dependencies
         run: pip install weechat-script-lint
       - name: Check scripts
