@@ -54,9 +54,12 @@
 #
 # 2023-09-02: nils_2, (libera.#weechat)
 #       1.1 : one more check for buffer_ptr
-
+#
 # 2023-09-08: nils_2, (libera.#weechat)
-#       1.2 : ignore exclude channels on non-irc buffers, internal changes
+#       1.2 : when in non-irc buffers (eg. /server raw) exclude channels are ignored, internal changes
+#
+# 2024-11-16: nils_2, (libera.#weechat)
+#       1.3 : hook_signal(hotlist_changed) fixed.
 
 # idea and testing by DJ-ArcAngel
 
@@ -70,7 +73,7 @@ except Exception:
 
 SCRIPT_NAME     = "collapse_channel"
 SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "1.2"
+SCRIPT_VERSION  = "1.3"
 SCRIPT_LICENSE  = "GPL"
 SCRIPT_DESC     = "collapse channel buffers from servers without focus"
 
@@ -150,16 +153,15 @@ def buffer_switch_cb(data, signal, signal_data):
     return weechat.WEECHAT_RC_OK
 # ================================[ hotlist changed ]==============================
 def hotlist_changed_cb(data, signal, signal_data):
-    if not signal_data:
-        plugin_name = weechat.buffer_get_string(weechat.current_buffer(), 'localvar_plugin')
-        # TODO how about matrix script or other non-irc channel buffer? no idea! help is welcome
-        if plugin_name != 'irc':                                                    # script only support irc plugin!
-            return weechat.WEECHAT_RC_OK
-#        weechat.command('', '/allchan /buffer hide')
-        if OPTIONS['activity'].lower() == 'no' or OPTIONS['activity'].lower() == 'off' or OPTIONS['activity'].lower() == '0':
-            exclude_server()
-            single_channel_exclude()
-        exclude_hotlist()
+    plugin_name = weechat.buffer_get_string(weechat.current_buffer(), 'localvar_plugin')
+    # TODO how about matrix script or other non-irc channel buffer? no idea! help is welcome
+#    if plugin_name != 'irc':                                                    # script only support irc plugin!
+#        return weechat.WEECHAT_RC_OK
+#    weechat.command('', '/allchan /buffer hide')
+    if OPTIONS['activity'].lower() == 'no' or OPTIONS['activity'].lower() == 'off' or OPTIONS['activity'].lower() == '0':
+        exclude_server()
+        single_channel_exclude()
+    exclude_hotlist()
     return weechat.WEECHAT_RC_OK
 # ================================[ window switch ]===============================
 def window_switch_cb(data, signal, signal_data):
