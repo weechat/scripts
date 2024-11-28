@@ -1,6 +1,9 @@
 # Copyright (c) 2022 Damien Tardy-Panis <damien.dev@tardypad.me>
 # Released under the GNU GPLv3 license.
 # Forked from wee_matter, inspired by wee_slack
+#
+# Changelog:
+# 0.3.1: xals - Fix missing Origin in websocket connection
 
 import json
 import os
@@ -2535,7 +2538,7 @@ class Worker:
         self.last_pong_time = 0
 
         url = server.url.replace("http", "ws", 1) + "/api/v4/websocket"
-        self.ws = create_connection(url)
+        self.ws = create_connection(url, origin=server.url)
         self.ws.sock.setblocking(0)
 
         params = {
@@ -2829,7 +2832,7 @@ mentions = ["@here", "@channel", "@all"]
 WEECHAT_SCRIPT_NAME = "wee_most"
 WEECHAT_SCRIPT_DESCRIPTION = "Mattermost integration"
 WEECHAT_SCRIPT_AUTHOR = "Damien Tardy-Panis <damien.dev@tardypad.me>"
-WEECHAT_SCRIPT_VERSION = "0.3.0"
+WEECHAT_SCRIPT_VERSION = "0.3.1"
 WEECHAT_SCRIPT_LICENSE = "GPL3"
 
 weechat.register(
