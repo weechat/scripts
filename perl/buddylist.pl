@@ -1413,7 +1413,7 @@ return ("",-1) if (not defined $servername or $servername eq "");
   ($a1,$a2,$a3,$a4) = ($args =~ /(.*)($rfc_312)(.*)($network)/);
   if ( defined $a4 and $a4 ne ""){
     ($a1,$a2,$a3,$a4) = "";
-    ($a1,$a2,$a3,$a4) = ($args =~ /(.*?)($rfc_301)(.*?) (.*?) ($offline_text)/);
+    ($a1,$a2,$a3,$a4) = ($args =~ /($rfc_301)(.*?) (.*?) ($offline_text)/);
     if ( defined $a4 and $a4 ne ""){
 	$nick_structure{$servername}{$a3}{status} = 2;				# buddy offline on bitlbee
 	$nick_structure{$servername}{$a3}{buffer} = "";				# clear buffer number
@@ -1425,7 +1425,7 @@ return ("",-1) if (not defined $servername or $servername eq "");
   # bitlbee: add a tag for msn/jabber/facebook to display in buddylist
     ($a1,$a2,$a3,$a4) = "";
   my ($a5,$a6)  = "";
-  ($a1,$a2,$a3,$a4,$a5,$a6) = ($args =~ /(.*?)($rfc_312)(.*?) (.*?) (.*)($network)/);
+  ($a1,$a2,$a3,$a4,$a5,$a6) = ($args =~ /(.*)($rfc_312)(.*?) (.*?) (.*)($network)/);
 
 if ( $default_options{display_social_net} eq "on" ){
   if ( defined $a6 ){
