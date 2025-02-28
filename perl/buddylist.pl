@@ -1,5 +1,6 @@
 #
 # Copyright (c) 2010-2023 by Nils Görs <weechatter@arcor.de>
+# Copyright (c) 2025 by Kamil Wiśniewski <tomteipl@gmail.com>
 #
 # display the status and visited buffers of your buddies in a buddylist bar
 #
@@ -15,7 +16,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
+# 2.3   : fix (get nickname) function and remake it to use "irc_message_parse". Fixed "completion_list_add" for compatibility with WeeChat >= 2.9
 # 2.2   : fix: make /whois lower-case
 # 2.1   : add compatibility with WeeChat >= 3.2 (XDG directories)
 # 2.0   : make call to bar_new compatible with WeeChat >= 2.9
@@ -38,7 +39,7 @@
 # 1.2.1 : fixed: bitlbee_service was not set, for new added buddy
 # v1.2  : added: function "hide_bar = always" (requested by: Emralegna)
 #       : added: buddies will be separated by protocol (msn/jabber etc.pp.) on bitlbee server (requested by: ArcAngel)
-#       : added: options "text.online", "text.away", "text.offline" (maybe usefull for color-blind people:-) 
+#       : added: options "text.online", "text.away", "text.offline" (maybe usefull for color-blind people:-)
 #       : added: function weechat_config_set_desc_plugin() (only for weechat >= v0.3.5)
 # v1.1  : fixed: offline users on bitlbee were shown as away. (reported and beta-testing by javuchi)
 # v1.0  : redirection implemented (needs weechat >= 0.3.4). Now, its a real buddylist
@@ -72,7 +73,7 @@
 # 0.4   : added option "sort"
 # 0.3   : remove spaces for indenting when bar position is top/bottom
 #	  hook_config when settings changed.
-# 0.2   : work-around for crash when searching nick in buffer without nicklist (function nicklist_search_nick) removed 
+# 0.2   : work-around for crash when searching nick in buffer without nicklist (function nicklist_search_nick) removed
 # 0.1   : initial release
 #
 # Development is currently hosted at
@@ -85,7 +86,7 @@
 use strict;
 
 my $prgname		= "buddylist";
-my $version		= "2.2";
+my $version		= "2.3";
 my $description		= "display status from your buddies a bar-item.";
 
 # -------------------------------[ config ]-------------------------------------
@@ -218,7 +219,7 @@ if ($weechat_version >= 0x00030600){
 hook_timer_and_redirect() if ($default_options{check_buddies} ne "0" and $default_options{use_redirection} eq "on");
 
 weechat::hook_command($prgname, $description,
-                "<add>[nick_1 [... nick_n]] | <del>[nick_1 [... nick_n]]", 
+                "<add>[nick_1 [... nick_n]] | <del>[nick_1 [... nick_n]]",
 
                 "<add> [nick(s)] add nick(s) to the buddylist\n".
                 "<del> [nick(s)] delete nick(s) from the buddylist\n".
@@ -446,7 +447,7 @@ sub build_buddylist{
 
 # sorted by status first, then bitlbee_service and nick case insensitiv at least
 #                              foreach my $n (sort { $nick_structure{$s}{$a}->{status} cmp $nick_structure{$s}{$b}->{status}} (sort {uc($a) cmp uc($b)} (sort keys(%{$nick_structure{$s}})))){
-                              
+
                               my $status_output = "";
                               my $status_output_copy = "";
                               foreach my $n (sort { $nick_structure{$s}{$a}->{status} cmp $nick_structure{$s}{$b}->{status}} (sort { $nick_structure{$s}{$a}->{bitlbee_service} cmp $nick_structure{$s}{$b}->{bitlbee_service}} (sort {uc($a) cmp uc($b)} (sort keys(%{$nick_structure{$s}})) ) ) ){
@@ -1492,9 +1493,27 @@ if ( $default_options{display_original_nick} eq "on" ){
     }
 }
 
-  # get nick name 
-  my $rfc_311 = " 311 ";							# nick username address * :info
-  my (undef, undef, undef, $nickname2, undef) = split /\s+/, $args, 5 if ($args =~ /($rfc_311)/);	# get nickname
+# get nick name ($rfc_311)
+my $nickname2;
+my $parsed_hash = weechat::info_get_hashtable("irc_message_parse", { "message" => $args });
+if ($parsed_hash) {
+    my $parsed_message = $parsed_hash->{'message_without_tags'};
+    if ($parsed_message =~ /^\S+ 311 \S+ (\S+)/) {      # gets the nickname
+        $nickname2 = $1;
+        if ($debug_redir_out eq "on") {
+                weechat::print("", "Parsed nickname: $nickname2");      # DEBUG
+            }
+    } else {
+        if ($debug_redir_out eq "on") {
+                weechat::print("", "Failed to extract nickname from: $parsed_message");      # DEBUG
+            }
+    }
+} else {
+    if ($debug_redir_out eq "on") {
+            weechat::print("", "Failed to parse: $args");       # DEBUG
+        }
+}
+
 
   # check nick away....
   $args =~ /($rfc_301)/;
@@ -1529,7 +1548,7 @@ return weechat::WEECHAT_RC_OK if ( not defined $channel );                      
 $server = $channel if ( $server eq "server");                                   # are we in server buffer?
 
   foreach my $nickname ( keys %{$nick_structure{$server}} ) {
-    weechat::hook_completion_list_add($completion, $nickname,1, weechat::WEECHAT_LIST_POS_SORT);
+    weechat::completion_list_add($completion, $nickname,1, weechat::WEECHAT_LIST_POS_SORT);
   }
 
 return weechat::WEECHAT_RC_OK;
