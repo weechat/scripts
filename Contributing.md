@@ -38,7 +38,7 @@ New scripts are added with pull requests against master branch of this repositor
   - consider using [Semantic versioning ](https://semver.org/) (recommended, not mandatory); only digits and dots are allowed in version
   - use only English for code and comments
   - do **NOT** use an extra API between WeeChat and your script (like Ruby gem "WeeChat"), use the standard WeeChat API only
-  - use function [hook_process](https://weechat.org/files/doc/stable/weechat_plugin_api.en.html#_hook_process) or [hook_process_hashtable](https://weechat.org/files/doc/stable/weechat_plugin_api.en.html#_hook_process_hashtable) if your script is doing something blocking (like fetching URL), to not block WeeChat
+  - use function [hook_url](https://weechat.org/files/doc/stable/weechat_plugin_api.en.html#_hook_url) (WeeChat ≥ 4.1.0), [hook_process](https://weechat.org/files/doc/stable/weechat_plugin_api.en.html#_hook_process) or [hook_process_hashtable](https://weechat.org/files/doc/stable/weechat_plugin_api.en.html#_hook_process_hashtable) if your script is doing something blocking (like fetching URL), to not block WeeChat
   - make your Python script compatible with Python 3.x, the support of Python 2.x is now optional
   - use the official WeeChat URL: [https://weechat.org](https://weechat.org) (`https` and no `www.`) in any link to the WeeChat website.
 

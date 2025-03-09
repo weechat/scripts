@@ -35,7 +35,7 @@
 - [ ] Comment in script with name/pseudo, e-mail and license
 - [ ] Only English in code/comments
 - [ ] Pure WeeChat API used, no extra API
-- [ ] Function `hook_process` is used for any blocking call
+- [ ] Function `hook_url`, `hook_process` or `hook_process_hashtable` is used for any blocking call
 - [ ] For Python script: works with Python 3 (Python 2 support is optional)
 - [ ] Score 100 / 100 displayed by [weechat-script-lint](https://github.com/weechat/weechat-script-lint)
 
