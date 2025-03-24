@@ -1,24 +1,14 @@
+# SPDX-FileCopyrightText: 2013 oakkitten
+# SPDX-FileCopyrightText: 2010-2019 Nils Görs <weechatter@arcor.de>
+# SPDX-FileCopyrightText: 2026 ryoskzypu <ryoskzypu@proton.me>
 #
-# Copyright (c) 2010-2019 by Nils Görs <weechatter@arcor.de>
-# Copyleft (ɔ) 2013 by oakkitten
+# SPDX-License-Identifier: GPL-3.0-or-later
 #
 # colors the channel text with nick color and also highlight the whole line
 # colorize_nicks.py script will be supported
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # history:
+# 4.0.2: fix formatting if a color reset is present
 # 4.0.1: fix display of multiline messages
 # 4.0: add compatibility with XDG directories (WeeChat >= 3.2)
 # 3.9: add compatibility with new weechat_print modifier data (WeeChat >= 2.9)
@@ -89,7 +79,7 @@
 
 use strict;
 my $PRGNAME     = "colorize_lines";
-my $VERSION     = "4.0.1";
+my $VERSION     = "4.0.2";
 my $AUTHOR      = "Nils Görs <weechatter\@arcor.de>";
 my $LICENCE     = "GPL3";
 my $DESCR       = "Colorize users' text in chat area with their nick color, including highlights";
@@ -200,7 +190,11 @@ sub colorize_cb
         return $string if ($config{own_lines} eq "off") && not ($channel_color) && ( $config{alternate_color} eq "" );
 
         $color = weechat::color($config{own_lines_color});
-        $color = weechat::color("chat_nick_self") if ($config{own_lines_color} eq "");
+
+        # "chat_nick_self" colors are fixed (\03115) and cannot have the "keep attribute"
+        # code set, so translate it to weechat's colors
+        $color = weechat::color(weechat::config_string(weechat::config_get("weechat.color.chat_nick_self"))) if ($config{own_lines_color} eq "");
+
         $color = $channel_color if ($channel_color) && ($config{own_lines} eq "off");
 
         $color = get_alternate_color($buf_ptr,$alternate_last,$alternate_color1,$alternate_color2) if ( $config{alternate_color} ne "" ) &&
@@ -274,6 +268,19 @@ sub colorize_cb
             }
             }
     ######################################## inject colors and go!
+
+    # color doesn't have a "keep attribute", so replace its code to keep them
+    # when there's a reset color code (\031\034) in the line
+    my $keep_attr = "|";
+    if ($color !~ /\Q$keep_attr\E/) {
+        $color =~ s/
+            \o{031}
+            (?> [F*] | F@ | \*@)
+            [*!\/_%.]?
+            \K
+            (\d{2,5}+)
+        /${keep_attr}$1/x;
+    }
 
     my $out = "";
     if ($action) {
