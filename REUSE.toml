@@ -167,15 +167,6 @@ SPDX-FileCopyrightText = "2013 Nei <ailin@devio.us>"
 SPDX-License-Identifier = "GPL-3.0-or-later"
 
 [[annotations]]
-path = "perl/colorize_lines.pl"
-precedence = "override"
-SPDX-FileCopyrightText = [
-    "2010-2019 Nils Görs <weechatter@arcor.de>",
-    "2013 oakkitten",
-]
-SPDX-License-Identifier = "GPL-3.0-or-later"
-
-[[annotations]]
 path = "perl/color_popup.pl"
 precedence = "override"
 SPDX-FileCopyrightText = "2013-2015 Nei <ailin@devio.us>"
