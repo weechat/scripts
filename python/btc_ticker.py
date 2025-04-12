@@ -1,8 +1,6 @@
-#!/usr/bin/env python
-# coding=utf-8
-
-# Copyright (c) 2014-2018 Eugene Ciurana (pr3d4t0r)
-# All rights reserved.
+# SPDX-FileCopyrightText: 2014-2018 Eugene Ciurana (pr3d4t0r) <eugenex@cime.net>
+#
+# SPDX-License-Identifier: BSD-3-Clause
 #
 # Version - see _VERSION global
 #
@@ -57,7 +55,7 @@ DEFAULT_FIAT_CURRENCY   = 'usd'
 
 VALID_CRYPTO_CURRENCIES = [ DEFAULT_CRYPTO_CURRENCY, 'eth', 'bch', 'xrp', 'xem', 'ltc', 'dash', 'neo', 'etc', ]
 VALID_FIAT_CURRENCIES   = [ DEFAULT_FIAT_CURRENCY, 'eur', 'rur', ]
-_VERSION                = '2.1.0'
+_VERSION                = '2.1.1'
 
 COMMAND_NICK = 'tick'
 
