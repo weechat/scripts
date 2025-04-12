@@ -1,4 +1,6 @@
-# Copyright 2015 by David A. Golden. All rights reserved.
+# SPDX-FileCopyrightText: 2015-2016 David A. Golden <xdg@xdg.me>
+#
+# SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
@@ -28,7 +30,7 @@
 use strict;
 use warnings;
 my $SCRIPT_NAME = "atcomplete";
-my $VERSION = "0.001";
+my $VERSION = "0.002";
 
 my %options_default = (
     'enabled' => ['on', 'enable completion of nicks starting with @'],
