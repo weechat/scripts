@@ -24,7 +24,7 @@
 
 <!-- To fill only if you are adding a new script -->
 
-<!-- Please validate and check each item with "[x]" (see file Contributing.md) -->
+<!-- Please validate and check each item with "[x]" (see file CONTRIBUTING.md) -->
 
 - [ ] Single commit, single file added
 - [ ] Commit message: `New script name.py: short description…`
@@ -43,7 +43,7 @@
 
 <!-- To fill only if you are updating an existing script -->
 
-<!-- Please validate and check each item with "[x]" (see file Contributing.md) -->
+<!-- Please validate and check each item with "[x]" (see file CONTRIBUTING.md) -->
 
 - [ ] Author has been contacted
 - [ ] Single commit, single file added
@@ -56,7 +56,7 @@
 
 <!-- To fill only if you are deleting an existing script -->
 
-<!-- Please validate and check each item with "[x]" (see file Contributing.md) -->
+<!-- Please validate and check each item with "[x]" (see file CONTRIBUTING.md) -->
 
 - [ ] Author has been contacted
 - [ ] Single commit, single file deleted

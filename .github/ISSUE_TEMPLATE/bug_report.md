@@ -6,7 +6,7 @@ labels: bug
 
 ---
 
-<!-- Please do not report any security issue here, see file Contributing.md -->
+<!-- Please do not report any security issue here, see file CONTRIBUTING.md -->
 
 ## Script / WeeChat
 
