@@ -35,7 +35,7 @@ New scripts are added with pull requests against master branch of this repositor
 - script content:
   - do **NOT** use a shebang on the first line (like `#!/usr/bin/perl`), this is not needed
   - write a comment at the beginning with your name (or pseudo), your e-mail and the chosen license (which must be free)
-  - consider using [Semantic versioning ](https://semver.org/) (recommended, not mandatory); only digits and dots are allowed in version
+  - consider using [Semantic versioning](https://semver.org/) (recommended, not mandatory); only digits and dots are allowed in version
   - use only English for code and comments
   - do **NOT** use an extra API between WeeChat and your script (like Ruby gem "WeeChat"), use the standard WeeChat API only
   - use function [hook_url](https://weechat.org/files/doc/stable/weechat_plugin_api.en.html#_hook_url) (WeeChat ≥ 4.1.0), [hook_process](https://weechat.org/files/doc/stable/weechat_plugin_api.en.html#_hook_process) or [hook_process_hashtable](https://weechat.org/files/doc/stable/weechat_plugin_api.en.html#_hook_process_hashtable) if your script is doing something blocking (like fetching URL), to not block WeeChat
