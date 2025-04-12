@@ -19,6 +19,8 @@ Thank you for your help!
 
 New scripts are added with pull requests against master branch of this repository, using the pull request template called `Add script`.
 
+### Guidelines
+
 **Important:** please fill the pull request template and follow **all** these rules, otherwise your new script will be rejected:
 
 - pull request:
@@ -34,7 +36,7 @@ New scripts are added with pull requests against master branch of this repositor
   - do **NOT** use the word "weechat" in the script name: for example prefer `notify.py` to `weechat_notify.py` (the script is only for WeeChat)
 - script content:
   - do **NOT** use a shebang on the first line (like `#!/usr/bin/perl`), this is not needed
-  - write a comment at the beginning with your name (or pseudo), your e-mail and the chosen license (which must be free)
+  - write a comment at the beginning with your name (or pseudo), your e-mail and the chosen license, which must be free (see [Copyright and license](#copyright-and-license))
   - consider using [Semantic versioning](https://semver.org/) (recommended, not mandatory); only digits and dots are allowed in version
   - use only English for code and comments
   - do **NOT** use an extra API between WeeChat and your script (like Ruby gem "WeeChat"), use the standard WeeChat API only
@@ -43,6 +45,18 @@ New scripts are added with pull requests against master branch of this repositor
   - use the official WeeChat URL: [https://weechat.org](https://weechat.org) (`https` and no `www.`) in any link to the WeeChat website.
 
 Your script is automatically checked in CI, see [Automatic checks on scripts](#automatic-checks-on-scripts).
+
+### Copyright and license
+
+The copyright and license must be present in header, using [SPDX](https://spdx.dev/) tags, see the [list of licenses](https://spdx.org/licenses/).
+
+Example of header in a Python script:
+
+```python
+# SPDX-FileCopyrightText: 2025 Your Name <your@email.com>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+```
 
 ## Updating a script
 
