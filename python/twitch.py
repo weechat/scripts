@@ -1,5 +1,7 @@
-# -*- coding: utf-8 -*-
-
+# SPDX-FileCopyrightText: 2014-2024 mumixam <mumixam@gmail.com>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 3 of the License, or
@@ -67,7 +69,7 @@
 
 SCRIPT_NAME = "twitch"
 SCRIPT_AUTHOR = "mumixam"
-SCRIPT_VERSION = "1.0"
+SCRIPT_VERSION = "1.0.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "twitch.tv Chat Integration"
 OPTIONS={
