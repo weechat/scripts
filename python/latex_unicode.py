@@ -1,6 +1,6 @@
-# -*- coding: utf-8 -*-
+# SPDX-FileCopyrightText: 2016-2019 Simmo Saan <simmo.saan@gmail.com>
 #
-# Copyright (c) 2016-2019 by Simmo Saan <simmo.saan@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@
 #
 # History:
 #
+# 2025-04-19, Sébastien Helleu <flashcode@flashtux.org>:
+#   version 1.2.1: replace tabs by spaces, add SPDX copyright and license tags,
+#                  remove coding charset
 # 2021-05-02, Sébastien Helleu <flashcode@flashtux.org>:
 #   version 1.2: add compatibility with WeeChat >= 3.2 (XDG directories)
 # 2019-06-27, Simmo Saan <simmo.saan@gmail.com>
@@ -53,7 +56,7 @@ from __future__ import print_function
 
 SCRIPT_NAME = "latex_unicode"
 SCRIPT_AUTHOR = "Simmo Saan <simmo.saan@gmail.com>"
-SCRIPT_VERSION = "1.2"
+SCRIPT_VERSION = "1.2.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Replace LaTeX with unicode representations"
 
@@ -64,11 +67,11 @@ SCRIPT_COMMAND = SCRIPT_NAME
 IMPORT_OK = True
 
 try:
-	import weechat
+    import weechat
 except ImportError:
-	print("This script must be run under WeeChat.")
-	print("Get WeeChat now at: http://www.weechat.org/")
-	IMPORT_OK = False
+    print("This script must be run under WeeChat.")
+    print("Get WeeChat now at: http://www.weechat.org/")
+    IMPORT_OK = False
 
 import os
 import xml.etree.ElementTree as ET
@@ -77,22 +80,22 @@ import sys
 
 PY2 = sys.version_info < (3,)
 if PY2:
-	chr = unichr
-	range = xrange
+    chr = unichr
+    range = xrange
 
 SETTINGS = {
-	"input": (
-		"on",
-		"replace LaTeX in input display: off, on",
-		True),
-	"send": (
-		"on",
-		"replace LaTeX in input sending: off, on",
-		True),
-	"buffer": (
-		"on",
-		"replace LaTeX in buffer: off, on",
-		True)
+    "input": (
+        "on",
+        "replace LaTeX in input display: off, on",
+        True),
+    "send": (
+        "on",
+        "replace LaTeX in input sending: off, on",
+        True),
+    "buffer": (
+        "on",
+        "replace LaTeX in buffer: off, on",
+        True)
 }
 
 SETTINGS_PREFIX = "plugins.var.python.{}.".format(SCRIPT_NAME)
@@ -102,335 +105,335 @@ hooks = []
 xml_path = None
 replacements = []
 scripts = {
-	u"0": (u"⁰", u"₀"),
-	u"1": (u"¹", u"₁"),
-	u"2": (u"²", u"₂"),
-	u"3": (u"³", u"₃"),
-	u"4": (u"⁴", u"₄"),
-	u"5": (u"⁵", u"₅"),
-	u"6": (u"⁶", u"₆"),
-	u"7": (u"⁷", u"₇"),
-	u"8": (u"⁸", u"₈"),
-	u"9": (u"⁹", u"₉"),
+    u"0": (u"⁰", u"₀"),
+    u"1": (u"¹", u"₁"),
+    u"2": (u"²", u"₂"),
+    u"3": (u"³", u"₃"),
+    u"4": (u"⁴", u"₄"),
+    u"5": (u"⁵", u"₅"),
+    u"6": (u"⁶", u"₆"),
+    u"7": (u"⁷", u"₇"),
+    u"8": (u"⁸", u"₈"),
+    u"9": (u"⁹", u"₉"),
 
-	u"A": (u"ᴬ", None),
-	u"B": (u"ᴮ", None),
-	u"D": (u"ᴰ", None),
-	u"E": (u"ᴱ", None),
-	u"G": (u"ᴳ", None),
-	u"H": (u"ᴴ", None),
-	u"I": (u"ᴵ", None),
-	u"J": (u"ᴶ", None),
-	u"K": (u"ᴷ", None),
-	u"L": (u"ᴸ", None),
-	u"M": (u"ᴹ", None),
-	u"N": (u"ᴺ", None),
-	u"O": (u"ᴼ", None),
-	u"P": (u"ᴾ", None),
-	u"R": (u"ᴿ", None),
-	u"T": (u"ᵀ", None),
-	u"U": (u"ᵁ", None),
-	u"V": (u"ⱽ", None),
-	u"W": (u"ᵂ", None),
+    u"A": (u"ᴬ", None),
+    u"B": (u"ᴮ", None),
+    u"D": (u"ᴰ", None),
+    u"E": (u"ᴱ", None),
+    u"G": (u"ᴳ", None),
+    u"H": (u"ᴴ", None),
+    u"I": (u"ᴵ", None),
+    u"J": (u"ᴶ", None),
+    u"K": (u"ᴷ", None),
+    u"L": (u"ᴸ", None),
+    u"M": (u"ᴹ", None),
+    u"N": (u"ᴺ", None),
+    u"O": (u"ᴼ", None),
+    u"P": (u"ᴾ", None),
+    u"R": (u"ᴿ", None),
+    u"T": (u"ᵀ", None),
+    u"U": (u"ᵁ", None),
+    u"V": (u"ⱽ", None),
+    u"W": (u"ᵂ", None),
 
-	u"a": (u"ᵃ", u"ₐ"),
-	u"b": (u"ᵇ", None),
-	u"c": (u"ᶜ", None),
-	u"d": (u"ᵈ", None),
-	u"e": (u"ᵉ", u"ₑ"),
-	u"f": (u"ᶠ", None),
-	u"g": (u"ᵍ", None),
-	u"h": (u"ʰ", u"ₕ"),
-	u"i": (u"ⁱ", u"ᵢ"),
-	u"j": (u"ʲ", u"ⱼ"),
-	u"k": (u"ᵏ", u"ₖ"),
-	u"l": (u"ˡ", u"ₗ"),
-	u"m": (u"ᵐ", u"ₘ"),
-	u"n": (u"ⁿ", u"ₙ"),
-	u"o": (u"ᵒ", u"ₒ"),
-	u"p": (u"ᵖ", u"ₚ"),
-	u"r": (u"ʳ", u"ᵣ"),
-	u"s": (u"ˢ", u"ₛ"),
-	u"t": (u"ᵗ", u"ₜ"),
-	u"u": (u"ᵘ", u"ᵤ"),
-	u"v": (u"ᵛ", u"ᵥ"),
-	u"w": (u"ʷ", None),
-	u"x": (u"ˣ", u"ₓ"),
-	u"y": (u"ʸ", None),
-	u"z": (u"ᶻ", None),
+    u"a": (u"ᵃ", u"ₐ"),
+    u"b": (u"ᵇ", None),
+    u"c": (u"ᶜ", None),
+    u"d": (u"ᵈ", None),
+    u"e": (u"ᵉ", u"ₑ"),
+    u"f": (u"ᶠ", None),
+    u"g": (u"ᵍ", None),
+    u"h": (u"ʰ", u"ₕ"),
+    u"i": (u"ⁱ", u"ᵢ"),
+    u"j": (u"ʲ", u"ⱼ"),
+    u"k": (u"ᵏ", u"ₖ"),
+    u"l": (u"ˡ", u"ₗ"),
+    u"m": (u"ᵐ", u"ₘ"),
+    u"n": (u"ⁿ", u"ₙ"),
+    u"o": (u"ᵒ", u"ₒ"),
+    u"p": (u"ᵖ", u"ₚ"),
+    u"r": (u"ʳ", u"ᵣ"),
+    u"s": (u"ˢ", u"ₛ"),
+    u"t": (u"ᵗ", u"ₜ"),
+    u"u": (u"ᵘ", u"ᵤ"),
+    u"v": (u"ᵛ", u"ᵥ"),
+    u"w": (u"ʷ", None),
+    u"x": (u"ˣ", u"ₓ"),
+    u"y": (u"ʸ", None),
+    u"z": (u"ᶻ", None),
 
-	u"+": (u"⁺", u"₊"),
-	u"-": (u"⁻", u"₋"),
-	u"=": (u"⁼", u"₌"),
-	u"(": (u"⁽", u"₍"),
-	u")": (u"⁾", u"₎"),
+    u"+": (u"⁺", u"₊"),
+    u"-": (u"⁻", u"₋"),
+    u"=": (u"⁼", u"₌"),
+    u"(": (u"⁽", u"₍"),
+    u")": (u"⁾", u"₎"),
 
-	u"β": (u"ᵝ", u"ᵦ"),
-	u"γ": (u"ᵞ", u"ᵧ"),
-	u"δ": (u"ᵟ", None),
-	u"θ": (u"ᶿ", None),
-	u"ι": (u"ᶥ", None),
-	u"ρ": (None, u"ᵨ"),
-	u"φ": (u"ᵠ", u"ᵩ"),
-	u"χ": (u"ᵡ", u"ᵪ"),
+    u"β": (u"ᵝ", u"ᵦ"),
+    u"γ": (u"ᵞ", u"ᵧ"),
+    u"δ": (u"ᵟ", None),
+    u"θ": (u"ᶿ", None),
+    u"ι": (u"ᶥ", None),
+    u"ρ": (None, u"ᵨ"),
+    u"φ": (u"ᵠ", u"ᵩ"),
+    u"χ": (u"ᵡ", u"ᵪ"),
 }
 # https://en.wikipedia.org/wiki/Number_Forms
 vulgar_fractions = {
-	(u"1", u"4"): u"¼",
-	(u"1", u"2"): u"½",
-	(u"3", u"4"): u"¾",
-	(u"1", u"4"): u"¼",
-	(u"1", u"7"): u"⅐",
-	(u"1", u"9"): u"⅑",
-	(u"1", u"10"): u"⅒",
-	(u"1", u"3"): u"⅓",
-	(u"2", u"3"): u"⅔",
-	(u"1", u"5"): u"⅕",
-	(u"2", u"5"): u"⅖",
-	(u"3", u"5"): u"⅗",
-	(u"4", u"5"): u"⅘",
-	(u"1", u"6"): u"⅙",
-	(u"5", u"6"): u"⅚",
-	(u"1", u"8"): u"⅛",
-	(u"3", u"8"): u"⅜",
-	(u"5", u"8"): u"⅝",
-	(u"7", u"8"): u"⅞",
-	(u"0", u"3"): u"↉",
+    (u"1", u"4"): u"¼",
+    (u"1", u"2"): u"½",
+    (u"3", u"4"): u"¾",
+    (u"1", u"4"): u"¼",
+    (u"1", u"7"): u"⅐",
+    (u"1", u"9"): u"⅑",
+    (u"1", u"10"): u"⅒",
+    (u"1", u"3"): u"⅓",
+    (u"2", u"3"): u"⅔",
+    (u"1", u"5"): u"⅕",
+    (u"2", u"5"): u"⅖",
+    (u"3", u"5"): u"⅗",
+    (u"4", u"5"): u"⅘",
+    (u"1", u"6"): u"⅙",
+    (u"5", u"6"): u"⅚",
+    (u"1", u"8"): u"⅛",
+    (u"3", u"8"): u"⅜",
+    (u"5", u"8"): u"⅝",
+    (u"7", u"8"): u"⅞",
+    (u"0", u"3"): u"↉",
 }
 
 def log(string):
-	"""Log script's message to core buffer."""
+    """Log script's message to core buffer."""
 
-	weechat.prnt("", "{}: {}".format(SCRIPT_NAME, string))
+    weechat.prnt("", "{}: {}".format(SCRIPT_NAME, string))
 
 def error(string):
-	"""Log script's error to core buffer."""
+    """Log script's error to core buffer."""
 
-	weechat.prnt("", "{}{}: {}".format(weechat.prefix("error"), SCRIPT_NAME, string))
+    weechat.prnt("", "{}{}: {}".format(weechat.prefix("error"), SCRIPT_NAME, string))
 
 def setup():
-	"""Load replacements from available resource."""
+    """Load replacements from available resource."""
 
-	global xml_path
-	options = {
-		"directory": "cache",
-	}
-	xml_path = weechat.string_eval_path_home("%h/latex_unicode.xml", {}, {}, options)
+    global xml_path
+    options = {
+        "directory": "cache",
+    }
+    xml_path = weechat.string_eval_path_home("%h/latex_unicode.xml", {}, {}, options)
 
-	if os.path.isfile(xml_path):
-		setup_from_file()
-	else:
-		setup_from_url()
+    if os.path.isfile(xml_path):
+        setup_from_file()
+    else:
+        setup_from_url()
 
 def setup_from_url():
-	"""Download replacements and store them in weechat home directory."""
+    """Download replacements and store them in weechat home directory."""
 
-	log("downloading XML...")
-	weechat.hook_process_hashtable("url:https://www.w3.org/Math/characters/unicode.xml",
-		{
-			"file_out": xml_path
-		},
-		30000, "download_cb", "")
+    log("downloading XML...")
+    weechat.hook_process_hashtable("url:https://www.w3.org/Math/characters/unicode.xml",
+        {
+            "file_out": xml_path
+        },
+        30000, "download_cb", "")
 
 def download_cb(data, command, return_code, out, err):
-	"""Load downloaded replacements."""
+    """Load downloaded replacements."""
 
-	log("downloaded XML")
-	setup_from_file()
-	return weechat.WEECHAT_RC_OK
+    log("downloaded XML")
+    setup_from_file()
+    return weechat.WEECHAT_RC_OK
 
 def setup_from_file():
-	"""Load replacements from file in weechat home directory."""
+    """Load replacements from file in weechat home directory."""
 
-	log("loading XML...")
-	global replacements
+    log("loading XML...")
+    global replacements
 
-	root = ET.parse(xml_path)
-	for character in root.findall("character"):
-		dec = character.get("dec")
-		if "-" not in dec: # is not a range of characters
-			char = chr(int(dec))
-			
-			ams = character.find("AMS")
-			if ams is not None:
-				replacements.append((ams.text, char))
+    root = ET.parse(xml_path)
+    for character in root.findall("character"):
+        dec = character.get("dec")
+        if "-" not in dec: # is not a range of characters
+            char = chr(int(dec))
 
-			latex = character.find("latex")
-			if latex is not None:
-				latex = latex.text.strip()
-				if latex[0] == "\\": # only add \commands
-					replacements.append((latex, char))
+            ams = character.find("AMS")
+            if ams is not None:
+                replacements.append((ams.text, char))
 
-	replacements = sorted(replacements, key=lambda replacement: len(replacement[0]), reverse=True) # sort by tex string length descendingly
+            latex = character.find("latex")
+            if latex is not None:
+                latex = latex.text.strip()
+                if latex[0] == "\\": # only add \commands
+                    replacements.append((latex, char))
 
-	log("loaded XML")
-	hook_modifiers()
+    replacements = sorted(replacements, key=lambda replacement: len(replacement[0]), reverse=True) # sort by tex string length descendingly
+
+    log("loaded XML")
+    hook_modifiers()
 
 def hook_modifiers():
-	"""Update modifier hooks to match settings."""
+    """Update modifier hooks to match settings."""
 
-	# remove existing modifier hooks
-	global hooks
-	for hook in hooks:
-		weechat.unhook(hook)
-	hooks = []
+    # remove existing modifier hooks
+    global hooks
+    for hook in hooks:
+        weechat.unhook(hook)
+    hooks = []
 
-	# add hooks according to settings
+    # add hooks according to settings
 
-	input_option = weechat.config_get_plugin("input")
-	if weechat.config_string_to_boolean(input_option):
-		hooks.append(weechat.hook_modifier("input_text_display", "modifier_cb", ""))
+    input_option = weechat.config_get_plugin("input")
+    if weechat.config_string_to_boolean(input_option):
+        hooks.append(weechat.hook_modifier("input_text_display", "modifier_cb", ""))
 
-	send_option = weechat.config_get_plugin("send")
-	if weechat.config_string_to_boolean(send_option):
-		hooks.append(weechat.hook_modifier("input_text_for_buffer", "modifier_cb", ""))
+    send_option = weechat.config_get_plugin("send")
+    if weechat.config_string_to_boolean(send_option):
+        hooks.append(weechat.hook_modifier("input_text_for_buffer", "modifier_cb", ""))
 
-	buffer_option = weechat.config_get_plugin("buffer")
-	if weechat.config_string_to_boolean(buffer_option):
-		hooks.append(weechat.hook_modifier("weechat_print", "modifier_cb", ""))
+    buffer_option = weechat.config_get_plugin("buffer")
+    if weechat.config_string_to_boolean(buffer_option):
+        hooks.append(weechat.hook_modifier("weechat_print", "modifier_cb", ""))
 
 def replace_xml_replacements(string):
-	"""Apply XML replacements to message."""
+    """Apply XML replacements to message."""
 
-	for tex, char in replacements:
-		string = string.replace(tex, char)
-	return string
+    for tex, char in replacements:
+        string = string.replace(tex, char)
+    return string
 
 def latex_ungroup(string):
-	"""Remove grouping curly braces if present."""
+    """Remove grouping curly braces if present."""
 
-	grouped = string.startswith("{") and string.endswith("}")
-	if grouped:
-		string = string[1:-1]
-	return string
+    grouped = string.startswith("{") and string.endswith("}")
+    if grouped:
+        string = string[1:-1]
+    return string
 
 def replace_script(string, script):
-	"""Regex substitution function for scripts."""
+    """Regex substitution function for scripts."""
 
-	grouped = string.startswith("{") and string.endswith("}")
-	if grouped:
-		string = string[1:-1]
+    grouped = string.startswith("{") and string.endswith("}")
+    if grouped:
+        string = string[1:-1]
 
-	chars = list(string)
-	all = True
-	for i in range(len(chars)):
-		if chars[i] in scripts and scripts[chars[i]][script] is not None:
-			chars[i] = scripts[chars[i]][script]
-		else:
-			all = False
-			break
+    chars = list(string)
+    all = True
+    for i in range(len(chars)):
+        if chars[i] in scripts and scripts[chars[i]][script] is not None:
+            chars[i] = scripts[chars[i]][script]
+        else:
+            all = False
+            break
 
-	if all:
-		return "".join(chars)
-	else:
-		return None
+    if all:
+        return "".join(chars)
+    else:
+        return None
 
 def replace_scripts(string):
-	"""Apply super- and subscript replacements to message."""
+    """Apply super- and subscript replacements to message."""
 
-	def replace(match, script):
-		replaced = replace_script(match.group(1), script)
-		return replaced if replaced is not None else match.group(0)
+    def replace(match, script):
+        replaced = replace_script(match.group(1), script)
+        return replaced if replaced is not None else match.group(0)
 
-	string = re.sub(r"\^({[^}]+})", lambda match: replace(match, 0), string, flags=re.UNICODE)
-	string = re.sub(r"_({[^}]+})", lambda match: replace(match, 1), string, flags=re.UNICODE)
+    string = re.sub(r"\^({[^}]+})", lambda match: replace(match, 0), string, flags=re.UNICODE)
+    string = re.sub(r"_({[^}]+})", lambda match: replace(match, 1), string, flags=re.UNICODE)
 
-	def replace_frac(match):
-		vulgar_pair = (latex_ungroup(match.group(1)), latex_ungroup(match.group(2)))
-		if vulgar_pair in vulgar_fractions:
-			return vulgar_fractions[vulgar_pair]
+    def replace_frac(match):
+        vulgar_pair = (latex_ungroup(match.group(1)), latex_ungroup(match.group(2)))
+        if vulgar_pair in vulgar_fractions:
+            return vulgar_fractions[vulgar_pair]
 
-		replaced1 = replace_script(match.group(1), 0)
-		replaced2 = replace_script(match.group(2), 1)
-		if replaced1 is not None and replaced2 is not None:
-			return replaced1 + u"⁄" + replaced2
-		else:
-			return match.group(0)
+        replaced1 = replace_script(match.group(1), 0)
+        replaced2 = replace_script(match.group(2), 1)
+        if replaced1 is not None and replaced2 is not None:
+            return replaced1 + u"⁄" + replaced2
+        else:
+            return match.group(0)
 
-	string = re.sub(r"\\frac({[^}]+}|[^{}])({[^}]+}|[^{}])", replace_frac, string, flags=re.UNICODE)
+    string = re.sub(r"\\frac({[^}]+}|[^{}])({[^}]+}|[^{}])", replace_frac, string, flags=re.UNICODE)
 
-	def replace_sqrt(match):
-		under = match.group(2)
-		if under is not None:
-			under = re.sub(r"(.)", u"\\1\u0305", latex_ungroup(under), flags=re.UNICODE)
-		else:
-			under = ""
+    def replace_sqrt(match):
+        under = match.group(2)
+        if under is not None:
+            under = re.sub(r"(.)", u"\\1\u0305", latex_ungroup(under), flags=re.UNICODE)
+        else:
+            under = ""
 
-		if match.group(1) is None:
-			return u"√" + under
+        if match.group(1) is None:
+            return u"√" + under
 
-		replaced = replace_script(match.group(1), 0)
-		if replaced is not None:
-			return replaced + u"√" + under
-		else:
-			return match.group(0)
+        replaced = replace_script(match.group(1), 0)
+        if replaced is not None:
+            return replaced + u"√" + under
+        else:
+            return match.group(0)
 
-	string = re.sub(r"\\sqrt(?:\[([^\]]+)\])?({[^}]+}|[^{}])?", replace_sqrt, string, flags=re.UNICODE)
+    string = re.sub(r"\\sqrt(?:\[([^\]]+)\])?({[^}]+}|[^{}])?", replace_sqrt, string, flags=re.UNICODE)
 
-	return string
+    return string
 
 def latex_unicode_replace(string):
-	"""Apply all latex_unicode replacements."""
+    """Apply all latex_unicode replacements."""
 
-	if PY2:
-		string = string.decode("utf-8")
+    if PY2:
+        string = string.decode("utf-8")
 
-	string = replace_xml_replacements(string)
-	string = replace_scripts(string)
+    string = replace_xml_replacements(string)
+    string = replace_scripts(string)
 
-	if PY2:
-		string = string.encode("utf-8")
+    if PY2:
+        string = string.encode("utf-8")
 
-	return string
+    return string
 
 def modifier_cb(data, modifier, modifier_data, string):
-	"""Handle modifier hooks."""
+    """Handle modifier hooks."""
 
-	return latex_unicode_replace(string)
+    return latex_unicode_replace(string)
 
 def command_cb(data, buffer, args):
-	"""Handle command hook."""
+    """Handle command hook."""
 
-	args = args.split()
+    args = args.split()
 
-	if len(args) >= 1:
-		if args[0] == "reload":
-			setup_from_file()
-			return weechat.WEECHAT_RC_OK
-		elif args[0] == "redownload":
-			setup_from_url()
-			return weechat.WEECHAT_RC_OK
+    if len(args) >= 1:
+        if args[0] == "reload":
+            setup_from_file()
+            return weechat.WEECHAT_RC_OK
+        elif args[0] == "redownload":
+            setup_from_url()
+            return weechat.WEECHAT_RC_OK
 
-	error("invalid arguments")
-	return weechat.WEECHAT_RC_ERROR
+    error("invalid arguments")
+    return weechat.WEECHAT_RC_ERROR
 
 def config_cb(data, option, value):
-	"""Handle config hooks (option changes)."""
+    """Handle config hooks (option changes)."""
 
-	option = option[len(SETTINGS_PREFIX):]
+    option = option[len(SETTINGS_PREFIX):]
 
-	if SETTINGS[option][2]: # if option requires modifier hooks update
-		hook_modifiers()
+    if SETTINGS[option][2]: # if option requires modifier hooks update
+        hook_modifiers()
 
-	return weechat.WEECHAT_RC_OK
+    return weechat.WEECHAT_RC_OK
 
 if __name__ == "__main__" and IMPORT_OK:
-	if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, "", ""):
-		weechat.hook_command(SCRIPT_COMMAND, SCRIPT_DESC,
+    if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, "", ""):
+        weechat.hook_command(SCRIPT_COMMAND, SCRIPT_DESC,
 """reload
  || redownload""",
 """    reload: reload replacements from XML file
 redownload: redownload replacements XML file and load it""",
 """reload
  || redownload""".replace("\n", ""),
-		"command_cb", "")
+        "command_cb", "")
 
-		for option, value in SETTINGS.items():
-			if not weechat.config_is_set_plugin(option):
-				weechat.config_set_plugin(option, value[0])
+        for option, value in SETTINGS.items():
+            if not weechat.config_is_set_plugin(option):
+                weechat.config_set_plugin(option, value[0])
 
-			weechat.config_set_desc_plugin(option, "%s (default: \"%s\")" % (value[1], value[0]))
+            weechat.config_set_desc_plugin(option, "%s (default: \"%s\")" % (value[1], value[0]))
 
-		weechat.hook_config(SETTINGS_PREFIX + "*", "config_cb", "")
+        weechat.hook_config(SETTINGS_PREFIX + "*", "config_cb", "")
 
-		setup()
+        setup()
