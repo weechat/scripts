@@ -32,7 +32,7 @@
 - [ ] Name: max 32 chars, only lower case letters, digits and underscores
 - [ ] Unique name, does not already exist in repository
 - [ ] No shebang on the first line
-- [ ] Comment in script with name/pseudo, e-mail and license
+- [ ] Comment in script with name/pseudo, e-mail and license using [SPDX](https://spdx.dev/) tags (see [Contributing guide](https://github.com/weechat/scripts/blob/main/CONTRIBUTING.md#adding-a-new-script))
 - [ ] Only English in code/comments
 - [ ] Pure WeeChat API used, no extra API
 - [ ] Function `hook_url`, `hook_process` or `hook_process_hashtable` is used for any blocking call
