@@ -2,9 +2,9 @@ use strict; use warnings;
 $INC{'Encode/ConfigLocal.pm'}=1;
 require Encode;
 
-# menu.pl is written by Nei <anti.teamidiot.de>
-# and licensed under the under GNU General Public License v3
-# or any later version
+# SPDX-FileCopyrightText: 2011-2013 Nei <anti.teamidiot.de>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 # to read the following docs, you can use "perldoc menu.pl"
 
@@ -251,7 +251,7 @@ for full pod documentation, filter this script with
 =cut
 
 use constant SCRIPT_NAME => 'menu';
-our $VERSION = '1.0';
+our $VERSION = '1.0.1';
 
 #$$$ autoloaded{
 BEGIN { { package WeeP::Tie::hash_accessor;
@@ -661,6 +661,7 @@ BEGIN { { package WeeP::Tie::hash_accessor;
 			  } @fields
 		  } };
 	  }
+          # this calls the infolist_free function
 	  $infptr->free;
 	  !wantarray && @infolist ? ($$I->{o} && @infolist == 1) ? $infolist[0] : \@infolist : @infolist
   }
