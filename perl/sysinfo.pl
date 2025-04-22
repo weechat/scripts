@@ -1,6 +1,9 @@
 #
-# Copyright (c) 2002-2005 David Rudie
-# All rights reserved.
+# SPDX-FileCopyrightText: 2011-2019 Nils Görs <weechatter@arcor.de>
+# SPDX-FileCopyrightText: 2002-2005 David Rudie <d.rudie@gmail.com>
+# SPDX-FileCopyrightText: 2003-2006 Travis Morgan <imbezol@criticaldamage.com>
+#
+# SPDX-License-Identifier: BSD-2-Clause
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -23,9 +26,6 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# Several additions and fixes to this script were contributed by Travis
-# Morgan and therefore are Copyright (c) 2003-2006 Travis Morgan
-#
 # If you notice any bugs including spacing issues, wrong detection of hardware,
 # obvious features missing, etc, we both want to hear about them.  If you make
 # this script work on other operating systems and/or architectures please send
@@ -37,15 +37,16 @@
 #
 # You can also reach Travis in #crd on efnet.
 #
-# ported to WeeChat (http://www.weechat.org/) by Nils Görs. Copyright
-# (c) 2011-2019 Nils Görs
+# ported to WeeChat (http://www.weechat.org/) by Nils Görs.
 #
+# 2025-04-22: 1.2.1 Sébastien Helleu <flashcode@flashtux.org>
+#           : fix script license
 # 2019-05-13: 1.2 nils_2 (freenode@nils_2)
-#	    : make script compatible with kernel 5.x
+#           : make script compatible with kernel 5.x
 # 2019-03-17: 1.1 nils_2 (freenode@nils_2)
-#	    : fix: warning isn't numeric in subtraction
+#           : fix: warning isn't numeric in subtraction
 # 2016-03-23: 1.0 nils_2 (freenode@nils_2)
-#	    : fix: problem with armv7l Processor (eg cubietruck)
+#           : fix: problem with armv7l Processor (eg cubietruck)
 # 2015-05-16: 0.9 Keridos <fuffzehn@gmail.com>
 #             add compatibility with linux kernel 4.x
 # 2015-02-15: 0.8 nils_2 (freenode@nils_2)
@@ -58,8 +59,8 @@
 #           : based on sysinfo 2.81.21
 #           : bug with "armv5tel" in sysinfo 2.81.21 fixed (Version bumped to 2.81.22 and sent to maintainer)
 # 2012-01-07: 0.4 welwood08
-#	    : Fix distro+version for Ubuntu LTS
-#	    : version bumped to 0.4 and copyright status changed
+#           : Fix distro+version for Ubuntu LTS
+#           : version bumped to 0.4 and copyright status changed
 # 2011-10-01: 0.3 nils_2 <weechatter@arcor.de>
 #           : bar_item added (idea by Banton)
 # 2011-09-27: 0.2 nils_2 <weechatter@arcor.de>
@@ -76,9 +77,9 @@ use POSIX qw(floor);
 use strict;
 
 my $SCRIPT_NAME         = "sysinfo";
-my $SCRIPT_VERSION      = "1.2";
+my $SCRIPT_VERSION      = "1.2.1";
 my $SCRIPT_DESCR        = "provides a system info command";
-my $SCRIPT_LICENSE      = "GPL3";
+my $SCRIPT_LICENSE      = "BSD-2-Clause";
 my $SCRIPT_AUTHOR       = "Nils Görs <weechatter\@arcor.de>";
 
 # Set up the arrays and variables first.
