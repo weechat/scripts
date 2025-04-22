@@ -1,8 +1,6 @@
-# -*- coding: utf-8 -*-
+# SPDX-FileCopyrightText: 2011 Andy Pilate (Lenoob) <andypilate@gmail.com>
 #
-###
-# Copyright (c) 2011, Andy Pilate (Lenoob <andypilate at gmail dot com> )
-# All rights reserved.
+# SPDX-License-Identifier: BSD-3-Clause
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -46,8 +44,8 @@ import re
 
 SCRIPT_NAME    = "leet"
 SCRIPT_AUTHOR  = "Lenoob"
-SCRIPT_VERSION = "0.2"
-SCRIPT_LICENSE = "GPL3"
+SCRIPT_VERSION = "0.2.1"
+SCRIPT_LICENSE = "BSD-3-Clause"
 SCRIPT_DESC    = "Convert text to leet"
 
 settings = {}
