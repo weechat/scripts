@@ -52,11 +52,15 @@ The copyright and license must be present in header, using [SPDX](https://spdx.d
 
 Example of header in a Python script:
 
+<!-- REUSE-IgnoreStart -->
+
 ```python
 # SPDX-FileCopyrightText: 2025 Your Name <your@email.com>
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 ```
+
+<!-- REUSE-IgnoreEnd -->
 
 ## Updating a script
 
