@@ -2,17 +2,17 @@
 
 <!-- MANDATORY INFO: -->
 
-- Script name: 
-- Version: 
+- Script name: 
+- Version: 
 
 <!-- Optional: external dependencies (other than WeeChat and standard interpreter libraries) -->
-- Requirements: 
+- Requirements: 
 
 <!-- Optional: fill only if you are sure that a specific WeeChat version is required -->
-- Min WeeChat version: 
+- Min WeeChat version: 
 
 <!-- Optional: tags for script (see list of tags on https://weechat.org/scripts/), new tags are allowed -->
-- Script tags: 
+- Script tags: 
 
 ## Description
 
