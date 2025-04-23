@@ -1,0 +1,2354 @@
+# SPDX-FileCopyrightText: 2025 Sébastien Helleu <flashcode@flashtux.org>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+version = 1
+
+[[annotations]]
+path = [
+    ".github/ISSUE_TEMPLATE/*.md",
+    ".github/ISSUE_TEMPLATE/*.yml",
+    ".github/pull_request_template.md",
+    ".mailmap",
+    "CONTRIBUTING.md",
+    "README.md",
+]
+precedence = "override"
+SPDX-FileCopyrightText = "2006-2025 Sébastien Helleu <flashcode@flashtux.org>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "guile/emote.scm"
+precedence = "override"
+SPDX-FileCopyrightText = "2014 csmith <caleb.smithnc@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "guile/gateway_rename.scm"
+precedence = "override"
+SPDX-FileCopyrightText = "2016-2017 Zephyr Pellerin <zv@nxvr.org>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "guile/karmastorm.scm"
+precedence = "override"
+SPDX-FileCopyrightText = "2014-2016 msoucy <msoucy@csh.rit.edu>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "guile/weechataboo.scm"
+precedence = "override"
+SPDX-FileCopyrightText = "2017-2018 Alvar <post@0x21.biz>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "javascript/autospurdo.js"
+precedence = "override"
+SPDX-FileCopyrightText = "2015-2016 installgen2 <gen2@kek.club>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "javascript/opall.js"
+precedence = "override"
+SPDX-FileCopyrightText = "2019 gagz <gagz@riseup.net>"
+SPDX-License-Identifier = "WTFPL"
+
+[[annotations]]
+path = "lua/cmus_announce.lua"
+precedence = "override"
+SPDX-FileCopyrightText = "2024 lan Nomar <khwerz+weechat@gmail.com>"
+SPDX-License-Identifier = "0BSD"
+
+[[annotations]]
+path = "lua/emoji.lua"
+precedence = "override"
+SPDX-FileCopyrightText = "2016 Tor Hveem <xt@bash.no>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "lua/http_item.lua"
+precedence = "override"
+SPDX-FileCopyrightText = "2013 Tor Hveem <xt@bash.no>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "lua/mpdbitl.lua"
+precedence = "override"
+SPDX-FileCopyrightText = "2012 rumia <rumia.youkai.of.dusk@gmail.com>"
+SPDX-License-Identifier = "WTFPL"
+
+[[annotations]]
+path = "lua/nick_complete_wrapper.lua"
+precedence = "override"
+SPDX-FileCopyrightText = "2016 singalaut <rumia.youkai.of.dusk@gmail.com>"
+SPDX-License-Identifier = "WTFPL"
+
+[[annotations]]
+path = "lua/oldswarner.lua"
+precedence = "override"
+SPDX-FileCopyrightText = "2013 Tor Hveem <xt@bash.no>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "lua/pastebuf.lua"
+precedence = "override"
+SPDX-FileCopyrightText = "2014 tomoe-mami <rumia.youkai.of.dusk@gmail.com>"
+SPDX-License-Identifier = "WTFPL"
+
+[[annotations]]
+path = "lua/text_effects.lua"
+precedence = "override"
+SPDX-FileCopyrightText = "2010 Vaughan Newton <balkrah@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "lua/urlselect.lua"
+precedence = "override"
+SPDX-FileCopyrightText = "2014 tomoe-mami/singalaut <rumia.youkai.of.dusk@gmail.com>"
+SPDX-License-Identifier = "WTFPL"
+
+[[annotations]]
+path = "perl/amarok2.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2009-2012 Nils Görs <weechatter@arcor.de>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/audacious.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2006 DeltaS4 <deltas4@gmail.com>"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = "perl/autonickprefix.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2018 Juerd <#####@juerd.nl>"
+SPDX-License-Identifier = "CC0-1.0"
+
+[[annotations]]
+path = "perl/awaylog.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2008 Jiri Golembiovsky <golemj@gmail.com>"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = "perl/bashorg.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2011 Trashlord <dornenreich666@gmail.com>"
+SPDX-License-Identifier = "CC0-1.0"
+
+[[annotations]]
+path = "perl/beat.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2010 Nils Görs <weechatter@arcor.de>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/buddylist.pl"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2009-2023 Nils Görs <weechatter@arcor.de>",
+    "2025 Kamil Wiśniewski <tomteipl@gmail.com>",
+]
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/chanmon.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2009-2014 KenjiE20 <longbow@longbowslair.co.uk>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/chatters.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2012 Arvydas Sidorenko <asido4@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/cmdind.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2013 Nei <ailin@devio.us>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/colorize_lines.pl"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2010-2019 Nils Görs <weechatter@arcor.de>",
+    "2013 oakkitten",
+]
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/color_popup.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2013-2015 Nei <ailin@devio.us>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/commorkers.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2015 Al-Caveman <toraboracaveman@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/coords.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2012-2014 Nei <ailin@devio.us>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/ctrl_w.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2018-2019 Juerd <#####@juerd.nl>"
+SPDX-License-Identifier = "CC0-1.0"
+
+[[annotations]]
+path = "perl/curiousignore.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2010-2013 Nils Görs <weechatter@arcor.de>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/dellog.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2009-2010 Nils Görs <weechatter@arcor.de>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/dzen_notifier.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2015 apendragon <cpandragon@gmail.com>"
+SPDX-License-Identifier = "Artistic-2.0"
+
+[[annotations]]
+path = "perl/expand_url.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2011-2019 Nils Görs <weechatter@arcor.de>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/filter_ext.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2010-2011 rettub <rettub@gmx.net>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/foo.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2018 Juerd <#####@juerd.nl>"
+SPDX-License-Identifier = "CC0-1.0"
+
+[[annotations]]
+path = "perl/foo_spam.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2009-2010 Diogo Franco <diogomfranco@gmail.com>"
+SPDX-License-Identifier = "ISC"
+
+[[annotations]]
+path = "perl/format_lines.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2013 R1cochet <deltaxrho@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/fortune.pl"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2006 Julien Louis <ptitlouis@sysif.net>",
+    "2009 Sid Vicious (Trashlord) <dornenreich666@gmail.com>",
+    "2004 Ivo Marino <eim@cpan.org>",
+]
+SPDX-License-Identifier = "CC0-1.0"
+
+[[annotations]]
+path = "perl/growl_net_notify.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2009 kinabalu <andrew@mysticcoders.com>"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = "perl/highmon.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2009-2014 KenjiE20 <longbow@longbowslair.co.uk>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/hl_here.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2013 Sascha Ohms <sasch9r@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/hotlist2extern.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2009-2018 Nils Görs <weechatter@arcor.de>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/isgd.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2011-2014 stfn <stfnmd@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/jnotify.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2009-2012 Nils Görs <weechatter@arcor.de>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/join2fast.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2012-2013 Stefan Wold <ratler@stderr.eu>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/jump_smart_closest.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2018 arza <arza@arza.us>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/kernel.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2006 Julien Louis <ptitlouis@sysif.net>"
+SPDX-License-Identifier = "CC0-1.0"
+
+[[annotations]]
+path = "perl/kickban.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2011-2014 arza <arza@arza.us>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/kikoo.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2006 DeltaS4 <deltas4@gmail.com>"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = "perl/launcher.pl"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2009-2011 Sébastien Helleu <flashcode@flashtux.org>",
+    "2010 James Campos <james.r.campos@gmail.com>",
+]
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/listsort.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2011 arza <arza@arza.us>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/luanma.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2013 Nei <ailin@devio.us>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/maildir.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2012 Yoran Heling <projects@yorhel.nl>"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "perl/mass_hl_blocker.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2013 arza <arza@arza.us>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/mastermind.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2008-2009 Sébastien Helleu <flashcode@flashtux.org>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/mnick.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2014-2019 CrazyCat <crazycat@c-p-f.org>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/moc.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2006-2009 Jiri Golembiovsky <golemj@gmail.com>"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = "perl/mplex.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2010 rettub <rettub@gmx.net>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/ncmpcpp.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2011 stfn <stfnmd@googlemail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/newsbar.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2009-2014 rettub <rettub@gmx.net>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/nickregain.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2009 KenjiE20 <longbow@longbowslair.co.uk>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/notifym.pl"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2016-2019 Mitescu George Dan <mitescugd@gmail.com>",
+    "2019 Silvan Mosberger <infinisil@icloud.com>",
+    "2016 Berechet Mihai <mihaibereket9954@gmail.com>",
+]
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/notify_send.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2013-2017 shmibs <shmibs@shmibbles.me>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/parse_relayed_msg.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2011-2019 w8rabbit <w8rabbit@mail.i2p>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/perlexec.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2011 arza <arza@arza.us>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/pop3_mail.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2010-2013 Nils Görs <weechatter@arcor.de>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/pushover.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2013-2017 stfn <stfnmd@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/pv_info.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2018 Max Wölfing <ff0x@infr.io>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/query_blocker.pl"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2009-2014 rettub <rettub@gmx.net>",
+    "2011-2025 Nils Görs <weechatter@arcor.de>",
+]
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/ragefaces.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2011 stfn <stfnmd@googlemail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/recoverop.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2012 Ryuunosuke AYANOKOUZI <i38w7i3@yahoo.co.jp>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/rhythmbox.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2009 jnbek <jnbek@yahoo.com>"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = "perl/rhythmbus.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2012 R1cochet <R1cochet@hushmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/rslap.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2009-2010 KenjiE20 <longbow@longbowslair.co.uk>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/rssagg.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2012-2013 R1cochet <deltaxrho@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/seeks.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2011 Fabien Dupont <seeks@kafe-in.net>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/shuffle.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2009 Sid Vicious (Trashlord) <dornenreich666@gmail.com>"
+SPDX-License-Identifier = "CC0-1.0"
+
+[[annotations]]
+path = "perl/snake.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2011 arza <arza@arza.us>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/snarl_net_notify.pl"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2010 Eric Harmon",
+    "2009 kinabalu <andrew@mysticcoders.com>",
+]
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = "perl/sort_arza.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2015 arza <arza@arza.us>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/sort_buffers.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2011-2013 Nils Görs <weechatter@arcor.de>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/sound.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2006-2009 Sébastien Helleu <flashcode@flashtux.org>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/spacer.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2013 Biohazard <notbiohazard@zoho.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/spell_menu.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2013 Nei <ailin@devio.us>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/stalker.pl"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2013-2018 Nils Görs <weechatter@arcor.de>",
+    "2013-2014 Stefan Wold <ratler@stderr.eu>",
+    "2010-2013 Kaitlyn Parkhurst (SymKat) <symkat@symkat.com>",
+]
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/stats_bar.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2009 wishbone <djwishbone@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/strmon.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2009-2017 Stravy <stravy@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/thinklight_blink.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2010-2011 trenki <trechris@gmx.net>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/topicsed.pl"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2011 Nils Görs <weechatter@arcor.de>",
+    "2011 stfn <stfnmd@googlemail.com>",
+]
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/ubus.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2010-2011 Arvid Picciani <aep@hereticlinux.org>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/unset_unused.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2011-2019 Nils Görs <weechatter@arcor.de>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/url_arza.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2013-2019 arza <arza@arza.us>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/volumeter.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2009 Nils Görs <weechatter@arcor.de>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/weerock.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2010 Sebastian Köhler <sebkoehler@whoami.org.uk>"
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = "perl/wmiibar.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2010 Sebastian Köhler <sebkoehler@whoami.org.uk>"
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = "perl/xclip.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2011 stfn <stfnmd@googlemail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/xterm_paste.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2012 Nei <ailin@devio.us>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "perl/yaurls.pl"
+precedence = "override"
+SPDX-FileCopyrightText = "2012 R1cochet <R1cochet@hushmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/aesthetic.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2019 Wojciech Siewierski <wojciech.siewierski@onet.pl>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/aformat.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2016-2018 Hairo R. Carela <hairocr8@gmail.com>"
+SPDX-License-Identifier = "WTFPL"
+
+[[annotations]]
+path = "python/alternatetz.py"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2010 Chmouel Boudjnah <chmouel@chmouel.com>",
+    "2012-2013 bwidawsk <ben@bwidawsk.net>",
+]
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/announce_url_title.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2009-2012 Tor Hveem <xt@bash.no>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/anotify.py"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2012 magnific0 <jacco.geul@gmail.com>",
+    "2011 Sorin Ionescu <sorin.ionescu@gmail.com>",
+]
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "python/anti_password.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2021 Sébastien Helleu <flashcode@flashtux.org>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/apply_corrections.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2012 Chris Johnson <raugturi@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/arespond.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2011 Stephan Huebner <shuebnerfun01@gmx.org>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/autoauth.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2005 Emmanuel Bouthenot <kolter@openics.org>"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = "python/auto_away.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2010 Specimen <spinifer@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/autobump.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2018-2019 Daniel Kessler <daniel@dkess.me>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/autoconf.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2017 Manu Koell <manu@koell.li>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/autoconnect.py"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2011-2012 Arnaud Renevier <arno@renevier.net>",
+    "2016 kbdkode <kbdkode@protonmail.com>",
+]
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/autojoin_on_invite.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2009 Tor Hveem <xt@bash.no>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/automarkbuffer.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2015 Nils Görs <weechatter@arcor.de>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/automerge.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2017 Ricky Brent <ricky@rickybrent.com>"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = "python/automode.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2009-2010 Elián Hanisch <lambdae2@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/autosavekey.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2013-2019 Nils Görs <weechatter@arcor.de>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/autosort.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2013-2023 Maarten de Vries <maarten@de-vri.es>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/away_action.py"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2010 Tor Hveem <xt@bash.no>",
+    "2010 Elián Hanisch <lambdae2@gmail.com>",
+]
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/axolotl.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2014-2016 David R. Andersen <k0rx@rxcomm.net>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/bandwidth.py"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2009 Tor Hveem <xt@bash.no>",
+    "2011 quazgaa <quazgaa@gmail.com>",
+]
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/beinc.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2013-2024 Simeon Simeonov <blackmore@pichove.org>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/biditext.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2012 Oscar Morante <oscar@morante.eu>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/bitlbee_completion.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2015 Roger Duran <rogerduran@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/bitlbee_typing_notice.py"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2010 Alexander Schremmer <alex@alexanderweb.de>",
+    "2013, 2020 Corey Halpin <chalpin@cs.wisc.edu>",
+]
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/buffer_autoclose.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2009 Tor Hveem <xt@bash.no>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/buffer_autohide.py"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2017-2019 Matthias Adamczyk <mail@notmatti.me>",
+    "2019 Marco Trevisan <mail@3v1n0.net>",
+]
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "python/buffer_autoset.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2010-2021 Sébastien Helleu <flashcode@flashtux.org>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/buffer_bind.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2017 Trevor 'tee' Slocum <tslocum@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/buffer_dmenu.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2017-2020 Ferus Castor <ferus+weechat@airmail.cc>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/buffer_open.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2019 Simmo Saan <simmo.saan@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/bufsave.py"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2009 Tor Hveem <xt@bash.no>",
+    "2012-2021 Sébastien Helleu <flashcode@flashtux.org>",
+]
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/bufsize.py"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2012-2017 Nils Görs <weechatter@arcor.de>",
+    "2012-2017 nesthib <nesthib@gmail.com>",
+]
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/chanact.py"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2009-2010 Tor Hveem <xt@bash.no>",
+    "2011 mythmon <mythmon@gmail.com>",
+]
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/chancomp.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2015-2016 Jos Ahrens <zarthus@lovebytes.me>"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "python/chanop.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2009-2013 Elián Hanisch <lambdae2@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/chanotify.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2018 manzerbredes <manzerbredes@gmx.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/chanpriority.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2011-2012 Barbu Paul - Gheorghe <paullik.paul@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/clemenshow.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2011 Leigh MacDonald <leigh.macdonald@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/clemy.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2014 Darth-O-Ring <darthoring@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/clone_scanner.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2011-2015 Filip H.F. 'FiXato' Slagter <fixato@gmail.com>"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "python/cmd_help.py"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2011-2018 Sébastien Helleu <flashcode@flashtux.org>",
+    "2012 arza <arza@arza.us>",
+]
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/cmdqueue.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2011 walk <KingPython@gmx.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/cmus.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2013 Isaac Ross <foxxysauce@gmail.com>"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = "python/collapse_channel.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2019-2024 Nils Görs <weechatter@arcor.de>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/colorize_nicks.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2010-2015 Tor Hveem <xt@bash.no>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/completion.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2010 Elián Hanisch <lambdae2@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/confversion.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2010 David Rubin <drubin@smartcube.co.za>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/correction_completion.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2011-2020 Pascal Wittmann <mail@pascal-wittmann.de>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/cron.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2010-2021 Sébastien Helleu <flashcode@flashtux.org>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/crypt.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2008-2014 Nicolai Lissner <nlissne@linux01.org>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/customize_bar.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2012-2018 Nils Görs <weechatter@arcor.de>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/dcc_antispam.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2010-2012 Sébastien Helleu <flashcode@flashtux.org>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/deadbeef_np.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2014 mwgg <m@mw.gg>"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "python/detach_away.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2017 p3lim <weechat@p3lim.net>"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "python/digraph.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2023 narodnik <policeterror@dyne.org>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/emoji2alias.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2016 Wil Clouser <clouserw@micropipes.com>"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "python/emoji2ascii.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2019-2021 eyJhb <eyjhbb@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/emoji_aliases.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2016 Mike Reinhardt <mreinhardt@gmail.com>"
+SPDX-License-Identifier = "BSD-2-Clause"
+
+[[annotations]]
+path = "python/emojis.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2017 jmui <jmui@jmui.net>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/emojize.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2021 Thom Wiggers <thom@thomwiggers.nl>"
+SPDX-License-Identifier = "CC0-1.0"
+
+[[annotations]]
+path = "python/execbot.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2018 Giap Tran <txgvnn@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/fileaway.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2011 Richard A Hofer (javagamer) <atomic.quark@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/fish.py"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2011-2023 David Flatz <david@upcs.at>",
+    "2017-2020 Marcin Kurczewski <rr-@sakuya.pl>",
+    "2017 Ricardo Ferreira <ricardo.sff@goatse.cx>",
+    "2014 Charles Franklin <jakhead@gmail.com>",
+    "2012 Markus Näsman <markus@botten.org>",
+    "2009 Bjorn Edstrom <be@bjrn.se>",
+]
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/floodit.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2011-2012 Sébastien Helleu <flashcode@flashtux.org>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/force_nick.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2015-2018 Simmo Saan <simmo.saan@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/fullwidth.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2013-2014 Germain Z. <germanosz@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/giphy.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2017-2018 butlerx <butlerx@redbrick.dcu.ie>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/glitter.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2019 jotham <jotham.read@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/gnome_screensaver_away.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2016-2021 Gerard Ryan <gerard@ryan.lt>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/gnotify.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2009 tobypadilla <tobypadilla@gmail.com>"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = "python/gntpnotify.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2012 Ryan Feng <odayfans@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/go.py"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2009-2024 Sébastien Helleu <flashcode@flashtux.org>",
+    "2010 m4v <lambdae2@gmail.com>",
+    "2011 stfn <stfnmd@googlemail.com>",
+]
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/greentext.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2023 AGVXOV <agvxov@gmail.com>"
+SPDX-License-Identifier = "CC0-1.0"
+
+[[annotations]]
+path = "python/grep_filter.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2015-2016 Simmo Saan <simmo.saan@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/grep.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2009-2011 Elián Hanisch <lambdae2@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/gribble.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2017 Alex Fluter <afluter@gmail.com>"
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = "python/growl.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2011 Sorin Ionescu <sorin.ionescu@gmail.com>"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "python/hatwidget.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2013-2014 Germain Z. <germanosz@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/highlightxmpp.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2009-2015 Jacob Peddicord <jacob@peddicord.net>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/himan.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2019 pX <px@havok.org>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/histman.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2012-2018 Nils Görs <weechatter@arcor.de>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/histsearch.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2009 Tor Hveem <xt@bash.no>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/hl2file.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2012 nesthib <nesthib@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/hl_nicks.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2012 nesthib <nesthib@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/hlpvitem.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2009-2014 Sébastien Helleu <flashcode@flashtux.org>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/i3lock_away.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2017 Bertrand Ciroux <bertrand.ciroux@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/identica.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2009-2010 Nicolas Reynolds <fauno@kiwwwi.com.ar>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/imap_status.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2009-2015 Tor Hveem <xt@bash.no>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/im_kayac_com_notify.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2012-2013 Gosuke Miyashita <gosukenator@gmail.com>"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "python/im_rename.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2014 Jaakko Lintula <crwl@iki.fi>"
+SPDX-License-Identifier = "CC0-1.0"
+
+[[annotations]]
+path = "python/infolist.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2008-2018 Sébastien Helleu <flashcode@flashtux.org>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/infos.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2011 Elián Hanisch <lambdae2@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/irccloud_avatar_link.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2024 Jesse McDowell <jessemcd1@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/irssi_awaylog.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2013 henrik <henrik@affekt.org>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/irssinotifier.py"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2013 Caspar Clemens Mierau <ccm@screenage.de>",
+    "2013 ochameau <poirot.alex@gmail.com>",
+    "2013 lavaramano <lavaramano@gmail.com>",
+    "2010 Yoshiyasu SAEKI <laclef_yoshiyasu@yahoo.co.jp>",
+]
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/jabber.py"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2009-2013 Sébastien Helleu <flashcode@flashtux.org>",
+    "2010 Tor Hveem <xt@bash.no>",
+    "2010 Aleksey V. Zapparov <ixti@member.fsf.org>",
+]
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/jisearch.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2016 ark <quentrg@gmail.com>"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "python/kbtimeout.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2009-2018 kinabalu <andrew@mysticcoders.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/keepnick.py"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2012-2017 Nils Görs <weechatter@arcor.de>",
+    "2006 EgS <i@egs.name>",
+]
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/kiloseconds.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2009 Wraithan <XWraithanX@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/kitty_notifications.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2024 Emma Eilefsen Glenna <emma@eilefsen.net>"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "python/lastfm2.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2015 timss <timsateroy@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/lastfm.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2010 Adam Saponara <saponara@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/last_written.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2019 Nils Görs <weechatter@arcor.de>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/listbuffer.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2011-2013 Filip H.F. 'FiXato' Slagter <fixato@gmail.com>"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "python/lnotify.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2010-2019 kevr <kevr.gtalk@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/log.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2019 Nils Görs <weechatter@arcor.de>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/logsize.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2012-2019 Nils Görs <weechatter@arcor.de>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/lossage.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2021 Germain Z. <germanosz@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/maskmatch.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2015-2016 Jos Ahrens <zarthus@lovebytes.me>"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "python/maze.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2012-2022 Sébastien Helleu <flashcode@flashtux.org>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/memon.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2012 Barbu Paul - Gheorghe <paullik.paul@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/minesweeper.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2011-2012 Sébastien Helleu <flashcode@flashtux.org>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/mnotify.py"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2013 maker <maker@python.it>",
+    "2012 magnific0 <jacco.geul@gmail.com>",
+    "2011 Sorin Ionescu <sorin.ionescu@gmail.com>",
+]
+SPDX-License-Identifier = "Beerware"
+
+[[annotations]]
+path = "python/moc_control.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2009-2019 Benjamin Neff <info@benjaminneff.ch>"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = "python/mop.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2016 Adam Saponara <saponara@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/mpc.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2011 P Hargrave <resixian@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/mpdnp.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2006 Henning Hasemann <hhasemann@web.de>"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = "python/mpris2_np.py"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2011 Johannes Nixdorf <mixi@shadowice.org>",
+    "2014 Mantas Mikulėnas <grawity@gmail.com>",
+]
+SPDX-License-Identifier = "BSD-2-Clause"
+
+[[annotations]]
+path = "python/mpris_np.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2011 Johannes Nixdorf <mixi@shadowice.org>"
+SPDX-License-Identifier = "BSD-2-Clause"
+
+[[annotations]]
+path = "python/mpv.py"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2016 teraflops <cprieto.ortiz@gmail.com>",
+    "2016 nashgul <m.alcocer1978@gmail.com>",
+]
+SPDX-License-Identifier = "Beerware"
+
+[[annotations]]
+path = "python/mqtt_notify.py"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2016 Guillaume Subiron <maethor@subiron.org>",
+    "2018 Serge van Ginderachter <serge@vanginderachter.be>",
+]
+SPDX-License-Identifier = "WTFPL"
+
+[[annotations]]
+path = "python/msg_command.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2010 Tor Hveem <xt@bash.no>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/nameday.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2003-2012 Sébastien Helleu <flashcode@flashtux.org>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/nma.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2011-2013 sitaktif <romainchossart@gmail.com>"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = "python/noirccolors.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2012 Fredrick Brennan <fredrick.brennan1@gmail.com>"
+SPDX-License-Identifier = "CC0-1.0"
+
+[[annotations]]
+path = "python/notification_center.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2012-2020 Sindre Sorhus <sindresorhus@gmail.com>"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "python/notification.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2014 Guido Berhoerster <guido+weechat@berhoerster.name>"
+SPDX-License-Identifier = "GPL-3.0-only"
+
+[[annotations]]
+path = "python/notifo_notify.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2010 Yoshiyasu SAEKI <laclef_yoshiyasu@yahoo.co.jp>"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "python/notify.py"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2007 lavaramano <lavaramano@gmail.com>",
+    "2008 BaSh <bash.lnx@gmail.com>",
+]
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = "python/openbsd_privdrop.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2022-2024 Alvar Penning <post@0x21.biz>"
+SPDX-License-Identifier = "ISC"
+
+[[annotations]]
+path = "python/otr.py"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2012-2015 Matthew M. Boedicker <matthewm@boedicker.org>",
+    "2012-2015 Nils Görs <weechatter@arcor.de>",
+    "2012-2015 Daniel 'koolfy' Faucon <koolfy@koolfy.be>",
+    "2012-2015 Felix Eckhofer <felix@tribut.de>",
+]
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/pagetitle.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2008 xororand <wolf@unfoog.de>"
+SPDX-License-Identifier = "CC0-1.0"
+
+[[annotations]]
+path = "python/postpone.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2010 Alexander Schremmer <alex@alexanderweb.de>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/prism.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2010 Alex Barrett <al.barrett@gmail.com>"
+SPDX-License-Identifier = "WTFPL"
+
+[[annotations]]
+path = "python/prowl_notify.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2013-2014 kidchunks <me@kidchunks.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/purgelogs.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2011-2013 Nils Görs <weechatter@arcor.de>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/pushjet.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2017 p3lim <weechat@p3lim.net>"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "python/pybuffer.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2010 Elián Hanisch <lambdae2@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/pyrnotify.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2012 Krister Svanlund <krister.svanlund@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/queryman.py"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2013-2018 Nils Görs <weechatter@arcor.de>",
+    "2017 Filip H.F. 'FiXato' Slagter <fixato+weechat@gmail.com>",
+]
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/quick_force_color.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2012-2017 Nils Görs <weechatter@arcor.de>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/quodnp.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2009 Brandon Hartshorn <sharntehnub@gmail.com>"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = "python/read_marker.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2022-2023 Simon Ser <contact@emersion.fr>"
+SPDX-License-Identifier = "AGPL-3.0-or-later"
+
+[[annotations]]
+path = "python/reop.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2022 Jeroen F.J. Laros <jlaros@fixedpoint.nl>"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "python/responsive_layout.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2014-2019 Stefan Wold <ratler@stderr.eu>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/samegame.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2012 Sébastien Helleu <flashcode@flashtux.org>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/sarcasm.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2023 Fsaev <fredrik@saevland.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/screen_away.py"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2009 Tor Hveem <xt@bash.no>",
+    "2009 penryu <penryu@gmail.com>",
+    "2010 Blake Winton <bwinton@latte.ca>",
+    "2010 Aron Griffis <agriffis@n01se.net>",
+    "2010 Jani Kesänen <jani.kesanen@gmail.com>",
+]
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/selfcensor.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2018 tx <trqx@goat.si>"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "python/sensors.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2010 0x1cedd1ce <0x1cedd1ce@freeunix.net>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/server_autoswitch.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2012-2013 Nils Görs <weechatter@arcor.de>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/shortenurl.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2010-2014 John Anderson <sontek@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/shutup.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2014 Filip H.F. 'FiXato' Slagter <fixato+weechat@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/slack.py"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2014-2016 Ryan Huber <rhuber@gmail.com>",
+    "2015-2018 Tollef Fog Heen <tfheen@err.no>",
+    "2015-2024 Trygve Aaberge <trygveaa@gmail.com>",
+]
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "python/slock_away.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2011 Peter A. Shevtsov <pshevtsov@severusweb.ru>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/smile.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2014 Vlad Stoica <stoica.vl@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/snotify.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2010 Stephan Huebner <s.huebnerfun01@gmx.org>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/soju.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2021-2023 Simon Ser <contact@emersion.fr>"
+SPDX-License-Identifier = "AGPL-3.0-or-later"
+
+[[annotations]]
+path = "python/sort_servers.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2013 KokaKiwi <kokakiwi@kokakiwi.net>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/spell_correction.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2013-2024 Nils Görs <weechatter@arcor.de>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/spotify_nowplaying.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2011 agreeabledragon <recognize@me.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/spotify.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2009-2010 Tor Hveem <xt@bash.no>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/sshnotify.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2011 delwin <delwin@skyehaven.net>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/stick_buffer.py"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2013-2017 Nils Görs <weechatter@arcor.de>",
+    "2015 Damien Bargiacchi <icymidnight@gmail.com>",
+]
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/styurl.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2019 Cole Helbling <cole.e.helbling@outlook.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/tailer.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2010 Tor Hveem <xt@bash.no>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/teknik.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2017 Uncled1023 <admin@teknik.io>"
+SPDX-License-Identifier = "BSD-2-Clause"
+
+[[annotations]]
+path = "python/telnot.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2018 Frantisek Kolacek <work@kolacek.it>"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "python/terminal_title.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2010 Guido Berhoerster <guido+weechat@berhoerster.name>"
+SPDX-License-Identifier = "GPL-3.0-only"
+
+[[annotations]]
+path = "python/text_replace.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2009 Tor Hveem <xt@bash.no>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/tictactoe.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2016 Sébastien Helleu <flashcode@flashtux.org>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/title.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2009 Tor Hveem <xt@bash.no>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/tmux_env.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2013-2014 Aron Griffis <agriffis@n01se.net>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/toggle_highlight.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2013 Adam Spiers <weechat@adamspiers.org>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/toggle_nicklist.py"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2009 Tor Hveem <xt@bash.no>",
+    "2009-2012 Sébastien Helleu <flashcode@flashtux.org>",
+]
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/topicdiff_alt.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2018 Juerd <#####@juerd.nl>"
+SPDX-License-Identifier = "CC0-1.0"
+
+[[annotations]]
+path = "python/topicdiff.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2011 Dafydd Harries <daf@rhydd.org>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/translate.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2009-2013 Sébastien Helleu <flashcode@flashtux.org>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/triggerreply.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2014-2018 Vlad Stoica <stoica.vl@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/tts.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2017 raspbeguy <raspbeguy@hashtagueule.fr>"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "python/twmn_notify.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2012 epegzz <epegzz@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/typing_counter.py"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2010-2013 fauno <fauno@kiwwwi.com.ar>",
+    "2018 Nils Görs <weechatter@arcor.de>",
+]
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/undernet_totp.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2013-2019 Stefan Wold <ratler@stderr.eu>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/unhighlight.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2016 Andrew Rodgers-Schatz <me@andrew.rs>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/unread_buffer.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2015-2018 Nils Görs <weechatter@arcor.de>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/unwanted_msg.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2012-2018 nesthib <nesthib@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/update_notifier.py"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2010 David Rubin <drubin@smartcube.co.za>",
+    "2017-2023 Sébastien Helleu <flashcode@flashtux.org>",
+]
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/uppercase.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2009 Tor Hveem <xt@bash.no>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/upside_down.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2009 Tor Hveem <xt@bash.no>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/urlbar.py"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2009-2020 Sébastien Helleu <flashcode@flashtux.org>",
+    "2009 Tor Hveem <xt@bash.no>",
+]
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/urlbuf.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2011-2014 Jani Kesänen <jani.kesanen@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/urlgrab.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2005 David Rubin <drubin@smartcube.co.za>"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = "python/url_hint.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2017-2019 oakkitten <jatjasjem@gmail.com>"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "python/url_olde.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2016-2017 Charlie Allom <charlie@evilforbeginners.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/urlserver.py"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2011-2021 Sébastien Helleu <flashcode@flashtux.org>",
+    "2011 Tor Hveem <xt@bash.no>",
+    "2012 Filip H.F. 'FiXato' Slagter <fixato+weechat+urlserver@gmail.com>",
+    "2012 WillyKaze <willykaze@willykaze.org>",
+    "2013 Thomas Kindler <mail_weechat@t-kindler.de>",
+    "2013 Felix Eckhofer <felix@tribut.de>",
+]
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/vdm.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2009-2012 Sébastien Helleu <flashcode@flashtux.org>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/vimode.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2013-2018 Germain Z. <germanosz@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/weefusables.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2021 Nils Görs <weechatter@arcor.de>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/weejoin.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2020 KittyKatt <kittykatt@teknik.io>"
+SPDX-License-Identifier = "BSD-2-Clause"
+
+[[annotations]]
+path = "python/wee_most.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2022-2023 Damien Tardy-Panis <damien.dev@tardypad.me>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/weemoticons.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2013 Stefan Wold <ratler@stderr.eu>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/weempd.py"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2007 Apprentice <apprent1ce@livejournal.com>",
+    "2007 Pablo Escobar <pablo__escobar@tlen.pl>",
+]
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/weemustfeed.py"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2013 Bit Shift <bitshift@bigmacintosh.net>",
+    "2016-2018 Pol Van Aubel <dev@polvanaubel.com>",
+]
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "python/weenetsoul.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2011-2014 godric <godric@0x3f.fr>"
+SPDX-License-Identifier = "WTFPL"
+
+[[annotations]]
+path = "python/weenotifier.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2021-2024 Mohan Raman <mohan43u@gmail.com>"
+SPDX-License-Identifier = "BSD-2-Clause"
+
+[[annotations]]
+path = "python/weenotify.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2018 Elia El Lazkani <elia.el.lazkani@gmail.com>"
+SPDX-License-Identifier = "BSD-2-Clause"
+
+[[annotations]]
+path = "python/weeprowl.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2013 Josh Dick <josh@joshdick.net>"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = "python/weepushover.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2018 adtac <weechat@adtac.in>"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "python/weestats.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2012 Filip H.F. 'FiXato' Slagter <fixato@gmail.com>"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "python/weestreamer.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2015 Miblo <miblodelcarpio@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/weetext.py"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2014 David R. Andersen <k0rx@rxcomm.net>",
+    "2014 Tycho Andersen <tycho@tycho.ws>",
+]
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/weetris.py"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2008-2019 Sébastien Helleu <flashcode@flashtux.org>",
+    "2009 David Rubin <drubin@smartcube.co.za>",
+    "2010-2011 Trashlord <dornenreich666@gmail.com>",
+]
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/weetweet.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2013-2014 DarkDefender <darkdefende@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/whatismyip.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2010 John Anderson <sontek@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/whatsapp.py"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2015 Jochen Sprickerhof <weechat@jochen.sprickerhof.de>",
+    "2009-2013 Sébastien Helleu <flashcode@flashtux.org>",
+    "2010 Tor Hveem <xt@bash.no>",
+    "2010 Aleksey V. Zapparov <ixti@member.fsf.org>",
+]
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/whois_on_query.py"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2009-2012 Sébastien Helleu <flashcode@flashtux.org>",
+    "2011 Elián Hanisch <lambdae2@gmail.com>",
+    "2011 arza <arza@arza.us>",
+]
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/whowas_timeago.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2015-2016 Jos Ahrens <zarthus@lovebytes.me>"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "python/windicate.py"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2010 Leon Bogaert <leon@tim-online.nl>",
+    "2010-2013 Stacey Sheldon <stac@solidgoldbomb.org>",
+]
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = "python/win_scroll_screen.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2015 Paul L <paulguy119@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/xdccq.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2018 Randall Flagg <shinigami_flagg@yahoo.it>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/xfer_run_command.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2016 Michael Kebe <michael.kebe@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/xfer_scp.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2014-2017 Grant Bacon <btnarg@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/xfer_setip.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2010-2012 Stephan Huebner <s.huebner@gmx.org>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/zerotab.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2010 Lucian Adamson <lucian.adamson@yahoo.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "python/zncnotice.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2016 Hugo Landau <hlandau@devever.net>"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "python/zncplayback.py"
+precedence = "override"
+SPDX-FileCopyrightText = "2016 Jasper v. Blanckenburg <jasper@mezzo.de>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "ruby/amqp_notify.rb"
+precedence = "override"
+SPDX-FileCopyrightText = "2011 Mahlon E. Smith <mahlon@martini.nu>"
+SPDX-License-Identifier = "BSD-3-Clause"
+
+[[annotations]]
+path = "ruby/auth.rb"
+precedence = "override"
+SPDX-FileCopyrightText = "2013-2014 Shawn Smith <ShawnSmith0828@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "ruby/buffzilla.rb"
+precedence = "override"
+SPDX-FileCopyrightText = "2016 Dave Williams <dave@dave.io>"
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = "ruby/challengeauth.rb"
+precedence = "override"
+SPDX-FileCopyrightText = "2013 Dominik Honnef <dominikh@fork-bomb.org>"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "ruby/cleanbuffer.rb"
+precedence = "override"
+SPDX-FileCopyrightText = "2016 Ewa Baumgarten <vivec@manavortex.de>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "ruby/colorizer.rb"
+precedence = "override"
+SPDX-FileCopyrightText = "2015 Michael B. Hix <m@hix.io>"
+SPDX-License-Identifier = "BSD-2-Clause"
+
+[[annotations]]
+path = "ruby/countdown.rb"
+precedence = "override"
+SPDX-FileCopyrightText = "2014 Rylee Fowler <rylee@rylee.me>"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "ruby/dcc_send_relay.rb"
+precedence = "override"
+SPDX-FileCopyrightText = "2012 Dominik Honnef <dominikh@fork-bomb.org>"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "ruby/gntp_notify.rb"
+precedence = "override"
+SPDX-FileCopyrightText = "2011-2012 Justin Anderson <jandersonis@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "ruby/hilites.rb"
+precedence = "override"
+SPDX-FileCopyrightText = "2011 Christian Brassat <christian@crshd.cc>"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "ruby/input_lock.rb"
+precedence = "override"
+SPDX-FileCopyrightText = "2011-2022 Mahlon E. Smith <mahlon@martini.nu>"
+SPDX-License-Identifier = "BSD-3-Clause"
+
+[[annotations]]
+path = "ruby/itunes.rb"
+precedence = "override"
+SPDX-FileCopyrightText = "2012 mdszy <mdszy@me.com>"
+SPDX-License-Identifier = "CC-BY-SA-3.0"
+
+[[annotations]]
+path = "ruby/minbif_typing_notice.rb"
+precedence = "override"
+SPDX-FileCopyrightText = "2010 CissWit <cisswit@6-8.fr>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "ruby/mpdspam.rb"
+precedence = "override"
+SPDX-FileCopyrightText = "2009 Benedikt 'linopolus' Mueller <linopolus@xssn.at>"
+SPDX-License-Identifier = "BSD-2-Clause"
+
+[[annotations]]
+path = "ruby/myuptime.rb"
+precedence = "override"
+SPDX-FileCopyrightText = "2006 David DEMONCHY <fusco.spv@gmail.com>"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = "ruby/pushbullet.rb"
+precedence = "override"
+SPDX-FileCopyrightText = "2018 yazgoo <yazgoo+weechat.org@gmail.com>"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "ruby/pushsafer.rb"
+precedence = "override"
+SPDX-FileCopyrightText = "2017 Kevin Siml <kevinsiml@googlemail.com>"
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = "ruby/samechannel.rb"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "2013 Hendrik 'henk' Jaeger <weechat@henk.geekmail.org>",
+    "2015 arza <arza@arza.us>",
+]
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "ruby/socket_notify.rb"
+precedence = "override"
+SPDX-FileCopyrightText = "2014 Christopher Giroir <kelsin@valefor.com>"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "ruby/substitution.rb"
+precedence = "override"
+SPDX-FileCopyrightText = "2013 Samuel Laverdière <sam113101@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "ruby/undernet_challenge.rb"
+precedence = "override"
+SPDX-FileCopyrightText = "2013 Daniel Bretoi <daniel@bretoi.com>"
+SPDX-License-Identifier = "BSD-2-Clause"
+
+[[annotations]]
+path = "ruby/url_hinter.rb"
+precedence = "override"
+SPDX-FileCopyrightText = "2014 Kengo Tateishi <embrace.ddd.flake.peace@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "ruby/url_shorten.rb"
+precedence = "override"
+SPDX-FileCopyrightText = "2008-2013 Daniel Bretoi <daniel@bretoi.com>"
+SPDX-License-Identifier = "BSD-2-Clause"
+
+[[annotations]]
+path = "ruby/weefish.rb"
+precedence = "override"
+SPDX-FileCopyrightText = "2010 Tobias Petersen <tp@unreal.dk>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "ruby/weespotify.rb"
+precedence = "override"
+SPDX-FileCopyrightText = "2013 Paweł Pogorzelski <pawelpogorzelski@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "ruby/xmms2.rb"
+precedence = "override"
+SPDX-FileCopyrightText = "2009, 2011 Łukasz P. Michalik <lmi@ift.uni.wroc.pl>"
+SPDX-License-Identifier = "GPL-2.0-only"
+
+[[annotations]]
+path = "ruby/zmq_notify.rb"
+precedence = "override"
+SPDX-FileCopyrightText = "2011 Mahlon E. Smith <mahlon@martini.nu>"
+SPDX-License-Identifier = "BSD-3-Clause"
+
+[[annotations]]
+path = "tcl/chan_hl.tcl"
+precedence = "override"
+SPDX-FileCopyrightText = "2009 Dmitry Kobylin <fnfal@academ.tsc.ru>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "tcl/inverter.tcl"
+precedence = "override"
+SPDX-FileCopyrightText = "2016 CrazyCat <crazycat@c-p-f.org>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "tcl/ipinfo.tcl"
+precedence = "override"
+SPDX-FileCopyrightText = "2022 CrazyCat <crazycat@c-p-f.org>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "tcl/rnotify.tcl"
+precedence = "override"
+SPDX-FileCopyrightText = "2010-2015 Gotisch <gotisch@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "tcl/wttr.tcl"
+precedence = "override"
+SPDX-FileCopyrightText = "2023 CrazyCat <crazycat@c-p-f.org>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "tcl/xosdnotify.tcl"
+precedence = "override"
+SPDX-FileCopyrightText = "2010-2013 Dmitry Kobylin <fnfal@academ.tsc.ru>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
