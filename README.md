@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2014-2025 Sébastien Helleu <flashcode@flashtux.org>
+
+SPDX-License-Identifier: GPL-3.0-or-later
+-->
+
 # WeeChat official scripts
 
 [![CI Status](https://github.com/weechat/scripts/workflows/CI/badge.svg)](https://github.com/weechat/scripts/actions?query=workflow%3A%22CI%22)

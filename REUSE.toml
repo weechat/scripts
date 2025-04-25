@@ -7,11 +7,7 @@ version = 1
 [[annotations]]
 path = [
     ".github/ISSUE_TEMPLATE/*.md",
-    ".github/ISSUE_TEMPLATE/*.yml",
     ".github/pull_request_template.md",
-    ".mailmap",
-    "CONTRIBUTING.md",
-    "README.md",
 ]
 precedence = "override"
 SPDX-FileCopyrightText = "2006-2025 Sébastien Helleu <flashcode@flashtux.org>"
