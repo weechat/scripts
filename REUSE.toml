@@ -947,12 +947,6 @@ SPDX-FileCopyrightText = "2019-2024 Nils Görs <weechatter@arcor.de>"
 SPDX-License-Identifier = "GPL-3.0-or-later"
 
 [[annotations]]
-path = "python/colorize_nicks.py"
-precedence = "override"
-SPDX-FileCopyrightText = "2010-2015 Tor Hveem <xt@bash.no>"
-SPDX-License-Identifier = "GPL-3.0-or-later"
-
-[[annotations]]
 path = "python/completion.py"
 precedence = "override"
 SPDX-FileCopyrightText = "2010 Elián Hanisch <lambdae2@gmail.com>"
