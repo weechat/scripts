@@ -38,9 +38,15 @@
 #
 # -----------------------------------------------------------------------------
 # History:
+# 2025-05-26: nils_2@libera.#weechat
+#     version 1.8:
+#     ADD: new argument '-all' for del (idea PeGaSuS)
+#     IMP: hook_completion_list_add() to completion_list_add()
+#
 # 2025-03-02: nils_2@libera.#weechat
 #     version 1.7:
 #     ADD: use of print_date_tags to set an tag for query_blocker messages, new option msg_tag (idea PeGaSuS)
+#
 # 2023-06-29: nils_2@libera.#weechat
 #     version 1.6:
 #     FIX: nick was not correctly parsed when message has tags.
@@ -132,11 +138,11 @@ use strict;
 
 my $SCRIPT      = 'query_blocker';
 my $AUTHOR      = 'rettub <rettub@gmx.net>';
-my $VERSION     = '1.7';
+my $VERSION     = '1.8';
 my $LICENSE     = 'GPL3';
 my $DESCRIPTION = 'Simple blocker for private message (i.e. spam)';
 my $COMMAND     = "query_blocker";             # new command name
-my $ARGS_HELP   = "<on> | <off> | <status> | <list [last]> | <add [nick_1 [... [nick_n]]]> | <del nick_1 [... [nick_n]]> | <reload> | <blocked [clear]>";
+my $ARGS_HELP   = "<on> | <off> | <status> | <list [last]> | <add [nick_1 [... [nick_n]]]> | <del nick_1 [... [nick_n][-all]]> | <reload> | <blocked [clear]>";
 my %help_desc = ( "block_queries"       => "to enable or disable $COMMAND (default: 'off')",
                   "quiet"               => "will send auto reply about blocking, but don't send any notice to you. (default: 'off')",
                   "show_deny_message"   => "show you the deny message, sent to user. (default: 'off')",
@@ -160,13 +166,13 @@ If a not allowed (blocked) nick sends you a private message, you will see a noti
 If you send a private message to a user, his nick will be added to the whitelist.
 
 Arguments:
-              on/off: toggle blocking of queries.
-              status: show blocking status.
-         list [last]: show whitelist, use last to show the nick blocked last.
-     add/del [nicks]: add/delete nick(s) to/from whitelist. (if no nick is given, 'add' will use the last blocked one).
-                      ('nicks' is a list of nicks seperated by spaces).
-              reload: reload whitelist (useful if you changed the file-location i.e. to use a common file).
-     blocked [clear]: list blocked nicks. If arg 'clear' is given all blocked nicks will be removed.
+               on/off: toggle blocking of queries.
+               status: show blocking status.
+          list [last]: show whitelist, use last to show the nick blocked last.
+add/del [nicks][-all]: add/delete nick(s) to/from whitelist. (if no nick is given, 'add' will use the last blocked one).
+                       ('nicks' is a list of nicks seperated by spaces) ('-all' will delete whitelist and save empty list to disk).
+               reload: reload whitelist (useful if you changed the file-location i.e. to use a common file).
+      blocked [clear]: list blocked nicks. If arg 'clear' is given all blocked nicks will be removed.
 
 Script Options:
  ignore_auto_message: $help_desc{ignore_auto_message}
@@ -614,14 +620,14 @@ sub qb_unhook {
 sub query_blocker_completion_del_cb{
     my ($data, $completion_item, $buffer, $completion) = @_;
     foreach ( sort { "\L$a" cmp "\L$b" } keys %Allowed ) {
-        weechat::hook_completion_list_add($completion, $_,1, weechat::WEECHAT_LIST_POS_SORT);
+        weechat::completion_list_add($completion, $_,1, weechat::WEECHAT_LIST_POS_SORT);
     }
 return weechat::WEECHAT_RC_OK;
 }
 sub query_blocker_completion_add_cb{
     my ($data, $completion_item, $buffer, $completion) = @_;
     foreach (reverse keys %Blocked) {
-        weechat::hook_completion_list_add($completion, $_,1, weechat::WEECHAT_LIST_POS_SORT);
+        weechat::completion_list_add($completion, $_,1, weechat::WEECHAT_LIST_POS_SORT);
     }
 return weechat::WEECHAT_RC_OK;
 }
@@ -726,17 +732,23 @@ sub query_blocker {
         } elsif ( $cmd eq 'add' ) {
             _add($arg,1);
         }elsif ( $cmd eq 'del' and defined $arg ) {
-            foreach ( split( / +/, $arg ) ) {
-                if (exists $Allowed{$_} ) {
-                    delete $Allowed{$_};
-                    my ($server,$nick) = split(/\./,$_);
-                    weechat::print( '', "Nick removed from whitelist: '".
-                                        weechat::color(weechat::config_color(weechat::config_get("weechat.color.chat_server"))).$server .
-                                        weechat::color('reset') . "." .
-                                        irc_nick_find_color($nick) . $nick .
-                                        weechat::color('reset') . "'");
-                } else {
-                    weechat::print( '', "Can't remove nick, not in whitelist: '" . irc_nick_find_color($_) . $_ . weechat::color('reset') . "'");
+            if ( $arg eq '-all' ) {
+                %Allowed = ();                       # empty hash with all whitelist nick
+                weechat::print( '', "Nicks removed from whitelist");
+            }
+            else {
+                foreach ( split( / +/, $arg ) ) {
+                    if (exists $Allowed{$_} ) {
+                        delete $Allowed{$_};
+                        my ($server,$nick) = split(/\./,$_);
+                        weechat::print( '', "Nick removed from whitelist: '".
+                                            weechat::color(weechat::config_color(weechat::config_get("weechat.color.chat_server"))).$server .
+                                            weechat::color('reset') . "." .
+                                            irc_nick_find_color($nick) . $nick .
+                                            weechat::color('reset') . "'");
+                    } else {
+                        weechat::print( '', "Can't remove nick, not in whitelist: '" . irc_nick_find_color($_) . $_ . weechat::color('reset') . "'");
+                    }
                 }
             }
             whitelist_save();
