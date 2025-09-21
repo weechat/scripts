@@ -29,7 +29,7 @@
 
 (define *weechat/script-name* "gateway_rename")
 (define *weechat/script-author* "zv <zv@nxvr.org>")
-(define *weechat/script-version* "1.2.1")
+(define *weechat/script-version* "1.2.2")
 (define *weechat/script-license* "GPL3")
 (define *weechat/script-description* "Convert usernames of gateway connections their real names")
 
@@ -87,7 +87,9 @@ returned during /version"
            (cons name network)
            (process (weechat:infolist_next il))))))
 
-  (process (weechat:infolist_next il)))
+  (let ((result (process (weechat:infolist_next il))))
+    (weechat:infolist_free il)
+    result))
 
 ;; This is a table that maps a weechat network 'name' to it's IRC-style hostname
 (define *hostname-table* (alist->hash-table '(("freenode" . "freenode"))))
