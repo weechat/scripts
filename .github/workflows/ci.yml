@@ -21,4 +21,4 @@ jobs:
       - name: Install dependencies
         run: pip install weechat-script-lint
       - name: Check scripts
-        run: make partial-check
+        run: make check

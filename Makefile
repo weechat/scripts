@@ -23,9 +23,5 @@ CHECKER ?= weechat-script-lint
 
 all: check
 
-# this target will be removed once the ignored scripts are fixed
-partial-check:
-	"$(CHECKER)" --ignore-files gateway_rename.scm --recursive .
-
 check:
 	"$(CHECKER)" --recursive .
