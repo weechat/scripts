@@ -2028,16 +2028,6 @@ SPDX-FileCopyrightText = [
 SPDX-License-Identifier = "GPL-3.0-or-later"
 
 [[annotations]]
-path = "python/weetris.py"
-precedence = "override"
-SPDX-FileCopyrightText = [
-    "2008-2019 Sébastien Helleu <flashcode@flashtux.org>",
-    "2009 David Rubin <drubin@smartcube.co.za>",
-    "2010-2011 Trashlord <dornenreich666@gmail.com>",
-]
-SPDX-License-Identifier = "GPL-3.0-or-later"
-
-[[annotations]]
 path = "python/weetweet.py"
 precedence = "override"
 SPDX-FileCopyrightText = "2013-2014 DarkDefender <darkdefende@gmail.com>"
