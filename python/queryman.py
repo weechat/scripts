@@ -1,23 +1,16 @@
-# -*- coding: utf-8 -*-
 #
-# Copyright (c) 2013-2018 by nils_2 <weechatter@arcor.de>, Filip H.F. "FiXato" Slagter <fixato+weechat@gmail.com>
+# SPDX-FileCopyrightText: 2013-2025 Nils Görs <weechatter@arcor.de>
+# SPDX-FileCopyrightText: 2017 Filip H.F. 'FiXato' Slagter <fixato+weechat@gmail.com>
 #
-# save and restore query buffers after /quit
+# SPDX-License-Identifier: GPL-3.0-or-later
 #
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 3 of the License, or
-# (at your option) any later version.
+# Save and restore query buffers after /quit.
 #
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# Idea by lasers@freenode.#weechat
 #
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-# idea by lasers@freenode.#weechat
+# 2025-10-02: nils_2 (libera.#weechat)
+#       0.7 : fix a ValueError in config file, when using dcc. localvar "server", is missing for dcc buffer (reported by roughnecks)
+#           : add some more DEBUG() text
 #
 # 2023-08-01: nils_2 (libera.#weechat)
 #     0.6.1 : fix a timing problem when joining autojoin-channels (reported by thecdnhermit)
@@ -62,7 +55,7 @@ except Exception:
 
 SCRIPT_NAME     = 'queryman'
 SCRIPT_AUTHOR   = 'nils_2 <weechatter@arcor.de>'
-SCRIPT_VERSION  = '0.6.1'
+SCRIPT_VERSION  = '0.7'
 SCRIPT_LICENSE  = 'GPL'
 SCRIPT_DESC     = 'save and restore query buffers after /quit and on open/close of queries'
 DEBUG           = False
@@ -106,6 +99,7 @@ def irc_pv_opened_cb(data, signal, signal_data):
     server_name = weechat.buffer_get_string(signal_data, 'localvar_server')
     channel_name = weechat.buffer_get_string(signal_data, 'localvar_channel')
     add_channel_to_stored_list(server_name, channel_name)
+    debug_print("signal: irc_pv_opened server: %s query: %s" % (server_name, channel_name))
     save_stored_query_buffers_to_file()
     return weechat.WEECHAT_RC_OK
 
@@ -114,6 +108,7 @@ def remove_server_from_servers_closing_cb(data, signal, signal_data):
     global servers_closing
     if signal_data in servers_closing:
         servers_closing.remove(signal_data)
+        debug_print("signal: irc_server_closing")
     return weechat.WEECHAT_RC_OK
 
 # signal_data = buffer pointer
@@ -122,6 +117,7 @@ def irc_server_opened_cb(data, signal, signal_data):
 
     server_name = weechat.buffer_get_string(signal_data, 'localvar_server')
     servers_opening.add(server_name)
+    debug_print("signal: irc_server_opened %s" % server_name)
     return weechat.WEECHAT_RC_OK
 
 # signal_data = servername
@@ -132,6 +128,7 @@ def irc_server_connected_signal_cb(data, signal, signal_data):
     if signal_data in servers_opening:
         open_stored_query_buffers_for_server(signal_data)
         servers_opening.remove(signal_data)
+        debug_print("signal: irc_server_connected")
 
     return weechat.WEECHAT_RC_OK
 
@@ -152,9 +149,11 @@ def get_stored_list_of_query_buffers():
     if os.path.isfile(filename):
         f = open(filename, 'r')
         for line in f:
-            server_name,nick = line.strip().split(' ')
-            stored_query_buffers_per_server.setdefault(server_name, set([]))
-            stored_query_buffers_per_server[server_name].add(nick)
+            parts = line.strip().split()
+            if len(parts) == 2:
+                server_name, nick = parts
+                stored_query_buffers_per_server.setdefault(server_name, set([]))
+                stored_query_buffers_per_server[server_name].add(nick)
         f.close()
     else:
         debug_print('Error loading query buffer from "%s"' % filename)
@@ -182,6 +181,8 @@ def open_query_buffer(server_name, nick):
     switch_autojoin = weechat.config_get("irc.look.buffer_switch_autojoin")
     if not weechat.config_boolean(switch_autojoin):
         noswitch = "-noswitch"
+
+    debug_print("opening query buffer: %s on server %s" % (nick, server_name))
     weechat.command('','/wait 1 /query %s -server %s %s' % ( noswitch, server_name, nick ))
     weechat.buffer_set(starting_buffer, 'display', 'auto')
 
@@ -190,6 +191,7 @@ def open_stored_query_buffers_for_server(server_connected):
 
     if server_connected in stored_query_buffers_per_server:
         for nick in stored_query_buffers_per_server[server_connected].copy():
+            debug_print("going to open query buffer: %s on connected server %s" % (nick, server_connected))
             open_query_buffer(server_connected, nick)
 
 def get_current_query_buffers():
@@ -276,10 +278,10 @@ if __name__ == '__main__':
                 open_stored_query_buffers_for_server(server_name)
 
                 stored_query_buffers_per_server.setdefault(server_name, set([]))
-                debug_print("Already have %s channels for server %s: %s" % (len(stored_query_buffers_per_server[server_name]), server_name, ','.join(stored_query_buffers_per_server[server_name])))
+                debug_print("Already have %s queries for server %s: %s" % (len(stored_query_buffers_per_server[server_name]), server_name, ','.join(stored_query_buffers_per_server[server_name])))
                 debug_print("Adding: %s" % channels)
                 stored_query_buffers_per_server[server_name].update(channels)
-                debug_print("Now have %s channels for server %s: %s" % (len(stored_query_buffers_per_server[server_name]), server_name, ','.join(stored_query_buffers_per_server[server_name])))
+                debug_print("Now have %s queries for server %s: %s" % (len(stored_query_buffers_per_server[server_name]), server_name, ','.join(stored_query_buffers_per_server[server_name])))
             save_stored_query_buffers_to_file()
             weechat.hook_signal('quit', 'quit_signal_cb', '')
 #            weechat.hook_signal('relay_client_disconnected', 'quit_signal_cb', '')

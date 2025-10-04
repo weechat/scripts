@@ -1561,15 +1561,6 @@ SPDX-FileCopyrightText = "2012 Krister Svanlund <krister.svanlund@gmail.com>"
 SPDX-License-Identifier = "GPL-3.0-or-later"
 
 [[annotations]]
-path = "python/queryman.py"
-precedence = "override"
-SPDX-FileCopyrightText = [
-    "2013-2018 Nils Görs <weechatter@arcor.de>",
-    "2017 Filip H.F. 'FiXato' Slagter <fixato+weechat@gmail.com>",
-]
-SPDX-License-Identifier = "GPL-3.0-or-later"
-
-[[annotations]]
 path = "python/quick_force_color.py"
 precedence = "override"
 SPDX-FileCopyrightText = "2012-2017 Nils Görs <weechatter@arcor.de>"
