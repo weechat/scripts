@@ -1,0 +1,2134 @@
+[33m0e021b6[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32madd-ollama-bot[m[33m)[m New script ollama_bot.py: Adds non-blocking API calls using hook_process_hashtable()
+[33m0fe640a[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m collapse_channel.py 1.3: fix signal "hotlist_changed"
+[33m47c864a[m substitution.rb 0.0.3: replace `File.exists` by `File.exist`
+[33md708c55[m New script irccloud_avatar_link.py: add IRCCloud avatar image link to WHOIS output
+[33mb7b6e8a[m New script kitty_notifications.py: pass highlights and private messages as OS notifications via the Kitty terminal (OSC 99)
+[33m89ca8a8[m Switch to Ubuntu 24.04 and Python 3.12 in CI
+[33m74d4020[m Bump actions/setup-python to v5 in CI
+[33m68a030e[m Bump actions/checkout to v4 in CI
+[33m3f7ee87[m slack.py 2.11.0: Merge with mainline
+[33m38ac6e4[m weenotifier.py 0.1.0: switched to gotify and ntfy.sh
+[33me29e776[m openbsd_privdrop.py 0.1.2: add fattr to pledge_promises
+[33m81d35ff[m deadbeef_np.py 1.0: make script compatible with Python 3, drop Python 2 support
+[33mc92a480[m cmus.py 1.1: make script compatible with Python 3, drop Python 2 support
+[33m2f8c068[m clone_scanner.py 1.5: make script compatible with Python 3
+[33mf15287e[m clemy.py 0.1.2: make script compatible with Python 3
+[33m07f20bc[m clemenshow.py 1.1: make script compatible with Python 3
+[33mf7faf04[m collapse_channel.py 1.2: ignore exclude channels on non-irc buffers, internal changes
+[33m8f0d7be[m spell_correction.py 1.1: fix SyntaxWarning with Python 3.12
+[33ma245f24[m Remove script autojoinem.py (moved to unofficial scripts, not needed with WeeChat >= 3.5)
+[33m57d1fe8[m Remove script autojoin.py (moved to unofficial scripts, not needed with WeeChat >= 3.5)
+[33m2bbe602[m beinc.py 4.4: add some minor fixes and code cleanup
+[33m15bddbc[m twitch.py 1.0: eval client_id and token expressions so that /secure can be used
+[33mf27e2c0[m New script cmus_announce.lua: Messages current buffer/channel now-playing song from cmus.
+[33mdfba089[m go.py 3.0.1: refresh buffer input at the end of search
+[33m701ea42[m go.py 3.0: refresh immediately buffer input when /go command is executed
+[33mcff7453[m buffer_autoclose.py 0.6: add setting to prefer closing some buffers
+[33m2db7f4a[m slack.py 2.10.2: Merge with mainline
+[33m13aef99[m autosort.py 3.10: Fix /autosort helper swap command.
+[33m794f948[m New script greentext.py: colorize imageboard-style text formatting
+[33mae2064b[m colorize_nicks.py 32: revert to info "nick_color" with WeeChat >= 4.1.1
+[33m5218047[m fish 0.15: fix encoding errors with message markers
+[33m3bd5eda[m colorize_nicks.py 31: use info "irc_nick_color" on IRC buffers with WeeChat >= 4.1.0
+[33me331e7c[m emojize.py 1.0.1: Fix to work with modern versions of `emoji` package
+[33m22c29b3[m xdccq.py 0.1.2: make script compatible with Python 3
+[33md59798d[m bitlbee_completion.py 0.3: set default template, fix command executed, fix function names
+[33mdc64d00[m slack.py 2.10.1: Merge with mainline
+[33me02f9e7[m Remove script multiline.pl (moved to unofficial scripts, not needed with WeeChat >= 4.0.0)
+[33m9391601[m collapse_channel.py 1.1: one more check for buffer_ptr
+[33m0ff8ab6[m collapse_channel.py 1.0: check for buffer_ptr and for irc buffer
+[33ma70e32e[m slack.py 2.10.0: Merge with mainline
+[33m40f9326[m Remove script text_item.py (moved to unofficial scripts, not needed with WeeChat >= 3.6)
+[33me0d866e[m queryman.py 0.6.1: fix a timing problem when joining autojoin-channels
+[33m899e526[m recoverop.pl 0.1.3: Add IRCv3 compatibility by using weechat parser (info_get_hashtable "irc_message_parse")
+[33ma4a5449[m read_marker.py 0.2.0: use irc_cap_sync_req modifier
+[33m7abafca[m soju.py 0.5.0: use irc_cap_sync_req modifier
+[33me73e50e[m query_blocker.pl 1.6: fix parsing of nick when message has tags
+[33mae799ac[m colorize_lines.pl 4.0.1: fix display of multiline messages (closes #534)
+[33m99b4986[m soju.py 0.4.0: from ssl to tls on weechat >= 4.0.0
+[33mb661936[m update_notifier.py 0.7: fix error when next release is scheduled today
+[33m6378622[m go.py 2.9: add option "min_chars"
+[33md7dffae[m wttr.tcl 1.1: improve help
+[33m7475052[m New script wttr.tcl: add an item showing weather
+[33m24da14d[m keepnick.py 1.7: remove use of infolist variable "ssl_connected"
+[33m370b760[m wee_most.py 0.3.0: new release
+[33m5f073d9[m multiline.pl 0.6.4: support new key names in WeeChat 4.0.0
+[33md769ded[m New script sarcasm.py: Adds random capitalization
+[33m82040f4[m fish.py 0.14: improve Pycryptodome dependency
+[33m6280add[m emote.scm 0.3.1: replace `apply string-append` with `string-join`
+[33m8636283[m Mention that issues must be reported to upstream repositories
+[33mbcc9233[m New script wee_most.py: Mattermost integration
+[33mbd7032c[m buddylist.pl 2.2: make /whois lower-case
+[33md4794c2[m irssi_awaylog.py 0.4: make script compatible with Python 3
+[33m56264a0[m New script digraph.py: nvim style digraphs. Enables entering math symbols easily.
+[33m15a61e0[m chanop.py 0.3.5: replace command /VERSION by /version (compatibility with WeeChat 3.9)
+[33mc972bb3[m chancomp.py 1.2: replace command /WHOIS by /whois (compatibility with WeeChat 3.9)
+[33m337e446[m histsearch.py 0.7: send buffer pointer with signal "input_text_changed"
+[33maeb74b7[m go.py 2.8: send buffer pointer with signal "input_text_changed"
+[33m29cfb23[m input_lock.rb: 0.2: Add automatic idle lock.
+[33m897e617[m urlgrab.py 3.2: Use xdg-open as default local command
+[33m8e670c6[m Ignore 3 extra scripts that have mixed tabs and spaces for indentation
+[33m3f01549[m unwanted_msg.py 0.3: remove leading whitespace in every situation
+[33m006daaa[m New script ipinfo.tcl: retrieve information about an IP
+[33m5f345fc[m grep.py 0.8.6: ignore utf-8 decoding errors
+[33m925bf46[m openbsd_privdrop.py 0.1.1: sane defaults for unveil
+[33m7247764[m colorize_nicks.py 30: added "[:,]" to VALID_NICK
+[33mcb1a7d5[m slack.py 2.9.1: Merge with mainline
+[33m852a86f[m soju.py 0.3.0: remove soju.im/read support
+[33m978948d[m New script read_marker.py: draft/read-marker extension support
+[33me5259e0[m autojoin_on_invite.py 0.9: Fix nick regex
+[33m6d3d3eb[m parse_relayed_msg.pl 1.9.7: fix a warning about declaration in same scope, remove unnecessary callback function
+[33m05546b4[m fish.py 0.13: handle message tags from ircv3
+[33m8f017d7[m slack.py 2.9.0: Merge with mainline
+[33mc5abf19[m New script openbsd_privdrop.py: least privilege on OpenBSD
+[33mfe77900[m beinc.py 4.3: remove obsolete SSL/TLS code and re-style code
+[33m4c8d913[m Replace Ubuntu 20.04 by 22.04 in CI
+[33m0924e44[m urlgrab.py 3.1: store urls by buffer `full_name`
+[33m1a0c26d[m whatsapp.py 0.2: adapt to new yowsup version
+[33mc46d70a[m colorize_nicks.py 29: check nick for exclusion *after* stripping, decrease minimum length to 1
+[33m27f8930[m triggerreply.py 0.4.4: fix TypeError (closes #459), add autocompletion and option for sqlite3 filename, display help with /help command
+[33m701d12e[m autojoin_on_invite.py 0.8: bump version
+[33m9c69b13[m fix regex match
+[33m045ca70[m fish.py 0.12: fix decryption of truncated messages in CBC mode
+[33m25b0c2f[m upside_down.py 0.3.1: port to python3
+[33mca95ea1[m fish.py 0.11: support decryption of messages in CBC mode
+[33m38e19b7[m soju.py 0.2.0: add support for soju.im/read
+[33m6cb4ef7[m query_blocker 1.5: fix regression introduced in version 1.4
+[33maff107d[m New script maze.py: interactive maze generator and solver
+[33me609205[m query_blocker.pl 1.4: fix uninitialized value (closes #493)
+[33m5e0b504[m New script reop.py: Automatically op/voice users using reop and invite lists.
+[33mde66ec3[m Update copyright date
+[33m8bcee31[m zncplayback.py 0.2.2: handle invalid json in SCRIPT_SAVEFILE
+[33mf8cf2ea[m Remove obsolete scripts from target partial-check
+[33m6d026fb[m Remove script inotify.py
+[33m1f2b3fd[m Remove script notifo.py
+[33mb7b391e[m Remove script wtwitter.py
+[33ma787b67[m wtwitter.py 0.3: fix mixed spaces and tabs for indentation, make script compatible with Python 3
+[33m5c72697[m spotify_nowplaying.py 0.1.2: fix mixed spaces and tabs for indentation
+[33me363d80[m snotify.py 0.1.4: replace tabs by spaces for indentation, make script compatible with Python 3
+[33mca2fd3f[m lastfm.py 0.9: fix mixed spaces and tabs for indentation
+[33m931c1de[m kbtimeout.py 0.3: fix mixed spaces and tabs for indentation
+[33mda951ad[m arespond.py 0.1.2: fix mixed spaces and tabs for indentation
+[33m05d6fa6[m alternatetz.py 0.4: remove trailing tabs
+[33mc108c54[m Remove script tinyurl.py
+[33m9032b00[m Remove script mplayer.py
+[33m8c37918[m Remove script ichatts.py
+[33mcceb302[m Remove script chanstat.py
+[33m99ec0e7[m soju.py 0.1.5: adapt all username settings
+[33m3e7274d[m Use Python 3.10 in tests
+[33m6404ec8[m cmdqueue.py 0.4.5: Fix spacing and improve formatting
+[33m5eacdce[m cron.py 0.6: replace calls to function hook_completion_list_add by completion_list_add
+[33mae526da[m samechannel.rb 0.2: make script compatible with WeeChat >= 3.4
+[33m91a3960[m autoauth.py 1.3: make script compatible with WeeChat >= 3.4
+[33mb1208fb[m soju.py 0.1.4: make script compatible with WeeChat >= 3.4
+[33mcbe6a9b[m stalker.pl 1.6.3: make script compatible with WeeChat >= 3.4
+[33m9e78dac[m grep_filter.py 0.11: make script compatible with WeeChat >= 3.4
+[33m2d157a2[m collapse_channel.py 0.9: make script compatible with WeeChat >= 3.4
+[33m2a89500[m buffer_open.py 0.3: make script compatible with WeeChat >= 3.4
+[33m1f1ceda[m soju.py 0.1.3: sanitize network names
+[33ma59fd39[m soju.py 0.1.2: check cap before setting main server
+[33m3f11379[m fish.py 0.9.7: utf-8 encode key passed to blowfish
+[33meb27428[m weenotifier.py: notifier using IrssiNotifier
+[33mc2e9f21[m chanmon.pl 2.7: Make tags configurable
+[33m1bc27ac[m New script weefusables.py: set message tag when confusables chars are used in words
+[33m5ee0f1b[m Rename queue.py to cmdqueue.py
+[33m2ba9b83[m notification_center 1.5.2: use weechat_config_dir to find icon
+[33mfbd125d[m Add score displayed by script weechat-script-lint in Contributing guide
+[33mc5a39b3[m Add score required by weechat-script-lint in pull request template
+[33m69732b7[m parse_relayed_msg.pl 1.9.6: fix nick parsing with messages containing @ and >
+[33m7e2be13[m Fix name of link to the Contributing guide
+[33m10671d7[m soju.py 0.1.1: eat BOUNCER messages
+[33mcb0f275[m New script soju.py: soju bouncer integration
+[33ma9797eb[m Remove script weather.py
+[33mab31e94[m Remove script country.py
+[33m52a1add[m Remove announce_url_title.py from ignored scripts
+[33mefba05b[m pagetitle.py 0.6: make script compatible with Python 3, rename command /pt to /pagetitle, fix PEP8 errors
+[33m674b4f2[m announce_url_title.py 19: make script compatible with Python 3, fix PEP8 errors
+[33m2b308b4[m buffer_autoset.py 1.2: fix /help buffer_autoset
+[33m835f771[m New script emoji2ascii.py: convert emojis into ascii
+[33mb51825d[m New script lossage.py: displays the last few input keystrokes and the commands run
+[33m414cff3[m go.py 2.7: add new option to prefix short names with server names
+[33m95addd9[m slack.py 2.8.0: Merge with mainline
+[33mbcc9643[m zncplayback.py 0.2.1: add compatibility with WeeChat >= 3.2 (XDG directories)
+[33m07ca96f[m weetext.py 0.1.3: add compatibility with WeeChat >= 3.2 (XDG directories)
+[33mfa11caf[m urlserver.py 2.6: add compatibility with WeeChat >= 3.2 (XDG directories)
+[33m0f522fb[m url_olde.py 0.8: add compatibility with WeeChat >= 3.2 (XDG directories)
+[33m72e298a[m update_notifier.py 0.6: add Python 3 compatibility, add compatibility with WeeChat >= 3.2 (XDG directories)
+[33me5e4fba[m triggerreply.py 0.4.3: add compatibility with WeeChat >= 3.2 (XDG directories)
+[33m8a8e66d[m substitution.rb 0.0.2: add compatibility with WeeChat >= 3.2 (XDG directories)
+[33m8de46c1[m stalker.pl 1.6.2: add compatibility with WeeChat >= 3.2 (XDG directories)
+[33md49979e[m rssagg.pl 1.3: add compatibility with WeeChat >= 3.2 (XDG directories)
+[33m26737a7[m rslap.pl 1.4: add compatibility with WeeChat >= 3.2 (XDG directories)
+[33m79f8386[m queue.py 0.4.3: add Python 3 compatibility, add compatibility with WeeChat >= 3.2 (XDG directories)
+[33m2c5def0[m queryman.py 0.6: add compatibility with WeeChat >= 3.2 (XDG directories)
+[33m3371553[m query_blocker.pl 1.3: add compatibility with WeeChat >= 3.2 (XDG directories)
+[33m52a3e1a[m purgelogs.py 0.5: add compatibility with WeeChat >= 3.2 (XDG directories)
+[33m5149f67[m pop3_mail.pl 0.4: add compatibility with WeeChat >= 3.2 (XDG directories)
+[33m688dfd6[m luanma.pl 0.3: add compatibility with WeeChat >= 3.2 (XDG directories)
+[33m88303d2[m jnotify.pl 1.2: add compatibility with WeeChat >= 3.2 (XDG directories)
+[33mdd62797[m hotlist2extern.pl 1.0: add compatibility with WeeChat >= 3.2 (XDG directories)
+[33ma5f799a[m hl2file.py 0.3: add compatibility with WeeChat >= 3.2 (XDG directories)
+[33ma567acc[m histman.py 0.8.2: add compatibility with WeeChat >= 3.2 (XDG directories)
+[33m29ee0c0[m growl.py 1.0.7: add compatibility with WeeChat >= 3.2 (XDG directories)
+[33m5ee93d5[m grep.py 0.8.5: add compatibility with WeeChat >= 3.2 (XDG directories)
+[33m3014204[m crypt.py 1.4.5: add compatibility with WeeChat >= 3.2 (XDG directories)
+[33mc21cd4d[m cron.py 0.5: add compatibility with WeeChat >= 3.2 (XDG directories)
+[33ma58c980[m country.py 0.6.2: add compatibility with WeeChat >= 3.2 (XDG directories)
+[33m332c3fd[m confversion.py 0.4: add compatibility with WeeChat >= 3.2 (XDG directories)
+[33m877c3c5[m colorize_lines.pl 4.0: add compatibility with WeeChat >= 3.2 (XDG directories)
+[33m6d7f4ac[m chanstat.py 0.2: add compatibility with WeeChat >= 3.2 (XDG directories)
+[33ma6f9cc3[m chanop.py 0.3.4: add compatibility with WeeChat >= 3.2 (XDG directories)
+[33m391e353[m buddylist.pl 2.1: add compatibility with WeeChat >= 3.2 (XDG directories)
+[33m5bdcc2f[m beinc.py 4.2: add compatibility with WeeChat >= 3.2 (XDG directories)
+[33m989c121[m axolotl.py 0.1.1: add compatibility with WeeChat >= 3.2 (XDG directories)
+[33md4a9565[m autoconf.py 0.4: add compatibility with WeeChat >= 3.2 (XDG directories)
+[33m8a0a739[m otr.py 1.9.3: add compatibility with WeeChat >= 3.2 (XDG directories)
+[33m1a3d1a4[m latex_unicode.py 1.2: add compatibility with WeeChat >= 3.2 (XDG directories)
+[33m1e6b75e[m bufsave.py 0.5: add compatibility with WeeChat >= 3.2 (XDG directories)
+[33m1aabee4[m url_olde.py 0.7: add Python 3 compatibility, drop Python 2 support
+[33m5b23d26[m Add chapter on testing pending scripts in Contributing
+[33m1b9aef0[m Fix newline
+[33m8d44785[m Remove detail on script weechat-script-lint, add link to separate repository for more info
+[33m8815b60[m Move script tools/check_scripts.py in a separate GitHub repository
+[33m2736b7b[m New script emojize.py: convert emoji shortcodes to unicode
+[33m91cc0da[m Remove script buffers.pl
+[33m4dad92b[m Remove script iset.pl
+[33me993b1f[m Remove script weeget.py
+[33mb648cd3[m Add chapter on automatic checks in Contributing
+[33mea41cc9[m Add badge with CI status in README
+[33m558ec78[m Add variable CHECKER in Makefile
+[33mb36f5d6[m Add Makefile, script to check WeeChat scripts and CI workflow
+[33m47232e5[m gnome_screensaver_away.py 0.2.1: Add missing call to infolist_free
+[33mebe2395[m New script styurl.py: Style URLs using a Python regex
+[33m4f21b39[m Update pull request template
+[33mfd3af0e[m vimode.py 0.8.1: add missing calls to infolist_free
+[33md70ce16[m undernet_totp.py 0.4.2: add missing call to infolist_free
+[33m3641e81[m tts.py 0.2.2: remove obsolete homepage, add contact address
+[33mcf2978d[m pushjet.py 0.1.1: add missing call to infolist_free
+[33m5068125[m postpone.py 0.2.5: remove commented infolist code
+[33me2c4348[m ctrl_w.pl 1.02: add missing call to infolist_free
+[33m783793b[m Remove unneeded header in pull request template
+[33m69436b3[m Add how to delete a script in Contributing
+[33m81aa8e1[m Merge pull request templates into a single one
+[33m442041d[m Add pull request templates
+[33mdee2aaf[m Convert README and Contributing to markdown, introduce new process with only pull requests
+[33mca89dac[m buffer_dmenu.py 0.2.1: add support for fzf-tmux, reformat with black
+[33m8f34f42[m anti_password.py 1.2.1: simplify regex condition
+[33mf0bc2f2[m anti_password.py 1.2.0: add option "allowed_regex"
+[33m191cbe6[m urlserver.py 2.5: replace cgi by html in Python 3
+[33mc171586[m urlserver.py 2.4: add RFC-compliant URI detection with heuristics
+[33mec8a07c[m tmux_env.py 3.1: fix compatibility problem with python 3.6 and kill python 2 support
+[33m5744f5a[m weeprowl.py 0.8: fix urllib call, drop Python 2 compatibility
+[33m3add06c[m mpv.py 0.2: force title and artist to string type
+[33m60c728d[m beinc.py 4.1: fix encoding error when using Python >= 3.9
+[33m46d8c17[m histman.py 0.8.1: fix typo in command help
+[33m8567d25[m parse_relayed_msg.pl 1.9.5: add compatibility with matrix-appservice-irc relay
+[33mc2874cf[m parse_relayed_msg.pl 1.9.4: add compatibility with other message kinds
+[33m522ecd4[m triggerreply.py 0.4.2: various improvements
+[33m2a32916[m colorize_nicks.py 28: fix ignore_tags, broken by weechat 2.9 changes
+[33m4ac2586[m slack.py 2.7.0: Merge with mainline
+[33m0b6dd59[m anti_password.py 1.1.0: add options "check_secured_data" and "max_rejects"
+[33m21b7cb2[m New script anti_password.py: prevent a password from being accidentally sent to a buffer
+[33m4588eaa[m New script weejoin.py: push notifications of highlights and private messages to Join
+[33m5818c8b[m Remove option to open a blank issue
+[33m736fcd3[m Add missing quotes around title in issue templates
+[33md32bed4[m Add default title in issue templates
+[33m25f7988[m aesthetic.py 1.0.6: rename GPLv3 to GPL3
+[33m0d19a27[m autojoinem.py 0.7: fix problem with empty fields (closes #438)
+[33m1312aac[m chanop.py 0.3.3: make script compatible with Python 3 (drop Python 2 compatibility)
+[33m0156ac4[m grep.py 0.8.4: Fix Python 3 issue with .range and .reverse
+[33m8b8a2e0[m confversion.py 0.3: Adapt to python 3
+[33md611da0[m  autosort.py 3.9: Remove buffers.pl from recommended settings.
+[33ma8d5e38[m leet.py 0.2: Added support of python3 while retaining support of python2
+[33mf5637d9[m arespond.py 0.1.1: added py3 support                    fixed issue with command not being executed in the right buffer                    renamed option 'muted' to 'enabled' so its more intuitive
+[33m9d4ae10[m fish.py 0.9.6: fix bug in key exchange again
+[33me942127[m bandwidth.py 1.1: add support of python3
+[33mba57a7f[m colorizer.rb 0.3: fix compatibility check
+[33m1233ce2[m fish.py 0.9.5: fix key exchange
+[33me9074b9[m twitch.py 0.9: add support for oauth tokens
+[33m99f729d[m country.py 0.6.1: port to python3
+[33m06f091a[m collapse_channel.py 0.8: add missing "/" in /allchan command
+[33m53d8c5a[m mass_hl_blocker.pl 0.3: add tag "mass_hl" to message, remove leading channel membership prefixes
+[33mffe29d0[m fish.py 0.9.4: make script compatible with Python 3
+[33m3e16849[m vimode.py 0.8: make call to bar_new compatible with WeeChat >= 2.9
+[33m94811df[m urlselect.lua 0.5: make call to bar_new compatible with WeeChat >= 2.9
+[33m0fb2286[m urlbar.py 14: make call to bar_new compatible with WeeChat >= 2.9
+[33m015107d[m rssagg.pl 1.2: make call to bar_new compatible with WeeChat >= 2.9
+[33m8144b8a[m pv_info.pl 0.0.6: make call to bar_new compatible with WeeChat >= 2.9
+[33mdfa5e99[m newsbar.pl 0.19: make call to bar_new compatible with WeeChat >= 2.9
+[33m46ed58e[m moc_control.py 1.9: make call to bar_new compatible with WeeChat >= 2.9
+[33me30ca95[m menu.pl 1.0: make call to bar_new compatible with WeeChat >= 2.9
+[33m34c5ec7[m iset.pl 4.4: make call to bar_new compatible with WeeChat >= 2.9
+[33m3d7ed76[m highmon.pl 2.7: make call to bar_new compatible with WeeChat >= 2.9
+[33m2db3e12[m chanop.py 0.3.2: make call to bar_new compatible with WeeChat >= 2.9
+[33ma03ed08[m chanmon.pl 2.6: make call to bar_new compatible with WeeChat >= 2.9
+[33mec593d8[m buffers.pl 5.7: make call to bar_new compatible with WeeChat >= 2.9
+[33m5a3852a[m buddylist.pl 2.0: make call to bar_new compatible with WeeChat >= 2.9
+[33mc64cc4a[m buffer_dmenu.py 0.2.0: drop Python 2 support, fix error being shown when closing dmenu/rofi or inputting an invalid choice
+[33md552cb2[m chanact.py 1.0: fix undefined variable
+[33m41d14ff[m chanact.py 0.9: Update for Python 3
+[33mc146f84[m text_replace.py 0.7: add option to replace prefix only
+[33m106ad6a[m buffer_dmenu.py 0.1.2: Add Python 3 support
+[33m944623e[m beinc.py 4.0: remove Python 2 support, code cleanup
+[33me7c4b37[m grep.py 0.8.3: more python3 compatibility fixes
+[33m5a6c101[m anotify.py 1.0.2: use notify2
+[33m1cb91d3[m notify.py 0.0.9: make script compatible with Python 3
+[33m12aeb93[m bitlbee_typing_notice.py 0.7: remove useless list() around .items()
+[33m2c029c7[m bitlbee_typing_notice.py 0.6: make script compatible with Python 3
+[33m56081ca[m lastfm.py 0.8: port script to Python 3 only
+[33m03ff688[m colorizer.rb 0.2: add compatibility with new weechat_print modifier data (WeeChat >= 2.9)
+[33mecfc4aa[m weemoticons.py 0.3: add compatibility with new weechat_print modifier data (WeeChat >= 2.9), add compatibility with Python 3
+[33m69ca3a9[m unhighlight.py 0.1.3: add compatibility with new weechat_print modifier data (WeeChat >= 2.9)
+[33ma8023f1[m noirccolors.py 0.4: add compatibility with new weechat_print modifier data (WeeChat >= 2.9), add compatibility with Python 3
+[33m85529b4[m identica.py 0.4.3: add compatibility with new weechat_print modifier data (WeeChat >= 2.9)
+[33mbc8a905[m colorize_nicks.py 27: add compatibility with new weechat_print modifier data (WeeChat >= 2.9)
+[33m49fe8a2[m parse_relayed_msg.pl 1.9.3: add compatibility with new weechat_print modifier data (WeeChat >= 2.9)
+[33m3e4c788[m mass_hl_blocker.pl 0.2: add compatibility with new weechat_print modifier data (WeeChat >= 2.9)
+[33mca72d75[m format_lines.pl 1.6: add compatibility with new weechat_print modifier data (WeeChat >= 2.9)
+[33m591cbcf[m curiousignore.pl 0.4: add compatibility with new weechat_print modifier data (WeeChat >= 2.9)
+[33m522846a[m colorize_lines.pl 3.9: add compatibility with new weechat_print modifier data (WeeChat >= 2.9)
+[33m84caf15[m emoji.lua 5: remove obsolete comment on weechat_print modifier data
+[33m1d64a72[m slack.py 2.6.0: Merge with mainline
+[33mf86360d[m Update instructions for new version of Python scripts
+[33m5955bc4[m slack.py 2.5.0: Merge with mainline
+[33ma65d80b[m lastfm2.py 0.2: make script compatible with Python 3
+[33m0b446fd[m emoji_aliases.py 1.0.4: support last args with no " :"
+[33m8cc920a[m notification_center.py 1.5.1: fix the channels option
+[33mb12d9aa[m i3lock_away.py 0.2: make script compatible with Python 3
+[33m589eab1[m slack.py 2.4.0: Merge with mainline
+[33m8722a68[m emoji_aliases.py 1.0.3: rectify replace bounds, fix py3 bytes vs str
+[33m396c12c[m recoverop.pl 0.1.2: fix error caused by wait of zero seconds
+[33md89a71d[m away_action.py 0.7: add include_text option
+[33m24f84c4[m correction_completion.py 0.4.0: Python 3 support
+[33ma69d3ff[m tmux_env.py 3: support python 3.x and fixes
+[33m49c7640[m fileaway.py 1.0.3: make script compatible with Python 3
+[33m9bd03bd[m colorize_lines.pl 3.8: add option custom_action_text (closes #313)
+[33m993636b[m autosort.py 3.8: Fix grouping/sorting on script name in default rules.
+[33m8589245[m Add question about bug reported to the author in bug report template
+[33m92c9dee[m Add GitHub issue templates
+[33m6860fde[m Add note about security reports in Contributing.adoc
+[33me06149a[m New script glitter.py: replace text wrapped in ***three asterisks*** with a rainbow colored version
+[33m973790e[m histsearch.py 0.6: fix hook_command_run hooks not being unhooked
+[33ma3aebda[m autosort.py 3.7: Make default rules work with bitlbee, matrix and slack.
+[33maf01b0d[m ctrl_w.pl 1.01: also remove whitespace at beginning of line (closes #375)
+[33m60a98b2[m notification_center.py 1.5.0: add options "channels" and "tags"
+[33ma167c53[m New script buffer_open.py: open buffers by full name, reopen closed recently closed buffers, open layout buffers
+[33m05fc83e[m moc_control.py 1.8: Add python 3 support (#374)
+[33m647f65c[m shortenurl.py 0.6.6: fix encoding bug, fix show_own when user is op, halfop or voice
+[33meddb768[m twitch.py 0.8: changed input modifier hooks to use irc_in2_* instead                added setting 'plugins.var.python.twitch.notice_notify_block'                added setting 'plugins.var.python.twitch.client_id'
+[33m183d51e[m New script aesthetic.py: make messages more A E S T H E T I C A L L Y pleasing
+[33mcd46077[m away_action.py 0.6: make script compatible with python 3
+[33m5b3a0f1[m responsive_layout.py 0.8: python 3 compatibility fixes
+[33m45179a4[m undernet_totp.py 0.4.1: python 3 compatibility fixes
+[33m9baf903[m autoconnect.py 0.3.3: make script compatible with Python 3
+[33mb38c546[m shortenurl.py 0.6.5: make script compatible with Python 3
+[33md23fed8[m prism.py 0.2.12: make script compatible with Python 3
+[33me19ddd3[m autojoin.py 0.3.1: display an error on invalid arguments
+[33m23a6746[m collapse_channel.py 0.7: ignore "slack" for signal "buffer_switch"
+[33mdcf04d2[m autosavekey.py 0.5: fix add of channel with empty autojoin, bump min version to 0.4.2
+[33mad501f3[m weetris.py 1.0: conversion from Perl to Python, use 256 colors, display next piece, new key to move to bottom
+[33m7c1cb3b[m Merge pull request #364 from mumixam/twitch_py_0.7
+[33m8185671[m twitch.py 0.7: update script to use newer api
+[33m800f939[m mnick.pl 0.4: add an optional away reason in /mnick, each network can be configured to enable/disable the away status
+[33me5eb658[m Remove script ws_replace.py (issue #361)
+[33mee45b49[m Merge pull request #363 from jspricke/topicdiff_python3
+[33m1e90f91[m topicdiff.py 0.4: make script compatible with Python 3
+[33m51252be[m unhighlight.py 0.1.2: make script compatible with Python 3
+[33mb5e3242[m completion.py 0.3: make script compatible with Python 3
+[33mc84e344[m autoauth.py 1.2: make script compatible with Python 3
+[33mfb18994[m Merge pull request #358 from oakkitten/url_hint
+[33m71ca300[m url_hint.py 0.8: py3k-ok and and miscellaneous improvements
+[33m077c218[m Remove script autopong.py (closes #357)
+[33m5a87f03[m xfer_setip.py 0.5: make script compatible with Python 3
+[33m30f77e9[m unset_unused.pl 0.5: fix scripts currently unloaded
+[33mbf5252b[m spell_correction.py 1.0: fix bug when misspelled word don't have a suggestion, fix typo in /help text
+[33m55e2158[m postpone.py 0.2.4: make script compatible with Python 3
+[33m46f1531[m logsize.py 0.4: option "display" is evaluated, refresh only on buffer/window switch, make script compatible with Python 3
+[33m1a09378[m Merge pull request #350 from alyssais/zncplayback-python3
+[33m6f3a932[m histsearch.py 0.5: make script compatible with Python 3
+[33m278ba14[m Merge remote-tracking branch 'origin/pr/352'
+[33ma044844[m histsearch.py 0.4: fix detection of "/input search_text_here"
+[33md363522[m go.py 2.6: fix detection of "/input search_text_here"
+[33m0249e4f[m zncplayback.py 0.2.0: make script compatible with Python 3
+[33m697ec0e[m urlbuf.py 0.4: fix bug on script unload, add search for buffer name and display buffer name
+[33mb18a0d3[m urlbuf.py 0.3: make script compatible with Python 3
+[33m3998f42[m New script opall.js: op everybody on a channel using chanserv instead of /mode
+[33m2c87bd1[m emoji2alias.py 0.2: make script compatible with Python 3, fix PEP8 errors (closes #303)
+[33m9b03f36[m urlbar.py 13: make script compatible with Python 3, fix PEP8 errors
+[33m8d11ff3[m listbuffer.py 0.8.2: make script compatible with Python 3
+[33ma3d1619[m weestats.py 0.4: make script compatible with Python 3
+[33mb8394d6[m grep.py 0.8.2: make script compatible with Python 3
+[33m33334c0[m Merge pull request #347 from butlerx/feature/spotify-playlist
+[33m8c3777e[m Merge pull request #348 from sim642/latex_unicode-1.1
+[33m50da805[m latex_unicode.py 1.1: fix completion newlines with workaround
+[33m3be4b4e[m notification_center.py 1.4.0: add option to ignore messages from the current buffer
+[33m98dd56e[m New script log.py: easy toggle of logging in current buffer
+[33maf17359[m spotify 0.10: add support for spotify playlists
+[33m2e1c8d5[m collapse_channel.py 0.6: fix hiding of channel buffer when private buffer opens
+[33m766733e[m Remove script weatherbot.py
+[33m4c25cb8[m highmon.pl 2.6: actually register new version number
+[33m97fc88d[m text_replace.py 0.6: replace iteritems with items for python3 compatability
+[33m1856f53[m highmon.pl 2.6: send the signal "logger_backlog" if logging is enabled
+[33m2637d64[m New script last_written.py: bar item to keep track of the last buffer where you wrote something
+[33me7065a3[m New script himan.py: logs highlights to a private buffer
+[33mcc67f15[m New script collapse_channel.py: collapse channel buffers from servers without focus
+[33m6460d0d[m lnotify.py 0.3.5: fix decoding of command output with Python 3
+[33m74e7007[m Merge pull request #344 from dkess/newversion
+[33m0fb7d3b[m autobump.py 0.1.0: improve activity detection
+[33m2c77434[m Merge pull request #343 from de-vri-es/autosort-3.6
+[33m30677a5[m autosort.py 3.6: Add more documentation on provided info hooks.
+[33m6308382[m parse_relayed_msg.pl 1.9.2: add i2pr-support
+[33mcd0d284[m Merge pull request #342 from trygveaa/grep_filter-completion-remove-newlines
+[33mde6b5e6[m grep_filter.py 0.10: Remove newlines from command completion
+[33m7871025[m Merge pull request #341 from de-vri-es/autosort-3.5
+[33med11a1e[m autosort.py 3.5: Add ${info:autosort_escape,...} hook.
+[33ma3eccda[m text_item.py 0.9: fix eval_expression() for split windows
+[33mf6f0fd4[m Merge pull request #336 from trygveaa/slack-v2.3.0
+[33m6040858[m sysinfo.pl 1.2: fix warning on subtraction, make script compatible with kernel 5.x
+[33m0f89176[m colorize_lines.pl 3.7: add option "alternate_color" (closes #333)
+[33m3dcb0fa[m slack.py 2.3.0: Merge with mainline
+[33m7f70640[m Merge pull request #314 from notmatti/v0.5
+[33mfee971b[m notifym.pl 1.2: fix subprocess arguments
+[33me74fd3e[m mnotify.py: add support of Python 3
+[33m3b35ee5[m lnotify.py 0.3.4: fix author's email
+[33m9fbac3b[m detach_away.py 0.1.2: add Python 3 support
+[33m8459024[m Merge pull request #331 from de-vri-es/autosort-3.4
+[33mf87da32[m autosort 3.4: Fix rate limiting and empty argument for info hook.
+[33m65acf82[m automode.py 0.1.4: support python3
+[33m4c7696e[m Merge pull request #320 from GermainZ/master
+[33mc0c9727[m twitch.py 0.6: add support for CLEARMSG, fix issues with /whois output
+[33m015f09a[m Merge pull request #317 from jsaalfeld/fix_isgd_domain_polling
+[33ma505f9c[m Merge pull request #316 from arza-zara/url_arza
+[33m97835b7[m autopong 0.3: exclude words ending with "ping"
+[33mbf9b5f7[m mnotify.py 0.5: fix undefined nick
+[33m08f39d6[m screen_away.py 0.16: add option "socket_file", for use with e.g. dtach
+[33md671b98[m spell_correction.py 0.9: fix bug with auto popup "spell_suggestion" item
+[33mf62829d[m spell_correction.py 0.8.1: fix ValueError
+[33m20f3738[m shortenurl.py 0.6.4: add user agent to fix 403 on is.gd
+[33m1191d46[m spell_menu.pl 0.5: add support for "spell" plugin (WeeChat >= 2.5)
+[33m8f4feb5[m spell_correction.py 0.8: add support for "spell" plugin (WeeChat >= 2.5), make addword function shortkey compatible, add selected-suggestion color
+[33m9ecbd44[m url_arza.pl 0.2: support multiple urls per line, fix default values, fix truncated prefix, increase timeout, simplify
+[33m07d6e53[m buffer_autohide 0.5: Support buffers from plugins other than IRC
+[33m76a4b00[m imap_status.py 0.9: make script Python 3 compatible, remove option "message_color" and "separator_color"
+[33m0e80e2a[m expand_url.pl 0.7: use eval_expression() for option "prefix", remove unused options
+[33mfc2f703[m Merge pull request #311 from khyperia/fullwidth_space
+[33ma144c54[m buffer_autohide.py 0.3: add new configuration option "exemptions", add Python 3 compatibility
+[33m1a9d7f3[m beinc.py 3.0: sync with upstream, add Python 3 support
+[33mcb0bd46[m fullwidth.py 0.1.1: Correctly handle fullwidth spaces.
+[33mfefd32e[m New script telnot.py: send notifications over Telegram
+[33m9e0ca0f[m Merge pull request #305 from geistesk/weechataboo-0.1.2
+[33m670f238[m weechataboo.scm 0.1.2: Fixed relay-usage
+[33md7e3c1b[m Merge pull request #304 from trygveaa/slack-v2.2.0
+[33m51a02b4[m slack.py 2.2.0: Merge with mainline
+[33m0a44501[m shortenurl.py 0.6.3: bump script version
+[33m8d8c97f[m Remove script uname.py
+[33m30c4b7f[m New script weenotify.py: client/server to send/receive notifications and display them
+[33m3b1bf25[m New script pushbullet.rb: view/send SMS via pushbullet
+[33m7fdb810[m New script chanotify.py: call notify-send when a message is received
+[33mac14774[m Merge pull request #302 from jsaalfeld/fix_isgd_urlshortener
+[33m980ef79[m Merge pull request #301 from MacGyverNL/alternatetz-py3ok
+[33m7c3ab1e[m fish.py 0.9.3: port to Python 3.6, fix compatibility with new Crypto
+[33m6cbb5a0[m Merge pull request #297 from maxteufel/remove-whoissource
+[33me7320f3[m Merge pull request #295 from butlerx/giphy
+[33mba7844e[m autojoin_on_invite.py 0.7: make python3 compatible.
+[33mbdc2d57[m pybuffer.py 0.3: Python3 compatibility
+[33m9ffb4d4[m weemustfeed.py 0.3: py3 ok and various fixes.
+[33mab4303e[m auto_away.py 0.4: make script py3 ok
+[33m6a3dcde[m irssinotifier.py 0.9: Make irssinotifier.py py3 ok
+[33m6faf81f[m pyrnotify.py 1.1: make it work with python3
+[33m24baddc[m Merge pull request #248 from tsujamin/master
+[33m85c0478[m bufsave.py 0.4: added support for home path expansion
+[33mc04361a[m typing_counter.py 1.0: add regular expression for format option, make script compatible with Python 3.x
+[33m6d62dca[m autoconf.py 0.3: fix invalid text received in fifo pipe (closes #298), make script compatible with Python 3.x
+[33m175e83f[m shortenurl.py 0.6.3: is.gd api call changed
+[33md07ad89[m alternatetz.py 0.3: py3k-ok by fixing tabs/spaces.
+[33m988feba[m lnotify.py 0.3.3: fix undefined ignore_windows_list
+[33m50b8fa5[m Remove script whoissource.py
+[33mc536ee0[m giphy.py 1.0.2: clean up code to reduce duplicate code
+[33mefdfedf[m lnotify.py 0.3.2: check if active window is in the ignore_windows_list and skip notification
+[33ma3e21f6[m Merge pull request #284 from DarkDefender/weetweet
+[33mcdca3da[m weetweet.py 1.2.9: Add option to customize tweet id display and bug fixes
+[33mcf792f9[m urlserver.py 2.3: fix regex in help of option "http_allowed_ips" (closes #50)
+[33mb6b131b[m New script execbot.py: run remote commands via IRC messages
+[33m452ad10[m New script xdccq.py: queue XDCC messages to bots
+[33md1811cb[m New script url_hint.py: display hints for URLs and open them with keyboard shortcuts
+[33md0c3005[m New script selfcensor.py: self-censor stuff you were going to say
+[33m77a0c0b[m New script weepushover.py: send push notifications for your IRC messages to your devices using Pushover
+[33m55753cf[m New script pv_info.pl: add a bar in query buffers with whois information
+[33mfd28b18[m New script topicdiff_alt.py: announce topic with changes highlighted
+[33m4b368c4[m New script ctrl_w.pl: implement readline-like ctrl-W
+[33m6ba05d5[m New script autonickprefix.pl: change "nick:" prefix if the nick is changed while you're still editing
+[33m3b5aa77[m New script foo.pl: rot n+i encryption and decryption
+[33m2cd9978[m New script autobump.py: bump buffers upon activity
+[33m0695dea[m coords.pl 0.7.3.2: fix /alias command (closes #127)
+[33me96dae8[m Merge pull request #288 from GermainZ/master
+[33mb1b3ec0[m vimode.py 0.7: several additions and fixes
+[33m2970eaa[m Merge pull request #287 from trygveaa/slack-v2.1.1
+[33m3010317[m slack.py 2.1.1: Merge with mainline
+[33m17c5f49[m weetweet.py 1.2.8: Do not use the deprecated user streams anymore
+[33m9ca9130[m text_item.py 0.8: add option "interval"
+[33mbceced8[m autojoin.py 0.3.0: add compatibility with Python 3
+[33m067d4fe[m queryman.py 0.5: fix TypeError with Python 3.6
+[33m1dc62af[m histman.py 0.8: add option "save_buffer"
+[33m4f57da8[m query_blocker.pl 1.2: add eval_expression() for options, fix several perl warnings
+[33mb3f5095[m histman.py 0.7: remove rmodifier routine, fix bugs
+[33m15ded96[m kbtimeout.py 0.2: improve support of hostmasks, add compatibility with Python 3, switch license to GPL3
+[33m6dacfda[m weechataboo.scm 0.1.1: add more emoticons
+[33m22fa765[m shortenurl.py 0.6.2: fix is.gd URL pattern
+[33m3d54263[m stats_bar.pl 1.2: add check for no swap
+[33mcbf6792[m Merge pull request #280 from pr3d4t0r/master
+[33mf5c36e5[m Remove script gweather.py (Google weather API was shut down in 2012)
+[33mfa5db59[m btc_ticker.py 2.1.0: py3k-ok update
+[33m509e986[m Merge pull request #278 from arza-zara/jump_smart_closest
+[33m95342a6[m jump_smart_higher.pl 0.3: reverse direction jumping, new commands /jump_smart_previous and /jump_smart_next, renamed from jump_smart_higher.pl to jump_smart_closest.pl
+[33m9b24702[m buffer_autohide.py 0.2: only skip irc.servers
+[33m464e3e6[m Merge pull request #274 from GermainZ/master
+[33me3a6090[m Merge pull request #273 from Hairo/master
+[33mda489f2[m apply_corrections 1.3: add support of Python 3
+[33m15ae216[m vimode.py 0.6: several additions and bug fixes
+[33mb4c52e9[m Make aformat.py py3k-ok
+[33m86ffd79[m Merge pull request #272 from sim642/latex_unicode-1.0
+[33mb6b167d[m Merge pull request #271 from sim642/force_nick-0.5
+[33mc4689c0[m latex_unicode.py 1.0: add Python 2/3 compatibility
+[33me0b3a9d[m force_nick.py 0.5: ignore channel modes arguments
+[33m3a690b3[m spell_correction.py 0.7: add "addword" function, remove localvar after /input return
+[33m071b0d0[m colorize_lines.pl 3.6: add option "own_lines_color", add help about "localvar" to option
+[33m1d9ca54[m customize_bar.py 0.2: make script compatible with Python 3.x
+[33ma43c692[m unread_buffer.py 2: add "remove"
+[33md316009[m unwanted_msg.py 0.2: make script compatible with Python 3.x
+[33mc8e927a[m Merge pull request #269 from Ratler/undernet_totp-0.4.0
+[33me17941a[m Merge pull request #268 from mumixam/twitch.py_0.5
+[33m231b555[m undernet_totp.py 0.4.0: added user friendly script configuration
+[33m8b4be1f[m twitch.py: v0.5: enable curl verbose mode when debug is active, add option to disable ssl/tls verification, replace newline char it with space in title.
+[33mc2e5265[m Merge pull request #266 from srgvg/mqtt_notify-0.5
+[33mc80a4a2[m mqtt_notify.py:  v0.5:  major update
+[33mb8e258d[m unset_unused.pl 0.4: add support for PHP and JavaScript
+[33m712b677[m autosavekey.py 0.4: make script compatible with Python 3, add /help text
+[33ma880765[m urlgrab.py 3.0: fix Python 3 compatibility
+[33m8508f53[m buffer_autoset.py 1.1: on startup apply settings to already opened buffers (closes #163)
+[33m0428fd6[m infolist.py 0.7: fix infolist_time with WeeChat >= 2.2
+[33m56d5631[m grep.py 0.8.1: fix infolist_time with WeeChat >= 2.2
+[33m7284f24[m cmd_help.py 0.5: fix infolist_time with WeeChat >= 2.2
+[33m9beb6a3[m buffer_autoclose.py 0.5: fix infolist_time with WeeChat >= 2.2
+[33m8a54667[m urlgrab.py 2.9: add support of Python 3
+[33mf299d65[m mnotify.py 0.4: fix bugs, add new features
+[33mffda2e0[m colorize_nicks.py 26: fix freezes with too many nicks in one line (closes #197)
+[33m04e601f[m triggerreply.py 0.3: add support of regex in triggers
+[33mf3339c5[m New script emojis.py: send a random emoji to the current buffer
+[33med6d0c0[m Remove script buffer_swap.py (moved to unofficial scripts, not needed with WeeChat >= 0.3.9)
+[33mc899c6d[m Merge pull request #262 from mmb/otr-v1.9.2
+[33m8ee5d99[m otr.py 1.9.2: Fix WeeChat crash on /reload
+[33mb488e56[m colorize_nicks 25: fix unable to run function colorize_config_reload_cb (issues #260)
+[33mc84bcd2[m Merge branch 'master' of https://github.com/weechat/scripts
+[33m1cba393[m buddylist.pl 1.9: add cursor mode support
+[33m13adbd4[m Merge pull request #251 from ecly/master
+[33m6025cc2[m Merge pull request #256 from trygveaa/slack-v2.0.0
+[33md8ecd2d[m slack.py 2.0.0: Merge with mainline
+[33mcfe13f9[m Merge pull request #255 from bradyt/master
+[33me957b79[m automerge.py 0.2: fix the merge command
+[33macf05c1[m Remove script echo.pl (moved to unofficial scripts, not needed with WeeChat >= 0.4.3)
+[33m205d280[m Remove script allquery.py (moved to unofficial scripts, not needed with WeeChat >= 1.0)
+[33m4360a01[m Remove script shell.py (moved to unofficial scripts, not needed with WeeChat >= 1.0)
+[33m0e5bacd[m Remove script beep.pl (moved to unofficial scripts, not needed with WeeChat >= 1.0)
+[33m366f329[m hotlist2extern.pl 0.9: add evaluation for options
+[33md1ade95[m stalker.pl 1.6.1: fix wrong variable name
+[33m997454f[m stalker.pl 1.6: use hook_process_hashtable for /WHOIS, replace hook_proccess by hook_process_hashtable
+[33m0cb77d2[m Merge branch 'master' of https://github.com/weechat/scripts
+[33m20aa757[m vimode.py 0.5.1: add nicklist scrolling with nt/nT and flip J/K, gt/gT
+[33mf2ca0fe[m Set pull request as recommended way to update a script
+[33m763a315[m colorize_lines.pl 3.5: add options "highlight_words" and "highlight_words_color"
+[33mbd97ff0[m mqtt_notify.py 0.2: fix a typo causing AttributeError
+[33medc434d[m Merge pull request #250 from DarkDefender/weetweet
+[33m0a55a64[m weetweet.py 1.2.7: Update for weechat 2.0.1 API changes
+[33m79ff5e7[m unhighlight.py 0.1.1: rename command "/autosetbuffer" by "/buffer_autoset" in example
+[33m6cd048a[m stick_buffer.py 0.6: rename command "/autosetbuffer" by "/buffer_autoset" in example
+[33ma307dcd[m noirccolors.py 0.3: replace "autosetbuffer" by "buffer_autoset.py" in description
+[33m945ff78[m histman.py 0.6: rename command "/autosetbuffer" by "/buffer_autoset" in example
+[33mc2a750a[m url_hinter.rb 0.41: force the string to UTF-8
+[33m154fbab[m screen_away.py 0.15: make script python3 compatible, fix problem with empty "command_on_*" options, add option "no_output"
+[33me77616b[m Merge pull request #247 from de-vri-es/autosort-3.3
+[33m107c337[m autosort.py 3.3: Fix debug command for unicode buffer names.
+[33m8a36e98[m Merge pull request #245 from de-vri-es/autosort-3.2
+[33mf9ad5c9[m autosort 3.2: Fix python3 compatiblity.
+[33m8c43c68[m autosort.py 3.1: use colors to format the help text
+[33md925cd3[m Merge pull request #243 from mumixam/twitch0.4
+[33m14c8a81[m Merge branch 'master' of https://github.com/weechat/scripts
+[33ma05b132[m autoconf.py 0.2: add "%h" variable in option "file", fix translation of "default: " (closes #236)
+[33m70e3dd4[m fix script/issue #236 add "%h" variable in option 'file'
+[33m0728653[m twitch.py 0.4: added debug for api calls and minor bugfixes
+[33m83eb5ea[m New script buffer_autohide.py: automatically hide/unhide buffers according to IRC activity
+[33m328bdd7[m btc_ticker.py 2.0.1: update the altcoins list
+[33m0872836[m keepnick.py 1.6: fix IRC message parsing error
+[33m5943c91[m infolist.py 0.6: evaluate arguments of /infolist command
+[33m2b5296a[m emoji.lua 4: add support of :+1: and :-1:
+[33mc122f57[m strmon.pl 0.5.4: fix comment
+[33m8d62aa6[m strmon.pl 0.5.3: replace notifo support by Notify My Android support, as notifo is down now
+[33m580c938[m Merge pull request #241 from de-vri-es/autosort-3.0
+[33m77c0575[m spotify.py 0.9: add support for oauth keys being stored in secure data
+[33m400a302[m grep.py 0.8: use function in hook_process, add option ""timeout_secs" (closes #239)
+[33m24d3f9d[m colorize_nicks.py 24: allow UTF-8 nicks
+[33m5e42660[m keepnick.py 1.5: fix empty string breaks output, add evaluation for option "text" and use variable "$server" instead of "%s"
+[33mdcef401[m New script teknik.py: interact with the Teknik Services, including file uploads, pastes, and URL shortening
+[33m2193e27[m autosort.py 3.0: switch to eval expressions for sorting rules.
+[33ma2b20d5[m btc_ticker.py 2.0.0: replace the btc-e API with Cryptonator's
+[33m43de5cf[m launcher.pl 0.7: properly fix escaping of "signal_data"
+[33m7cf9fab[m keepnick.py 1.4.2: add missing call to weechat.config_string
+[33m7976842[m url_hinter.rb 0.4: fix wrong encoding errors
+[33m505d8d8[m launcher.pl 0.6: fix escaping of "signal_data"
+[33mbde6ef6[m keepnick.py 1.4.1: fix eval_expression for nicks, add evaluation for options
+[33m11bf9da[m quick_force_color.py 0.6.1: print nicks in sorted order
+[33m0669250[m text_item.py 0.7.1: improve /help text
+[33ma11239a[m keepnick.py 1.4: eval_expression for nicks, use irc.server.<servername>.password, add short /help
+[33ma3af80e[m text_item.py 0.7: add type "!all", internal changes
+[33m9363969[m bufsize.py 0.8: add support for buffer_filters_enabled and buffer_filters_disabled (WeeChat ≥ 2.0)
+[33m1cc49b1[m Merge pull request #232 from mmb/otr-v1.9.1
+[33m1921971[m otr.py 1.9.1: Fix traceback caused by non-ASCII nick
+[33m6a8e5a8[m urlserver.py 2.2: fix write on socket with python 3.x
+[33me420523[m grep.py 0.7.8: fix modulo by zero when nick is empty string (closes #230)
+[33mee21976[m Merge pull request #219 from devkev/title.py-v0.9
+[33m6374842[m Merge pull request #213 from jsaalfeld/master
+[33m8d61ce5[m Merge remote-tracking branch 'origin/pr/228'
+[33me5c7fe5[m shortenurl.py 0.6.1: fix api call to is.gd
+[33m4c8e8f7[m prism.py 0.2.11: add -k switch to add black background
+[33m520918a[m btc_ticker.py 1.2.0: add Ethereum support, scrub the Python in anticipation to Py3-only version
+[33m43479d2[m spotify.py 0.8: add now required oauth support
+[33m56b27cd[m buffer_autoset.py 1.0: rename command /autosetbuffer to /buffer_autoset
+[33me279343[m New script i3lock_away.py: set away status if i3lock is running
+[33mcc57adf[m Merge pull request #225 from mumixam/twitch.py.0.3
+[33m78b0123[m twitch.py 0.3: fixed whois output of utf8 display names
+[33mc2c0d47[m tts.py 0.2.1: do not use the shell to run commands in hook_process_hashtable
+[33mce49273[m autoconnect.py 0.3.2: left strip the colons before the channel name
+[33m22b64e6[m Merge pull request #222 from butlerx/bugfix/giphy
+[33m2247784[m New script gribble.py: automatically authenticate to gribble for Bitcoin OTC exchange
+[33m73ca780[m whois_on_query.py 0.6.1: fix typo
+[33md23e4b5[m giphy.py 1.0.1: remove + from output
+[33m7ce4270[m irssinotifier.py 0.8.1: add "-md md5" in openssl commandline
+[33m9ba7719[m quick_force_color.py 0.6: miscellaneous fixes and usability improvements
+[33me3b2d40[m Merge pull request #217 from paalka/master
+[33mc55aa68[m irssinotifier.py 0.8: add the ability to store certain potentially sensitive settings as secure data
+[33mfd5a77e[m New script autoconf.py: auto save/load changed options in a .weerc file
+[33m849719a[m New script giphy.py: insert a giphy URL based on a command and search; use giphy's random, search and translate from WeeChat
+[33me04a438[m New script automerge.py: automatically merge new buffers according to defined rules
+[33m5bb2ec0[m New script pushsafer.rb: send private/highlight messages to Android, iOS and Windows 10 devices via Pushsafer
+[33m42d1bff[m New script pushjet.py: send highlights and mentions through pushjet.io
+[33mcd6b3b6[m New script detach_away.py: automatically set away message based on number of relays connected
+[33m6334f56[m New script terminal_title.py: display user defined information in the terminal title
+[33m3833ac4[m New script weechataboo.scm: replace emotion-tags with random emoticons
+[33md3e55b4[m New script aformat.py: alternate text formatting, useful for relays without formatting features (glowing-bear, weechat-android, ...)
+[33m8a371c9[m New script buffer_bind.py: bind meta-<key> to the current buffer
+[33m733154a[m New script cleanbuffer.rb: clear a buffer, on znc / locally or both
+[33m083e659[m New script lastfm2.py: send your latest Last.fm track to the current buffer
+[33mc6e66a1[m New script notification.py: notify events through desktop notifications and an optional status icon
+[33mc3119ad[m New script notifym.pl: highly configurable send-notify script for user, channel and server messages
+[33me72493f[m New script whatsapp.py: WhatsApp protocol
+[33m52dec5c[m weetweet.py 1.2.6: make script python3 compatible
+[33m726bee4[m New script buffer_dmenu.py: list buffers in dmenu or rofi, change active window to selected buffer
+[33m6cb4d04[m Merge pull request #208 from rr-/master
+[33md6ccfd6[m update_notifier.py 0.5: fix URL with infos, fix download of infos, fix PEP8 errors and refactor code (closes #211)
+[33mf3809a6[m queryman.py 0.4: allow manual saving of query list, code refactoring
+[33m4e3975e[m Merge pull request #210 from mmb/otr-v1.9.0
+[33maaed43c[m query_blocker.pl 1.1: add function to ignore server
+[33m2a58aa8[m iset.pl 4.3: add option "use_color" (closes #93)
+[33m6f79e25[m url_olde.py 0.6: improve URL matching
+[33m3034042[m url_hinter.rb 0.3: add option "launcher"
+[33m1d595b9[m notify_send.pl 1.5: make default command discard stdout/stderr
+[33m08914a4[m otr.py 1.9.0: fix log command help and completion
+[33m9d7f210[m fish 0.9.2: also put mark on outgoing messages
+[33md1f9741[m gateway_rename.scm 1.2.1: fix minor bugs and remove some debug statements
+[33m6276e92[m url_olde.py 0.5: fix URL catching
+[33m8314faf[m stick_buffer.py 0.5: add support of "/input jump_smart" and "/buffer +/-" (closes #200)
+[33mdc9e69f[m go.py 2.5: add option "buffer_number" (closes #202)
+[33m1ec7ba8[m title.py 0.9: Make hotlist optional
+[33m54f1c68[m Merge pull request #201 from DarkDefender/weetweet
+[33m710a03d[m weetweet.py 1.2.5: Add support for encrypted tokens with sec.conf
+[33m132c463[m stick_buffer.py 0.4: fix behavior with script go.py and buffers names
+[33m8027d0d[m fish.py 0.9.1: fix delete of key in fish_cyphers dict
+[33mc79b067[m Merge pull request #198 from miblodelcarpio/master
+[33m125af34[m Merge pull request #195 from stfnm/pushover.pl_2.0
+[33mcdd5525[m gateway_rename.scm 1.2: let user configure gateway renamers via options, add command /gateway_rename, improve testing
+[33m6158bbe[m xfer_scp.py 1.0.5: add ability to send files that don't match a pattern to a default directory on remote server
+[33m632b59b[m Merge pull request #199 from arza-zara/buffers-5.6
+[33m4a1375d[m buffers.pl 5.6: fix truncating buffer names that contain multibyte characters
+[33m31a7bd5[m weestreamer.py 0.4.2: Switch to streamlink
+[33m41c7bd9[m pushover.pl 2.0: fix pushover.net API call
+[33m7dc2296[m go.py 2.4: fix syntax and indentation error
+[33m64726eb[m colorize_nicks.py 23: don't colorize nicklist group names
+[33m9efd223[m go.py 2.3: fix fuzzy search breaking buffer number search display (closes #191)
+[33m717e460[m buffers.pl 5.5: fix memory leak in perl 5.23.7-5.24.1, fix truncation and crop_suffix when truncating to 1-4 characters, fix prefix_empty for inactive buffers, tidy code
+[33mb063094[m emote.scm 0.3: add more emotes
+[33m941b092[m New script force_nick.py: force nick change on channels which disallow it
+[33m7193d68[m New script tts.py: use a TTS engine to pronounce messages
+[33mec2c860[m weemoticons.py 0.2: add more emojis, do not match URLs
+[33m55b2184[m pushover.pl 1.4: add Free Mobile support
+[33mabe1d0a[m autojoinem.py 0.6: fix problem with non existing server
+[33m57be97c[m New script inverter.tcl: invert all letters of your text
+[33m92e8c0c[m Merge pull request #182 from grdryn/gnome_screensaver_away-0.2.0
+[33m04c029c[m bufsize.py 0.7: add option show_scroll
+[33m9df2861[m gnome_screensaver_away.py 0.2.0: don't trample manual away
+[33m9050a81[m autojoinem.py 0.5: fix problem with empty autojoin
+[33m36d3800[m text_item.py 0.6: fix problem with multiple windows
+[33mbbec113[m query_blocker.pl 1.0: fix catch of messages starting with color
+[33m65cab3f[m go.py 2.2: add option "fuzzy_search"
+[33m6893d6f[m gateway_rename.scm 1.1: make script more general across multiple gateways
+[33mc85a328[m Merge pull request #178 from de-vri-es/autosort-2.8
+[33m1219d50[m autosort 2.8: fix python3 compatibilty
+[33m5e34d55[m New script gnome_screensaver_away.py: set away status based on Gnome screen saver
+[33mbc153ae[m Merge pull request #177 from torhve/emoji-3
+[33m2206446[m Merge pull request #176 from mumixam/twitchpy0.2
+[33mb0121f5[m Merge pull request #172 from MacGyverNL/master
+[33m404183e[m maskmatch.py 1.4: use option weechat.look.prefix_same_nick, fix bug with modes arguments
+[33m71903f4[m Merge pull request #169 from mickael9/better-topicdiff
+[33m6324280[m New script mpv.py: now watching script for mpv
+[33m4deb17f[m emoji.lua 3: add support for incoming replace too
+[33m2ade9fd[m twitch.py 0.2: added detailed /help
+[33m13429ed[m urlserver.py 2.1: add option "msg_filtered"
+[33me913704[m New script xfer_run_command.py: run a command on end of xfer
+[33m8529445[m New script buffzilla.rb: copy everything into one buffer
+[33m8c1caee[m New script twitch.py: display stream status in title bar of buffer
+[33mdfb466d[m New script zncnotice.py: convert ZNC status PRIVMSGs to NOTICEs
+[33m1880331[m New script gateway_rename.scm: convert usernames of gateway connections to their real names
+[33m643afdd[m New script zncplayback.py: add support for the ZNC Playback module
+[33m2f69384[m New script url_olde.py: display when and where a URI was first posted
+[33m02761e3[m New script nick_complete_wrapper.lua: wrap nick completion with custom prefix and/or suffix
+[33m187fbdf[m New script jisearch.py: query JiSho's API to fetch translations for kanji to english or the other way round
+[33m2abc1b0[m New script latex_unicode.py: replace LaTeX with unicode representations
+[33m4ef962a[m New script unhighlight.py: allows per-buffer specification of a regex that prevents highlights
+[33m8105a3e[m New script mqtt_notify.py: send notifications using the MQTT protocol
+[33m201c145[m New script atcomplete.pl: Tab complete nicks when prefixed with "@"
+[33mb669f3c[m New script emoji2alias.py: convert emoji back to their :aliases:
+[33m1d1adf2[m New script mop.py: op everyone in the current channel
+[33m99e373a[m autoauth.py 1.1: add a way to manage NickServ nick and host
+[33me273498[m Remove script triggerbot_helper.py
+[33mb20e2b2[m New script emoji.lua: translate :shortcode: to proper emoji
+[33m01b86ab[m New script tictactoe.py: tic-tac-toe game
+[33md26249b[m autoconnect.py 0.3.1: fix split of channels in join/part callback
+[33m0eb5f33[m Update example of WeeChat version in Contributing
+[33m0380f90[m Merge pull request #161 from mickael9/patch-2
+[33ma55ea86[m grep 0.7.7: fix get_home function
+[33me52391c[m text_item.py 0.5: add /help text_item
+[33m9106fe8[m weatherbot.py 0.9: add !forecast function
+[33m329238a[m emoji_aliases.py 1.0.2: fix UTF-8 encoding and split of IRC messages
+[33md1af4a4[m Merge pull request #168 from de-vri-es/autosort-2.7
+[33m6bf5d8f[m Merge pull request #171 from rawdigits/update_slack
+[33m50dc6c4[m weemustfeed.py 0.2.3: tag prints w/ notify_message
+[33m187e00c[m slack.py 0.99.10: merge with mainline
+[33m1d82a0b[m topicdiff.py 0.3: improve diff output
+[33m2d00f54[m autosort.py 2.7: Properly handle buffers with space in their name.
+[33m4cba6c0[m Merge pull request #166 from arza-zara/master
+[33m48f20ea[m hotlist2extern.pl 0.8: escape special characters in hotlist
+[33m457c6bd[m autojoinem.py 0.4: make script python3 compatible
+[33m5219497[m Add email of arza in .mailmap, sort file by name
+[33m0c94b26[m Merge pull request #160 from DarkDefender/weetweet
+[33m89d7051[m weetweet.py 1.2.4: added command link and fav+retweet
+[33mbde9c02[m Merge pull request #158 from GLolol/master
+[33md17918b[m Merge pull request #153 from sim642/colorize_nicks-hash
+[33m124603b[m triggerbot_helper.py 0.2.1: fix copyright header
+[33mec31fd6[m Merge remote-tracking branch 'origin/pr/152'
+[33m3eb5b69[m iset.pl 4.2: add diff function
+[33m9138be5[m New script slack.py: slack.com native client
+[33m71411ca[m buffers.pl 5.4: added option "detach_buffer_immediately_level"
+[33mf2b1fd9[m buffers.pl 5.3: add option indenting_amount
+[33m54bc2ce[m automode.py 0.1.3: support extended-join messages
+[33m7df84f8[m emote.scm 0.2: add additional emotes
+[33m1658b81[m mnick.pl 0.3: allow use of alternate nick without doing a /mnick before
+[33m7ea5f61[m keepnick.py 1.3: monitor quits and nick changes
+[33md463246[m title.py 0.8: add options to customize output
+[33m4fda935[m noirccolors.py 0.2: fix wrong example syntax to /buffer set
+[33mdb58ee7[m Fix link to Contributing file in README
+[33m433a7bb[m Rename .asciidoc files to .adoc
+[33mba3ecf8[m imap_status.py 0.8: add display options, read imap status in background (WeeChat >= 1.5)
+[33me679427[m colorize_nicks.py 22: invalidate cached colors on hash algorithm change
+[33m73b511b[m New script maskmatch.py: display who is affected when a mode with a hostmask argument is set
+[33mbef3d00[m New script whowas_timeago.py: display a human-readable time string for WHOWAS data
+[33m0290fef[m quick_force_color.py 0.5: make script compatible with WeeChat >= 1.5
+[33m7f46383[m bufsize.py 0.6.2: fix type of filter_status (#149)
+[33m3e02cad[m buffers.pl 5.2: truncate long names (name_size_max) more when mark_inactive adds parenthesis
+[33m0bb9f8c[m weestats 0.3: handle non-#-channels, numerical sort for buffer info, moved window split info to option -split
+[33mcfcf848[m New script karmastorm.scm: provide many karma votes
+[33m057dc79[m parse_relayed_msg.pl 1.9.1: fix uninitialized value, fix indentation
+[33m1207200[m Updates chancomp.py to v1.1: Honour irc.look.msgbuffer_fallback (#148)
+[33mf24e558[m Merge pull request #147 from sim642/grep_filter
+[33m16c3eea[m grep_filter 0.9: fix text search imitation in filter
+[33m92cff1c[m New script emoji_aliases.py: convert emoji aliases to unicode emoji
+[33mbb183af[m New script chancomp.py: list shared channels with user on command or WHOIS
+[33me3c1bf4[m New script win_scroll_screen.py: scroll by fractional screens
+[33mc0ffd7f[m New script autospurdo.js: speak in spurdo
+[33ma310027[m New script grep_filter.py: filter buffers automatically while searching them
+[33me5b318e[m New script ircrypt.py: secure encryption layer for the IRC protocol based on OpenPGP
+[33m299d525[m New script beinc.py: on screen display notification
+[33m004bd68[m parse_relayed_msg.pl 1.9: add Gitter support
+[33m28e1c35[m queue.py 0.4.2: add saving/loading of static queues
+[33m828b7de[m weespotify.rb 1.1: fix the artist overriding the album string
+[33m1730505[m sysinfo.pl 1.0: fix problem with armv7l processor (eg cubietruck)
+[33m28f8656[m queryman.py 0.3: make script consistent with "buffer_switch_autojoin" option
+[33m30066ab[m notification_center.py 1.3.0: add option to ignore old messages, enable click on notification
+[33m8035530[m axolotl.py 0.1.0: fix bug in determining current nick
+[33m221f5a7[m buffer_autoclose.py 0.4: add python3 support
+[33m595ff86[m title.py 0.7: add python3 support
+[33m52c0496[m Merge pull request #143 from sim642/histsearch-only
+[33mc13e380[m histsearch.py 0.3: add option to only display selected command
+[33mc6a0940[m iset.pl 4.1: remove debug print
+[33m468429d[m Merge pull request #141 from timss/lastfm
+[33mb5a9966[m lastfm.py 0.7: Fix UnicodeEncodeError
+[33m0d76b64[m spotify.py 0.7: Update script for new web api
+[33ma1f9110[m autojoin.py 0.2.6: support storing the channels list as secure data
+[33m9d19544[m urlserver 2.0: add option "http_open_in_new_page"
+[33m8459bd4[m Merge pull request #120 from miblodelcarpio/master
+[33mc1fc872[m Add note about script author when sending a new version
+[33maf6f474[m lastfm.py 0.6: use the Last.fm API instead of the RSS feeds which are down
+[33m9c0eeaf[m Merge pull request #112 from Tigge/master
+[33m8355e61[m Merge pull request #110 from mickael9/patch-1
+[33m277d484[m Merge pull request #107 from sim642/issue-104
+[33m79e762a[m irssinotifier.py 0.7: add option "ignore_nicks"
+[33m4646c40[m Merge pull request #106 from sim642/issue-99
+[33maeb28c6[m autojoinem.py 0.3: fix problem with undef option
+[33ma12e0de[m lnotify.py 0.3.1: do not send notifications for self messages
+[33m945315b[m multiline.pl 0.6.3: improve performance a little bit by using less timers and no unhooking
+[33mb0bbfa7[m autopong.py 0.2: add public channel replies and a configurable response
+[33m73d44ab[m weatherbot.py 0.4: minor fix for the autocomplete query
+[33mf5f8b5a[m Merge pull request #111 from sim642/autoauth.py-cmd
+[33md0e4a9b[m Merge pull request #132 from de-vri-es/autosort-2.6
+[33ma614917[m highlightxmpp.py 0.5: switch to SleekXMPP
+[33m376bdac[m rnotify.tcl 1.4: fix problem with reserved characters preventing notification
+[33m7d99030[m notification_center.py 1.2.0: add option "sound_name", add app icon to notification
+[33meba0c03[m autosort 2.6: fix case insensitive sorting for rules with upper case.
+[33m8d53ce9[m Merge remote-tracking branch 'origin/pr/103'
+[33m0c9a298[m Merge pull request #101 from arza-zara/samechannel
+[33m89e7281[m iset.pl 4.0: add support of parent options
+[33ma197c1c[m Merge pull request #125 from mmb/otr-v1.8.0
+[33m129ccf7[m otr.py 1.8.0: fix nick case sensitivity bug
+[33m1bbbee4[m triggerreply.py 0.2: fix bug which prohibited use of colons in replies
+[33m4110b77[m prism.py 0.2.10: fix space in option "-c"
+[33mf34887f[m Merge pull request #113 from remram44/mnotify
+[33m1337d48[m mnotify 0.3: show buffer name & quotes in topics
+[33m0e95139[m grep.py 0.7.6: fix typo: insensible -> insensitive
+[33mb648b3f[m prism.py 0.2.9: use a parser instead of regex
+[33m24ffe87[m color_popup.pl 0.4: add more colors, make color list dynamic
+[33m136a5fc[m Merge pull request #92 from sim642/patch-1
+[33m516ca94[m weestreamer 0.4.1: Add hitbox and afreeca support
+[33m388d7e0[m go.py 2.1: fix bug with short_name "weechat" on a buffer (closes #116, closes #117)
+[33md8ed2f5[m autoconnect.py 0.3: save channels on exit, restructure
+[33m0000d58[m lnotify.py 0.3.0: add check of X window focus with xdotool
+[33mcc7e571[m autoauth 1.0: rename command /auth to /autoauth
+[33m9b35870[m bitlbee_completion.py 0.2: strip color attributes for topic detection
+[33m8171777[m urlgrab.py 2.8: changed print hook to ignore filtered lines
+[33m8694845[m autojoin_on_invite.py 0.6: allow joining channels with keys in autojoin
+[33m5dbb66a[m buffer_autoset.py 0.9: instantly apply properties
+[33mbc23638[m samechannel.rb 0.1: option -m/--minimum for minimum count of mutual channels, fixed completion
+[33m1ed5dd9[m Merge pull request #89 from boyska/fix-oldswarner-patterns
+[33m9bf578e[m urlbar.py 12: fix error on empty prefix
+[33m2dd21c4[m otr.py 1.7.0: enhancements and bug fixes
+[33me264dcd[m [oldswarner] FIX urls are not patterns!
+[33m49e23dc[m colorize_nicks.py 21: fix problem with nicks with comma
+[33m00fde82[m hl_here.pl 0.2: use last index to handle all buffer nesting levels
+[33m9a709df[m hatwidget.py 1.1: fix hatwidget not updating without changing buffer
+[33me73bd9d[m colorize_lines.pl 3.4: add new options "tags" and "ignore_tags"
+[33m8414020[m postpone.py 0.2.3: add option to send queued messages on /nick
+[33m2986760[m buffer_autoset.py 0.8: add option buffer_autoset.look.timer (closes #82)
+[33mb381415[m notification_center.py 1.0.0: ignore own nick, fix detection of highlights
+[33mbad392a[m commorkers.pl 0.2: add options to ignore nicks
+[33m6b18d73[m stalker.pl 1.5: add new option "del_date"
+[33m72af5b0[m buffers.pl 5.1: always indent merged buffers except when filling is horizontal
+[33m0668155[m Merge remote-tracking branch 'origin/pr/71'
+[33mc85c518[m New script commorkers.pl: analyze channels nicklists to find common lurkers
+[33m69dba38[m New script weestreamer.py: Livestreamer companion for WeeChat
+[33m7f2b75f[m New script dzen_notifier.pl: notify dzen when a private message is received
+[33m6152adb[m New script sort_arza.pl: sort channels inside networks
+[33m7ae3f95[m New script unread_buffer.py: mark buffer as unread
+[33md96dda6[m New script hatwidget.py: show hats (user modes like "@" or "+") in a bar item
+[33mb21ca1a[m New script deadbeef_np.py: a now playing script for deadbeef
+[33m5f098ed[m Merge remote-tracking branch 'origin/pr/74'
+[33mec19c20[m title.py 0.6: strip colour codes from title
+[33m70ae9b0[m undernet_totp.py 0.3.1: add support for OTP using login on connect
+[33mc58b52e[m url_hinter.rb 0.2: make hint keys configurable
+[33mff6a0bc[m Pull changes from upstream repo
+[33ma149828[m autosavekey.py 0.3: fix ValueError
+[33m2249850[m sysinfo.pl 0.9: add compatibility with linux kernel 4.x
+[33m424b5c3[m Add one script max per pull request
+[33m2dcadc9[m iset.pl 3.9: fix cursor position when editing an option with WeeChat >= 1.2
+[33m65bd2f4[m iset.pl 3.8: don't append "null" to /set when setting an undefined setting
+[33m8d5c413[m urlserver.py 1.9: add option "http_auth_redirect", fix flake8 warnings
+[33m049577b[m Revert file Contributing.asciidoc, make a clickable link to Contributing in README
+[33me368eb4[m Merge Contributing.asciidoc into README.asciidoc
+[33mea514bd[m iset.pl 3.7: fix two perl warnings
+[33meb5eb5c[m xfer_setip.py 0.4: check if xfer plugin is loaded
+[33m99659f3[m colorize_nicks.py 20: fix ignore of nicks in URLs
+[33m52acbdf[m colorize_nicks.py 19: new option ignore nicks in URLs
+[33m11fd106[m colorize_nicks.py 18: improve buffer finding mechanics
+[33mfeb4295[m urlserver.py 1.8: evaluate option http_auth (to use secured data)
+[33m70d98b2[m histman.py 0.5: set lower priority for signal "buffer_opened"
+[33m1117483[m buffer_autoset.py 0.7: set higher priority for signal "buffer_opened"
+[33m34d1f58[m New script automarkbuffer.py: mark buffers as read if there is no new message in a specific time range
+[33mdb4207f[m New script mpris2_np.py: a now playing script for players supporting the mpris dbus interface
+[33m181b812[m New script fullwidth.py: convert text to its full width equivalent and send it to buffer
+[33m63f8fc8[m Merge pull request #61 from maxteufel/whoissource/release-0.0.2
+[33m1dea38a[m whoissource.py 0.0.2: use chat_nick_self when whoising yourself
+[33m22f685a[m New script bitlbee_completion.py: add tab completion to bitlbee commands
+[33m67a19c6[m New script whoissource.py: display source of "End of WHOIS" numerics
+[33mb5ffc46[m New script smile.py: print a random ASCII smiley
+[33m38dfc7f[m New script colorizer.rb: colorize parts of text in certain buffers based on rules
+[33mcb88d95[m New script socket_notify.rb: send highlights and private messages to a unix socket
+[33m34e4c13[m New script xfer_scp.py: copy files by scp after xfer
+[33mc4bdeb7[m New script emote.scm: replace keywords with emoticons
+[33m5743ae4[m New script triggerreply.py: automatically replies over specified triggers
+[33mb167d64[m New script url_hinter.rb: open an URL in the weechat buffer to type a hint
+[33m8785270[m New script ws_replace.py: remove leading and trailing whitespace before sending text
+[33mddc5cbc[m autosort.py 2.5: handle UTF-8 buffer names
+[33mcbf270a[m clone_scanner.py 1.4: many changes
+[33m940af33[m sysinfo.pl 0.8: based on sysinfo 2.81.24 (Feb 10 2015)
+[33m98d65c4[m notification_center.py 0.3.0: add a sound option
+[33mff45d9a[m colorize_nicks.py 17: fix coloring in non-channel buffers (closes #58)
+[33m1f61045[m weetweet.py 1.2.2: add "thread" command, fix bugs
+[33mcb36ff4[m irssinotifier.py 0.6.3: merge changes from github repository
+[33m9a6a715[m otr.py 1.6.0: many changes
+[33m7e493d5[m vimode.py 0.5: add line numbers bar (disabled by default), :<num> commands, C, D
+[33m47583d1[m grep.py 0.7.5: expand "~" in home directory
+[33m4c4025e[m Merge pull request #53 from stfnm/pushover.pl
+[33m7214b05[m pushover.pl 1.3: add new options "rate_limit" and "short_name", add support for /secure data
+[33md3648dc[m grep.py 0.7.4: add 'q' to close grep buffer
+[33mc05490f[m mnick.pl 0.2: send nick change only on connected servers
+[33m84369c7[m imap_status.py 0.7: use eval_expression
+[33m01535aa[m autosavekey.py 0.2: add option "add" to automatically add channel/key to autojoin option after a /join
+[33m450110f[m autosort.py 2.4: support python 2.6 and 3.x (in addition to 2.7)
+[33m05dfa03[m Merge pull request #44 from stfnm/pushover.pl
+[33m0350481[m Merge pull request #45 from oakkitten/master
+[33me36faf0[m fix cropping non-latin buffer names
+[33m6df2d6b[m pushover.pl 1.2: add new option "redact_priv_msg"
+[33m7283aa4[m Use https for WeeChat URLs
+[33m819301b[m btc_ticker.py 1.1.1: cleanup some code
+[33me5b4a5e[m Remove script opall.py (moved to unofficial scripts, not needed with WeeChat >= 0.4.2)
+[33m4ed5168[m btc_ticker.py 1.1: use UTF-8 strings in script, make /tick command arguments case insensitive
+[33mddd47e5[m keepnick.py 1.2: add support of regular expression for server option
+[33m54247bb[m newsbar.pl 0.18: add: options "blacklist_buffers" and "highlights_current_channel", use hook_print() instead of hook_signal() for private messages
+[33m03b95bf[m Merge pull request #42 from stfnm/pushover.pl
+[33m5566a12[m weenetsoul.py 1.3: fix login regex, completion with online contacts from contact list for send and who commands, prevent default completion for all other commands
+[33mbcd1171[m pushover.pl 1.1: fix perl warnings and add new command "/pushover"
+[33m2237a62[m weenetsoul.py 1.2: many changes
+[33mf9e60d7[m multiline.pl 0.6.2: small speed-up by caching keys
+[33md7f41c5[m Merge pull request #41 from arza-zara/master
+[33m312a786[m jump_smart_higher.pl 0.2: don't try to change to current buffer
+[33ma11d0da[m Add a .mailmap file
+[33m5a0a75a[m urlgrab.py 2.7: add option "copycmd", users can set command to pipe into for "/url copy"
+[33mdb27274[m colorize_nicks.py 16: use weechat config facilities
+[33ma103928[m urlbuf.py 0.2: add descriptions to settings
+[33mdb5d89f[m fish.py 0.9: use WeeChat secured data
+[33m614c96e[m im_rename.py 1.2: script renamed (from facebook_rename.py), remove Bitlbee (not needed), add support of Google+ nicks
+[33ma85f891[m shortenurl.py 0.6.0: add support for bit.ly via Python Bitly
+[33m5bfeb72[m buffers.pl 4.9: allow custom buffer names with local variable "custom_name"
+[33m1aaf50a[m unset_unused.pl 0.3: fix problem with unset of options
+[33m390399f[m otr.py 1.5.0: many changes
+[33mb8ddccd[m iset.pl 3.6: fix current line counter when options are not found
+[33m19d799d[m vimode.py 0.4: add keys, improve substitutions, new key handling logic (now requires WeeChat >= 1.0)
+[33ma0bc5e7[m Merge pull request #37 from tomoe-mami/master
+[33mea4734a[m Merge pull request #36 from phy1729/patch-1
+[33m3955cef[m Add update of script ChangeLog in Contributing.asciidoc
+[33m72acb3d[m urlselect.lua 0.4: use hook_process instead of io.popen
+[33m3d76ea0[m urlselect.lua 0.4: fixed url pattern matching
+[33mf8a8427[m prism.py 0.2.8: Add style reset to end of message
+[33m7ef8db9[m Merge pull request #33 from stfnm/pushover.pl
+[33m0a5a259[m pushover.pl 1.0: fix pushbullet support (API v2)
+[33m572c612[m highmon.pl 2.5: add clearbar command, first-run help & hints prompt, and use the date callback for more accurate output
+[33m179e9fe[m chanmon.pl 2.5: add clearbar command, first-run help & hints prompt, and use the date callback for more accurate output
+[33m419ec3a[m screen_away.py 0.14: add time to detach message
+[33meb150f1[m screen_away.py 0.13: fix typo
+[33m67e813c[m buffers.pl 4.8: add support of ctrl + mouse wheel to jump to previous/next buffer, new option "mouse_wheel"
+[33m4017e1d[m rnotify.tcl 1.3: fix typos and a possible problem with notifications not showing when they should
+[33m1cf2cd5[m lnotify.py 0.2.0: use hook_process_hashtable for calls to notify-send, change configuration option names and methods
+[33m6f98dc5[m autosort.py 2.3: add option for signals triggering a sort, command to manually sort, replacement patterns to apply before sorting
+[33m36d0428[m Merge pull request #29 from stfnm/pushover.pl
+[33m6f46a0d[m pushover.pl 0.9: support wildcards in option "blacklist"
+[33m82f63bf[m buffers.pl 4.7: fix typos in options
+[33mdb98411[m newsbar.pl 0.17: evaluate buffer time format, update bar when option weechat.bar.newsbar_title.color_fg is changed
+[33me1ed0ed[m iset.pl 3.5: add new option "use_mute"
+[33m8070df3[m auth.rb: add missing "end"
+[33m9456bd3[m Merge pull request #25 from Shawn-Smith/master
+[33mf92859d[m auth.rb 0.3: Allow ${sec.data.xxx} passwords
+[33m4b97b7d[m text_item.py 0.4: evaluate content of item
+[33ma5bd036[m query_blocker.pl 0.9: use NOTICE instead of PRIVMSG for auto-response (closes #24)
+[33m4149e71[m autojoin.py 0.2.5: fix keyed channel support
+[33m86e6553[m lastfm.py 0.5: fix some bugs
+[33m5d555b6[m clemy.py 0.1.1: fix now playing output issue (titles containing commas aren't fully displayed)
+[33m2376c90[m stalker.pl 1.4: fix Perl error under some circumstances
+[33m684235d[m autosort.py 2.1: minor code improvements
+[33m51f758a[m go.py 2.0: add help on options, replace option "sort_by_activity" by "sort", PEP8 compliance
+[33ma9e2d68[m hilites.rb 0.2: change hook_print callback argument type of displayed/highlight (WeeChat >= 1.0)
+[33mb5841cb[m windicate.py 0.0.4: change hook_print callback argument type of displayed/highlight (WeeChat >= 1.0)
+[33m55a50db[m weeprowl.py 0.7: change hook_print callback argument type of displayed/highlight (WeeChat >= 1.0)
+[33m40aa9ed[m twmn_notify.py 0.1.3: change hook_print callback argument type of displayed/highlight (WeeChat >= 1.0)
+[33mbdc6eb1[m sshnotify.py 0.2.3: change hook_print callback argument type of displayed/highlight (WeeChat >= 1.0)
+[33m26d6a6d[m pyrnotify.py 1.0: change hook_print callback argument type of displayed/highlight (WeeChat >= 1.0)
+[33m55cd82b[m prowl_notify.py 3.1: change hook_print callback argument type of displayed/highlight (WeeChat >= 1.0)
+[33md8b48b8[m notify.py 0.0.8: change hook_print callback argument type of displayed/highlight (WeeChat >= 1.0)
+[33m65a92ae[m notifo.py 0.2: change hook_print callback argument type of displayed/highlight (WeeChat >= 1.0)
+[33m26634d4[m notification_center.py 0.2.1: change hook_print callback argument type of displayed/highlight (WeeChat >= 1.0)
+[33m10efb41[m nma.py 1.0.7: change hook_print callback argument type of displayed/highlight (WeeChat >= 1.0)
+[33m89097a3[m mnotify.py 0.2: change hook_print callback argument type of displayed/highlight (WeeChat >= 1.0)
+[33m7a047a3[m lnotify.py 0.1.4: change hook_print callback argument type of displayed/highlight (WeeChat >= 1.0)
+[33m9027818[m irssinotifier.py 0.6: change hook_print callback argument type of displayed/highlight (WeeChat >= 1.0)
+[33m45608f9[m irssi_awaylog.py 0.3: change hook_print callback argument type of displayed/highlight (WeeChat >= 1.0)
+[33m98d8fae[m inotify.py 0.1.4: change hook_print callback argument type of displayed/highlight (WeeChat >= 1.0)
+[33mc03c867[m im_kayac_com_notify.py 1.3: change hook_print callback argument type of displayed/highlight (WeeChat >= 1.0)
+[33me392566[m hlpvitem.py 0.3: change hook_print callback argument type of displayed/highlight (WeeChat >= 1.0)
+[33m9d69047[m hl2file.py 0.2: change hook_print callback argument type of displayed/highlight (WeeChat >= 1.0)
+[33m56428f6[m growl.py 1.0.6: change hook_print callback argument type of displayed/highlight (WeeChat >= 1.0)
+[33m68b17b3[m away_action.py 0.5: change hook_print callback argument type of displayed/highlight (WeeChat >= 1.0)
+[33m93e80e9[m apply_corrections.py 1.2: change hook_print callback argument type of displayed/highlight (WeeChat >= 1.0)
+[33mf29b9be[m anotify.py 1.0.1: change hook_print callback argument type of displayed/highlight (WeeChat >= 1.0)
+[33md423b90[m announce_url_title.py 18: change hook_print callback argument type of displayed/highlight (WeeChat >= 1.0)
+[33mf973f26[m Merge pull request #23 from holomorph/master
+[33m099b780[m colorize_nicks.py 15: fix re.search check
+[33m30d750f[m countdown.rb 0.0.2: new optional parameter "say_after" to say after the countdown is over
+[33m8fc9056[m shortenurl.py 0.5.3: fix short_own option
+[33ma1f1328[m Merge pull request #21 from stfnm/pushover.pl
+[33m7121c3f[m pushover.pl 0.8: add new option "verbose"
+[33m8c2ea25[m parse_relayed_msg.pl 1.8: fix regex on tags, some internal changes
+[33m7e510f2[m stalker.pl 1.3: fix output when loading script twice
+[33m1797736[m Update Contributing.asciidoc: add some info in update of script
+[33m03b8465[m Merge branch 'JimShoe-pushbullet'
+[33mfb5ec6f[m pushover.pl 0.7: add support of pushbullet
+[33m9afe6ca[m Update Contributing.asciidoc: add contact of author for script update
+[33m0544efd[m crypt.py 1.4.4: revert to blowfish (bf-cbc) as default algorithm
+[33mb42550e[m Update Contributing.asciidoc: add contact of author for script update
+[33m98f024a[m crypt.py 1.4.4: revert to blowfish (bf-cbc) as default algorithm
+[33m99f62df[m Merge pull request #19 from tomoe-mami/master
+[33m0cf9f10[m pastebuf.lua 0.3: more paste sites, support unrecognized url, run cmd
+[33m0f57109[m prowl_notify.py 3.0: add response from prowl in WeeChat core buffer, remove unneeded print messages
+[33m2cef640[m autosort.py 2.0: allow custom sort rules
+[33m6dbe8ef[m stalker.pl 1.2: fix bug with IRC customized join messages (WeeChat >= 0.4.4)
+[33md42e60d[m newsbar.pl 0.16: add own color settings, fix update of bar when script options are changed
+[33m1b97c0d[m expand_url.pl 0.6: fix regex for tag "nick_xxx"
+[33mde3a3c3[m otr.py 1.4.0: many changes
+[33me5b6f98[m shutup.py 0.2: move debug output to a debug function
+[33m4439c8c[m Merge pull request #17 from cgt/master
+[33mc4648d4[m automode.py 0.1.2: update changelog for 0.1.2
+[33m4df4736[m Merge pull request #16 from cgt/master
+[33md1f4ca0[m automode.py 0.1.2: fix issuing mode command
+[33m5e63ed0[m New script urlselect.lua: interactively select URL with keyboard and perform some commands on it
+[33m7342ba9[m New script axolotl.py: encrypt/decrypt IRC messages using axolotl ratchet and GPG
+[33mdba9859[m New script clemy.py: control Clementine from WeeChat
+[33me3ef734[m buffers.pl 4.6: add support of hidden buffers (WeeChat >= 0.4.4)
+[33mab8e6e8[m New script auth.rb: automatically authenticate with NickServ using SASL username/password
+[33m9584120[m Merge pull request #10 from tribut/patch-1
+[33me6bd1d9[m grep.py 0.7.3: Fix typo
+[33m55af3d9[m Merge pull request #13 from stfnm/isgd.pl
+[33mabfde3f[m isgd.pl 0.9
+[33mf3aa949[m New script mnick.pl: multi-server nick changer
+[33m6d14198[m colorize_lines.pl 3.3: use localvar "colorize_lines" for buffer related color
+[33mf4f9e4a[m Add format of messages for commits in Contributing.asciidoc
+[33m2f93068[m New script btc_ticker.py: display Bitcoin or other crypto currency spot exchange value
+[33me66fded[m kickban.pl 0.3: fix bug with uninitialized variable
+[33mc1434ae[m weetweet.py 1.2.1: fix stream bug
+[33m82316e1[m weetweet.py 1.2: update to twitter lib 1.14.1
+[33m28f4c29[m New script countdown.rb: display a countdown on current buffer
+[33mbbe3a0e[m Merge pull request #7 from stfnm/pushover.pl
+[33m87fc017[m pushover.pl 0.6
+[33m9ba6a70[m coords.pl 0.7.3.1: remove use of CharWidth
+[33m5a5ed25[m Merge branch 'pushover.pl' of https://github.com/stfnm/weechat-scripts-official
+[33m848a28d[m pushover.pl 0.5
+[33m7c98696[m New script shutup.py: replace text from specified IRC users with random or preset text
+[33m0e0ec8b[m New script responsive_layout.py: automatically apply layouts according to terminal size
+[33mf3193db[m Remove script invitedby.rb (closes #2)
+[33m72e14f0[m Add "Report an issue" in Contributing.asciidoc
+[33m5aea868[m Fix typo in Contributing.asciidoc
+[33m6a874f9[m Add file Contributing.asciidoc
+[33m1cb3302[m isgd.pl 0.8: add new command switch "-i"
+[33m516d91f[m Add README.md
+[33m278a165[m urlbar.py 11: fix completion of /urlbar arguments
+[33ma4907ba[m xfer_setip.py 0.3: add options "mute" and "url", add support of IPv6
+[33m3f4949a[m bufsize.py 0.6.1: fix color tags for default format
+[33m56c2d26[m coords.pl 0.7.3: remove dependency on CharWidth (now requires WeeChat >= 0.4.2), fix prefix selections
+[33m2302529[m vimode.py 0.3: better operator/motion handling, add yank operator, 'I' and 'p' actions, fix escape key on WeeChat >= 0.4.4
+[33m9c6c208[m bitlbee_typing_notice.py 0.5: change default value for option "server", improve its doc
+[33m25a271d[m colorize_lines.pl 3.2: minor logic fix
+[33m9bfa806[m coords.pl 0.7.2: add custom key bindings
+[33m68eb48a[m tmux_env.py 2: add compatibility with Python < 2.7
+[33mdcfcb78[m isgd.pl 0.7: add new option "auto_min_length", don't auto shorten URLs from topic messages or self nick
+[33m984a214[m iset.pl 3.4: add new options "color_value_diff" and "color_value_diff_selected"
+[33m3c4699e[m pushover.pl 0.4: ship with default API key
+[33ma9d9e11[m New script autosort.py: automatically keep buffers grouped by server and sorted by name
+[33m1dda1b3[m weetext.py 0.1.2: add hook_timer to make sure wtrecv.py is running
+[33m668493e[m autoauth.py 0.10: fix "/auth cmd" command line parsing
+[33m0ebb3e0[m pastebuf.lua 0.2: new supported sites, new options, bugs fixed
+[33m7a437d1[m autojoinem.py 0.2: fix add of keys to existing keys
+[33m3f74916[m iset.pl 3.3: fix bug with column alignment in iset buffer when option name contains unicode characters
+[33md9e63f8[m New script pastebuf.lua: view content of pastebin site in a buffer
+[33md1b8382[m New script autopong.py: auto-reply to ping queries
+[33m2ac4e72[m New script weetext.py: SMS text messaging script using Google Voice
+[33m92d9b72[m New script weemoticons.py: convert ascii emotes to the unicode emoticon
+[33mdd46e9c[m New script autojoinem.py: add/del channel(s) in autojoin option
+[33m8ecdd5a[m New script undernet_totp.py: UnderNET's X OTP (OATH-TOTP) authentication
+[33m92c499b[m New script substitution.rb: substitute strings in messages before they are sent
+[33m3c48768[m screen_away.py 0.12: add option "ignore_relays"
+[33mc1f8436[m coords.pl 0.7.1: add support of hdata type "shared_string"
+[33mdbd037a[m shortenurl.py 0.5.2: color URLs when not shortening if use_color is set
+[33ma1686c0[m weatherbot.py 0.3: minor changes
+[33mbd9d8b0[m buffers.pl 4.5: add option "mouse_move_buffer"
+[33m4e494be[m autoauth.py 0.9: fix commands execution
+[33m0d59b5b[m shortenurl.py 0.5.1: add support of latest WeeChat version
+[33mc41bc81[m weeprowl.py 0.6: don't send notifications for text sent in private, make Prowl API requests in background, add option "prowl_priority"
+[33md922ce2[m autojoin_on_invite.py 0.5: fix parsing of INVITE message
+[33meadaaf1[m colorize_lines.pl 3.1: fix line color when option "highlight" is off
+[33m666e2d7[m crypt.py 1.4.3: update encryption status on buffer switch, extract znc timestamp when displaying encrypted znc playback buffer
+[33ma3cb4bf[m fish.py 0.8: lower-case key storage (match nicks case insensitive), decryption fix for messages from quassel and android irc
+[33m5f4b953[m otr.py 1.3.0: many new features and bugs fixed
+[33m317c324[m buffers.pl 4.4: fix buffer number on drag to the end of list when option weechat.look.buffer_auto_renumber is off
+[33m5c848a8[m buffers.pl 4.3: add options {prefix|suffix}_bufname, fix hook_timer, improve signal handling (less refreshs)
+[33m0c3d31f[m colorize_lines.pl 3.0: major script rewrite, fix irc colors, remove command /colorize_lines and option shuffle
+[33m9b5f8f9[m urlserver.py 1.7: use HTTPS for youtube embedding
+[33m6769790[m urlserver.py 1.6: add reason phrase after HTTP code 302 and empty line at the end
+[33mc011a0a[m typing_counter.py 0.9: add option "start_cursor_pos_at_zero"
+[33m5fce28a[m notification_center.py 0.2.0: add option "show_message_text"
+[33me148f67[m urlserver.py 1.5: replace HTTP 301 by 302
+[33mfac729d[m urlserver.py 1.4: use HTTP 301 instead of meta for the redirection when there is no referer in request
+[33m1d68803[m urlserver.py 1.3: add support of reverse proxy in subdirectory, replace favicon with new weechat logo, set meta referrer to never, fix http_auth in chrome
+[33m92cba20[m highmon.pl 2.4: add support for eval timestamp in bar output
+[33m4643783[m chanmon.pl 2.4: add support for eval timestamp in bar output
+[33m58ea4a7[m newsbar.pl 0.15: fix display error with ${color:nnn} in weechat.look.buffer_time_format
+[33m2cbe18f[m color_popup.pl 0.3: add color codes for reverse (0x16) and underlined (0x1F) in WeeChat >= 0.4.3
+[33mb8cf64d[m New script cmdind.pl: indicator for input line if you are inputting a command or text
+[33m2035d53[m New script weatherbot.py: weather bot using the WeatherUnderground API
+[33m7e0d4b8[m New script irssi_awaylog.py: log highlights/private messages when you are away
+[33me5887e1[m prism.py 0.2.7: add -c switch for the option to pass output to a command
+[33m7f1e3c6[m translate.py 0.7: switch to json version of google translate api, support multiple sentences
+[33m5de7ad8[m autojoin_on_invite.py 0.4: add options "whitelist_nicks" and "whitelist_channels"
+[33mce8243d[m notify.py 0.0.7: use notify2 instead of pynotify, add options "notify_when_away" and "ignore_nicks_startwith"
+[33mdc4312f[m sort_buffers.pl 0.4: fix bug with duplicate channel names on different servers
+[33mb3ecd64[m bufsize.py 0.6: fix warning
+[33mad000fc[m Remove obsolete script script.pl
+[33me18d964[m postpone.py 0.2.2: add match_prefix setting, recall timestamp of postponed message
+[33m44fb162[m queryman.py 0.2: fix file not found error, make script compatible with Python 3.x
+[33me03057b[m autoauth.py 0.8: respond only to notice message from NickServ
+[33m90f345d[m announce_url_title.py 17: fix escaping problem with youtube URLs
+[33mb563a22[m New script triggerbot_helper.py: add users relayed to the nicklist in a triggersafe channel
+[33m03bef6f[m buffers.pl 4.2: use default filling "columns_vertical" when bar position is top/bottom
+[33mba0ab4b[m color_popup.pl 0.2: fix deprecation of "~~" in modern Perl
+[33m48ac9c2[m bufsize.py 0.5: fix refresh on (un)zoomed buffer, add option "count_filtered_lines" and format item "%F"
+[33m3321151[m colorize_lines.pl 2.2: fix display of messages with tabs inside
+[33mefa87c1[m stalker.pl 1.1: add flood protection
+[33m4822e1b[m buffers.pl 4.1: add option "detach_buffer_immediately"
+[33m2fc9eb9[m stalker.pl 1.0: add options "additional_join_info", "timeout", add local var "drop_additional_join_info", use hook_process
+[33m20a4ccd[m buffers.pl 4.0: add options "detach_displayed_buffers" and "detach_display_window_number"
+[33m11b2240[m vimode.py 0.2.1: fixes/refactoring
+[33m1aea7ce[m uppercase.py 0.2: fix uppercase with command /me
+[33mfe6eec8[m New script invitedby.rb: display "invited by" messages in their own channel
+[33m40e2d7e[m New script jump_smart_higher.pl: jump to a higher buffer with activity
+[33mb3a6e7d[m New script undernet_challenge.rb: respond to undernet challenge when there's no identd
+[33m130596b[m curiousignore.pl 0.3: add options "cloaked_text_reply" and "rapid_fire", add description for options
+[33m5e62a19[m New script tmux_env.py: update WeeChat environment from tmux
+[33mf807848[m highmon.pl 2.3.3.2: fix typo in fix command
+[33mcb167d9[m New script hl_here.pl: show highlights in the active buffer
+[33md9dc880[m New script autosavekey.py: save channel key to autojoin or secured data
+[33m1656e65[m New script sort_servers.py: sort buffers by server and alphabetically
+[33mc37bf4c[m New script weeprowl.py: Prowl notifications
+[33m7d8bf3d[m New script mnotify.py: mail notifications of private/highlight/DCC and more
+[33m61c0741[m New script weemustfeed.py: RSS/Atom/RDF aggregator
+[33m8527dd8[m New script samechannel.rb: list multiple occurences of the same nick(s) in a set of channels
+[33m8490faa[m weetweet.py 1.1: remove thread command, fix display of UTF-8 chars
+[33m4b6c910[m bufsize.py 0.4: fix bug with root bars, add support of eval_expression
+[33mccfeb9a[m spell_correction.py 0.6: add option "replace_mode", support of /eval, fix typo in help
+[33m910ed3f[m highmon.pl 2.3.3.1: add warning and fix when buffer is closed
+[33m898d661[m chanmon.pl 2.3.3.1: add warning and fix when buffer is closed
+[33m9940499[m nma.py 1.0.6: add a "test" action, reload config changes dynamically
+[33m423c3dc[m typing_counter.py 0.8: fix regex bug with ":" in sms text
+[33m2ed5a24[m unset_unused.pl 0.2: add support for guile scripts
+[33m5fc7564[m sort_buffers.pl 0.3: add options for script on hook_signal("buffer_opened"), fix bug when irc.look.server_buffer was independent
+[33m3313c27[m jabber.py 1.6: add support of secured data for password and jid, fix stdout/stderr when no JID was set
+[33mc3176b9[m buffers.pl 3.9: fix problem with linefeed at end of list of buffers, add options "toggle_bar" and "show_prefix_query"
+[33mba1f1d2[m menu.pl 0.9: updates for WeeChat 0.4.2, libtext-charwidth-perl is not used any more
+[33m8e2545c[m New script weespotify.rb: display which song spotify is currently playing
+[33me0320a6[m New script oldswarner.lua: warn user if about to paste URL already existing in buffer
+[33m1f0a72e[m colorize_lines.pl 2.1: fix highlight color in messages (highlight color is changed in messages already displayed)
+[33m6d3e429[m keepnick.py 1.1: add support of secured passwords
+[33m2723631[m chanact.py 0.8: add option "sort_by_number"
+[33m970ceac[m pop3_mail.pl 0.3: add option "prefix_item"
+[33m60edb94[m cmus.py 1.02: rewrite of parsing logic, call 'cmus-remote -Q' only once, no search and replace
+[33m97a6d0e[m pop3_mail.pl 0.2: add support of /secure for passwords, add %h variable for filename
+[33m536ed11[m allquery.py 0.2: add function "-current", support of server name for "-exclude", make script behave like /allchan and /allserver commands, case-insensitive search for query/server
+[33mf957ed7[m typing_counter.py 0.7: fix bug with root bar
+[33m602ea3f[m screen_away.py 0.11: fix reading of set_away
+[33m0b87a4a[m vimode.py 0.2: add Esc to switch to normal mode, add various key bindings and commands
+[33m98115f9[m New script vimode.py: vi key bindings/commands and normal/insert modes
+[33mb010206[m parse_relayed_msg.pl 1.7: add wildcard "*" for supported_bot_names, add support of colors with format "${color:xxx}"
+[33m31914ad[m stalker.pl 0.9: improve database (SQLite) handling
+[33maa2bb3f[m sysinfo.pl 0.7: add support of vcgencmd (eg raspberry pi)
+[33maf50c3e[m stalker.pl 0.8: add function "remove_nick_from_host", support of "${color:xxx}", case insensitive nick search, show "server.nickname" in search results
+[33m12a05c5[m url_shorten.rb 1.9.0: allow custom shorteners, code cleanup, refactoring
+[33mc6b64ce[m iset.pl 3.2: allow "q" as input in iset buffer to close it
+[33m925d520[m alternatetz.py 0.2: add support for multiple timezones
+[33mb4742f4[m New script queryman.py: save and restore query buffers after /quit
+[33ma981611[m facebook_rename.py 1.1.2: add comments in script
+[33m39215df[m facebook_rename.py 1.1.1: fix bugs with minbif server, fix rename in other language than English
+[33m9e76e32[m join2fast.pl 0.8.1: better multiserver support, add bar item to show number of channels queued
+[33m4bcc9c2[m join2fast.pl 0.8: allow filtering of 439 events, add bar item listing current channels in queue and time of next join, add command /j2f to clear or list current queues
+[33m172be26[m screen_away.py 0.10: add option to don't set away (only change nick), allow multiple commands on attach/dettach, do not add suffix if nick already have it
+[33m8bc6eda[m New script url_arza.pl: shorten long URLs in buffers and input line
+[33m935dd07[m isgd.pl 0.6: use hdata instead of infolist (improve performance)
+[33mfce1cff[m typing_counter.py 0.6: add support for gtalksms "reply"
+[33m80bb75f[m buddylist.pl 1.8: fix problem with temporary server, add variable "%h" for filename
+[33m5e6c923[m shell.py 0.8: don't remove empty lines in output of command
+[33m3f827f5[m sort_buffers.pl 0.2: fix bug with duplicate channel names on different servers
+[33m5dc5f37[m prism.py 0.2.6: use buffer received in command callback instead of current buffer
+[33m455ee30[m typing_counter.py 0.5: fix display bug with more than one window, add description for options, add tweet and sms counter for bitlbee and gtalksms
+[33m8b9f22d[m iset.pl 3.1: remove unneeded calls to iset_refresh() in mouse callback, fix bug when clicking on a line after the last option displayed
+[33m4ce363d[m spell_menu.pl 0.4: update to match change in menu.pl, /unset menu.var.spell.* before update
+[33mc37cc21[m menu.pl 0.8: add setting to hide key binding reminder, update script interface for dynamic menu generation to use info_hashtable
+[33m0a6e3cf[m text_item.py 0.3: fix bug with root bar
+[33mebff821[m spell_correction.py 0.5: fix bug with root input bar
+[33m4947ae1[m isgd.pl 0.5: add command switch "-o" to send shortened URL as input to buffer
+[33m6c03867[m bitlbee_typing_notice.py 0.4: do not show typing if value is 0
+[33m1fc87e9[m colorize_lines.pl 2.0: remove debug message
+[33me536e6c[m chanop.py 0.3.1: fix exceptions while fetching bans with /mode, fix crash with /olist command in networks that don't support +q channel masks
+[33mb9b78ee[m fish.py 0.7: use integer for option "mark_position", fix setting key without target specified, fix issue were 'set ' was prepended to key when not specifying a target, fix display of messages with "\n"
+[33m96d084f[m confversion.py 0.2: fix long WeeChat startup caused by commit on every config change
+[33mdc3f260[m away_action.py 0.4: add option "include_channel"
+[33m0899e49[m pushover.pl 0.3: add option "blacklist"
+[33m16bbf7a[m stalker.pl 0.5: add function "count"
+[33md4489dc[m stalker.pl 0.4: add option "tags"
+[33md89c811[m query_blocker.pl 0.8: add option "ignore_auto_message"
+[33m04f382c[m jabber.py 1.5: fix unicode encoding error in /jabber buddies
+[33mf942575[m colorize_lines.pl 1.9: fix display bug with nick_mode
+[33m993c736[m luanma.pl 0.2: add support for partial decode of messages
+[33mecd17f5[m stalker.pl 0.3: fix typos in help and description option, add "ChanServ" to option "guest_nick_regex"
+[33m3309ce9[m prism.py 0.2.5: add option -e (randomized background colors) to command /prism
+[33m5c7f9e2[m windicate.py 0.0.3: add two-way sync between indications and weechat
+[33m00cf7a1[m urlserver.py 1.2: add option "http_scheme_display"
+[33m9d16237[m jabber.py 1.4: add tags in user messages (notify_xxx, no_highlight, nick_xxx, prefix_nick_xxx, log1)
+[33md76aef1[m iset.pl 3.0: simpler title, fix refresh on unset
+[33m85738f8[m wtwitter.py 0.2: rename script twitter.py to wtwitter.py
+[33ma1b6833[m New script weetweet.py: WeeChat twitter client
+[33m4094b55[m New script challengeauth.rb: securely authenticate with QuakeNet by using CHALLENGEAUTH
+[33m449f3bb[m colorize_lines.pl 1.8: add option "use_irc_colors", fix empty char for nick_mode when "irc.look.nick_mode_empty" is off
+[33mb1cdeba[m New script mass_hl_blocker.pl: block mass highlights
+[33m7c1aaf2[m New script spacer.pl: add a space between each character
+[33mba8334c[m New script stalker.pl: record and correlate nick!user@host information
+[33m2765b84[m country.py 0.6: improve support for target msgbuffer
+[33m2180c66[m bitlbee_typing_notice.py 0.3: use "irc_message_parse" to extract nicks, send typing=0 at message completion in private buffers, add options for server/channel/timeout
+[33m4f2103f[m New script cmus.py: control and now-playing script for cmus
+[33m524248e[m prism.py 0.2.4: add support of /prism through keybinding
+[33m6cc9f3b[m multiline.pl 0.6: use completion_freeze
+[33m9be05d8[m chanop.py 0.3: cycle between different banmasks in /oban /oquiet commands, add pop-up bar to show information, save ban mask information, remove workarounds for weechat < 0.3.2, python 3.0 compatibility (not tested)
+[33m6b6e735[m buddylist.pl 1.7: fix perl error when adding/removing nick, fix use of uninitialized value $bitlbee_service_separator (reported by gtmanfred), display warning if no filename is given for the buddylist
+[33m06a8047[m rssagg.pl 1.1: add option "rssagg.engine.autostop", add "last" option to /rssagg command, mute filter in rssagg buffer, fix partial feed callback
+[33m12f9c54[m clone_scanner.py 1.3: fix bug with &local channels and nameless channels (such as just & or #), add /clone_scanner advertise
+[33m7b1fae5[m notify_send.pl 1.4: fix bug with a misplaced integer
+[33m0cd4c65[m xosdnotify.tcl 0.2: add command /xosdtest, add config change hook
+[33m7a6e3c5[m urlserver.py 1.1: made links relative in the html page
+[33m2879bbc[m chanact.py 0.7: channels get a bonus based on priority in sorting
+[33m8a7a215[m listbuffer.py 0.8.1: improve sorting options and add options to adjust the padding of the columns
+[33m991b55a[m prism.py 0.2.3: add option "-b" (backwards text)
+[33mb16e6d2[m New script http_item.lua: bar item with HTTP source
+[33m7cef276[m isgd.pl 0.4: add new option "auto" (default: off), implement URL cache
+[33mb6e91fd[m pushover.pl 0.2: add options "enabled" and "only_if_away", show buffer name in notification message
+[33mdcddede[m sysinfo.pl 0.6: fix memory usage
+[33m3f90b27[m New script pushover.pl: send real-time push notifications to your mobile devices using pushover.net
+[33m6d30e17[m New script notify_send.pl: send libnotify notifications with smart delays to avoid spam
+[33mcad872f[m New script luanma.pl: charset replacement for IRC, recode past message, show encoding and raw high bytes
+[33mf826adc[m weeget.py 2.0: display "obsolete script" warning on WeeChat >= 0.3.9
+[33ma04e147[m urlserver.py 1.0: add options "http_time_format", "display_msg_in_url" (works with relay/irc), "color_in_msg", "separators"
+[33md938252[m query_blocker.pl 0.7: allow own queries, change whitelist format, add tab completion, fix case insensitive comparison for nickserv/chanserv, add option "show_first_message_only"
+[33m7cfee24[m spell_correction.py 0.4: fix bug with empty localvar
+[33m3c1a0ca[m chatters.pl 0.4: add focus info
+[33m24ad781[m im_kayac_com_notify.py 1.2: add channel name in notifications
+[33m4457c7d[m spell_correction.py 0.3: make script compatible with Python 3.x, use new info "aspell_dict" (weechat >= 0.4.1)
+[33m6a339e8[m keepnick.py 0.9: optimizations
+[33mf264b68[m pyrnotify.py 0.9: add timeout option for notification
+[33m86e9c96[m prism.py 0.2.2: add -m switch to append /me to the beginning of the output
+[33m96c3133[m colorize_nicks.py 14: make script compatible with Python 3.x
+[33md983dc8[m New script opall.py: give operator status to everybody in channel
+[33mdeed16c[m lnotify.py 0.1.3: use pynotify, changes on icon, group WeeChat notifications
+[33m1d9c8cd[m New script stick_buffer.py: stick buffer to a window
+[33m9b1d4ff[m multiline.pl 0.5: restore compatibility with weechat 0.3.9.2 broken with spell_correction compatibility hack
+[33m82ea6ee[m im_kayac_com_notify.py 1.1: support secret key authentication
+[33m4dd0ce0[m coords.pl 0.7: use script name for command, important mouse binding fix to make copywin autoclose as it should, forgotten warning on /upgrade
+[33mdff455a[m zerotab.py 1.5: make script compatible with Python 3.x
+[33m841beba[m keepnick.py 0.8: make script compatible with Python 3.x
+[33m8c4a100[m text_item.py 0.2: make script compatible with Python 3.x
+[33ma56f5db[m server_autoswitch.py 0.4: make script compatible with Python 3.x
+[33ma19f33e[m quick_force_color.py 0.4: make script compatible with Python 3.x
+[33m2a15f70[m purgelogs.py 0.4: make script compatible with Python 3.x
+[33mf424aae[m histman.py 0.4: make script compatible with Python 3.x
+[33m6c0d5c1[m bufsize.py 0.3: make script compatible with Python 3.x
+[33m00e1c06[m New script prowl_notify.py: notifications on iPod Touch/iPhone/iPad with Prowl
+[33m127b5ad[m lnotify.py 0.1.2: add option to display weechat or another icon in the notification
+[33md60bc25[m histman.py 0.3: fix wrong command argument in help text
+[33mdd18553[m New script irssinotifier.py: IrssiNotifier push notifications with end-to-end encryption
+[33m4fdf9f0[m New script format_lines.pl: format the output of each line
+[33md7a3ab1[m menu.pl 0.7: add support for menus generated from hdata_list, fix compatibility with script multiline.pl
+[33m499c2fd[m multiline.pl 0.4: improve compatibility with script spell_correction.py
+[33mb8622ad[m New script spell_correction.py: correction for misspelled words in command line
+[33m5e556ba[m newsbar.pl 0.14: add new option "most_recent"
+[33md9a9a90[m highmon.pl 2.3.2: use chat separator defined in weechat config
+[33m06e6ca2[m chanmon.pl 2.3.2: use chat separator defined in weechat config
+[33m5294bb8[m spell_menu.pl 0.3: make spell_menu configurable
+[33md548cfd[m New script color_popup.pl: interpret mirc formatting codes in the input bar and show a color popup when needed
+[33m9447d24[m spell_menu.pl 0.2: fix bug with suggestions from multiple dictionaries and uninitialized warning with many results
+[33me40ec76[m New script spell_menu.pl: popup menu to choose spell checker corrections
+[33mb1967ba[m menu.pl 0.5: fix one char eaten by script
+[33m1caccd3[m logsize.py 0.3: fix bug on first startup, fix crash whe log file does not exist, support of more than one window, two new options "log_disabled" and "file_not_found"
+[33m08d6a9b[m toggle_highlight.py 0.2: fix some bugs
+[33m4ac6872[m New script toggle_highlight.py: toggle notifications of normal messages for current buffer
+[33mdf6519a[m infos.py 0.2: make script compatible with Python 3.x
+[33ma585b29[m autoauth.py 0.7: allow commas in passwords, fix for freenode
+[33mdf3887a[m multiline.pl 0.3: fix magic symbol shown on wrong buffer's input
+[33m087a613[m mpc.py 0.3: fix buffer used to print message (use buffer in command callback, not current buffer)
+[33m77ee58f[m chanop.py 0.2.7: fix /obankick, don't deop before kicking
+[33m40b56f3[m postpone.py 0.2.1: fix channel determination in join_cb
+[33m3dc7a16[m screen_away.py 0.9: add option to ignore servers and don't set away status for them, add descriptions to config options
+[33m2fab87c[m New script text_item.py: add bar items with plain text
+[33m89b0730[m histman.py 0.2: fix UnicodeEncodeError, fix error message
+[33m4cca37b[m colorize_lines.pl 1.7: fix broken lines in dcc chat
+[33m935cd2d[m iset.pl 2.9: fix click on iset buffer for giving focus to window
+[33m561c7f1[m New script histman.py: save and restore global and/or buffer command history
+[33m051308f[m translate.py 0.6: automatically replace old URL (not working any more) by new one
+[33mc288c65[m colorize_nicks.py 13: add option greedy_matching
+[33mca37c0d[m buffer_autoset.py 0.6: add support of core buffer
+[33mbcab0b7[m title.py 0.5: update title when switching window (for WeeChat >= 0.3.7)
+[33mf7fd891[m New script biditext.py: display right-to-left text in chat with fribidi
+[33m7297ac4[m vdm.py 1.3: fix parsing: replace "\r" by space
+[33m47651a6[m go.py 1.9: add option "auto_jump" (automatically switch to uniquely selected buffers)
+[33m7fc1c3a[m coords.pl 0.6: make nicks and channels click-able or selectable with arrow keys when they appear in the channel chat text, fix on weechat /upgrade with copywin open, add new mouse drag events from weechat 0.4.0, many display fixes, improve interop with multiline script
+[33md50262b[m menu.pl 0.4: minor bug fixes for uninitialized variables
+[33mb8fb9b1[m multiline.pl 0.2: add paste detection, make more configurable, automatic send after delay, can be completely invisible (only doing paste detection), add per line key navigation/completion
+[33mb79a229[m New script rssagg.pl: RSS aggregator
+[33ma452afb[m sysinfo.pl 0.5: fix distro+version for Ubuntu LTS and bug with "armv5tel"
+[33m195cd96[m New script parse_relayed_msg.pl: proper integration of remote users' nicknames in channel and nicklist
+[33mfe65698[m New script maildir.pl: unread e-mail notification and count from a local Maildir directory
+[33m787187a[m New script multiline.pl: multi-line edit box, also supports editing of multi-line pastes
+[33m69e575b[m New script xterm_paste.pl: make xterm clipboard paste available as command
+[33m119d963[m New script anotify.py: notifications of private messages, highlight, DCC send/receive and more
+[33me753d69[m New script join2fast.pl: automatically join channels on UnderNET that get throttled due to "Target change too fast"
+[33m2e25136[m New script coords.pl: select text or click URLs as they appear on screen
+[33m2946a03[m New script noirccolors.py: remove IRC colors from selected buffers
+[33m2a25100[m shell.py 0.7: use hashtable for command arguments (for WeeChat >= 0.4.0)
+[33me874004[m isgd.pl 0.3: add new command arguments "number" and "partial expr", use URL transfer in API (for WeeChat >= 0.3.7)
+[33mb31e7a1[m shell.py 0.6: call shell in hook_process (WeeChat >= 0.3.9.2 does not call shell any more)
+[33m1119922[m whatismyip.py 0.2: use URL transfer in API (for WeeChat >= 0.3.7), update service URL
+[33mf5b72c1[m twmn_notify.p 0.1.2: remove invalid calls to config functions, escape message in command for hook_process (fix security issue)
+[33maa7fffa[m announce_url_title.py 16: improve escaping
+[33m86926fe[m vdm.py 1.2: use URL transfer in API (for WeeChat >= 0.3.7)
+[33m62c9e5e[m autoconnect.py 0.2.3: fix bug when no channel is joined on a server
+[33m6b38726[m autoconnect.py 0.2.2: handle channels beginning with "##" (patch by Matthew Iversen)
+[33md7d1b80[m buddylist.pl 1.6: add support for new option "irc.network.whois_double_nick"
+[33mec010d5[m buffers.pl 3.8: add options "mark_inactive", "detach_query", "detach_free_content" and wildcard "*" for immune_detach_buffers
+[33m639a1ae[m buddylist.pl 1.5: fix wrong pointer in bar_item_remove(), fix use of uninitialized value $nickname, add option hide.servername.in.buddylist
+[33m06eb63a[m correction_completion.py 0.3.0: incorrect words have a higher priority (typo completion), remove some chars from the typo
+[33mde529f0[m apply_corrections.py 1.1: many changes (see history in file)
+[33m0fb83bd[m urlgrab.py 2.6: fix escaping of "=", add missing quotes in default parameter (firefox '%s'), remove the mix of tabs and spaces in the file indentation
+[33m7129f23[m fish.py 0.6: allow key exchange in buffer without having to specify user/channel, custom marking of encrypted messages
+[33mab62860[m nma.py 1.0.5: fix bug with notification in queries, handle utf-8 chars properly, add some options to format the notifications
+[33m97de345[m mpdbitl.lua 1.2: hide bitlbot's response
+[33mbe73aa8[m keepnick.py 0.7: add options plugins.var.python.keepnick.nickserv and plugins.var.python.keepnick.<server>.password, change default "delay" value from 60 to 600 seconds
+[33m6457446[m buffers.pl 3.7: call menu on mouse right click if menu.pl is loaded
+[33m81bc794[m menu.pl 0.3: add default menus for bar "buffers" (from script buffers.pl)
+[33m467fcc8[m translate.py 0.5: fix call to translate API, use hook_process_hashtable (the script now requires WeeChat >= 0.3.7)
+[33m300800c[m buffers.pl 3.6: add new option buffers.look.hotlist_counter
+[33mc6a0ed9[m weeget.py 1.9: remove obsolete database field "desc_fr" (it was causing error with /weeget list xxx)
+[33m3ebee26[m keepnick.py 0.6: fix bug with case-sensitive nicks
+[33mf824adf[m infolist.py 0.5: switch to infolist buffer (if exists) when command /infolist is called with arguments, add some examples to help page
+[33me9e6a80[m colorize_lines.pl 1.6: wildcard can be used for server and/or nick, add new value "only" for option "own_lines"
+[33m7610943[m iset.pl 2.8: add key and mouse bindings in title bar
+[33mb19a9e3[m typing_counter.py 0.3: add sound-alarm if cursor reached beginning of line or is after "max_chars", improve option-handling
+[33m8fb7f5d[m New script notification_center.py: notifications through OS X notification center
+[33md5f53a8[m New script apply_corrections.py: display corrected text when user sends s/typo/replacement
+[33m7f20112[m New script mplayer.py: a now watching script for mplayer
+[33m981968c[m yaurls.pl 1.9: add more shortening services
+[33m3cf7b1a[m go.py 1.8: fix jump to non-active merged buffers (jump with buffer name instead of number)
+[33md090003[m bufsave.py 0.3: compatibility with WeeChat >= 0.3.9 (hdata_time is now long instead of string)
+[33mba9eec0[m mpdbitl.lua 1.1: support for multiple Bitlbee accounts and using handle as target for status changes
+[33mcd5c8c6[m expand_url.pl 0.5: fix expand_own() tag "prefix_nick_ccc", add new options: "prefix", "color_prefix" and item "%nick", more than one expander can be used
+[33m2557117[m urlgrab.py 2.5: add exceptions for "#%?&+" in URL escaper
+[33m3956296[m bufsave.py 0.2: use hdata for WeeChat >= 0.3.6 (improve performance)
+[33m024cf6c[m colorize_lines.pl 1.5: use option "irc.look.nick_mode" instead of "weechat.look.nickmode" for WeeChat >= 0.3.9
+[33me7f289a[m New script mpdbitl.lua: set Bitlbee's status message with current MPD track
+[33m3fb7280[m New script twitter.py: send latest tweet to the current buffer
+[33m86c04a2[m urlgrab.py 2.4: escape URLs (fix problem with apostrophe)
+[33mda47f02[m otr.py 1.1.0: remove refs to OTR protocol v1 (not supported), stricter argument parsing, fix status bar item in root bar
+[33m653f48c[m iset.pl 2.7: add combined option/value search, add exact value search, fix problem with metachars in value search, fix use of uninitialized value for unset/reset value
+[33m1b5fe9d[m crypt.py 1.4.2: fix security issue: filter control chars before returning to WeeChat (reported by Michael Holmes)
+[33m7bb8ac4[m expand_url.pl 0.4: code optimizations
+[33m0a10560[m script.pl 1.3: add detection of script plugin (auto-unload script.pl if script plugin is loaded)
+[33mb822c06[m colorize_lines.pl 1.4: fix display bug with IRC CTCP messages
+[33m0c073a1[m New script itunes.rb: iTunes control and now playing script
+[33m9a63a06[m iset.pl 2.6: switch to iset buffer (if existing) when command /iset is called with arguments
+[33m347d834[m listbuffer.py 0.7.1: fix undefined global variable
+[33m3193042[m bufsize.py 0.2: fix display bug with more than one window, hide item on empty buffer
+[33m62c63de[m quick_force_color.py 0.3.1: fix list of nicks
+[33mf340a18[m bufsize.py 0.1.1: use signal "buffer_switch" to update bar item (fix refresh problem in root bars)
+[33m665b8f2[m pyrnotify.py 0.8: fix security problem: add escape of strings sent to notify-send
+[33m440a46c[m urlgrab.py 2.3: drop trailing ")" if "(" not found in URL
+[33mbde19a3[m beep.pl 1.1: add wildcard support for whitelist_nicks
+[33m55c8cd6[m buffers.pl 3.5: add values "server|channel|private|all|keepserver|none" to option "hide_merged_buffers"
+[33m600bb0c[m New script pyrnotify.py: send notifications to remote client using ssh and libnotify
+[33m0839bec[m jabber.py 1.3: fetch names from roster
+[33meb87222[m New script otr.py: Off-The-Record IRC messaging
+[33m73796ef[m buffers.pl 3.4: add option "show_lag"
+[33m0ec7452[m recoverop.pl 0.1.1: recover channel operator in empty channel
+[33m12aa6f9[m quick_force_color.py 0.3: show current colors
+[33m8ac789a[m chatters.pl 0.3: fix return value for callbacks, add check of version, improve option handling
+[33m0b922c3[m chatters.pl 0.2.1: fix bug with same channels on different servers
+[33m748aee5[m New script chatters.pl: bar item with chatters (non idle people)
+[33m59f4cd7[m beep.pl 1.0: add options beep_pv_blacklist, beep_highlight_blacklist, blacklist_nicks, and wildcard support for blacklist_nicks
+[33m281a4ef[m amarok2.pl 0.7: fix display bug
+[33mffa2a63[m query_blocker.pl 0.5: fix: invalid pointer for infolist_get(), problem with case-sensitive nicks, work-around for bug #27936 removed; add: options msgbuffer, open_on_startup, show_nick_only and show_deny_message, nick completion for add/del
+[33m985d47a[m beep.pl 0.9: fix regex for nick in tags, add options "whitelist_channels" and "bell_always"
+[33m9f65b20[m colorize_nicks.py 12: add option "ignore_tags"
+[33m4224a55[m sshnotify.py 0.2.2: fix notification of private messages
+[33ma0f0e18[m crypt.py 1.4.1: fix typo in signal name, remove unused line
+[33m43ac15b[m crypt.py 1.4: add status bar indicator, add options for status bar and cipher
+[33ma60713f[m autoconnect.py 0.2.1: fix bug with removal of channel from autojoin
+[33m401aec8[m urlserver.py 0.9: add options "http_autostart" and "http_port_display", "url_min_length" can now be set to -1 to auto-detect minimal URL length, auto hide port 80 in shortened URL
+[33m80cfb7c[m beep.pl 0.8: add whitelist, trigger, use hook_process for commands, rename option "beep_command" to "beep_command_pv", add help for options
+[33mcaae696[m colorize_lines.pl 1.3: fix problem with dots inside server/channel names
+[33m77504fd[m urlserver.py 0.8: add options http_fg_color/http_css_url/http_title, add descriptive classes to html elements
+[33mafafb4a[m highmon.pl 2.3.1: fix color strings in bar timestamp, fix bar errors
+[33mc244b09[m chanmon.pl 2.3.1: fix color strings in bar timestamp
+[33mbfb55e7[m script.pl 1.2: fix invalid pointer for function infolist_get
+[33m5a8d9b5[m jnotify.pl 1.1: fix invalid pointer for function infolist_get
+[33mc5cba37[m autojoin.py 0.2.4: use name of channel instead of buffer short_name, add support for key-protected channels
+[33m70234f4[m mpc.py 0.2: add support of key "$bitrate"
+[33m6f69f2a[m New script gntpnotify.py: growl notifications using python-gntp
+[33m4acc538[m jabber.py 1.2: fix deletion of server options
+[33m91b7100[m urlserver.py 0.7: fix truncated HTML page, fix base64 decoding with Python 3.x
+[33m6271bfd[m xfer_setip.py 0.2: use server ip.auk.ca to get IP, use URL transfer in API, get IP when script is loaded
+[33m7afe2e9[m buffers.pl 3.3: fix truncation of wide chars in buffer name (option name_size_max) (bug #36034)
+[33m1497367[m colorize_lines.pl 1.2: fix regex too greedy (also hit tag "prefix_nick_ccc")
+[33m5c1283d[m clone_scanner.py 1.1: use lower case comparison in the on-join scan
+[33m15b3951[m clone_scanner.py 1.0: fix on-join scanner bug (introduced in version 0.9)
+[33m7cf57e2[m clone_scanner.py 0.9: add option "compare_idents"
+[33mae0cace[m fish.py 0.5: fix decryption of messages truncated from server
+[33m85b3eae[m weestats.py 0.2: add window split info, add missing call to infolist_free()
+[33m976ee84[m New script weestats.py: insert some statistics about buffers/windows on command line
+[33m80fc8db[m New script fish.py: FiSH encryption/decryption
+[33m39f95a0[m highlightxmpp.py 0.4: fix random XML appearing in messages
+[33m2234718[m buffers.pl 3.2: add new options "detach" (WeeChat >= 0.3.8) and "immune_detach_buffers", add new commands /buffers_whitelist and /buffers_detach
+[33m7bfd0a4[m iset.pl 2.5: fix check of sections when creating config file
+[33m88ef8cf[m samegame.py 0.2: add undo key and bonus +1000 when all blocks are removed
+[33m59ab3bc[m New script samegame.py: SameGame
+[33m68b6efe[m New script hl2file.py: generate a file with highlights for external programs like conky
+[33m6660922[m New script unwanted_msg.py: avoid sending misformatted commands as messages
+[33m1ab4acb[m New script dcc_send_relay.rb: forward DCC SEND requests to a different client
+[33m5d6075e[m yaurls.pl 1.8: fix reload of config file
+[33m37d2fb6[m weeget.py 1.8: fix reload of config file
+[33mc1408eb[m urlgrab.py 2.2: fix reload of config file
+[33ma9cf5de[m text_effects.lua 1.1: fix reload of config file
+[33m25d73ba[m iset.pl 2.4: fix reload of config file
+[33mc65944a[m buffers.pl 3.1: fix reload of config file
+[33m4f0c750[m buffer_autoset.py 0.5: fix reload of config file
+[33mf446608[m jabber.py 1.1: fix reload of config file
+[33mde47ca4[m yaurls.pl 1.7: fix error with twitter links, remove need for modules Regexp::Common and URI::Escape, clean up code
+[33m3ee0145[m urlgrab.py 2.1: fix default value for option "localcmd" ("firefox %s" to "firefox '%s'")
+[33mdc78190[m yaurls.pl 1.5: use config_reload instead of config_read for reload of config file
+[33m5a14496[m New script rhythmbus.pl: control Rhythmbox through qdbus
+[33m5585c26[m New script yaurls.pl: shorten URLs with tinyURL, ls-n, or is.gd
+[33m598ba7a[m highmon.pl 2.3: add option "merge_private" to display private messages, fix channel name colors (when set to on)
+[33mf69c10e[m chanmon.pl 2.3: add option "merge_private" to display private messages
+[33mfb54eaf[m weeget.py 1.7: add support of scheme scripts
+[33me70e053[m menu.pl 0.2: add weechat 0.3.6 API mouse support, fix deprecation in Nlib
+[33mef22e25[m colorize_lines.pl 1.1: fix problems with temporary server, use weechat_string_has_highlight()
+[33m28794f7[m script.pl 1.1: fix: rephrase of text output
+[33m5350c02[m quick_force_color.py 0.2: fix problem with foreground/background color, add: show only a given nick
+[33m572bbb8[m clone_scanner.py 0.8: fix bug with autofocus (do not always force the buffer to be focused)
+[33md42c31c[m newsbar.pl 0.13: fix /me with flood_protection, improve flood_protection, fix display error with weechat.look.buffer_time_format (WeeChat >= 0.3.5)
+[33m63fdca4[m go.py 1.7: add option "use_core_instead_weechat"
+[33m57029c8[m clone_scanner.py 0.7: do not pop up on script loading, add option "autofocus"
+[33ma2f0d5b[m listbuffer.py 0.7: many changes
+[33m9ef47fe[m chanact.py 0.6: add sort of buffers in the chanact list
+[33mfbe0dcb[m script.pl 1.0: complete rewrite of script, add multi-script capability
+[33m9ba9eb6[m New script keepnick.py: keep your nick and recover it in case it's stolen (port to 0.3.x API)
+[33mbb94376[m gntp_notify.rb 1.1: no sticky connection notifications
+[33mc979adc[m weefish.rb 0.4: fix selecting the correct key when PRIVMSG target is your nick, bypass attempting decryption if a PRIVMSG is encrypted but there's no stored key for it
+[33mf808422[m buffers.pl 3.0: fix bug with switch of window (add signal "window_switch")
+[33m5c0479c[m New script quick_force_color.py: quickly add/del/change entry in option irc.look.nick_color_force
+[33m36ddeea[m weeget.py 1.6: use URL transfer from API (for WeeChat >= 0.3.7)
+[33m46c294d[m iset.pl 2.3: fix refresh problem on new search when cursor is outside window, add new option "show_current_line"
+[33m2ea6666[m nameday.py 1.3: add option "reminder"
+[33m22ab1c0[m server_autoswitch.py 0.3: add signal "window_switch"
+[33mb56cc24[m script.pl 0.7: add confirmation for auto(un)load option and error messages
+[33m597b3f3[m buffers.pl 2.9: add options "name_size_max" and "name_crop_suffix"
+[33mf82add9[m seeks.pl 0.3: fix parsing of IRC message (now requires WeeChat >= 0.3.6)
+[33me660dca[m server_autoswitch.py 0.2: fix bug with split windows
+[33m028360c[m New script twmn_notify.py: notifications for twmn
+[33m541cbcc[m New script server_autoswitch.py: cycle to currently used server (for merged buffers)
+[33m5243b5a[m New script logsize.py: display size of current log file in a bar item
+[33mbf839aa[m hl_nicks.py 0.1.1: fix bug in ignore nicks function and remove unnecessary dependency
+[33m8835cde[m New script customize_bar.py: customize bars by buffer
+[33m7b2b599[m New script hl_nicks.py: generate a list of nicks in input by selecting nicks using flags and patterns
+[33mcf97202[m New script bufsize.py: bar item with scroll indicator and info about number of lines in buffer
+[33mc197805[m colorize_nicks.py 11: add nick color in input bar (new option "colorize_input")
+[33maa9325f[m buffers.pl 2.8: fix unset of buffer activity in hotlist when buffer was moved with mouse, add jump_prev/next_visited_buffer, code cleanup
+[33m414d0cd[m urlserver.py 0.6: add option "http_hostname_display"
+[33m94e3a7b[m cmd_help.py 0.4: add options for right alignment and space before help
+[33md1418d1[m memon.py 0.3: notify only on new memos
+[33m3f5b45f[m memon.py 0.2: add option "time" (notification duration)
+[33m6336462[m iset.pl 2.2: fix refresh error when toggling plugins description
+[33m6075596[m nma.py 1.0.2: fix typos and add option "only_away"
+[33mac7f9fc[m New script im_kayac_com_notify.py: push notification to im.kayac.com
+[33m8699f60[m memon.py: add missing email in script author
+[33mcebb13a[m buffers.pl 2.7: fix regex lookup in whitelist buffers list
+[33m4e11a6d[m New script memon.py: Freenode memo notifications (with libnotify)
+[33m1dd7823[m growl.py 1.0.5: fix NoneType error
+[33m0665ff2[m chanpriority.py 0.5: fix bug with channel name on join
+[33mf3fb6ab[m whois_on_query.py 0.6: make script compatible with Python 3.x
+[33md7ee9ae[m weeget.py 1.5: make script compatible with Python 3.x
+[33mf77405e[m vdm.py 1.1: make script compatible with Python 3.x
+[33meff8bac[m urlserver.py 0.5: make script compatible with Python 3.x
+[33mda20456[m translate.py 0.4: make script compatible with Python 3.x
+[33ma8e4b6f[m toggle_nicklist.py 0.7: make script compatible with Python 3.x, use string_match of WeeChat API
+[33mc965944[m nameday.py 1.2: make script compatible with Python 3.x
+[33m88b4973[m minesweeper.py 0.6: make script compatible with Python 3.x
+[33mf387a26[m jabber.py 1.0: changes for future compatibility with Python 3.x
+[33meda5b69[m infolist.py 0.4: make script compatible with Python 3.x
+[33m3cd377a[m hlpvitem.py 0.2: make script compatible with Python 3.x
+[33m25d6dc3[m go.py 1.6: make script compatible with Python 3.x
+[33me8eedcd[m floodit.py 0.4: make script compatible with Python 3.x
+[33me2cd5af[m dcc_antispam.py 0.2: make script compatible with Python 3.x
+[33mdfc80c9[m cron.py 0.4: make script compatible with Python 3.x
+[33m5c3763f[m cmd_help.py 0.3: make script compatible with Python 3.x
+[33m82f8c02[m buffer_autoset.py 0.4: make script compatible with Python 3.x
+[33m4f2af45[m buffers.pl 2.6: add own config file (buffers.conf), add new behavior for indenting (under_name), add new option to set different color for server buffers and buffers with free content
+[33m12724e9[m New script snake.pl: snake game
+[33mc658e39[m jabber.py 0.9: fix utf-8 encoding problem on jid
+[33mf3a528f[m bandwidth.py 1.0: complete rewrite: make script more featureful, robust, and accurate
+[33m5efc43c[m lastfm.py 0.4: fix charset problem: encode messages to UTF-8
+[33m32dd7ef[m bandwidth.py 0.2.1: take refresh_rate into account for bandwidth calculation
+[33m4b5e8e3[m sshnotify.py 0.2.1: add help messages and hint for empty address
+[33m381661c[m colorize_lines.pl 1.0: fix bug with irc.look.nick_prefix
+[33m8425161[m New script zmq_notify.rb: send notifications to a ZMQ socket
+[33m5859e5e[m iset.pl 2.1: use own config file (iset.conf), fix own help color (used immediately)
+[33m263f303[m strmon.pl 0.5.2: do not notify unformatted messages with notifo
+[33mec58481[m strmon.pl 0.5.1: grab URLs and send them with notifo
+[33m493c9da[m inotify.py 0.1.3: use local variable "channel" in buffer instead of reading "short_name", fix command for hook_process (remove line break before "-c")
+[33m616b747[m strmon.pl 0.5.0: support of notifo for notifications, replace qnotify by notify-send in notification daemon
+[33mce02e55[m New script gntp_notify.rb: growl notifications using ruby-gntp
+[33mf7a6ac2[m New script sshnotify.py: a notify script based on lnotify.py
+[33me14285b[m urlserver.py 0.4: add options "http_embed_youtube_size" and "http_bg_color", add extensions jpeg/bmp/svg for embedded images
+[33m2bcec95[m weenetsoul.py: fix license: WTF -> WTFPL
+[33mea49fd4[m urlserver.py 0.3: escape HTML chars for page with list of URLs, add option "http_prefix_suffix", disable highlights on urlserver buffer
+[33mb068eb4[m buffers.pl 2.5: add new options "show_number_char" and "color_number_char", add help-description for options
+[33mf226e58[m urlserver.py 0.2: fix error on loading of file "urlserver_list.txt" when it is empty
+[33mad2c10d[m New script urlserver.py: shorten URLs with own HTTP server
+[33mb7fd405[m nameday.py 1.1: fix colors in output of /nameday
+[33m03ee3e5[m shortenurl.py 0.4.1: add ignore list of URLs
+[33mcbc17e3[m nma.py 1.0.1: fix bug with debug function
+[33md1e100e[m colorize_lines.pl 0.9: add option "own_nick", new value (always) for option highlight, clean up code
+[33mdcb3988[m iset.pl 2.0: add support for left-mouse-button and more sensitive mouse gesture (for integer/color options)
+[33mcb1dcfb[m whois_on_query.py 0.5: add option "self_query" and help for options
+[33m95b72b2[m kickban.pl 0.2: fix bug with ban mask
+[33m3b26f2b[m New script slock_away.py: set away status if slock (X display locker) is running
+[33ma7af93c[m shortenurl.py 0.4: shorten urls in private buffers
+[33m83436f2[m colorize_lines.pl 0.8.1: fix regex
+[33m5b4ee98[m colorize_lines.pl 0.8: new options "avail_buffer" and "nicks", fix blacklist_channels, fix nick_prefixes
+[33m8554d76[m growl.py 1.0.4: better handle of import errors
+[33md09a6e0[m growl.py 1.0.3: handle Growl exceptions and pass icon with every notification
+[33mdb0af49[m New script isgd.pl: shorten URLs with is.gd on command
+[33m25ffc0a[m weenetsoul.py 1.1: add state change
+[33ma765826[m growl.py 1.0.2: updates for Growl 1.3 and license changed to MIT
+[33m9914ae9[m New script nma.py: receive notifications in Notify My Android (android phone app)
+[33mce4d7a5[m New script autoauth.py: auto-authenticate when changing nick (port to WeeChat 0.3.x by CrazyCat)
+[33mf46baa3[m New script growl.py: send Growl notifications upon events
+[33m0851410[m minesweeper.py 0.5: stop timer when game ends (win with flags remaining) or when minesweeper buffer is not displayed
+[33md497168[m minesweeper.py 0.4: fix end of game when player blows up
+[33mc7de8e7[m minesweeper.py 0.3: end game (win) if all squares without mines are explored
+[33m8e79752[m minesweeper.py 0.2: add option "utf8" (to disable utf-8 chars for grid and flags)
+[33me3a24e3[m sysinfo.pl 0.3: add bar item
+[33m87aaad4[m New script minesweeper.py: minesweeper game
+[33m8e576a9[m New script infos.py: display WeeChat infos
+[33mae93f9f[m shell.py 0.5: add shell buffer
+[33mdee2f8e[m automode.py 0.1.1: fix bug with channels and uppercase letters
+[33ma584711[m sysinfo.pl 0.2: recognition for linux kernel 3.x added, option "channel" changed to "-channel"
+[33m78e5ba9[m floodit.py 0.3: fix error on floodit buffer after /upgrade
+[33m04bf042[m xclip.pl 0.2: support large pastes (>64K)
+[33mdf73cb1[m New script buffer_swap.py: swap two buffers
+[33m2b2982d[m script.pl 0.4: create/remove symlinks for scripts, some minor changes
+[33ma0ab23e[m weather.py 0.2: force use of python 2.x in hook_process
+[33m5ddb1ca[m zerotab.py 1.4: do not use nicks from join/part messages
+[33mee41c3a[m iset.pl 1.9: add mouse support, fix iset buffer, fix errors on first load under FreeBSD
+[33m0897ae9[m chanop.py 0.2.6: sync with freenode's updates (quiet list use a new numeric now)
+[33m6e5dd6e[m clone_scanner.py 0.5: add configuration options for where and how messages need to be displayed and further refactored code
+[33mb789772[m New script xclip.pl: paste content from X11 clipboard
+[33m8198e4e[m New script clone_scanner.py: detect multiple nicknames from the same host on channels
+[33m275c301[m chanpriority.py 0.4: reorder channels when option is changed, specify the channel's network
+[33m4df2348[m New script allquery.py: execute command on all irc query buffers
+[33mc85eb9b[m New script notifo.py: send push notifications to your iPhone/Android about your private messages and highlights
+[33me4976dc[m query_blocker.pl 0.4: add missing call to infolist_free
+[33m04a60be[m filter_ext.pl 0.04: add missing calls to infolist_free
+[33m6602e9c[m purgelogs.py 0.3: add search for log-files smaller than age/size (new functions: age_ls and size_ls)
+[33mb59fb61[m New script listbuffer.py: show /list results in a common buffer and interact with them.
+[33m49463f9[m New script script.pl: load/reload/unload script for any language
+[33m1f18a8e[m New script topicsed.pl: edit channel topics by perl regular expressions or in input-line
+[33md90dbf8[m New script weenetsoul.py: Netsoul protocol for WeeChat
+[33mf1ff685[m buddylist.pl 1.3.1: fix use of uninitialized value in string comparison
+[33m24cde5e[m mpris_np.py 0.3: many fix
+[33mc1620df[m chanpriority.py 0.2: remove home link
+[33m36c3fd7[m announce_url_title.py 15: fix remote execution exploit due to unescaped quote character in urls
+[33mcb6a657[m New script arespond.py: an autoresponder (sending a notice on other users' messages)
+[33mbbff6b2[m New script ncmpcpp.pl: control and now playing script for ncmpcpp
+[33m3c93e6c[m New script chanpriority.py: set channel priority
+[33m6e1ac58[m New script mpris_np.py: a now playing script for players supporting the mpris dbus interface
+[33m4805951[m New script unset_unused.pl: unset script option(s) from not installed scripts
+[33me79af2c[m New script spotify_nowplaying.py: current song script for Spotify on OS X
+[33m8e60b6b[m New script urlbuf.py: a common buffer for received URLs
+[33m94f978e[m country.py 0.5: make time format configurable, print to private buffer based on msgbuffer setting
+[33m4b9f86e[m New script autoconnect.py: reopen servers and channels opened last time WeeChat closed
+[33mc88d324[m New script seeks.pl: search terms on seeks node and display results
+[33mcab5bfd[m New script sort_buffers.pl: sort irc buffers alphabetically
+[33me7c1b25[m New script hilites.rb: display WeeChat highlights in dzen (and beep)
+[33m4cd0a15[m New script clemenshow.py: clementine now playing script
+[33m9cef86d[m New script weather.py: display weather from Google
+[33ma5e24cf[m New script topicdiff.py: show differences between old and new topics
+[33m67c20bb[m facebook_rename.py 1.1: add support of minbif
+[33m70238f0[m buddylist.pl 1.3: add mouse support, nick completion for add/del, improve hide_bar function, fix build callback and typos
+[33m8c7c45f[m go.py 1.5: add optional name for /go command, remember cursor position in buffer input
+[33ma6b249b[m buffers.pl 2.4: add mouse support (WeeChat >= 0.3.6)
+[33m68e4f7b[m announce_url_title.py 14: ignore filtered lines
+[33maf0392a[m floodit 0.2: add "q" (or "quit") to close floodit buffer
+[33m4a1965d[m New script floodit.py: flood'it game
+[33m30b60fd[m translate.py 0.3: fix typo in /help translate
+[33m9922fb0[m highmon.pl 2.2.1: add "bar_scrolldown" option to have the bar display the latest hl at anytime
+[33md9cc237[m highlightxmpp.py 0.3: fix message type to "chat", update notes for using an XMPP resource, remove "failed to send" notification
+[33mf92d3e3[m iset.pl 1.8: add option "show_plugin_description" (alt+p)
+[33m2da6e50[m whois_on_query.py 0.4: fix target buffer for command
+[33mb881538[m text_replace.py 0.5: allow empty value for pairs or words
+[33ma0e0dc2[m New script ragefaces.pl: send ragefac.es urls
+[33mbd7b278[m New script echo.pl: execute perl code with a command or in a buffer
+[33m0ca9985[m New script kickban.pl: customizable kickban command with unban timer and mask resolver
+[33me45c5c6[m New script echo.pl: print a line and additionally set activity level
+[33m6a9aef5[m New script listsort.pl: sort the output of /list command by user count
+[33m949ffc7[m jnotify.pl 1.0: allow internal WeeChat command
+[33m74de9e1[m buffers.pl 2.3: add missing option "color_whitelist_default"
+[33m56768ef[m fileaway.py 1.0.2: add alternative for xset users
+[33m1816737[m update_notifier.py 0.4: replace weechat.net by weechat.org
+[33m60a5f3d[m whois_on_query.py 0.3: use irc_is_nick rather than irc_is_channel, only /whois if somebody else opens a query with you
+[33m22a72bd[m New script sysinfo.pl: system info command
+[33m1455648[m iset.pl 1.7: add horizontal scrolling, fix on help bar
+[33me59d534[m buddylist.pl 1.2.1: set bitlbee_service for new added buddy
+[33mf479199[m chanop.py 0.2.5: bug fixes
+[33m948352c[m jnotify.pl 0.9: fix memory leak with infolist
+[33mf64c5c8[m correction_completion.py 0.2.3: fix memory leak with infolist
+[33m32756f1[m go.py 1.4: add option "sort_by_activity"
+[33m0d132e5[m correction_completion.py 0.2.2: add installation instructions and comments
+[33maf24e53[m cmd_help.py 0.2: add options for aliases, start on load, list of commands to ignore; add default value in help of script options
+[33m46e80ed[m buddylist.pl 1.2: function hide_bar, bitlbee buddies separated by protocol, new options text.*, use config_set_desc_plugin (WeeChat >= 0.3.5)
+[33m068ab30[m New script cmd_help.py: contextual command line help
+[33m7a8819d[m nameday.py 1.0: add some missing names and color based on gender
+[33m38afbd4[m go.py 1.3: add info "go_running" (used by script input_lock.rb)
+[33ma6a4a62[m New script input_lock.rb: lock input (authorize only commands)
+[33m9f18624[m New script fileaway.py: set away status based on presence of a file
+[33m4788574[m thinklight_blink.pl 0.3: use hook_timer
+[33m651ef53[m beep.pl 0.7: fix default beep command
+[33mee7e5a0[m rnotify.tcl 1.2: fix bug with remote notification
+[33md800f53[m rnotify.tcl 1.1: add custom setting for query messages
+[33mac6a752[m New script correction_completion.py: provides a completion for "s/typo/correct"
+[33m08822fe[m New script purgelogs.py: delete log files by age or size
+[33m43518de[m New script mpc.py: now playing and control script for mpd
+[33m67f8c8e[m weeget.py 1.4: add completion with installed scripts for action "remove"
+[33m81a7166[m buffers.pl 2.2: fix color of nick prefix with WeeChat >= 0.3.5
+[33m028ee3d[m jabber.py 0.8: search chat buffer before opening it
+[33m6e33b4d[m New script menu.pl: bar with popup menu
+[33m11b9ca0[m colorize_lines.pl 0.7: fix bug with color codes, support server name in blacklist_channels
+[33m9df0b9c[m beep.pl 0.6: add additional command options for dcc and highlight
+[33m2343c7b[m vdm.py 1.0: get python 2.x binary for hook_process (fix problem when python 3.x is default python version)
+[33md891663[m translate.py 0.2: get python 2.x binary for hook_process (fix problem when python 3.x is default python version)
+[33mb7ded8a[m spotify.py 0.6: get python 2.x binary for hook_process (fix problem when python 3.x is default python version)
+[33m1ff4503[m lastfm.py 0.3: get python 2.x binary for hook_process (fix problem when python 3.x is default python version)
+[33me4c9496[m inotify.py 0.1.2: get python 2.x binary for hook_process (fix problem when python 3.x is default python version)
+[33m2af736e[m announce_url_title.py 13: get python 2.x binary for hook_process (fix problem when python 3.x is default python version)
+[33m7d48501[m gweather.py 0.4: get python 2.x binary for hook_process (fix problem when python 3.x is default python version)
+[33md929ad4[m weeget.py 1.3: add script extension in script name completion and a new completion with tags for actions "list" and "listinstalled"
+[33m4409c33[m weefish.rb 0.3: fix crypt/blowfish bug for ruby >= 1.9
+[33m01f5ae5[m beep.pl 0.5: add option for beep command and dcc
+[33m071bf3e[m vdm.py 0.9: fix memory leak in XML parser
+[33mebc98f9[m chanop.py 0.2.4: fix for python 2.5
+[33mc364caf[m kernel.pl 0.4: use hook_process
+[33m2812060[m weetris.pl 0.9: add playing time display
+[33m04124d3[m iset.pl 1.6: display all possible values in help bar, fix bug with options never loaded when starting
+[33m6778df7[m buffers.pl 2.1: add options "color_whitelist_*"
+[33ma47aa38[m ubus.pl 0.2: use ubus spec from ADO
+[33md08baba[m weeget.py 1.2: use new help format for command arguments
+[33m35b4dfd[m jabber.py 0.7: use new help format for command arguments
+[33m1dec969[m cron.py 0.3: use new help format for command arguments
+[33m7b024b5[m launcher.pl 0.5: use new help format for command arguments
+[33maf58e52[m iset.pl 1.5: use new help format for command arguments
+[33m0578785[m New script xmms2.rb: display which song xmms2 is currently playing
+[33m6816aaa[m colorize_lines.pl 0.6: code optimizations, script renamed from rainbow_text.pl to colorize_lines.pl
+[33m35380f8[m iset.pl 1.4: restore value filter after /upgrade using buffer local variable
+[33m1828d1b[m text_replace.py 0.4: improve regexp for word replacement
+[33m6f14a70[m buddylist.pl 1.1: fix offline users on bitlbee (were shown as away)
+[33mfaff7e5[m queue.py 0.4.1: add multi-queue lists and list properties (static, lock)
+[33md21fb26[m identica.py 0.4.2: add nick completion and support for 256 colors
+[33m19941c3[m wmiibar.pl 0.3: fix regex for title of window
+[33m702e1c2[m iset.pl 1.3: add function to search for values, code optimization
+[33m06b229b[m rainbow_text.pl 0.5: support of hotlist_max_level_nicks_add and weechat.color.chat_nick_colors (for WeeChat >= 0.3.4)
+[33mf738977[m New script amqp_notify.rb: send private messages and highlights to an AMQP exchange
+[33m42f9b71[m New script queue.py: command queuing
+[33mb2a2cb6[m grep.py 0.7.2: fix bugs
+[33m1868369[m country.py 0.4.1: fix bugs
+[33m016bb0f[m chanop.py 0.2.3: fix bugs
+[33m2127988[m url_shorten.rb 1.8: split hook_print into 3 hooks
+[33m1a00e6b[m expand_url.pl 0.3: add option "expand_own", fix some bugs
+[33m6f2df8d[m expand_url.pl: add "://" in call to hook_print
+[33mc996d1f[m New script leet.py: convert text to leet
+[33m88eafb3[m New script expand_url.pl: expand short URLs
+[33m1a8c9df[m New script bashorg.pl: retrieve quotes from bash.org
+[33m217f4d8[m urlgrab.py: replace "/url help" by "/help url"
+[33m65dbc76[m New version of rslap.pl
+[33m200a127[m New version of buddylist.pl
+[33m81f8d19[m Remove script cmus.pl
+[33ma905ac1[m New version of iset.pl
+[33m91a3f54[m New version of chanop.py
+[33m27b1d82[m New version of chanop.py
+[33m0476703[m New version of chanmon.pl, highmon.pl and colorize_nicks.py
+[33mc197b74[m New version of colorize_nicks.py
+[33m89d8d01[m New version of jnotify.pl, newsbar.pl and query_blocker.pl
+[33mf96d748[m New version of urlbar.py
+[33m42fbca4[m New version of update_notifier.py
+[33mfc32f74[m New version of update_notifier.py
+[33md1b288d[m New version of chanmon.pl, highmon.pl and nickregain.pl
+[33m09dd105[m New version of announce_url_title.py
+[33m520cbea[m Add new script pop3_mail.pl
+[33m2309a2c[m New version of zerotab.py
+[33m6257386[m New version of buffer_autoset.py
+[33m43fd80a[m New version of rainbow_text.pl
+[33ma53ff9c[m Add new script automode.py
+[33mc4db36b[m New version of text_replace.py
+[33m0daa74f[m New version of jabber.py
+[33m7a20cb7[m New version of iset.pl
+[33m7512ae2[m New version of iset.pl
+[33mc2db154[m Add new script whatismyip.py
+[33m777b2a4[m New version of snotify.py
+[33m2bc15ab[m New version of hotlist2extern.pl
+[33m23fc0a3[m New version of country.py and grep.py
+[33m5df1f80[m Add new script xfer_setip.py
+[33mebeaa62[m New version of minbif_typing_notice.rb
+[33m3e2b229[m New version of shortenurl.py
+[33m3814acc[m Add new script tailer.py
+[33mcd5f44b[m New version of msg_command.py
+[33ma04fb72[m New version of weeget.py: use new python info "python2_bin"
+[33m08bf419[m New version of pybuffer.py (formerly known as weedebug.py)
+[33m6504576[m Add new script msg_command.py
+[33m00f1fea[m New version of away_action.py
+[33md39ab18[m New version of announce_url_title.py
+[33mef9f1b4[m New version of colorize_nicks.py
+[33mef7bf14[m New version of go.py: use high priority for hooks to prevent conflict with other plugins/scripts (WeeChat >= 0.3.4 only)
+[33m9565937[m Add new script weedebug.py
+[33m21da7d1[m Add new script thinklight_blink.pl
+[33m1973d7e[m New version of announce_url_title.py: add user-agent
+[33mc4c9351[m New version of chanop.py
+[33m0136a57[m New version of grep.py
+[33m69e2a3d[m Add new scripts confversion.py, snotify.py and update_notifier.py
+[33mb0ed93c[m New version of lnotify.py (fix security bug)
+[33m550ab82[m New version of hotlist2extern.pl
+[33ma3335ef[m New version of grep.py
+[33mc0ef6c5[m New version of url_shorten.rb
+[33ma7be7d4[m New version of buffer_autoset.py
+[33m4d68aa7[m New version of announce_url_title.py
+[33m2ac6e19[m New version of weetris.pl
+[33m40f329a[m Add new script sensors.py
+[33mf8b41a7[m New version of grep.py
+[33m36b84c6[m Add new script text_effects.lua
+[33ma9574d8[m New version of jabber.py
+[33m9123855[m New version of buffers.pl: add options "sort" and "show_number"
+[33m39ee133[m New version of urlgrab.py
+[33mc889825[m New version of colorize_nicks.py
+[33m18eee11[m New version of jabber.py
+[33m506ea25[m New version of chanmon.pl and highmon.pl
+[33mb8e1516[m Add new scripts windicate.py and xosdnotify.tcl
+[33m2f7e154[m New version of hotlist2extern.pl, announce_url_title.py, chanact.py, screen_away.py
+[33m8c45073[m New version of autojoin.py
+[33m341ec22[m New version of chanmon.pl and chanop.py
+[33m07c23a3[m Add new scripts weefish.rb and lnotify.py
+[33mc0b97fd[m New version of chanmon.pl and highmon.pl
+[33mef1651f[m Add new script wmiibar.pl
+[33mb7bc85f[m New version of weerock.pl
+[33m997149c[m New version of jabber.py
+[33mcc95624[m New version of iset.pl: move misplaced call to infolist_free()
+[33mb49f88b[m New version of zerotab.py: fix bug with nick prefixes
+[33m338be50[m New version of zerotab.py: fix bug with self nick
+[33m59eef5f[m Add new script zerotab.py
+[33maeb57f0[m New version of jabber.py
+[33m77620a8[m New version of jabber.py: add priority and away_priority of resource
+[33m20c67c8[m Add new script jabber.py
+[33ma407f8c[m New version of awaylog.pl
+[33m67e6b14[m New version of cron.py: add keyword "commands" to run many commands
+[33m0c5aaf7[m New version of colorize_nicks.py
+[33m8c67fc7[m Add new script ichatts.py
+[33m2c019bd[m Remove script config_autosave.pl (moved to unofficial scripts, same action can be done with cron.py)
+[33mdb4d874[m Add new script cron.py
+[33mb7af21c[m New version of buddylist.pl and rainbow_text.pl
+[33m7e4bc88[m New version of colorize_nicks.py
+[33mc6c8acd[m New version of imap_status.py
+[33m78f1c88[m Add new script notifo_notify.py
+[33mf6eb634[m Add new script lastfm.py
+[33m0fc5fa9[m New version of weempd.py
+[33m7109d11[m Fix copyright date and remove shebang in shortenurl.py
+[33m07263b6[m New version of shortenurl.py: add new option "public"
+[33m7c4cdb8[m Add new script chanstat.py
+[33mfe839a3[m Add new script curiousignore.pl
+[33m0e3a79d[m New version of buddylist.pl and toggle_nicklist.py
+[33mb7885a0[m New version of rainbow_text.pl
+[33m92fc2bd[m New version of facebook_rename.py
+[33ma39cadd[m New version of colorize_nicks.py
+[33me096d43[m New version of dellog.pl
+[33m76b1486[m New version of launcher.pl
+[33m60a0e45[m New version of launcher.pl
+[33m99b0a1f[m Add new script prism.py
+[33m9f0ef23[m Add new scripts postpone.py, bitlbee_typing_notice.py, minbif_typing_notice.rb, rainbow_text.pl
+[33m791e083[m New version of jnotify.pl
+[33m044c912[m New version of completion.py
+[33m4b1c6db[m New version of beat.pl and typing_counter.py
+[33m7fa012d[m New version of screen_away.py: add command on detach
+[33m22c2a6b[m New version of vdm.py
+[33m98bf631[m New version of chanmon.pl, highmon.pl, nickregain.pl, rslap.pl
+[33m050adda[m New version of urlgrab.py
+[33meff3b6e[m Add new script buffer_autoset.py
+[33md38a8f0[m New version of awaylog.pl and gweather.py
+[33m8b951b2[m New version of typing_counter.py
+[33m69db81f[m New version of buffers.pl: replace log() by length()
+[33mb69e1c1[m New version of typing_counter.py
+[33m0b8bb6c[m New version of gweather.py
+[33m446399c[m New version of grep.py and highlightxmpp.py
+[33mfbd2acb[m Add new script gweather.py
+[33mb0d0c67[m New version of amarok2.pl
+[33m1ac3a8d[m Add new script ubus.pl
+[33m15856e2[m New version of buffers.pl
+[33m1d841f7[m New version of buffers.pl: add new option "indenting_number"
+[33m899e0e3[m New version of go.py
+[33m5561fdd[m New version of colorize_nicks.py
+[33mc35b021[m New version of buddylist.pl
+[33m4928d58[m New version of inotify.py
+[33m2b82f3b[m Add new script away_action.py
+[33mf08bbde[m New version of imap_status.py
+[33m9c48176[m New version of screen_away.py
+[33ma40c22f[m New version of auto_away.py
+[33m83b8769[m Add new script colorize_nicks.py
+[33mbc6dca4[m Add new script typing_counter.py
+[33m26508c2[m Remove script cmdchars.py: feature implemented in WeeChat core, script moved to unofficial scripts for WeeChat <= 0.3.1.1
+[33m6b2b432[m Add new script cmdchars.py
+[33maa3262a[m New version of buffers.pl
+[33m4f627c0[m New version of buddylist.pl
+[33mb79458c[m Add new scripts beat.pl and inotify.py
+[33m13e1ef1[m New version of weeget.py: add option "listinstalled"
+[33m55451be[m New version of auto_away.py and notify.py
+[33macb5495[m Add new script facebook_rename.py
+[33m4315946[m New version of jnotify.pl, auto_away.py and screen_away.py
+[33m414b43e[m New version of spotify.py
+[33m6f5dda5[m New version of auto_away.py
+[33mea344ea[m Add new script snarl_net_notify.pl
+[33mf355e8e[m New version of buffers.pl: add option "show_prefix" (WeeChat >= 0.3.2 recommended), code cleanup, speed up item build time
+[33me225d70[m Add new script auto_away.py
+[33m4fa8d3b[m New version of config_autosave.pl
+[33m6d13cfe[m New version of chanmon.pl: fix memleak
+[33mf0cb649[m Add new scripts dcc_antispam.py and config_autosave.pl
+[33mf12ae1d[m Rename scripts growl-net-notify.pl and moc-control.py to growl_net_notify.pl and moc_control.py
+[33m73560a0[m New version of chanact.py
+[33m7535735[m New version of buddylist.pl
+[33ma61f345[m New version of mplex.pl
+[33mabc1e8d[m New version of toggle_nicklist.py
+[33m173343f[m New version of iset.pl
+[33m961b7dc[m Add new script mplex.pl
+[33md907349[m Add new script weerock.pl
+[33me585ceb[m New version of buddylist.pl
+[33mc257d1f[m New version of buddylist.pl
+[33m144dbe8[m Add new script alternatetz.py
+[33m9df9ad4[m Add new script completion.py
+[33me45658e[m Add new script foo_spam.pl
+[33m6308029[m Remove unneeded shebang in rnotify.tcl
+[33m42bd7f1[m Remove unneeded shebang in filter_ext.pl
+[33m8ef2132[m New version of chanmon.pl and highmon.pl
+[33m516df8f[m New version of weeget.py: fix "running" status of scripts with /weeget check
+[33ma7b7047[m New version of notify.py
+[33m2a5584f[m New version of grep.py
+[33ma042830[m New version of iset.pl: display iset bar only on iset buffer
+[33mcdd85fd[m New version of infolist.py: user can give a pointer as argument
+[33m2094482[m New version of iset.pl: add bar with description, fix bugs
+[33m61603b6[m New version of grep.py
+[33m4746477[m New version of grep.py
+[33me7bf856[m New version of identica.py
+[33m127b64f[m New version of newsbar.pl
+[33m9a91c22[m New version of newsbar.pl, histsearch.py, imap_status.py, upside_down.py
+[33m0afb38d[m Remove script xmms2.rb (moved to unofficial scripts)
+[33mdc2b3f2[m New version of notify.py
+[33mad2c8b0[m New version of notify.py
+[33mdb3985d[m New version of newsbar.pl
+[33m323c422[m New version of screen_away.py
+[33m8719378[m New version of filter_ext.pl
+[33m925ccf0[m New version of infolist.py
+[33ma0204bc[m New version of filter_ext.pl
+[33m7d2997e[m New version of grep.py
+[33ma28f104[m New version of grep.py
+[33mc5f2d2d[m Add new script filter_ext.pl
+[33ma7c777c[m New version of grep.py
+[33ma9b8d9f[m New version of nameday.py
+[33mb88dc67[m Add new script newsbar.pl
+[33mde807fb[m Add new scripts uppercase.py and upside_down.py
+[33m71611ce[m Add new script shortenurl.py
+[33mf816819[m Add new script nameday.py (formerly known as fete.pl in old API)
+[33m2f80845[m New version of country.py
+[33maaa8d36[m Add new script query_blocker.pl
+[33m323e6c6[m Add new script rnotify.tcl
+[33mea32ba6[m Rename egrep.py to grep.py
+[33m1199844[m Add new script xmms2.rb
+[33me798f02[m New version of egrep.py
+[33m176da21[m New version of egrep.py
+[33m612a67a[m New version of kernel.pl
+[33m48ef82f[m Add new script strmon.pl
+[33md6638fd[m New version of amarok2.pl and hotlist2extern.pl
+[33m9702ab1[m New version of amarok2.pl and hotlist2extern.pl
+[33m5703b4d[m New version of urlbar.py: fix option name "show_index" (spaces removed)
+[33m2564422[m New version of weetris.pl: add levels, fix bugs with pause
+[33mfe80867[m New version of weetris.pl
+[33m23155d4[m New version of buffer_autoclose.py
+[33m49b3b3b[m Update WeeChat site in some scripts
+[33m220cca8[m Fix wrong comment in url_shorten.rb
+[33m288827a[m New version of url_shorten.rb: fix license in register()
+[33m3d23fce[m New version of buddylist.pl
+[33m2888a5d[m Add new script announce_url_title.py
+[33me25276b[m Add new script buddylist.pl
+[33me1c42a4[m Add new script hotlist2extern.pl
+[33m7764315[m New version of jnotify.pl
+[33m9066725[m New version of url_shorten.rb
+[33m0c0307f[m New version of spotify.py
+[33m9e4bd1a[m New version of buffer_autoclose.py
+[33m8f706af[m Add new script buffer_autoclose.py
+[33mc731f51[m Add new script infolist.py
+[33m3766a8a[m New version of screen_away.py
+[33md507f60[m Add new script screen_away.py
+[33madcba30[m New version of egrep.py
+[33mc4af502[m New version of yaaa.pl
+[33mb496039[m New version of go.py: add new option for displaying short names
+[33m76e11c6[m New version of yaaa.pl
+[33m44ec8c1[m New version of chanop.py (formerly known as operator.py)
+[33ma6dc031[m New version of autojoin_on_invite.py
+[33md4deda2[m Add new script yaaa.pl
+[33mc547e7d[m New version of rhythmbox.pl
+[33mf47bd33[m Remove script grep.py (same features in egrep.py)
+[33m578cf9d[m New version of urlbar.py
+[33m0b8d485[m New version of imap_status.py
+[33mfc89297[m Add new scripts operator.py, dellog.pl and imap_status.py
+[33m847e169[m New version of spotify.py
+[33m5b17dd8[m New version of autojoin_on_invite.py
+[33m832ceda[m Add new script autojoin_on_invite.py
+[33m6ed12b4[m Add new script text_replace.py
+[33m54187c0[m New version of nickregain.pl
+[33m1919cee[m New version of moc-control.py
+[33m8bdc28e[m New version of moc-control.py
+[33m61999b7[m New version of urlgrab.py
+[33m33ccccc[m New version of nickregain.pl
+[33mb97d6e1[m Add new script nickregain.pl
+[33m519a87c[m New version of autojoin.py and urlbar.py
+[33m33808fe[m New version of moc-control.py
+[33mbcf78e0[m Add new script stats_bar.pl
+[33m7ea44a0[m Add new script translate.py
+[33m9ef0cac[m New version of bandwidth.py
+[33me8f9091[m New version of amarok2.pl
+[33mcf10b4a[m Add new script bandwidth.py
+[33m5e52562[m Add new script volumeter.pl
+[33m6d274d7[m Add script kikoo.pl for new API
+[33m532b795[m New version of amarok2.pl, jnotify.pl and gnotify.py
+[33m4b74719[m Add new script amarok2.pl
+[33me594ebc[m New version of vdm.py: use "q" to close vdm buffer
+[33mad3c33e[m New version of grep.py and egrep.py: scripts compliant with python 2.4
+[33m9763a20[m Add new script gnotify.py (notification via growl)
+[33mc4c5efa[m Add new script rhythmbox.pl
+[33mdbdd146[m Add new script hlpvitem: item with highlight/private messages
+[33mc8afaed[m New version of identica.py: add subscription handling, remember color for each user
+[33m0149cb9[m New version of buffers.pl: remove spaces for indenting when bar position is top/bottom
+[33mb2ceb5c[m New version of weeget.py: fix bugs and add missing info in "/weeget show", display warning if url for plugins.xml.gz is old site
+[33me511a4d[m Add new script spotify.py
+[33m532b5c2[m Fix version in buffers.pl
+[33m22dbc9b[m Remove unneeded shebang in mpdspam.rb
+[33m0ab1ebe[m New version of jnotify.pl
+[33m72e5fb0[m New version of country.py: add timezone and local time information
+[33m4f1a474[m Add new scripts jnotify.pl, highlightxmpp.py, uname.py, myuptime.rb, new version of moc-control.py
+[33m2b42339[m Add new script mpdspam.rb
+[33m0341e55[m Add new script moc-control.py
+[33m4f6b176[m New version of chanmon.pl and highmon.pl
+[33mb1dbe2a[m New version of weeget.py
+[33m76992e1[m New version of chanmon.pl and highmon.pl
+[33m37bb0b8[m New version of chanmon.pl and highmon.pl
+[33maa3b031[m Add new script country.py
+[33m11ab5e5[m Add new script egrep.py
+[33m538f2d8[m Remove unneeded shebangs in some scripts
+[33mffdedf0[m Fix typo in rslap.pl
+[33m1d77539[m New version of chanmon.pl, highmon.pl and rslap.pl
+[33mb19b978[m Add new script highmon.pl
+[33m0c17796[m New version of rslap.pl
+[33m3cae776[m New version of identica.py
+[33mfd0eadc[m Add new script identica.py
+[33m814ec8a[m Add new script rslap.pl
+[33m598ca6e[m New version of chanmon.pl
+[33m5edf4f6[m Add new script cmus.pl
+[33mbc8be79[m New version of chanmon.pl
+[33m591e9a8[m New version of chanmon.pl
+[33mce80822[m New version of urlbar.py
+[33m4d566bc[m New version of chanmon.pl
+[33md121340[m Rename nicklist_autoshow.py to toggle_nicklist.py, use new modifier for bar condition
+[33ma487f50[m New version of grep.py: add --exact
+[33m6bccd3a[m Add new script nicklist_autoshow.py
+[33m296f133[m New version of iset/mastermind/weetris: fix bug with buffer after /upgrade
+[33m8fa85fe[m New version of moc.pl: update help for command /moc
+[33ma37650c[m New version of chanmon.pl: add customizable alignment
+[33m73c489b[m Add new script autojoin.py
+[33m1ced035[m Add new script kiloseconds.py
+[33mba776e3[m New version of title.py
+[33mf4b244c[m Add new script grep.py
+[33m80ba70a[m New version of notify.py
+[33mbf4a197[m Add new script weempd.py
+[33m2ffb5f7[m New version of title.py
+[33m3a4b183[m New version of go.py: fix typo in /help go with command /key
+[33me04090f[m New version of chanact.py
+[33m504576f[m New version of chanmon.pl
+[33ma99c3f5[m New version of buffers.pl: add option "hide_merged_buffers"
+[33m95e5b34[m New version of buffers.pl: improve display with merged buffers
+[33m11be41e[m New version of chanmon.pl
+[33m3732b60[m New version of chanmon.pl: fix tabs in messages
+[33m8623d38[m New version of vdm.py: fix bug when vdm buffer is closed: clear old list
+[33mdce0ce8[m Add new script histsearch.py
+[33m5dacbfc[m Add new script bufsave.py
+[33m01d36db[m Add new script chanmon.pl
+[33m29437a7[m Add new script urlgrab.py
+[33m50ca7ce[m Add new script urlbar.py
+[33m9adc468[m Add new script chanact.py
+[33mb1fd54e[m Update version 0.2.7 to 0.3.0 in scripts
+[33md1488a5[m New version of go.py: search buffer by number, fix bug when window is split
+[33m5d797ed[m New version of title.py
+[33m8eccc23[m Add new script title.py
+[33ma6b4a35[m Add new script kbtimeout.py
+[33m8af8ec9[m New version of go.py: eat tab key (do not complete input, just move buffer pointer)
+[33m44566ea[m Fix author name in register
+[33m5f42026[m Add new scripts audacious.pl, fortune.pl, kernel.pl, shuffle.pl
+[33m81c287f[m Update all scripts (sync with API changes)
+[33m7bdabd7[m New version of growl-net-notify.pl
+[33m5cc0416[m Add new script chan_hl.tcl
+[33m4c333e2[m New script growl-net-notify.pl, for v0.2.7+
+[33m48081e0[m New version of vdm.py: use existing vdm buffer if found (for example after /upgrade)
+[33m95d3123[m Add new script notify.py
+[33mac8176a[m Add new script quodnp.py: now playing and control script for Quodlibet
+[33m13701e6[m New version of weeget.py: display missing module(s) when import failed
+[33mc6c2132[m New version of weeget.py: use new completion for command arguments
+[33m1f7f6a0[m New version of weeget.py: ensure that weeget is always last installed script
+[33m33aad81[m New version of weeget.py: add author's mail in script description
+[33mf622fd7[m Add new script weeget.py: script manager
+[33m7bf9be2[m Update mail
+[33mdbb362a[m Delete scripts for stable API in master branch
+[33m6748ca8[m New version of go.py: updates for API changes
+[33mea7793c[m New version of vdm.py: do not switch to vdm buffer if there's nothing new to display, do not display time for each line on vdm buffer
+[33m0253dc5[m New version of tinyurl.py, for v0.2.7+
+[33me03a075[m New version of vdm.py: fix problem with "&quot;" in string
+[33m496b9e2[m Add new script vdm.py: display content of viedemerde.fr/fmylife.com website
+[33mcc42541[m New version of shell.py: use hook process, add timeout option
+[33m98189ad[m New version of buffers.pl: remove timer used to update bar item first time (not needed any more)
+[33mb9c91e6[m New version of go.py: do not hook command and init options if register failed
+[33mdef7d72[m New version of buffers.pl: fix bug with indenting of private buffers
+[33me33b75b[m New version of go.py: case insensitive search for buffers names
+[33md4337a7[m Add new script whois_on_query.py
+[33md3106c6[m Add help about Tab key in script go.py
+[33mb9d58ad[m Add new script go.py
+[33m80b754c[m New version of mpdnp.py, for v0.2.7+
+[33m417b0d6[m Add new script launcher.pl
+[33m699d33e[m New version of sound.pl, for v0.2.7+
+[33m34769ea[m New version of shell.py, for v0.2.7+
+[33md39a1d5[m New version of moc.pl, for v0.2.7+
+[33m098dbfd[m New version of iset.pl
+[33mc1227f7[m New version of buffers.pl
+[33m7eb7700[m New version of iset.pl
+[33ma9aafbc[m New version of crypt.py
+[33m4c1025d[m New version of crypt.py, for v0.2.7+
+[33m2552263[m New version of awaylog.pl, for v0.2.7+
+[33mef9b5ff[m New version of pagetitle.py
+[33m8d3c8b7[m Add new script mastermind.pl
+[33m61d769f[m Minor code cleanup
+[33m4b7ddfb[m New version of weetris.pl: hook timer only when weetris buffer is open
+[33mf9d210a[m Add script url_shorten.rb for new API
+[33m94dac6f[m Fix license in script beep.pl
+[33m8d5641b[m New scripts: buffers.pl, iset.pl and weetris.pl
+[33m42c61b1[m Conversion of script beep.pl to WeeChat 0.2.7+
+[33m2fb3dfb[m New version of script notify.py
+[33m4c34ce3[m New script kikoo.pl
+[33mabd1f34[m New version of pmwhitelist.py
+[33m12eedf1[m New version of highlights.py (formerly known as hlagg.py)
+[33m992847b[m Convert french messages to english in weempd.py
+[33m1df6b40[m New version of weempd.py
+[33me73dd5e[m New script histecho.pl
+[33m991b44f[m New script crypt.py
+[33m80b231f[m New version of script clonescan.py
+[33mff95436[m New script pagetitle.py
+[33m0b9045b[m New version of script tinyurl.py
+[33mfda2ca1[m Update script weenotify.py
+[33m2ceaaef[m New version of script weenotify.py
+[33m2f7c84f[m New version of script weenotify.py
+[33me31a1d2[m New script obsolete.py
+[33mc03bc50[m New script hlagg.py
+[33m45f8350[m New version of script weenotify.py
+[33mee66315[m New script weenotify.py
+[33ma7a5a44[m New script mslapper.pl
+[33m6859cfd[m New script weesonata.py
+[33m1ac15d2[m New version of tray.rb
+[33me30b29e[m New script highlight_jabber_notify.rb
+[33m207e8e9[m New script auto_invite.py
+[33mcb3c9fb[m New script auto_dcc_own_ip.rb
+[33m7cc355f[m New script tray.rb
+[33m0487a4c[m New script nickserv.rb
+[33m9ad02f3[m New version of pmwhitelist.py
+[33mff12618[m New version of logsearch.pl
+[33mb9d352b[m New version of layout.pl
+[33md49406c[m New version of pmwhitelist.py
+[33mf20cf28[m New version of pmwhitelist.py
+[33mdfa40ad[m Updated script pmwhitelist.py
+[33meb8b317[m Added script pmwhitelist.py
+[33m347a8d5[m Updated script logsearch.pl
+[33m33aaf62[m Added script orpheus.pl
+[33m76f7f7b[m Fixed vulnerability in xmms.pl where names with \n or \r can execute IRC commands
+[33m42cf9bb[m Updated script notify.py
+[33m4374b50[m Added script text_replace.py
+[33m77efe1c[m Updated version in script growl-notify.pl
+[33m3c9a8ee[m Updated script growl-notify.pl (fixed a bug handling /topic changing)
+[33m7e320b1[m Added script notify.py
+[33m5b0216b[m Updated layout.pl script
+[33mc070981[m Updated script xmms2.pl
+[33mec8dc54[m Fixed security problem in sound.pl script
+[33m621af29[m Added script bitlback.py
+[33md005645[m Added script xmms2.pl
+[33m242a136[m Added script automode.pl
+[33mcb908bf[m New version of urlgrab.py
+[33m7429c29[m Updated script now-playing.rb
+[33m4d54a64[m Updated mac-update-status.pl script
+[33m2702e34[m Updated growl-notify.pl script
+[33mcb3250f[m Added surfraw.rb script
+[33m08d529b[m Added mac-update-status.pl script
+[33m682fb7c[m Updated growl-notify.pl script
+[33m318814b[m Added weeter.pl script
+[33m6ee6689[m Updated growl-notify.pl script
+[33mf181dfb[m Added growl-notify.pl script
+[33m354d0b8[m Upgraded script licence to GPLv3
+[33mcfc0dae[m Added layout.pl script
+[33mc947f0a[m Updated script urlgrab.py
+[33m465e439[m New version of awl.py
+[33m5699158[m Added mpd.py script
+[33m80ca225[m Added forcenick.rb script
+[33m491e3b1[m Remove uneeded calls to the python interpreter. Scripts are executed by an     embedded interpreter.
+[33mec86bd7[m Added browse.rb script
+[33maabd763[m New version of ctcp.py
+[33m2689c8c[m Added oldtopic.pl script
+[33m59e9d75[m Added response.py script
+[33m6dcd3cc[m Added weempd.py script
+[33m2a06a77[m New version of amarok.py
+[33m825579c[m New version of amarok.py
+[33m3cfc2bb[m New version of ctcp.py
+[33m0e4185f[m Updated catapult.py
+[33mb13bfb0[m Updated rbox.rb script
+[33m8f2f201[m Added logurlsql.pl and rbox.rb scripts
+[33m6c64caa[m Added awl.py script
+[33me6d2a2a[m Added scripts last.fm.py and weexaile.py
+[33m7432c5b[m Added mp3blaster.py script
+[33m0546163[m New e-mail for author of xmms.pl
+[33mbd46601[m Added amarok.py script
+[33meabce72[m Version 0.2 -> 0.3 for script auto_op.py
+[33md56c545[m Fixed auto_op.py script for quakenet like servers (no ":" after JOIN)
+[33m3fc47c6[m Updated "pyexec.py" script
+[33mc191969[m Added "clonescan.py" script
+[33m820c267[m Added "pyexec" script
+[33m9484413[m Added audacious.pl script
+[33m42ce248[m Added "bufsave" perl script
+[33m15ce524[m Added keepnick python script
+[33mc240a59[m Initial import
