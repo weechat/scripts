@@ -553,6 +553,10 @@ def go_command_run_buffer(data, buf, command):
 
 def go_command_run_window(data, buf, command):
     """Function called when a command "/window xxx" is run."""
+    if command == '/window scroll_bottom':
+        # cancel selection and return to input
+        go_end(buf)
+        return weechat.WEECHAT_RC_OK_EAT
     return weechat.WEECHAT_RC_OK_EAT
 
 
