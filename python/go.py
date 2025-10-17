@@ -22,6 +22,8 @@
 #
 # History:
 #
+# 2025-10-17, Leo Vivier <zaeph@zaeph.net>:
+#     version 3.0.2: add regexp search and cancellation with scroll_bottom
 # 2024-05-30, Sébastien Helleu <flashcode@flashtux.org>:
 #     version 3.0.1: refresh buffer input at the end of search
 # 2024-05-30, Sébastien Helleu <flashcode@flashtux.org>:
