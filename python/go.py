@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 #
+# Copyright (C) 2025 Leo Vivier <zaeph@zaeph.net>
 # Copyright (C) 2009-2023 Sébastien Helleu <flashcode@flashtux.org>
 # Copyright (C) 2010 m4v <lambdae2@gmail.com>
 # Copyright (C) 2011 stfn <stfnmd@googlemail.com>
@@ -148,6 +149,9 @@ SETTINGS = {
     'color_name_highlight_selected': (
         'red,brown',
         'color for highlight in a selected buffer name'),
+    'regexp_search': (
+        'off',
+        'search buffer matches using regexps'),
     'fuzzy_search': (
         'off',
         'search buffer matches using approximation'),
@@ -356,7 +360,10 @@ def go_matching_buffers(strinput):
             full_name = '%s.%s' % (
                 weechat.infolist_string(infolist, 'plugin_name'),
                 weechat.infolist_string(infolist, 'name'))
-        matching = name.lower().find(strinput) >= 0
+        if go_option_enabled('regexp_search'):
+            matching = bool(re.search(strinput, name, re.IGNORECASE))
+        else:
+            matching = name.lower().find(strinput) >= 0
         if not matching and strinput[-1] == ' ':
             matching = name.lower().endswith(strinput.strip())
         if not matching and go_option_enabled('fuzzy_search'):
