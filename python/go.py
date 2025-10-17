@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 #
+# Copyright (C) 2025 Leo Vivier <zaeph@zaeph.net>
 # Copyright (C) 2009-2023 Sébastien Helleu <flashcode@flashtux.org>
 # Copyright (C) 2010 m4v <lambdae2@gmail.com>
 # Copyright (C) 2011 stfn <stfnmd@googlemail.com>
@@ -21,6 +22,8 @@
 #
 # History:
 #
+# 2025-10-17, Leo Vivier <zaeph@zaeph.net>:
+#     version 3.0.2: add regexp search and cancellation with scroll_bottom
 # 2024-05-30, Sébastien Helleu <flashcode@flashtux.org>:
 #     version 3.0.1: refresh buffer input at the end of search
 # 2024-05-30, Sébastien Helleu <flashcode@flashtux.org>:
@@ -148,6 +151,9 @@ SETTINGS = {
     'color_name_highlight_selected': (
         'red,brown',
         'color for highlight in a selected buffer name'),
+    'regexp_search': (
+        'off',
+        'search buffer matches using regexps'),
     'fuzzy_search': (
         'off',
         'search buffer matches using approximation'),
@@ -356,7 +362,10 @@ def go_matching_buffers(strinput):
             full_name = '%s.%s' % (
                 weechat.infolist_string(infolist, 'plugin_name'),
                 weechat.infolist_string(infolist, 'name'))
-        matching = name.lower().find(strinput) >= 0
+        if go_option_enabled('regexp_search'):
+            matching = bool(re.search(strinput, name, re.IGNORECASE))
+        else:
+            matching = name.lower().find(strinput) >= 0
         if not matching and strinput[-1] == ' ':
             matching = name.lower().endswith(strinput.strip())
         if not matching and go_option_enabled('fuzzy_search'):
@@ -546,6 +555,10 @@ def go_command_run_buffer(data, buf, command):
 
 def go_command_run_window(data, buf, command):
     """Function called when a command "/window xxx" is run."""
+    if command == '/window scroll_bottom':
+        # cancel selection and return to input
+        go_end(buf)
+        return weechat.WEECHAT_RC_OK_EAT
     return weechat.WEECHAT_RC_OK_EAT
 
 
