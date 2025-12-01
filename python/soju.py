@@ -6,7 +6,7 @@
 import weechat
 import datetime
 
-weechat.register("soju", "soju", "0.5.0", "AGPL3", "soju bouncer integration", "", "")
+weechat.register("soju", "soju", "0.5.1", "AGPL3", "soju bouncer integration", "", "")
 
 BOUNCER_CAP = "soju.im/bouncer-networks"
 
@@ -95,12 +95,15 @@ def handle_bouncer_msg(data, signal, signal_data):
     net_name = "".join(ch if check_char(ch) else "_" for ch in net_name)
 
     addr = weechat.config_string(weechat.config_get("irc.server." + server_name + ".addresses"))
+
+    if weechat.config_get("irc.server." + net_name + ".addresses"):
+        weechat.command(weechat.buffer_search("core", "weechat"), "/server del " + net_name)
+
     add_server = [
         "/server",
         "add",
         net_name,
         addr,
-        "-temp",
     ]
 
     if weechat_version >= 0x04000000:
@@ -118,6 +121,8 @@ def handle_bouncer_msg(data, signal, signal_data):
 
     for k in ["password", "sasl_mechanism", "sasl_password"]:
         v = weechat.config_string(weechat.config_get("irc.server." + server_name + "." + k))
+        if not v:
+            continue
         add_server.append("-" + k + "=" + v)
 
     weechat.command(weechat.buffer_search("core", "weechat"), " ".join(add_server))
