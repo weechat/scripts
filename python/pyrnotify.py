@@ -3,7 +3,7 @@
 #
 # SPDX-FileCopyrightText: 2012 Krister Svanlund <krister.svanlund@gmail.com>
 #
-# SPDX-License-Identifier: GPL3
+# SPDX-License-Identifier: GPL-3.0-or-later
 #
 #   based on tcl version:
 #    Remote Notification Script v1.1
@@ -72,7 +72,7 @@ import sys
 
 SCRIPT_NAME = "pyrnotify"
 SCRIPT_AUTHOR = "Krister Svanlund <krister.svanlund@gmail.com>"
-SCRIPT_VERSION = "2.0"
+SCRIPT_VERSION = "2.0.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Send remote notifications over SSH"
 
