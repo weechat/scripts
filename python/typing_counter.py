@@ -115,10 +115,10 @@ tc_default_options = {
 tc_options = {}
 
 # regexp to match ${color} tags
-regex_color=re.compile('\$\{([^\{\}]+)\}')
+regex_color=re.compile(r'\$\{([^\{\}]+)\}')
 
 # regexp to match ${optional string} tags
-regex_optional_tags=re.compile('%\{[^\{\}]+\}')
+regex_optional_tags=re.compile(r'%\{[^\{\}]+\}')
 
 def command_run_cb (data, signal, signal_data):
     if tc_options['warn_command'] == '':
