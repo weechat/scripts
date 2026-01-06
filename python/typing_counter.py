@@ -1,5 +1,8 @@
-# Copyright (c) 2010-2013 by fauno <fauno@kiwwwi.com.ar>
-# Copyright (c) 2018 by nils_2 <freenode.#weechat>
+#
+# SPDX-FileCopyrightText: 2010-2013 fauno <fauno@kiwwwi.com.ar>
+# SPDX-FileCopyrightText: 2018 Nils Görs <weechatter@arcor.de>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
 #
 # Bar item showing typing count. Add 'tc' to a bar.
 #
@@ -46,6 +49,11 @@
 # 1.0 <nils_2@freenode>:
 #       make script python3 compatible
 #       add regular expression for format option
+# 1.0.1:
+#       fix warning messages when loading script
+# 1.0.2:
+#       drop Python 2 support, remove commented code, fix linter errors
+#       add SPDX copyright and license tags
 #
 # usage:
 # add [tc] to your weechat.bar.status.items
@@ -73,11 +81,9 @@
 # - buffer whitelist/blacklist
 # - max chars per buffer (ie, bar item will turn red when count > 140 for identica buffer)
 
-from __future__ import print_function
-
 SCRIPT_NAME    = "typing_counter"
 SCRIPT_AUTHOR  = "fauno <fauno@kiwwwi.com.ar>"
-SCRIPT_VERSION = "1.0"
+SCRIPT_VERSION = "1.0.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Bar item showing typing count and cursor position. Add 'tc' to a bar."
 
@@ -85,16 +91,16 @@ import_ok = True
 
 try:
   import weechat as w
-
-except Exception:
+except ImportError:
     print("This script must be run under WeeChat.")
     print("Get WeeChat now at: https://weechat.org/")
     import_ok = False
-try:
-    import os, sys, re
 
+try:
+    import os
+    import re
 except ImportError as message:
-    print(('Missing package(s) for %s: %s' % (SCRIPT_NAME, message)))
+    print('Missing package(s) for %s: %s' % (SCRIPT_NAME, message))
     import_ok = False
 
 tc_input_text   = ''
@@ -121,6 +127,7 @@ regex_color=re.compile(r'\$\{([^\{\}]+)\}')
 regex_optional_tags=re.compile(r'%\{[^\{\}]+\}')
 
 def command_run_cb (data, signal, signal_data):
+    """Callback for /input xxx commands."""
     if tc_options['warn_command'] == '':
         return w.WEECHAT_RC_OK
     global length, cursor_pos, tc_input_text
@@ -131,16 +138,20 @@ def command_run_cb (data, signal, signal_data):
         tc_action_cb()
     return w.WEECHAT_RC_OK
 
+
 def tc_bar_item_update (data=None, signal=None, signal_data=None):
-    '''Updates bar item'''
-    '''May be used as a callback or standalone call.'''
+    """Update bar item.
+
+    May be used as a callback or standalone call.
+    """
     global length, cursor_pos, tc_input_text
 
     w.bar_item_update('tc')
     return w.WEECHAT_RC_OK
 
+
 def tc_bar_item (data, item, window):
-    '''Item constructor'''
+    """Item constructor."""
     # window empty? root bar!
     if not window:
         window = w.current_window()
@@ -169,7 +180,6 @@ def tc_bar_item (data, item, window):
         name = w.buffer_get_string(ptr_buffer, 'localvar_name')
         input_line = w.buffer_get_string(ptr_buffer, 'input')
         mynick = w.info_get('irc_nick', servername)
-        nick_ptr = w.nicklist_search_nick(ptr_buffer, '', mynick)
 
         # check for a sms message
         if channel_type == 'private' and name in tc_options['sms_buffer'].split(","):
@@ -177,10 +187,7 @@ def tc_bar_item (data, item, window):
             # 'sms:name:text'
             get_sms_text = re.match(r'(s|sms):(.*?:)(.*)', input_line)
             if get_sms_text:
-#            if get_sms_text.group(2):
                 sms_len = len(get_sms_text.group(3))
-#                input_length = len(input_line)
-#                sms_prefix = input_length - sms_len
                 sms = 160-sms_len
                 reverse_chars = sms
             else:
@@ -202,14 +209,12 @@ def tc_bar_item (data, item, window):
         # get host and length from host
         elif servername != channelname:
             infolist = w.infolist_get('irc_nick', '', '%s,%s,%s' % (servername,channelname,mynick))
-#            w.prnt("","%s.%s.%s.%s" % (servername,channelname,mynick,nick_ptr))
             while w.infolist_next(infolist):
                 host = w.infolist_string(infolist, 'host')
             w.infolist_free(infolist)
             if host != '':
                 host = ':%s!%s PRIVMSG %s :' % (mynick,host,channelname)
                 host_length = len(host)
-#        w.prnt("","%d" % host_length)
                 reverse_chars = (475 - int(host_length) - length -1)    # -1 = return
             else:
                 reverse_chars = (int(tc_options['max_chars']) - length)
@@ -221,13 +226,12 @@ def tc_bar_item (data, item, window):
 
     if reverse_chars == 0:
         reverse_chars = "%s" % ("0")
+    elif reverse_chars < 0:
+        count_over = "%s%s%s" % (w.color(tc_options['warn_colour']),str(reverse_chars*-1), w.color('default'))
+        reverse_chars = "%s" % ("0")
+        tc_action_cb()
     else:
-        if reverse_chars < 0:
-            count_over = "%s%s%s" % (w.color(tc_options['warn_colour']),str(reverse_chars*-1), w.color('default'))
-            reverse_chars = "%s" % ("0")
-            tc_action_cb()
-        else:
-            reverse_chars = str(reverse_chars)
+        reverse_chars = str(reverse_chars)
 
     out_format = tc_options['format']
     if tc_options['warn']:
@@ -247,11 +251,10 @@ def tc_bar_item (data, item, window):
     else:
         out_format = out_format.replace('%R', reverse_chars)
     out_format = out_format.replace('%C', count_over)
-#    out_format = out_format.replace('%T', str(tweet))
-#    out_format = out_format.replace('%S', str(sms))
     tc_input_text = out_format
 
     return substitute_colors(tc_input_text)
+
 
 def substitute_colors(text):
     if int(version) >= 0x00040200:
@@ -271,33 +274,34 @@ def init_config():
         else:
             tc_options[option] = w.config_get_plugin(option)
 
+
 def config_changed(data, option, value):
     init_config()
     return w.WEECHAT_RC_OK
+
 
 def tc_action_cb():
     global tc_options
     if tc_options['warn_command']:
         if tc_options['warn_command'] == '$bell':
-            f = open('/dev/tty', 'w')
-            f.write('\a')
-            f.close()
+            with open('/dev/tty', 'w') as f:
+                f.write('\a')
         else:
             os.system(tc_options['warn_command'])
     return w.WEECHAT_RC_OK
 
-if __name__ == "__main__" and import_ok:
-    if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION,
-                  SCRIPT_LICENSE, SCRIPT_DESC,
-                  "", ""):
-        version = w.info_get("version_number", "") or 0
-        init_config() # read configuration
-        tc_bar_item_update() # update status bar display
 
-        w.hook_signal('input_text_changed', 'tc_bar_item_update', '')
-        w.hook_signal('input_text_cursor_moved','tc_bar_item_update','')
-        w.hook_command_run('/input move_previous_char','command_run_cb','')
-        w.hook_command_run('/input delete_previous_char','command_run_cb','')
-        w.hook_signal('buffer_switch','tc_bar_item_update','')
-        w.hook_config('plugins.var.python.' + SCRIPT_NAME + ".*", "config_changed", "")
-        w.bar_item_new('tc', 'tc_bar_item', '')
+if (__name__ == "__main__"
+        and import_ok
+        and w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, "", "")):
+    version = w.info_get("version_number", "") or 0
+    init_config() # read configuration
+    tc_bar_item_update() # update status bar display
+
+    w.hook_signal('input_text_changed', 'tc_bar_item_update', '')
+    w.hook_signal('input_text_cursor_moved','tc_bar_item_update','')
+    w.hook_command_run('/input move_previous_char','command_run_cb','')
+    w.hook_command_run('/input delete_previous_char','command_run_cb','')
+    w.hook_signal('buffer_switch','tc_bar_item_update','')
+    w.hook_config('plugins.var.python.' + SCRIPT_NAME + ".*", "config_changed", "")
+    w.bar_item_new('tc', 'tc_bar_item', '')

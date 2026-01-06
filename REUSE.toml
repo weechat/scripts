@@ -1817,15 +1817,6 @@ SPDX-FileCopyrightText = "2012 epegzz <epegzz@gmail.com>"
 SPDX-License-Identifier = "GPL-3.0-or-later"
 
 [[annotations]]
-path = "python/typing_counter.py"
-precedence = "override"
-SPDX-FileCopyrightText = [
-    "2010-2013 fauno <fauno@kiwwwi.com.ar>",
-    "2018 Nils Görs <weechatter@arcor.de>",
-]
-SPDX-License-Identifier = "GPL-3.0-or-later"
-
-[[annotations]]
 path = "python/undernet_totp.py"
 precedence = "override"
 SPDX-FileCopyrightText = "2013-2019 Stefan Wold <ratler@stderr.eu>"
