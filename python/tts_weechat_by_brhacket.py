@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 #
-# tts_weechat.py - Zero-latency TTS integration with Piper/Speech-Dispatcher support
+# smarter_tts.py - Zero-latency TTS with Auto-Discovery Sounds
 #
-# Copyright (c) 2026 brhacket <https://github.com/brhacket>
+# Copyright (c) 2025 brhacket <https://github.com/brhacket>
+#
+# This file is part of WeeChat, the extensible chat client.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,9 +19,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
 # History:
-# 2026-01-10, brhacket:
+# 2025-01-10, brhacket:
 #     version 1.0: initial release
+#     version 1.6: added /ttsblock helper, auto-discovery, improved help
+
 import weechat
 import subprocess
 import threading
@@ -29,30 +35,28 @@ import os
 import shutil
 import re
 
-weechat.register("tts_weechat", "brhacket", "1.0", "GPL3", "Zero-latency TTS with Piper/Speech-Dispatcher support", "", "")
+weechat.register("smarter_tts", "brhacket", "1.6", "GPL3", "Zero-latency TTS with Auto-Discovery", "", "")
 
 # --- PATHS ---
 SPD_PATH = shutil.which("spd-say")
-SOUNDS = {
-    "message": "/usr/share/sounds/freedesktop/stereo/message.oga",
-    "bell": "/usr/share/sounds/freedesktop/stereo/bell.oga",
-    "chime": "/usr/share/sounds/freedesktop/stereo/complete.oga",
-    "alert": "/usr/share/sounds/freedesktop/stereo/alarm-clock-elapsed.oga"
-}
 
 # --- DEFAULTS ---
-# These are saved in ~/.weechat/plugins.conf
 DEFAULT_OPTIONS = {
-    "mode": "off",             # off, auto, or [channel_name]
-    "mute_level": "none",      # none, voice, all
-    "sound_name": "chime",     # bell, chime, alert, message, off
-    "ignore_me": "off",        # on/off
-    "notify_content": "off",   # on/off
-    "manual_nick": "",
-    "debug": "off"             # on/off (Default is OFF)
+    "mode": "off",             
+    "mute_level": "none",      
+    "ignore_me": "off",        
+    "notify_content": "off",   
+    "debug": "off",
+    "ignore_nicks": "root,admin,system,*", 
+    "ignore_channels": "",
+    "sound_player": "paplay",
+    "sound_notification": "off",
+    "path_chime": "",
+    "path_bell": "",
+    "path_alert": "",
+    "path_message": ""
 }
 
-# Init Config
 for option, default_value in DEFAULT_OPTIONS.items():
     if not weechat.config_is_set_plugin(option):
         weechat.config_set_plugin(option, default_value)
@@ -83,6 +87,8 @@ def debug_log(msg):
 
 def clean_text_for_tts(text):
     text = re.sub(r'https?://\S+', 'sent a link.', text)
+    text = re.sub(r'\x03(?:\d{1,2}(?:,\d{1,2})?)?|\x02|\x1F|\x16|\x0F', '', text)
+    text = re.sub(r'[\u2500-\u257F\u2580-\u259F]+', '', text)
     words = text.split(" ")
     cleaned = []
     for w in words:
@@ -91,14 +97,12 @@ def clean_text_for_tts(text):
     return " ".join(cleaned)
 
 def humanize_nick(nick):
-    # MuddyMacey -> Muddy Macey
     nick = re.sub(r'[_|\-\.]', ' ', nick)
     nick = re.sub(r'([a-z])([A-Z])', r'\1 \2', nick)
     nick = re.sub(r'([a-zA-Z])([0-9])', r'\1 \2', nick)
     return nick.lower()
 
 def process_smart_message(msg):
-    # "Target: message" -> "to Target. message"
     parts = msg.split(':', 1)
     if len(parts) > 1:
         target = parts[0].strip()
@@ -107,15 +111,47 @@ def process_smart_message(msg):
             return f"to {humanize_nick(target)}. {rest}"
     return msg
 
+# --- AUTO DISCOVERY ---
+def find_best_sound(keywords):
+    base_dir = "/usr/share/sounds"
+    best_match = ""
+    if not os.path.exists(base_dir): return ""
+    for root, dirs, files in os.walk(base_dir):
+        for file in files:
+            for key in keywords:
+                if key in file.lower():
+                    full_path = os.path.join(root, file)
+                    if not best_match: best_match = full_path
+                    elif ".oga" in file and ".oga" not in best_match: best_match = full_path 
+                    elif "stereo" in root and "stereo" not in best_match: best_match = full_path
+    return best_match
+
+def run_auto_discovery(silent=False):
+    if not silent: weechat.prnt("", f"{weechat.prefix('network')}TTS: 🔍 Scanning system for sound files...")
+    targets = {
+        "path_bell": ["bell", "glass"],
+        "path_chime": ["complete", "service-login", "ready", "startup"],
+        "path_alert": ["alarm", "alert", "error", "warning"],
+        "path_message": ["message", "click", "notification"]
+    }
+    count = 0
+    for key, kws in targets.items():
+        if get_conf(key) == "":
+            path = find_best_sound(kws)
+            if path:
+                set_conf(key, path)
+                count += 1
+    if not silent and count > 0:
+        weechat.prnt("", f"{weechat.prefix('network')}TTS: ✅ Configured {count} sounds.")
+
 # --- WORKER THREAD ---
 def speech_worker():
     global CURRENT_BAR_TEXT, UI_NEEDS_UPDATE, last_speaker_nick, last_speak_time
-
+    
     while True:
         try:
-            # 1. BLOCKING WAIT
             nick, msg, is_background = speech_queue.get()
-            if nick is None: break
+            if nick is None: break 
 
             debug_log(f"Processing: {nick} -> {msg}")
 
@@ -124,27 +160,32 @@ def speech_worker():
                 speech_queue.task_done()
                 continue
 
-            # 2. SOUND LOGIC
-            sound_name = get_conf("sound_name")
-            if is_background and sound_name in SOUNDS:
-                try:
-                    subprocess.run(["paplay", SOUNDS[sound_name]], stderr=subprocess.DEVNULL)
-                    time.sleep(0.5)
-                except: pass
+            selected_sound = get_conf("sound_notification")
+            if is_background and selected_sound != "off":
+                player = get_conf("sound_player")
+                sound_path = get_conf(f"path_{selected_sound}")
+                if sound_path and os.path.exists(sound_path) and shutil.which(player):
+                    try:
+                        subprocess.run([player, sound_path], stderr=subprocess.DEVNULL)
+                        time.sleep(0.5)
+                    except: pass
 
             if mute_level == "voice":
                 speech_queue.task_done()
                 continue
 
-            # 3. MEMORY RESET
-            if (time.time() - last_speak_time) > 20:
-                last_speaker_nick = ""
+            if (time.time() - last_speak_time) > 20: last_speaker_nick = ""
 
-            # 4. PREPARE TEXT
             speak_nick = humanize_nick(nick)
             clean_msg = clean_text_for_tts(msg)
-            processed_msg = process_smart_message(clean_msg)
+            
+            if not clean_msg.strip():
+                debug_log("Skipping empty/ASCII message")
+                speech_queue.task_done()
+                continue
 
+            processed_msg = process_smart_message(clean_msg)
+            
             final_text = ""
             if nick == "System":
                 final_text = msg
@@ -160,24 +201,22 @@ def speech_worker():
 
             last_speak_time = time.time()
 
-            # 5. UI UPDATE
-            visual = msg
+            visual = msg 
             if len(visual) > 60: visual = visual[:60] + "..."
             CURRENT_BAR_TEXT = f"{nick}: {visual}"
             UI_NEEDS_UPDATE = True
 
-            # 6. SPEAK
             debug_log(f"Speaking: '{final_text}'")
             if SPD_PATH:
                 subprocess.run(
-                    [SPD_PATH, "-w", final_text],
+                    [SPD_PATH, "-w", final_text], 
                     env=os.environ.copy(),
                     timeout=60
                 )
 
         except Exception as e:
             debug_log(f"Error in worker: {e}")
-            last_speaker_nick = ""
+            last_speaker_nick = "" 
         finally:
             speech_queue.task_done()
             CURRENT_BAR_TEXT = ""
@@ -186,7 +225,6 @@ def speech_worker():
 worker_thread = threading.Thread(target=speech_worker, daemon=True)
 worker_thread.start()
 
-# --- TIMER ---
 def ui_updater_cb(data, remaining_calls):
     global UI_NEEDS_UPDATE
     if UI_NEEDS_UPDATE:
@@ -196,107 +234,123 @@ def ui_updater_cb(data, remaining_calls):
 
 weechat.hook_timer(100, 0, 0, "ui_updater_cb", "")
 
+if get_conf("path_chime") == "":
+    t = threading.Thread(target=run_auto_discovery, args=(False,), daemon=True)
+    t.start()
+
 # --- COMMANDS ---
 
+def cmd_ttshelp(data, buffer, args):
+    weechat.prnt("", "")
+    weechat.prnt("", f"{weechat.color('yellow')}--- SMARTER TTS HELP (v1.6) ---")
+    
+    weechat.prnt("", f"\n{weechat.color('bold')}🎧 ACTIVATION MODES{weechat.color('reset')}")
+    weechat.prnt("", "  /listento          -> Locks TTS to the CURRENT window.")
+    weechat.prnt("", "  /listento auto     -> Reads whatever window you look at.")
+    weechat.prnt("", "  /listento all      -> Reads EVERY message from EVERY channel.")
+    weechat.prnt("", "  /listento off      -> Disable TTS.")
+
+    weechat.prnt("", f"\n{weechat.color('bold')}🔇 SILENCE & PRIVACY{weechat.color('reset')}")
+    weechat.prnt("", "  /shh               -> Mutes Voice only. (Sounds stay on).")
+    weechat.prnt("", "  /shh all           -> Total Silence.")
+    weechat.prnt("", "  /ignoreme on       -> Don't read messages I type.")
+
+    weechat.prnt("", f"\n{weechat.color('bold')}🔔 NOTIFICATIONS{weechat.color('reset')}")
+    weechat.prnt("", "  /setsound [type]   -> chime, bell, alert, off")
+    weechat.prnt("", "  /ttsdetect         -> Re-scan system for sound files.")
+
+    weechat.prnt("", f"\n{weechat.color('bold')}⚙️ BLOCKING{weechat.color('reset')}")
+    weechat.prnt("", "  /ttsblock nick [name]    -> Block a specific user/bot.")
+    weechat.prnt("", "  /ttsblock chan [name]    -> Block a specific channel.")
+    weechat.prnt("", "  /ttsdbg on               -> Show debug logs.")
+    weechat.prnt("", "")
+    return weechat.WEECHAT_RC_OK
+
+def cmd_ttsblock(data, buffer, args):
+    parts = args.strip().split(" ")
+    if len(parts) < 2:
+        weechat.prnt("", f"{weechat.prefix('network')}Usage: /ttsblock [nick|chan] [name]")
+        return weechat.WEECHAT_RC_OK
+    
+    target_type = parts[0].lower()
+    target_name = parts[1]
+    
+    if target_type.startswith("n"):
+        current = get_conf("ignore_nicks")
+        if target_name not in current.split(","):
+            set_conf("ignore_nicks", f"{current},{target_name}".strip(","))
+            weechat.prnt("", f"{weechat.prefix('network')}TTS: Blocked nick '{target_name}'")
+    elif target_type.startswith("c"):
+        current = get_conf("ignore_channels")
+        if target_name not in current.split(","):
+            set_conf("ignore_channels", f"{current},{target_name}".strip(","))
+            weechat.prnt("", f"{weechat.prefix('network')}TTS: Blocked channel '{target_name}'")
+            
+    return weechat.WEECHAT_RC_OK
+
+def cmd_ttsdetect(data, buffer, args):
+    t = threading.Thread(target=run_auto_discovery, args=(False,), daemon=True)
+    t.start()
+    return weechat.WEECHAT_RC_OK
+
 def cmd_ttsdbg(data, buffer, args):
-    args = args.strip().lower()
-    prefix = weechat.prefix("network")
-    if args == "on":
-        set_conf("debug", "on")
-        weechat.prnt("", f"{prefix}TTS: 🐞 Debugging ENABLED.")
-    elif args == "off":
-        set_conf("debug", "off")
-        weechat.prnt("", f"{prefix}TTS: 🐞 Debugging DISABLED.")
-    else:
-        weechat.prnt("", f"{prefix}TTS: Usage: /ttsdbg [on|off]")
+    if args == "on": set_conf("debug", "on"); weechat.prnt("", "TTS: Debug ON")
+    elif args == "off": set_conf("debug", "off"); weechat.prnt("", "TTS: Debug OFF")
     return weechat.WEECHAT_RC_OK
 
 def cmd_listento(data, buffer, args):
     args = args.strip().lower()
     prefix = weechat.prefix("network")
-
     if args == "":
-        current_name = weechat.buffer_get_string(buffer, "short_name")
-        set_conf("mode", current_name)
+        current = weechat.buffer_get_string(buffer, "short_name")
+        set_conf("mode", current)
         if get_conf("mute_level") != "none": set_conf("mute_level", "none")
-        weechat.prnt("", f"{prefix}TTS: 🟢 Listening to '{current_name}' (Locked).")
+        weechat.prnt("", f"{prefix}TTS: 🟢 Listening to '{current}'")
     elif args == "auto":
         set_conf("mode", "auto")
         if get_conf("mute_level") != "none": set_conf("mute_level", "none")
-        weechat.prnt("", f"{prefix}TTS: 🟢 Mode set to AUTO (Follows focus).")
+        weechat.prnt("", f"{prefix}TTS: 🟢 Mode AUTO")
+    elif args == "all":
+        set_conf("mode", "all")
+        if get_conf("mute_level") != "none": set_conf("mute_level", "none")
+        weechat.prnt("", f"{prefix}TTS: 🟣 Mode ALL")
     elif args == "off":
         set_conf("mode", "off")
-        weechat.prnt("", f"{prefix}TTS: 🔴 Disabled.")
+        weechat.prnt("", f"{prefix}TTS: 🔴 Disabled")
     else:
         set_conf("mode", args)
         if get_conf("mute_level") != "none": set_conf("mute_level", "none")
-        weechat.prnt("", f"{prefix}TTS: 🟢 Listening to '{args}'.")
+        weechat.prnt("", f"{prefix}TTS: 🟢 Listening to '{args}'")
     return weechat.WEECHAT_RC_OK
 
 def cmd_shh(data, buffer, args):
-    args = args.strip().lower()
-    prefix = weechat.prefix("network")
-    if args == "all":
-        set_conf("mute_level", "all")
-        weechat.prnt("", f"{prefix}TTS: 🔇 Muted ALL.")
-    elif args == "disable":
-        set_conf("mute_level", "none")
-        weechat.prnt("", f"{prefix}TTS: 🔊 Unmuted.")
-    else:
-        set_conf("mute_level", "voice")
-        weechat.prnt("", f"{prefix}TTS: 🙊 Muted Voice.")
+    if args == "all": set_conf("mute_level", "all"); weechat.prnt("", "TTS: Mute ALL")
+    elif args == "disable": set_conf("mute_level", "none"); weechat.prnt("", "TTS: Unmuted")
+    else: set_conf("mute_level", "voice"); weechat.prnt("", "TTS: Mute Voice")
     return weechat.WEECHAT_RC_OK
 
 def cmd_setsound(data, buffer, args):
-    args = args.strip().lower()
-    prefix = weechat.prefix("network")
-    if args in SOUNDS or args == "off":
-        set_conf("sound_name", args)
-        weechat.prnt("", f"{prefix}TTS: Sound set to '{args}' (Background chats).")
-        if args in SOUNDS: subprocess.run(["paplay", SOUNDS[args]], stderr=subprocess.DEVNULL)
-    else:
-        weechat.prnt("", f"{prefix}TTS: Unknown sound. Options: off, bell, chime, alert, message")
+    if args in ["chime", "bell", "alert", "message", "off"]:
+        set_conf("sound_notification", args)
+        weechat.prnt("", f"TTS: Sound '{args}'")
+        player = get_conf("sound_player")
+        path = get_conf(f"path_{args}")
+        if path and os.path.exists(path): subprocess.run([player, path], stderr=subprocess.DEVNULL)
     return weechat.WEECHAT_RC_OK
 
 def cmd_ignoreme(data, buffer, args):
-    args = args.strip().lower()
-    if args in ["on", "off"]:
-        set_conf("ignore_me", args)
-        weechat.prnt("", f"{weechat.prefix('network')}TTS: Ignore Me is {args.upper()}.")
-    return weechat.WEECHAT_RC_OK
-
-def cmd_iam(data, buffer, args):
-    if args:
-        set_conf("manual_nick", args.strip())
-        weechat.prnt("", f"{weechat.prefix('network')}TTS: Identity set to '{args.strip()}'")
-    return weechat.WEECHAT_RC_OK
-
-def cmd_ttshelp(data, buffer, args):
-    weechat.prnt("", "")
-    weechat.prnt("", "--- TTS COMMANDS ---")
-    weechat.prnt("", "/listento         -> Listen to CURRENT chat.")
-    weechat.prnt("", "/listento auto    -> Auto-follow your focus.")
-    weechat.prnt("", "/listento off     -> Disable TTS.")
-    weechat.prnt("", "---")
-    weechat.prnt("", "/shh              -> Mute Voice.")
-    weechat.prnt("", "/shh all          -> Mute Everything.")
-    weechat.prnt("", "/shh disable      -> Unmute.")
-    weechat.prnt("", "---")
-    weechat.prnt("", "/setsound chime   -> Set BG alert sound.")
-    weechat.prnt("", "/ignoreme on/off  -> Ignore your own messages.")
-    weechat.prnt("", "/ttsdbg on/off    -> View logs.")
-    weechat.prnt("", "")
+    if args in ["on", "off"]: set_conf("ignore_me", args); weechat.prnt("", f"TTS: IgnoreMe {args.upper()}")
     return weechat.WEECHAT_RC_OK
 
 weechat.hook_command("listento", "Set mode", "", "", "", "cmd_listento", "")
 weechat.hook_command("shh", "Quick mute", "", "", "", "cmd_shh", "")
 weechat.hook_command("setsound", "Bg Sound", "", "", "", "cmd_setsound", "")
+weechat.hook_command("ttsdetect", "Find sounds", "", "", "", "cmd_ttsdetect", "")
 weechat.hook_command("ignoreme", "Ignore self", "", "", "", "cmd_ignoreme", "")
-weechat.hook_command("iam", "Set nick", "", "", "", "cmd_iam", "")
+weechat.hook_command("ttsblock", "Block nick/chan", "", "", "", "cmd_ttsblock", "")
 weechat.hook_command("ttsdbg", "Debug logs", "", "", "", "cmd_ttsdbg", "")
 weechat.hook_command("ttshelp", "Show help", "", "", "", "cmd_ttshelp", "")
 
-# --- BAR & HOOK ---
 def update_tts_bar(data, item, window):
     if CURRENT_BAR_TEXT: return f"{weechat.color('yellow')}🔊 {CURRENT_BAR_TEXT}"
     return ""
@@ -304,44 +358,46 @@ weechat.bar_item_new("tts_now", "update_tts_bar", "")
 
 def tts_cb(data, buffer, date, tags, displayed, highlight, prefix, message):
     if displayed == "0": return weechat.WEECHAT_RC_OK
-
-    mute_level = get_conf("mute_level")
-    if mute_level == "all": return weechat.WEECHAT_RC_OK
-
+    if get_conf("mute_level") == "all": return weechat.WEECHAT_RC_OK
     listen_mode = get_conf("mode")
     if listen_mode == "off": return weechat.WEECHAT_RC_OK
 
-    has_valid_tag = "notify_message" in tags or "irc_privmsg" in tags
-    if not has_valid_tag: return weechat.WEECHAT_RC_OK
-
-    if "irc_server" in tags or "irc_quit" in tags or "irc_join" in tags or "irc_mode" in tags:
-        return weechat.WEECHAT_RC_OK
+    if "notify_message" not in tags and "irc_privmsg" not in tags: return weechat.WEECHAT_RC_OK
+    if "irc_server" in tags or "irc_quit" in tags: return weechat.WEECHAT_RC_OK
 
     clean_nick = prefix.lstrip('@+~%&')
-    if clean_nick in ["root", "admin", "*", "--"] or "@chat" in prefix:
-        return weechat.WEECHAT_RC_OK
+    if "@chat" in prefix: return weechat.WEECHAT_RC_OK
+    
+    ignored_nicks = get_conf("ignore_nicks").split(",")
+    if clean_nick in ignored_nicks: return weechat.WEECHAT_RC_OK
 
     buf_name = weechat.buffer_get_string(buffer, "short_name")
-    is_highlight = (int(highlight) == 1)
+    ignored_chans = get_conf("ignore_channels").split(",")
+    if buf_name in ignored_chans: return weechat.WEECHAT_RC_OK
 
-    is_active_read = False
-    if listen_mode == "auto":
-        if buffer == weechat.current_buffer(): is_active_read = True
-    elif listen_mode == buf_name:
-        is_active_read = True
+    is_highlight = (int(highlight) == 1)
+    current_focus = weechat.current_buffer()
+    should_read_text = False
+    
+    if listen_mode == "all": should_read_text = True
+    elif listen_mode == "auto":
+        if buffer == current_focus: should_read_text = True
+    elif listen_mode == buf_name: should_read_text = True
 
     final_message = ""
     target_nick = clean_nick
     is_bg_event = False
 
-    if is_active_read:
-        final_message = message
+    if should_read_text:
+        if buffer != current_focus and listen_mode == "all":
+            final_message = f"In {buf_name}. {message}"
+        else:
+            final_message = message
         is_bg_event = False
     else:
         if not is_highlight: return weechat.WEECHAT_RC_OK
         is_bg_event = True
-        notify_content = get_conf("notify_content")
-        if notify_content == "on":
+        if get_conf("notify_content") == "on":
             final_message = f"In {buf_name}. {message}"
         else:
             target_nick = "System"
@@ -350,12 +406,9 @@ def tts_cb(data, buffer, date, tags, displayed, highlight, prefix, message):
     my_current_nick = weechat.buffer_get_string(buffer, "localvar_nick")
     is_me = False
     if clean_nick == my_current_nick: is_me = True
-    manual_nick = get_conf("manual_nick")
-    if manual_nick and clean_nick == manual_nick: is_me = True
 
     if is_me and get_conf("ignore_me") == "on": return weechat.WEECHAT_RC_OK
 
-    # Add to Queue
     speech_queue.put((target_nick, final_message, is_bg_event))
     return weechat.WEECHAT_RC_OK
 
