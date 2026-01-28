@@ -1028,19 +1028,6 @@ SPDX-FileCopyrightText = "2011 Richard A Hofer (javagamer) <atomic.quark@gmail.c
 SPDX-License-Identifier = "GPL-3.0-or-later"
 
 [[annotations]]
-path = "python/fish.py"
-precedence = "override"
-SPDX-FileCopyrightText = [
-    "2011-2023 David Flatz <david@upcs.at>",
-    "2017-2020 Marcin Kurczewski <rr-@sakuya.pl>",
-    "2017 Ricardo Ferreira <ricardo.sff@goatse.cx>",
-    "2014 Charles Franklin <jakhead@gmail.com>",
-    "2012 Markus Näsman <markus@botten.org>",
-    "2009 Bjorn Edstrom <be@bjrn.se>",
-]
-SPDX-License-Identifier = "GPL-3.0-or-later"
-
-[[annotations]]
 path = "python/floodit.py"
 precedence = "override"
 SPDX-FileCopyrightText = "2011-2012 Sébastien Helleu <flashcode@flashtux.org>"
