@@ -2,6 +2,9 @@
 #
 # Copyright (C) 2012 Chris Johnson <raugturi@gmail.com>
 #
+# SPDX-FileCopyrightText: 2012 Chris Johnson <raugturi@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 3 of the License, or
@@ -111,7 +114,7 @@ try:
     import weechat
 except ImportError:
     print('This script must be run under WeeChat.')
-    print('Get WeeChat now at: http://www.weechat.org/')
+    print('Get WeeChat now at: https://weechat.org/')
     import_ok = False
 
 try:
@@ -261,7 +264,7 @@ def handle_message_cb(data, buffer, date, tags, disp, hl, nick, message):
         # incoming messages.
         #
         # Nick regex nicked from colorize_nicks available here:
-        # http://www.weechat.org/scripts/source/stable/colorize_nicks.py.html/
+        # https://weechat.org/scripts/source/colorize_nicks.py.html/
         valid_nick = r'([@~&!%+])?([-a-zA-Z0-9\[\]\\`_^\{|\}]+)'
         valid_correction = r's/[^/]*/[^/]*'
         correction_message_pattern = re.compile(
