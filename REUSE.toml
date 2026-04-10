@@ -668,12 +668,6 @@ SPDX-FileCopyrightText = [
 SPDX-License-Identifier = "MIT"
 
 [[annotations]]
-path = "python/apply_corrections.py"
-precedence = "override"
-SPDX-FileCopyrightText = "2012 Chris Johnson <raugturi@gmail.com>"
-SPDX-License-Identifier = "GPL-3.0-or-later"
-
-[[annotations]]
 path = "python/arespond.py"
 precedence = "override"
 SPDX-FileCopyrightText = "2011 Stephan Huebner <shuebnerfun01@gmx.org>"
