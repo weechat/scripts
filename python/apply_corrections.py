@@ -57,7 +57,9 @@
 # enough correction string.
 
 # History:
-#
+# 2026-04-10, Jason Lei <jasonlei@umich.edu>:
+#     version 1.4: using regex module instead of re to prevent CPU hang in 
+#                  get_corrected_messages 
 # 2018-06-21, Chris Johnson <raugturi@gmail.com>:
 #     version 1.3: support python3
 # 2014-05-10, Sébastien Helleu <flashcode@flashtux.org>
@@ -98,7 +100,7 @@
 
 SCRIPT_NAME = 'apply_corrections'
 SCRIPT_AUTHOR = 'Chris Johnson <raugturi@gmail.com>'
-SCRIPT_VERSION = '1.3'
+SCRIPT_VERSION = '1.4'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC = "When a correction (ex: s/typo/replacement) is sent, print the "\
               "user's previous message(s) with the corrected text instead."
@@ -115,6 +117,7 @@ except ImportError:
 try:
     import re
     import time
+    import regex
     from operator import itemgetter
     from collections import defaultdict
 except ImportError as message:
@@ -163,7 +166,7 @@ def get_corrected_messages(nick, log, correction):
         original = message.get('message', '')
         if original:
             try:
-                match = re.match(re.compile('.*{}.*'.format(pattern)), original)
+                match = regex.search(pattern, original)
             except:
                 match = original.find(pattern) != -1
             finally:
