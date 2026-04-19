@@ -2,6 +2,9 @@
 #
 # Copyright (C) 2012 Chris Johnson <raugturi@gmail.com>
 #
+# SPDX-FileCopyrightText: 2012 Chris Johnson <raugturi@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 3 of the License, or
@@ -57,7 +60,9 @@
 # enough correction string.
 
 # History:
-#
+# 2026-04-10, Jason Lei <jasonlei@umich.edu>:
+#     version 1.4: using regex module instead of re to prevent CPU hang in 
+#                  get_corrected_messages 
 # 2018-06-21, Chris Johnson <raugturi@gmail.com>:
 #     version 1.3: support python3
 # 2014-05-10, Sébastien Helleu <flashcode@flashtux.org>
@@ -98,7 +103,7 @@
 
 SCRIPT_NAME = 'apply_corrections'
 SCRIPT_AUTHOR = 'Chris Johnson <raugturi@gmail.com>'
-SCRIPT_VERSION = '1.3'
+SCRIPT_VERSION = '1.4'
 SCRIPT_LICENSE = 'GPL3'
 SCRIPT_DESC = "When a correction (ex: s/typo/replacement) is sent, print the "\
               "user's previous message(s) with the corrected text instead."
@@ -109,12 +114,13 @@ try:
     import weechat
 except ImportError:
     print('This script must be run under WeeChat.')
-    print('Get WeeChat now at: http://www.weechat.org/')
+    print('Get WeeChat now at: https://weechat.org/')
     import_ok = False
 
 try:
     import re
     import time
+    import regex
     from operator import itemgetter
     from collections import defaultdict
 except ImportError as message:
@@ -163,7 +169,7 @@ def get_corrected_messages(nick, log, correction):
         original = message.get('message', '')
         if original:
             try:
-                match = re.match(re.compile('.*{}.*'.format(pattern)), original)
+                match = regex.search(pattern, original)
             except:
                 match = original.find(pattern) != -1
             finally:
@@ -258,7 +264,7 @@ def handle_message_cb(data, buffer, date, tags, disp, hl, nick, message):
         # incoming messages.
         #
         # Nick regex nicked from colorize_nicks available here:
-        # http://www.weechat.org/scripts/source/stable/colorize_nicks.py.html/
+        # https://weechat.org/scripts/source/colorize_nicks.py.html/
         valid_nick = r'([@~&!%+])?([-a-zA-Z0-9\[\]\\`_^\{|\}]+)'
         valid_correction = r's/[^/]*/[^/]*'
         correction_message_pattern = re.compile(
