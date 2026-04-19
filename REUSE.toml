@@ -1110,16 +1110,6 @@ SPDX-FileCopyrightText = "2012 Ryan Feng <odayfans@gmail.com>"
 SPDX-License-Identifier = "GPL-3.0-or-later"
 
 [[annotations]]
-path = "python/go.py"
-precedence = "override"
-SPDX-FileCopyrightText = [
-    "2009-2024 Sébastien Helleu <flashcode@flashtux.org>",
-    "2010 m4v <lambdae2@gmail.com>",
-    "2011 stfn <stfnmd@googlemail.com>",
-]
-SPDX-License-Identifier = "GPL-3.0-or-later"
-
-[[annotations]]
 path = "python/greentext.py"
 precedence = "override"
 SPDX-FileCopyrightText = "2023 AGVXOV <agvxov@gmail.com>"
