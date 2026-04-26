@@ -969,8 +969,8 @@ function cmd_action_run(buffer, args)
       if entry then
          set_status("Running cmd " .. (entry.label or args))
          for cmd in split(entry.command, ";") do
-            cmd = eval_current_entry(cmd)
-            w.command(buffer, cmd)
+            fixed_cmd = eval_current_entry(cmd)
+            w.command(buffer, fixed_cmd)
          end
       end
    end
