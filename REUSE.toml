@@ -1332,12 +1332,6 @@ SPDX-FileCopyrightText = "2015-2016 Jos Ahrens <zarthus@lovebytes.me>"
 SPDX-License-Identifier = "MIT"
 
 [[annotations]]
-path = "python/maze.py"
-precedence = "override"
-SPDX-FileCopyrightText = "2012-2022 Sébastien Helleu <flashcode@flashtux.org>"
-SPDX-License-Identifier = "GPL-3.0-or-later"
-
-[[annotations]]
 path = "python/memon.py"
 precedence = "override"
 SPDX-FileCopyrightText = "2012 Barbu Paul - Gheorghe <paullik.paul@gmail.com>"
