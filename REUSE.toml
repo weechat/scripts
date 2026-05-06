@@ -333,12 +333,6 @@ SPDX-FileCopyrightText = [
 SPDX-License-Identifier = "GPL-3.0-or-later"
 
 [[annotations]]
-path = "perl/listsort.pl"
-precedence = "override"
-SPDX-FileCopyrightText = "2011 arza <arza@arza.us>"
-SPDX-License-Identifier = "GPL-3.0-or-later"
-
-[[annotations]]
 path = "perl/luanma.pl"
 precedence = "override"
 SPDX-FileCopyrightText = "2013 Nei <ailin@devio.us>"
