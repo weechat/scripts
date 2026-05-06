@@ -1308,12 +1308,6 @@ SPDX-FileCopyrightText = "2019 Nils Görs <weechatter@arcor.de>"
 SPDX-License-Identifier = "GPL-3.0-or-later"
 
 [[annotations]]
-path = "python/listbuffer.py"
-precedence = "override"
-SPDX-FileCopyrightText = "2011-2013 Filip H.F. 'FiXato' Slagter <fixato@gmail.com>"
-SPDX-License-Identifier = "MIT"
-
-[[annotations]]
 path = "python/lnotify.py"
 precedence = "override"
 SPDX-FileCopyrightText = "2010-2019 kevr <kevr.gtalk@gmail.com>"
