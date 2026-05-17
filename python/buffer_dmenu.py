@@ -25,6 +25,8 @@
 # Optionally requires i3-py [py2] (or i3ipc [py3]) to focus weechat in i3
 #
 # History:
+# 2026-03-23, Ferus
+#     version 0.2.2: add support for window focusing under sway
 # 2021-03-19, Seirdy
 #     version 0.2.1: add support for fzf-tmux
 # 2020-06-08, Ferus
@@ -46,7 +48,7 @@
 
 SCRIPT_NAME = "buffer_dmenu"
 SCRIPT_AUTHOR = "Ferus <ferus+weechat@airmail.cc>"
-SCRIPT_VERSION = "0.2.1"
+SCRIPT_VERSION = "0.2.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = (
     "List buffers in dmenu (or rofi/fzf-tmux), changes active window to selected buffer"
@@ -62,12 +64,6 @@ except ImportError as e:
     print("This script must be run under WeeChat.")
     exit(1)
 
-try:
-    import i3ipc as i3
-
-    have_i3 = True
-except ImportError as e:
-    have_i3 = False
 
 settings = {
     "launcher": ("dmenu", "launcher to use (supported: dmenu, rofi, fzf_tmux)"),
@@ -75,7 +71,7 @@ settings = {
         "false",
         "whether to immediately focus the terminal after selecting buffer",
     ),
-    "focus.wm": ("i3", "wm focus logic to use (supported: i3)"),
+    "focus.wm": ("i3", "wm focus logic to use (supported: i3, sway)"),
     "dmenu.command": ("dmenu -b -i -l 20", "command used to call dmenu"),
     "rofi.command": (
         "rofi -p '# ' -dmenu -lines 10 -columns 8 -auto-select -mesg '<big>Pick a <b>buffer</b> to jump to:</big>'",
@@ -85,7 +81,7 @@ settings = {
         "sed -e \"s/b'//\" -e s#\\\\n#\\n#g | fzf-tmux -w 40 -h 70%",
         "command used to call fzf-tmux",
     ),
-    "title.regex": ("WeeChat \d+\.\d+", "regex used to match weechat's title window"),
+    "title.regex": (r"WeeChat \d+\.\d+", "regex used to match weechat's title window"),
 }
 
 
@@ -131,17 +127,36 @@ def launch(options):
 
 def focus():
     if w.config_string_to_boolean(w.config_get_plugin("focus")):
-        if w.config_get_plugin("focus.wm") == "i3":
+        wm = w.config_get_plugin("focus.wm")
+        if wm == "i3":
             focus_i3()
+        elif wm == "sway":
+            focus_sway()
 
 
 def focus_i3():
-    if have_i3:
+    try:
+        import i3ipc as i3
         regex = w.config_get_plugin("title.regex")
-
         i3conn = i3.Connection()
-        weechat = i3conn.get_tree().find_named(regex)[0]
-        weechat.command("focus")
+        weechat_window = i3conn.get_tree().find_named(regex)[0]
+        weechat_window.command("focus")
+    except ImportError as e:
+        # TODO: Print error to window
+        w.prnt("", "{}{}: Focusing windows under i3 requires 'i3ipc' to be installed."
+            .format(w.prefix("error"), SCRIPT_NAME))
+
+
+def focus_sway():
+    try:
+        import swayipc
+        regex = r'{}'.format(w.config_get_plugin("title.regex"))
+        result = swayipc.run_command('[title="{}"] focus'.format(regex))
+        if not result[0].success:
+            w.prnt("", "{}Sway failed to focus window".format(w.prefix("error")))
+    except ImportError as e:
+        w.prnt("", "{}{}: Focusing windows under sway requires 'swayipc' to be installed."
+            .format(w.prefix("error"), SCRIPT_NAME))
 
 
 def call(command, options):
