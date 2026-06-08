@@ -1046,12 +1046,6 @@ SPDX-FileCopyrightText = "2017-2018 butlerx <butlerx@redbrick.dcu.ie>"
 SPDX-License-Identifier = "GPL-3.0-or-later"
 
 [[annotations]]
-path = "python/glitter.py"
-precedence = "override"
-SPDX-FileCopyrightText = "2019 jotham <jotham.read@gmail.com>"
-SPDX-License-Identifier = "GPL-3.0-or-later"
-
-[[annotations]]
 path = "python/gnome_screensaver_away.py"
 precedence = "override"
 SPDX-FileCopyrightText = "2016-2021 Gerard Ryan <gerard@ryan.lt>"

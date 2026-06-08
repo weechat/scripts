@@ -1,15 +1,23 @@
-import weechat, re
+#
+# SPDX-FileCopyrightText: 2019 jotham <jotham.read@gmail.com>
+# SPDX-FileCopyrightText: 2026 Stathis Xantinidis <spithash@tuta.io>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+
+import weechat
+import re
 
 SCRIPT_NAME    = "glitter"
 SCRIPT_AUTHOR  = "jotham.read@gmail.com"
-SCRIPT_VERSION = "0.1"
+SCRIPT_VERSION = "0.1.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Replaces ***text*** you write with rainbow text"
 
 if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, "", ""):
    weechat.hook_command_run("/input return", "command_run_input", "")
 
-glitter_pat = re.compile("\*\*\*([^\*]+)\*\*\*")
+glitter_pat = re.compile(r"\*\*\*([^*]+)\*\*\*")
 def glitter_it(match):
    lut = ("13","4","8","9","11","12") # len=6
    text = match.group(1)
