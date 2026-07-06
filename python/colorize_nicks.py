@@ -25,6 +25,12 @@
 #   https://github.com/ryoskzypu/weechat_scripts
 #
 # History:
+# 2026-07-06: xt <xt@bash.no>
+#   version 34: fix colorization of nicks containing regex-special characters
+#               (e.g., hyphens) — re.escape() was applied before dictionary lookup,
+#               causing escaped nick form (e.g., 'flash\-code') to not match unescaped
+#               dict keys (e.g., 'flash-code'). Keep nick unescaped for lookup/display,
+#               escape only when building the line-matching regex.
 # 2025-05-08: ryoskzypu <ryoskzypu@proton.me>
 #   version 33: add many improvements, features, and fixes
 # 2023-10-30: Sébastien Helleu <flashcode@flashtux.org>
@@ -108,7 +114,7 @@ w = weechat
 
 SCRIPT_NAME    = 'colorize_nicks'
 SCRIPT_AUTHOR  = 'xt <xt@bash.no>'
-SCRIPT_VERSION = '33'
+SCRIPT_VERSION = '34'
 SCRIPT_LICENSE = 'GPL'
 SCRIPT_DESC    = 'Use the weechat nick colors in the chat area'
 
@@ -443,14 +449,14 @@ def colorize_nicks(buffer, min_len, prefixes, suffixes, has_colors, line):
                         (?P<nick> [^ ]+)
                      '''
         if (nick := re.search(nicks_rgx, word, flags=re.VERBOSE)) is not None:
-            nick = re.escape(nick.group('nick'))
+            nick = nick.group('nick')
 
         # If the word is not a known nick and its last character is an option
         # suffix (e.g. colon ':' or comma ','), try to match the word without it.
         # This is necessary as 'foo:' is a valid nick, which could be addressed
         # as 'foo::'.
         if nick not in colored_nicks[buffer]:
-            if (suffix := re.search(rf'[{suffixes}]$', nick)) is not None:
+            if re.search(rf'[{suffixes}]$', nick) is not None:
                 nick = nick[:-1]
 
         # Nick exists on buffer.
@@ -462,10 +468,11 @@ def colorize_nicks(buffer, min_len, prefixes, suffixes, has_colors, line):
             nick_color = colored_nicks[buffer][nick]['color']
 
             # Find nick in the line.
+            nick_re = re.escape(nick)
             line_rgx = rf'''
                            (?: \A | [ ])             # Boundary
                            (?P<pref> [{prefixes}])?  # Optional prefix char
-                           (?P<nick> {nick})
+                           (?P<nick> {nick_re})
                            [{suffixes}]?             # "        suffix char
                            (?: \Z | [ ])             # Boundary
                        '''
