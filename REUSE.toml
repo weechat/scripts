@@ -1559,12 +1559,6 @@ SPDX-FileCopyrightText = "2012-2013 Nils Görs <weechatter@arcor.de>"
 SPDX-License-Identifier = "GPL-3.0-or-later"
 
 [[annotations]]
-path = "python/shortenurl.py"
-precedence = "override"
-SPDX-FileCopyrightText = "2010-2014 John Anderson <sontek@gmail.com>"
-SPDX-License-Identifier = "GPL-3.0-or-later"
-
-[[annotations]]
 path = "python/shutup.py"
 precedence = "override"
 SPDX-FileCopyrightText = "2014 Filip H.F. 'FiXato' Slagter <fixato+weechat@gmail.com>"
