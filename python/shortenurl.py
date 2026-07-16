@@ -14,6 +14,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # History
+# 2026-07-16, CrazyCat <crazycat@c-p-f.org>
+#    version 0.6.7: Added zeolia as provider, since tinyurl as changed
+#    Key is mandatory to avoid bad usages of the system.
+#    Ask me a key by mail or on irc.zeolia.chat
 # 2019-10-10, CrazyCat <crazycat@c-p-f.org>
 #  version 0.6.6: fix trouble of "b'"
 #    : fix short_own=off bug when user is @,% or +
@@ -60,28 +64,31 @@ except ImportError:
 
 SCRIPT_NAME = "shortenurl"
 SCRIPT_AUTHOR = "John Anderson <sontek@gmail.com>"
-SCRIPT_VERSION = "0.6.6"
+SCRIPT_VERSION = "0.6.7"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Shorten long incoming and outgoing URLs"
 
 ISGD = 'https://is.gd/create.php?format=simple&%s'
 TINYURL = 'http://tinyurl.com/api-create.php?%s'
+ZEOLIA = 'https://s.zeolia.chat?%s';
 
 # script options
 # shortener options:
 #  - isgd
 #  - tinyurl
 #  - bitly
+#  - zeolia
 
 settings = {
     "color": "red",
     "urllength": "30",
     "shortener": "isgd",
     "short_own": "off",
-    "ignore_list": "http://is.gd,http://tinyurl.com,http://bit.ly",
+    "ignore_list": "http://is.gd,http://tinyurl.com,http://bit.ly,https://s.zeolia.chat",
     "bitly_login": "",
     "bitly_key": "",
-    "bitly_add_to_history": "true"
+    "bitly_add_to_history": "true",
+    "zeolia_key": ""
 }
 
 octet = r'(?:2(?:[0-4]\d|5[0-5])|1\d\d|\d{1,2})'
@@ -162,6 +169,9 @@ def get_shortened_url(url):
         url = ISGD % urlencode({'url': url})
     if shortener == 'tinyurl':
         url = TINYURL % urlencode({'url': url})
+    if shortener == 'zeolia':
+         apikey = weechat.config_get_plugin('zeolia_key')
+         url = ZEOLIA % urlencode({'key': apikey, 'q': url})
     try:
         opener = build_opener()
         opener.addheaders = [('User-Agent', 'weechat')]
