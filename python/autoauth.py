@@ -1,4 +1,10 @@
-# -*- coding: utf-8 -*-
+#
+# SPDX-FileCopyrightText: 2005 Emmanuel Bouthenot <kolter@openics.org>
+# SPDX-FileCopyrightText: 2011-2026 CrazyCat <crazycat@c-p-f.org>
+# SPDX-FileCopyrightText: 2011-2026 Sébastien Helleu <flashcode@flashtux.org>
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
 
 # =============================================================================
 #  autoauth.py (c) October 2005 by kolter <kolter@openics.org>
@@ -7,51 +13,11 @@
 #  Licence     : GPL v2
 #  Description : Permits to auto-authenticate when changing nick
 #  Syntax      : try /autoauth help to get help on this script
-#
-#
-# ### changelog ###
-#
-#  * version 1.3 (Sébastien Helleu <flashcode@flashtux.org>)
-#      - make script compatible with WeeChat >= 3.4
-#        (new parameters in function hdata_search)
-#  * version 1.2 (Sébastien Helleu <flashcode@flashtux.org>)
-#      - make script compatible with Python 3
-#  * version 1.1 (CrazyCat <crazycat@c-p-f.org>)
-#      - add a way to manage NickServ nick and host
-#  * version 1.0 (Simmo Saan <simmo.saan@gmail.com>)
-#      - rename command /auth to /autoauth
-#  * version 0.10 (Felix Eckhofer <felix@tribut.de>)
-#      - fix "/auth cmd" commandline parsing
-#  * version 0.9 (Felix Eckhofer <felix@tribut.de>)
-#      - fix commands execution
-#      - force correct server for /quote
-#  * version 0.8 (excalibr@freenode)
-#      - respond only to notice message from NickServ
-#  * version 0.7 (Adam Spiers <weechat@adamspiers.org>)
-#      - allow commas in passwords
-#      - fix for FreeNode
-#  * version 0.6 (CrazyCat <crazycat@c-p-f.org>)
-#      - adaptation for weechat 0.3.0
-#  * version 0.5
-#      - fix bug when script script is run for first time
-#      - rewrite half script to improve access to settings
-#      - add a feature to permit to run command(s) when identified
-#      - add completion for commands
-#  * version 0.4
-#      - use set_plugin_config and get_plugin_config to read ans save settings
-#      - remove deprecated import
-#  * version 0.3
-#      - add return codes
-#  * version 0.2
-#      - correct weechatdir with weechat_dir while using weechat.get_info
-#  * version 0.1 :
-#      - first release
-#
 # =============================================================================
 
 from __future__ import print_function
 
-VERSION = "1.3.1"
+VERSION = "1.3.2"
 NAME = "autoauth"
 AUTHOR = "Kolter"
 

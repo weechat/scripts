@@ -674,12 +674,6 @@ SPDX-FileCopyrightText = "2011 Stephan Huebner <shuebnerfun01@gmx.org>"
 SPDX-License-Identifier = "GPL-3.0-or-later"
 
 [[annotations]]
-path = "python/autoauth.py"
-precedence = "override"
-SPDX-FileCopyrightText = "2005 Emmanuel Bouthenot <kolter@openics.org>"
-SPDX-License-Identifier = "GPL-2.0-or-later"
-
-[[annotations]]
 path = "python/auto_away.py"
 precedence = "override"
 SPDX-FileCopyrightText = "2010 Specimen <spinifer@gmail.com>"
