@@ -51,7 +51,7 @@
 
 from __future__ import print_function
 
-VERSION = "1.3"
+VERSION = "1.3.1"
 NAME = "autoauth"
 AUTHOR = "Kolter"
 
@@ -301,7 +301,7 @@ def get_channel_from_buffer_args(buffer, args):
     if not channel_name:
         channel_name = weechat.buffer_get_string(buffer, "localvar_channel")
 
-    match_data = re.match("\A(irc.)?([^.]+)\.(#\S+)\Z", channel_name)
+    match_data = re.match(r"\A(irc.)?([^.]+)\.(#\S+)\Z", channel_name)
     if match_data:
         channel_name = match_data.group(3)
         server_name = match_data.group(2)
