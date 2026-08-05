@@ -1,5 +1,5 @@
 #
-# SPDFX-FileCopyrightText: 2026 CrazyCat <crazycat@c-p-f.org>
+# SPDX-FileCopyrightText: 2026 CrazyCat <crazycat@c-p-f.org>
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
