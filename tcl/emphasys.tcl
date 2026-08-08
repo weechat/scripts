@@ -13,8 +13,8 @@ set SCRIPT_DESC "Replaces *text* whith bold and /text/ with italic (or reverse)"
 ::weechat::register $SCRIPT_NAME $SCRIPT_AUTHOR $SCRIPT_VERSION $SCRIPT_LICENSE $SCRIPT_DESC {} {}
 ::weechat::hook_modifier irc_out1_privmsg cmd_emphasys {}
 
-set rebold {\*(.+)\*}
-set reital {\/(.+)\/}
+set rebold {\s\*(.+)\*\s}
+set reital {\s\/(.+)\/\s}
 
 proc cmd_emphasys {data modifier modifier_data irc_msg} {
    set parts [split $irc_msg {:}]
