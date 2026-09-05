@@ -39,6 +39,12 @@
 #
 # ported to WeeChat (http://www.weechat.org/) by Nils Görs.
 #
+# 2026-09-05: 1.2.2 TehPeGaSuS <pegasus@computer4u.com>
+#           : fix: memory usage broken (uninitialized values / division by 0,
+#             closes #581) on kernel >= 6.x due to kernel version regex only
+#             matching majors 3-5
+#           : change: show memory/disk usage with an auto-scaled unit
+#             (B/KB/MB/GB/TB) instead of hardcoded MB/GB
 # 2025-04-22: 1.2.1 Sébastien Helleu <flashcode@flashtux.org>
 #           : fix script license
 # 2019-05-13: 1.2 nils_2 (freenode@nils_2)
@@ -77,7 +83,7 @@ use POSIX qw(floor);
 use strict;
 
 my $SCRIPT_NAME         = "sysinfo";
-my $SCRIPT_VERSION      = "1.2.1";
+my $SCRIPT_VERSION      = "1.2.2";
 my $SCRIPT_DESCR        = "provides a system info command";
 my $SCRIPT_LICENSE      = "BSD-2-Clause";
 my $SCRIPT_AUTHOR       = "Nils Görs <weechatter\@arcor.de>";
@@ -239,7 +245,8 @@ my $d7		= 1 if $darwin && $osv =~ /^7\.\d+\.\d+/;
 my $d8		= 1 if $darwin && $osv =~ /^8\.\d+\.\d+/;
 my $d9		= 1 if $darwin && $osv =~ /^9\.\d+\.\d+/;
 my $l26		= 1 if $linux && $osv =~ /^2\.6/;
-my $l3		= 1 if $linux && $osv =~ /^2\.7/  || $osv =~ /^[3-5]\./;
+my ($osv_major) = $osv =~ /^(\d+)\./;
+my $l3		= 1 if $linux && ( ($osv =~ /^2\.7/) || ($osv_major && $osv_major >= 3) );
 my $f_old	= 1 if $freebsd && $osv =~ /^4\.1-/ || $osv =~ /^4\.0-/ || $osv =~ /^3/ || $osv =~ /^2/;
 
 my $isJail = `sysctl -n security.jail.jailed` if $freebsd;
@@ -778,32 +785,41 @@ sub cpuinfo {
 	return $var;
 }
 
+sub human_size {
+	my $bytes = shift;
+	my @units = ('B', 'KB', 'MB', 'GB', 'TB', 'PB');
+	my $i = 0;
+	while ($bytes >= 1024 && $i < $#units) {
+		$bytes /= 1024;
+		$i++;
+	}
+	return sprintf("%.2f%s", $bytes, $units[$i]);
+}
+
 sub diskusage {
 	if($irix || $irix64) {
-		$vara = `$df | grep dev | awk '{ sum+=\$3 / 1024 / 1024}; END { print sum }'`; chomp($vara);
-		$vard = `$df | grep dev | awk '{ sum+=\$4 / 1024 / 1024}; END { print sum }'`; chomp($vard);
+		$vara = `$df | grep dev | awk '{ sum+=\$3 }; END { print sum }'`; chomp($vara);
+		$vard = `$df | grep dev | awk '{ sum+=\$4 }; END { print sum }'`; chomp($vard);
 	} elsif($sun) {
-		$vara = `$df | grep -v swap | grep -v libc | awk '{ sum+=\$2 / 1024 / 1024}; END { print sum }'`; chomp($vara);
-		$vard = `$df | grep -v swap | grep -v libc | awk '{ sum+=\$3 / 1024 / 1024}; END { print sum }'`; chomp($vard);
+		$vara = `$df | grep -v swap | grep -v libc | awk '{ sum+=\$2 }; END { print sum }'`; chomp($vara);
+		$vard = `$df | grep -v swap | grep -v libc | awk '{ sum+=\$3 }; END { print sum }'`; chomp($vard);
         } elsif($freebsd) {
                 if ($isJail == '1') { # in jails, storage is listed as /mnt/ mountpoints from the host, not as /dev/ devices
-                        $vara = `$df | grep -v swap | awk '{ sum+=\$2 / 1024 / 1024}; END { print sum }'`; chomp($vara);
-                        $vard = `$df | grep -v swap | awk '{ sum+=\$3 / 1024 / 1024}; END { print sum }'`; chomp($vard);
+                        $vara = `$df | grep -v swap | awk '{ sum+=\$2 }; END { print sum }'`; chomp($vara);
+                        $vard = `$df | grep -v swap | awk '{ sum+=\$3 }; END { print sum }'`; chomp($vard);
                 } else {
-                        $vara = `$df | grep dev | awk '{ sum+=\$2 / 1024 / 1024}; END { print sum }'`; chomp($vara);
-                        $vard = `$df | grep dev | awk '{ sum+=\$3 / 1024 / 1024}; END { print sum }'`; chomp($vard);
+                        $vara = `$df | grep dev | awk '{ sum+=\$2 }; END { print sum }'`; chomp($vara);
+                        $vard = `$df | grep dev | awk '{ sum+=\$3 }; END { print sum }'`; chomp($vard);
                 }
 	} else {
-		$vara = `$df | grep dev | awk '{ sum+=\$2 / 1024 / 1024}; END { print sum }'`; chomp($vara);
-		$vard = `$df | grep dev | awk '{ sum+=\$3 / 1024 / 1024}; END { print sum }'`; chomp($vard);
+		$vara = `$df | grep dev | awk '{ sum+=\$2 }; END { print sum }'`; chomp($vara);
+		$vard = `$df | grep dev | awk '{ sum+=\$3 }; END { print sum }'`; chomp($vard);
 	}
 	if ($vara eq "" or $vara == 0 ) {
-		return "0GB/0GB (0%)";
+		return "0B/0B (0%)";
 	} else {
                 $varp = sprintf("%.2f", $vard / $vara * 100);
-                $vara = sprintf("%.2f", $vara);
-                $vard = sprintf("%.2f", $vard);
-                return $vard."GB/".$vara."GB ($varp%)";
+                return human_size($vard * 1024)."/".human_size($vara * 1024)." ($varp%)";
 	}
 }
 
@@ -869,11 +885,7 @@ sub memoryusage {
 		$vara = `$sysctl -n hw.physmem`;
 	}
 	$varp = sprintf("%.2f", 100-($vard / ($vara-$vard) * 100));
-	$vara = sprintf("%.2f", $vara / 1024 / 1024);
-	$vard = sprintf("%.2f", $vard / 1024 / 1024);
-	$vara =~y/,/./;
-	$vard =~y/,/./;
-	return ($vara-$vard)."MB/".$vara."MB ($varp%)";
+	return human_size($vara-$vard)."/".human_size($vara)." ($varp%)";
 }
 
 sub networkinfobsd {
