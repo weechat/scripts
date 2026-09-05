@@ -39,6 +39,10 @@
 #
 # ported to WeeChat (http://www.weechat.org/) by Nils Görs.
 #
+# 2026-09-05: 1.2.3 TehPeGaSuS <pegasus@computer4u.com>
+#           : fix: memoryusage() showed free memory mislabeled as used, and
+#             the percentage could go negative, because the used/free values
+#             were swapped in the final display/percent calculation
 # 2026-09-05: 1.2.2 TehPeGaSuS <pegasus@computer4u.com>
 #           : fix: memory usage broken (uninitialized values / division by 0,
 #             closes #581) on kernel >= 6.x due to kernel version regex only
@@ -83,7 +87,7 @@ use POSIX qw(floor);
 use strict;
 
 my $SCRIPT_NAME         = "sysinfo";
-my $SCRIPT_VERSION      = "1.2.2";
+my $SCRIPT_VERSION      = "1.2.3";
 my $SCRIPT_DESCR        = "provides a system info command";
 my $SCRIPT_LICENSE      = "BSD-2-Clause";
 my $SCRIPT_AUTHOR       = "Nils Görs <weechatter\@arcor.de>";
@@ -884,8 +888,8 @@ sub memoryusage {
 		$vard = `vmstat -s | grep 'pages active' | awk '{print \$1}'` * `vmstat -s | grep 'per page' | awk '{print \$1}'`;
 		$vara = `$sysctl -n hw.physmem`;
 	}
-	$varp = sprintf("%.2f", 100-($vard / ($vara-$vard) * 100));
-	return human_size($vara-$vard)."/".human_size($vara)." ($varp%)";
+	$varp = sprintf("%.2f", ($vard / $vara) * 100);
+	return human_size($vard)."/".human_size($vara)." ($varp%)";
 }
 
 sub networkinfobsd {
