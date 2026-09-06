@@ -72,7 +72,7 @@ except ImportError:
 
 SCRIPT_NAME    = "correction_completion"
 SCRIPT_AUTHOR  = "Pascal Wittmann <mail@pascal-wittmann.de>"
-SCRIPT_VERSION = "0.4.1"
+SCRIPT_VERSION = "0.4.2"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Provides a completion for 's/typo/correct'"
 SCRIPT_COMMAND = "correction_completion"
@@ -274,7 +274,7 @@ def suggest(word):
       while True:
           word = aspell.aspell_string_enumeration_next(elements)
           if not word:
-              break;
+              break
           else:
               list.append(word.decode('UTF-8'))
       aspell.delete_aspell_string_enumeration(elements)
@@ -327,7 +327,7 @@ if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT
     setup_aspell_prototypes(aspell)
 
     # Regex to remove unwanted characters
-    re_remove_chars = re.compile('[,.;:?!\)\(\\\/\"\^]')
+    re_remove_chars = re.compile(r'[,.;:?!()\\/"^]')
 
     # Load configuration
     load_config()
