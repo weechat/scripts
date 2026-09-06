@@ -29,6 +29,11 @@
 # too.
 
 # Changelog:
+# 2026-09-06 -- Version 0.4.1
+#    - fixed SIGSEGV crash on 64 bit systems by declaring ctypes
+#      argument and return types (returned pointers were truncated
+#      to 32 bit)
+#
 # 2020-01-10 -- Version 0.4.0
 #    - Transition to Python 3
 #
@@ -67,7 +72,7 @@ except ImportError:
 
 SCRIPT_NAME    = "correction_completion"
 SCRIPT_AUTHOR  = "Pascal Wittmann <mail@pascal-wittmann.de>"
-SCRIPT_VERSION = "0.4.0"
+SCRIPT_VERSION = "0.4.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Provides a completion for 's/typo/correct'"
 SCRIPT_COMMAND = "correction_completion"
@@ -214,22 +219,64 @@ def unify(list):
         checked.append(e)
     return checked
 
+def setup_aspell_prototypes(aspell):
+    c_void_p = ctypes.c_void_p
+    c_char_p = ctypes.c_char_p
+    c_int    = ctypes.c_int
+    c_uint   = ctypes.c_uint
+
+    aspell.new_aspell_config.restype = c_void_p
+    aspell.new_aspell_config.argtypes = []
+
+    aspell.aspell_config_replace.restype = c_int
+    aspell.aspell_config_replace.argtypes = [c_void_p, c_char_p, c_char_p]
+
+    aspell.delete_aspell_config.restype = None
+    aspell.delete_aspell_config.argtypes = [c_void_p]
+
+    aspell.new_aspell_speller.restype = c_void_p
+    aspell.new_aspell_speller.argtypes = [c_void_p]
+
+    aspell.aspell_error_number.restype = c_uint
+    aspell.aspell_error_number.argtypes = [c_void_p]
+
+    aspell.delete_aspell_can_have_error.restype = None
+    aspell.delete_aspell_can_have_error.argtypes = [c_void_p]
+
+    aspell.to_aspell_speller.restype = c_void_p
+    aspell.to_aspell_speller.argtypes = [c_void_p]
+
+    aspell.aspell_speller_check.restype = c_int
+    aspell.aspell_speller_check.argtypes = [c_void_p, c_char_p, c_int]
+
+    aspell.aspell_speller_suggest.restype = c_void_p
+    aspell.aspell_speller_suggest.argtypes = [c_void_p, c_char_p, c_int]
+
+    aspell.aspell_word_list_elements.restype = c_void_p
+    aspell.aspell_word_list_elements.argtypes = [c_void_p]
+
+    aspell.aspell_string_enumeration_next.restype = c_char_p
+    aspell.aspell_string_enumeration_next.argtypes = [c_void_p]
+
+    aspell.delete_aspell_string_enumeration.restype = None
+    aspell.delete_aspell_string_enumeration.argtypes = [c_void_p]
+
 # Parts are from Wojciech Muła
 def suggest(word):
     if type(word) is str:
+      encoded = word.encode('UTF-8')
       suggestions = aspell.aspell_speller_suggest(
                       speller,
-                      word.encode(),
-                      len(word))
+                      encoded,
+                      len(encoded))
       elements = aspell.aspell_word_list_elements(suggestions)
       list = []
       while True:
-          wordptr = aspell.aspell_string_enumeration_next(elements)
-          if not wordptr:
+          word = aspell.aspell_string_enumeration_next(elements)
+          if not word:
               break;
           else:
-              word = ctypes.c_char_p(wordptr)
-              list.append(word.value.decode('UTF-8'))
+              list.append(word.decode('UTF-8'))
       aspell.delete_aspell_string_enumeration(elements)
       return list
     else:
@@ -237,10 +284,11 @@ def suggest(word):
 
 def spellcheck(word):
     if type(word) is str:
+        encoded = word.encode('UTF-8')
         return aspell.aspell_speller_check(
             speller,
-            word,
-            len(word))
+            encoded,
+            len(encoded))
     else:
         raise TypeError("String expected")
 
@@ -274,6 +322,9 @@ if w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT
     # Use ctypes to access the apsell library
     aspell = ctypes.CDLL(ctypes.util.find_library('aspell'))
     speller = 0
+
+    # Declare argument and return types so pointers are not truncated
+    setup_aspell_prototypes(aspell)
 
     # Regex to remove unwanted characters
     re_remove_chars = re.compile('[,.;:?!\)\(\\\/\"\^]')
