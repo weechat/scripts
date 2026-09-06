@@ -926,12 +926,6 @@ SPDX-FileCopyrightText = "2010 David Rubin <drubin@smartcube.co.za>"
 SPDX-License-Identifier = "GPL-3.0-or-later"
 
 [[annotations]]
-path = "python/correction_completion.py"
-precedence = "override"
-SPDX-FileCopyrightText = "2011-2020 Pascal Wittmann <mail@pascal-wittmann.de>"
-SPDX-License-Identifier = "GPL-3.0-or-later"
-
-[[annotations]]
 path = "python/cron.py"
 precedence = "override"
 SPDX-FileCopyrightText = "2010-2021 Sébastien Helleu <flashcode@flashtux.org>"

@@ -1,60 +1,21 @@
-# -*- coding: utf-8 -*-
 ######################################################################
-# Copyright (c) 2011 by Pascal Wittmann <mail@pascal-wittmann.de>
 #
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 3 of the License, or
-# (at your option) any later version.
+# SPDX-FileCopyrightText: 2011-2020 Pascal Wittmann <mail@pascal-wittmann.de>
 #
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# SPDX-License-Identifier: GPL-3.0-or-later
 #
 # Marked Parts are from Wojciech Muła <wojciech_mula@poczta.onet.pl>
 # and are licensed under BSD and are avaliable at
 # http://0x80.pl/proj/aspell-python/
 ########################################################################
 
-# INSTALLTION
+# INSTALLATION
 # After copying this file into your python plugin directory, start weechat
 # load the script and follow futher instructions calling
 #    /help correction_completion
 # You can find these instructions as markdown on
 #    https://github.com/pSub/weechat-correction-completion/blob/master/README.md
 # too.
-
-# Changelog:
-# 2026-09-06 -- Version 0.4.1
-#    - fixed SIGSEGV crash on 64 bit systems by declaring ctypes
-#      argument and return types (returned pointers were truncated
-#      to 32 bit)
-#
-# 2020-01-10 -- Version 0.4.0
-#    - Transition to Python 3
-#
-# 2012-10-18 -- Version 0.3.0
-#    - incorrect words have a higher priority (typo completion)
-#    - the following characters are removed from the typo: , . ; : ? ! ) ( \ / " ^
-#
-# 2011-06-01 -- Version 0.2.2
-#    - fixed a memory leak, thanks to FlashCode
-#    - documentation updates
-#
-# 2011-03-19 -- Version 0.2.1
-#    - fixed bug that resulted in a crash of weechat
-#
-# 2011-03-18 -- Version 0.2.0
-#    - fixed out of bounds bug
-#    - apply config changes without reloading
-#    - improved performance
-#
-# 2011-02-19 -- Version 0.1.0
-#    - frist working version
 
 import re
 
@@ -72,7 +33,7 @@ except ImportError:
 
 SCRIPT_NAME    = "correction_completion"
 SCRIPT_AUTHOR  = "Pascal Wittmann <mail@pascal-wittmann.de>"
-SCRIPT_VERSION = "0.4.2"
+SCRIPT_VERSION = "0.4.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Provides a completion for 's/typo/correct'"
 SCRIPT_COMMAND = "correction_completion"
