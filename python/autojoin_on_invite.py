@@ -92,7 +92,7 @@ def invite_cb(data, signal, signal_data):
     server = signal.split(',')[0] # EFNet,irc_in_INVITE
     channel = signal_data.split()[-1].lstrip(':') # :nick!ident@host.name INVITE yournick :#channel
     from_nick = ''
-    SearchStr = '(?:\@.*)?:(?P<nick>.+)!' #@time=2022-03-02T19:00:30.041Z :XX-XXXX!~XX-XXXX@xx.xxxx INVITE yournick :#xxxx-xxx (works also when no message-tag is present)
+    SearchStr = r'(?:\@.*)?:(?P<nick>.+)!' #@time=2022-03-02T19:00:30.041Z :XX-XXXX!~XX-XXXX@xx.xxxx INVITE yournick :#xxxx-xxx (works also when no message-tag is present)
     from_nick = re.search(SearchStr, signal_data).groups()[0]
 
     if len(w.config_get_plugin('whitelist_nicks')) > 0 and len(w.config_get_plugin('whitelist_channels')) > 0: # if there's two whitelists, accept both
