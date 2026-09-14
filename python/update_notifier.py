@@ -2,6 +2,7 @@
 #
 # Copyright (c) 2010 by drubin <drubin at smartcube.co.za>
 # Copyright (c) 2017 Sébastien Helleu <flashcode at flashtux.org>
+# Copyright (c) 2026 Nils Görs <nils_2@#weechat.libera>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,11 +17,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
-# Allows you to visually see if there are updates to your weechat system.
+# Allows you to visually see if there are updates to your WeeChat system.
 
 # Versions:
-#
+# 0.8 nils_2    - fix errors, validate downloads and cache robustly, handle missing information safely
 # 0.7 flashcode - fix error when next release is scheduled today
 # 0.6 flashcode - add compatibility with WeeChat >= 3.2 (XDG directories)
 # 0.5 flashcode - fix URL with infos, fix download of infos, fix PEP8 errors
@@ -45,12 +45,14 @@
 
 SCRIPT_NAME = "update_notifier"
 SCRIPT_AUTHOR = "drubin <drubin at smartcube.co.za>"
-SCRIPT_VERSION = "0.7"
+SCRIPT_VERSION = "0.8"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Notifiers users of updates to weechat."
 
 import_ok = True
 import os
+import re
+import shlex
 from time import *
 try:
     import weechat
@@ -80,6 +82,8 @@ URL_INFOS = "https://weechat.org/dev/info/all/"
 INFOS_FILENAME = "infos.txt"
 BAR_ITEM_NAME = "updnotf"
 
+next_stable_text = ""
+
 # How long to wait for download
 TIMEOUT_DOWNLOAD = 60 * 1000
 
@@ -98,9 +102,9 @@ def un_cache_dir():
 def get_version(as_number=False):
     """Gets the version number of weechat, both number and string."""
     if as_number:
-        return weechat.info_get("version_number", "")
+        return weechat.info_get("version_number", "") or "0"
     else:
-        return weechat.info_get("version", "")
+        return weechat.info_get("version", "") or "unknown"
 
 
 def get_filename_infos():
@@ -113,7 +117,7 @@ def get_cur_git_version():
     if path == "":
         return None
 
-    f = os.popen("cd %s && git rev-parse HEAD" % path)
+    f = os.popen("cd %s && git rev-parse HEAD" % shlex.quote(path))
     stuff = f.readline()
     f.close()
     return stuff.strip()
@@ -124,7 +128,7 @@ def do_git_pull():
         return
     path = weechat.config_get_plugin("git_compile_location")
     if path != "":
-        f = os.popen("cd %s && git pull 2>&1" % path)
+        f = os.popen("cd %s && git pull 2>&1" % shlex.quote(path))
         stuff = f.readline()
         weechat.prnt("", weechat.prefix("action") +
                      weechat.color(weechat.config_color(
@@ -134,12 +138,45 @@ def do_git_pull():
         f.close()
 
 
+def validate_infos_file():
+    """Validate that the downloaded infos file contains required values."""
+    filename = get_filename_infos()
+
+    if not os.path.isfile(filename):
+        return False, "infos.txt was not downloaded"
+
+    try:
+        with open(filename, "r", encoding="utf-8") as f:
+            content = f.read()
+    except (OSError, IOError, UnicodeError) as exc:
+        return False, "cannot read infos.txt: %s" % exc
+
+    required = ("stable", "stable_number", "next_stable_date")
+    missing = []
+
+    for key in required:
+        pattern = r"(?m)^%s:(.+?)\s*$" % re.escape(key)
+        match = re.search(pattern, content)
+        if not match or not match.group(1).strip():
+            missing.append(key)
+
+    if missing:
+        return False, "missing info: %s" % ", ".join(missing)
+
+    return True, ""
+
+
 def get_info_ver(info):
-    with open(get_filename_infos(), "r") as f:
-        for line in f.readlines():
-            items = line.strip().split(":", 1)
-            if len(items) == 2 and items[0] == info:
-                return items[1]
+    """Return an info value from the cached infos file, or None if missing."""
+    try:
+        with open(get_filename_infos(), "r") as f:
+            for line in f:
+                items = line.strip().split(":", 1)
+                if len(items) == 2 and items[0] == info:
+                    value = items[1].strip()
+                    return value if value else None
+    except (OSError, IOError):
+        return None
     return None
 
 
@@ -147,6 +184,20 @@ def un_download_cb(filename, command, rc, stdout, stderr):
     """Callback on download of URL."""
 
     if rc != 0:
+        weechat.prnt(
+            "",
+            weechat.prefix("error") +
+            "%s: download failed (return code %s)" % (SCRIPT_NAME, rc)
+        )
+        return weechat.WEECHAT_RC_OK
+
+    valid, error = validate_infos_file()
+    if not valid:
+        weechat.prnt(
+            "",
+            weechat.prefix("error") +
+            "%s: invalid WeeChat info cache: %s" % (SCRIPT_NAME, error)
+        )
         return weechat.WEECHAT_RC_OK
 
     weechat.bar_item_update(BAR_ITEM_NAME)
@@ -156,27 +207,41 @@ def un_download_cb(filename, command, rc, stdout, stderr):
     compare_version = ""
     compare_version_num = ""
     update_avaliable = False
-    global next_stable_text
-    next_stable_text = ""
 
     # check for stable version first
     start_counting = weechat.config_get_plugin("start_counting")
     if start_counting != "":
         next_stable_date = get_info_ver("next_stable_date")
-        lt = localtime()
-        year, month, day = lt[0:3]  # today
-        next_stable_date = next_stable_date.split("-")  # next_stable_date
-        next_stable_date = (int(next_stable_date[0]), int(next_stable_date[1]),
-                            int(next_stable_date[2]), 0, 0, 0, 0, 0, 0)
-        next_stable_date = mktime(next_stable_date)
-        today = year, month, day, 0, 0, 0, 0, 0, 0
-        today = mktime(today)
-        # calculate days till next_stable_date
-        diff_day = (next_stable_date - today) // 60 // 60 // 24
-        diff_day = "%1i" % (diff_day)
+
+        # some WeeChat info endpoints may omit next_stable_date.
+        # in that case there is no countdown to display.
+        if next_stable_date:
+            try:
+                lt = localtime()
+                year, month, day = lt[0:3]  # today
+                date_parts = next_stable_date.split("-")
+                if len(date_parts) != 3:
+                    raise ValueError("invalid next_stable_date")
+
+                next_stable_date = (
+                    int(date_parts[0]), int(date_parts[1]), int(date_parts[2]),
+                    0, 0, 0, 0, 0, 0
+                )
+                next_stable_date = mktime(next_stable_date)
+                today = (year, month, day, 0, 0, 0, 0, 0, 0)
+                today = mktime(today)
+
+                # calculate days till next_stable_date
+                diff_day = (next_stable_date - today) // 60 // 60 // 24
+                diff_day = "%1i" % (diff_day)
+            except (ValueError, TypeError, OverflowError):
+                diff_day = None
+        else:
+            diff_day = None
 
         # diff_day = 0  # test to pop up new stable text
-        if (int(diff_day) > 0) and (int(diff_day) <= int(start_counting)):
+        if diff_day is not None and (int(diff_day) > 0) and (
+                int(diff_day) <= int(start_counting)):
             used_color = weechat.config_get_plugin("color_default")
             # TEN and counting....
             if (int(diff_day) <=
@@ -200,23 +265,31 @@ def un_download_cb(filename, command, rc, stdout, stderr):
                 else:
                     next_stable_text = next_stable_text % int(diff_day)
                 update_avaliable = False
-        elif (int(diff_day) <= 0):  # today a new stable version is available
+        elif diff_day is not None and int(diff_day) <= 0:
+            # Today a new stable version is available.
             stable_number = get_info_ver("stable")
-            next_stable_text = weechat.config_get_plugin("update_text_stable")
-            if next_stable_text.find("%s") >= 1:  # %s in string?
-                next_stable_text = (next_stable_text % stable_number)
+            if stable_number is not None:
+                next_stable_text = weechat.config_get_plugin(
+                    "update_text_stable"
+                )
+                if next_stable_text.find("%s") >= 1:  # %s in string?
+                    next_stable_text = next_stable_text % stable_number
             return weechat.WEECHAT_RC_OK
 
     if weechat.config_get_plugin("uses_devel") == "true":
         compare_version_num = get_info_ver("next_stable_number")
         compare_version = get_info_ver("next_stable")
-        update_avaliable = int(compare_version_num) > int(version_num)
+        if compare_version_num is not None:
+            try:
+                update_avaliable = int(compare_version_num) > int(version_num)
+            except (ValueError, TypeError):
+                update_avaliable = False
     elif weechat.config_get_plugin("uses_git") == "true":
         git_cur = get_cur_git_version()
         if git_cur is not None:  # path to git dir exists?
             git_ver = get_info_ver("git")  # yes
             compare_version = git_cur
-            update_avaliable = get_cur != git_ver
+            update_avaliable = git_cur != git_ver
             if update_avaliable:
                 do_git_pull()  # call git pull
         else:
@@ -224,7 +297,11 @@ def un_download_cb(filename, command, rc, stdout, stderr):
     else:
         compare_version_num = get_info_ver("stable_number")
         compare_version = get_info_ver("stable")
-        update_avaliable = int(compare_version_num) > int(version_num)
+        if compare_version_num is not None:
+            try:
+                update_avaliable = int(compare_version_num) > int(version_num)
+            except (ValueError, TypeError):
+                update_avaliable = False
 
     if update_avaliable:
         next_stable_text = weechat.config_get_plugin("update_text")
