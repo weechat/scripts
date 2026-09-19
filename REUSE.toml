@@ -701,12 +701,6 @@ SPDX-FileCopyrightText = [
 SPDX-License-Identifier = "GPL-3.0-or-later"
 
 [[annotations]]
-path = "python/autojoin_on_invite.py"
-precedence = "override"
-SPDX-FileCopyrightText = "2009 Tor Hveem <xt@bash.no>"
-SPDX-License-Identifier = "GPL-3.0-or-later"
-
-[[annotations]]
 path = "python/automarkbuffer.py"
 precedence = "override"
 SPDX-FileCopyrightText = "2015 Nils Görs <weechatter@arcor.de>"

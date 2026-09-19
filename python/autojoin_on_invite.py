@@ -1,55 +1,13 @@
-# -*- coding: utf-8 -*-
+# SPDX-FileCopyrightText: 2009 Tor Hveem <xt@bash.no>
 #
-# Copyright (c) 2009 by xt <xt@bash.no>
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-
-#
-# (this script requires WeeChat 0.3.0 or newer)
-#
-# History:
-# 2022-10-19, Guillermo Castro <github@codegeek.dev>
-#   version 0.9: fix regex parsing of INVITE to allow non-ircv3 matching
-# 2022-03-2, h-0-s-h <noreply@ic3.gov>
-#   version 0.8: fix reged parsing of INVITE message to account for ircv3/CAPS style/etc
-#                (@time=2022-03-02T19:00:30.041Z :XXXXX!~XXXXX@xxxxx INVITE h-0-s-h :#xxxxx)
-# 2018-10-03, Pol Van Aubel <dev@polvanaubel.com>
-#   version 0.7: Python3 compatibility. Considerations:
-#                - Settings during registration are iterated over only once, so
-#                  code should be succinct rather than efficient on both Py2/3.
-#                - The autojoin_keys zip is turned into a dict, so wouldn't
-#                  make sense to first turn into a list as futurize suggests.
-# 2015-10-11, Simmo Saan <simmo.saan@gmail.com>
-#   version 0.6: allow joining channels with keys in autojoin
-# 2013-12-21, Sebastien Helleu <flashcode@flashtux.org>
-#   version 0.5: fix parsing of INVITE message
-# 2013-11-28, sakkemo <scajanus@gmail.com>
-#   version 0.4: add whitelist for nicks/channels
-# 2009-11-09, xt <xt@bash.no>
-#   version 0.3: add ignore option for channels
-# 2009-10-29, xt <xt@bash.no>
-#   version 0.2: add ignore option
-# 2009-10-28, xt <xt@bash.no>
-#   version 0.1: initial release
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 import weechat as w
 import re
 
 SCRIPT_NAME    = "autojoin_on_invite"
 SCRIPT_AUTHOR  = "xt <xt@bash.no>"
-SCRIPT_VERSION = "0.10"
+SCRIPT_VERSION = "0.10.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC    = "Auto joins channels when invited"
 
