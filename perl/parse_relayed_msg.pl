@@ -1,14 +1,15 @@
+# SPDX-FileCopyrightText: 2011-2019 w8rabbit <w8rabbit@mail.i2p>
+# SPDX-FileCopyrightText: 2026 nils_2@libera.#weechat
 #
-# Copyright (c) 2011-2019 by w8rabbit (w8rabbit[at]mail[dot]i2p)
-# Copyright (c) 2026 nils_2@libera.#weechat
-# or from outside i2p: w8rabbit[at]i2pmail[dot]org
-#
-# Script is under GPL3.
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+# From outside i2p: w8rabbit[at]i2pmail[dot]org
 #
 # Script is inspired by NullPointerException's xchat script
 #
 # thanks to darrob for hard beta-testing
 #
+# 1.10.1: add SPDX copyright and license tags
 # 1.10 : add: support for Twitch-style relay messages "[Twitch] <nick> message"
 # 1.9.7: fix: a warning about declaration in same scope
 #        remove: unnecessary callback function
@@ -73,7 +74,7 @@
 
 use strict;
 my $SCRIPT_NAME         = "parse_relayed_msg";
-my $SCRIPT_VERSION      = "1.10";
+my $SCRIPT_VERSION      = "1.10.1";
 my $SCRIPT_DESCR        = "proper integration of remote users' nicknames in channel and nicklist";
 my $SCRIPT_AUTHOR       = "w8rabbit";
 my $SCRIPT_LICENCE      = "GPL3";

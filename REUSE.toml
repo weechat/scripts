@@ -409,12 +409,6 @@ SPDX-FileCopyrightText = "2013-2017 shmibs <shmibs@shmibbles.me>"
 SPDX-License-Identifier = "GPL-3.0-or-later"
 
 [[annotations]]
-path = "perl/parse_relayed_msg.pl"
-precedence = "override"
-SPDX-FileCopyrightText = "2011-2019 w8rabbit <w8rabbit@mail.i2p>"
-SPDX-License-Identifier = "GPL-3.0-or-later"
-
-[[annotations]]
 path = "perl/perlexec.pl"
 precedence = "override"
 SPDX-FileCopyrightText = "2011 arza <arza@arza.us>"
