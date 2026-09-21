@@ -1,5 +1,6 @@
 #
 # Copyright (c) 2011-2019 by w8rabbit (w8rabbit[at]mail[dot]i2p)
+# Copyright (c) 2026 nils_2@libera.#weechat
 # or from outside i2p: w8rabbit[at]i2pmail[dot]org
 #
 # Script is under GPL3.
@@ -8,6 +9,7 @@
 #
 # thanks to darrob for hard beta-testing
 #
+# 1.10 : add: support for Twitch-style relay messages "[Twitch] <nick> message"
 # 1.9.7: fix: a warning about declaration in same scope
 #        remove: unnecessary callback function
 # 1.9.6: fix: nick parsing with messages containing @ and >
@@ -71,7 +73,7 @@
 
 use strict;
 my $SCRIPT_NAME         = "parse_relayed_msg";
-my $SCRIPT_VERSION      = "1.9.7";
+my $SCRIPT_VERSION      = "1.10";
 my $SCRIPT_DESCR        = "proper integration of remote users' nicknames in channel and nicklist";
 my $SCRIPT_AUTHOR       = "w8rabbit";
 my $SCRIPT_LICENCE      = "GPL3";
@@ -228,6 +230,26 @@ sub parse_relayed_msg_cb
         elsif ( $line =~ m/^\[\w\] <@([^>]+)> (.+)$/ )
         {
             my ($relaynick,$relaymsg) = ($1,$2);
+            if ( grep /^$servername.$relaynick$/, @blacklist )              # check for ignored relay nicks
+            {
+                return '';                                                  # delete message from ignored relaynick
+            }
+            my $nick_mode = "";
+            ($relaynick,$nick_mode) = check_nick_mode($buf_ptr,$relaynick);
+            add_relay_nick_to_nicklist($buf_ptr,$relaynick,"");
+            (undef, $relaymsg) = colorize_lines($modifier_data,$relaynick, $relaymsg);
+
+            $string = create_string_without_relaynet($servername,$channelname,$relaynick,$nick_mode,$relaymsg);
+
+            $modifier_data = change_tags_for_message( $buf_ptr,$relaynick,"",$modifier_data,"" );
+            weechat::print_date_tags($buf_ptr,0,$modifier_data,$string);
+            return "";
+        }
+        # message from Twitch (and similar) relay bots
+        # [Twitch] <nickname> here comes the message
+        elsif ( $line =~ m/^\[([^\]]+)\] <([^>]+)> (.+)$/ )
+        {
+            my ($relaynet,$relaynick,$relaymsg) = ($1,$2,$3);
             if ( grep /^$servername.$relaynick$/, @blacklist )              # check for ignored relay nicks
             {
                 return '';                                                  # delete message from ignored relaynick
