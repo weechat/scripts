@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2009-2013 Sebastien Helleu <flashcode@flashtux.org>
-# Copyright (C) 2010 xt <xt@bash.no>
-# Copyright (C) 2010 Aleksey V. Zapparov <ixti@member.fsf.org>
+# SPDX-FileCopyrightText: 2025 أحمد المحمودي <aelmahmoudy@users.sourceforge.net>
+# SPDX-FileCopyrightText: 2009-2013 Sebastien Helleu <flashcode@flashtux.org>
+# SPDX-FileCopyrightText: 2010 xt <xt@bash.no>
+# SPDX-FileCopyrightText: 2010 Aleksey V. Zapparov <ixti@member.fsf.org>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,6 +29,16 @@
 # Happy chat, enjoy :)
 #
 # History:
+# 2025-08-16, أحمد المحمودي <aelmahmoudy@users.sourceforge.net>
+#     version 1.7: Port to Python 3:
+#                   - Use _sslObj instead of _sock to get socket fd
+#                   - utf-8 encoding/decoding fixes
+#                   - Add __str__ method to Buddy class which returns 
+#                     bare_jid
+#                   Support /whois, /query and /msg commands for jabber 
+#                      buddies
+#                   Implement /away command for jabber servers 
+#                   Add XEP-0224 call attention (/jattn) command
 # 2013-09-30, Nils Görs <freenode.nils_2>:
 #     version 1.6: add support of /secure for passwords and jid
 #                : fix stdout/stderr when no JID was set
@@ -101,7 +114,7 @@ try:
     import weechat
 except:
     print("This script must be run under WeeChat.")
-    print("Get WeeChat now at: http://www.weechat.org/")
+    print("Get WeeChat now at: http://weechat.org/")
     import_ok = False
 
 # On import, xmpp may produce warnings about using hashlib instead of
@@ -410,11 +423,11 @@ class Server:
         self.options = {}
         # if the value is provided, use it, otherwise use the default
         values = {}
-        for option_name, props in jabber_server_options.items():
+        for option_name, props in list(jabber_server_options.items()):
             values[option_name] = props["default"]
         values['name'] = name
         values.update(**kwargs)
-        for option_name, props in jabber_server_options.items():
+        for option_name, props in list(jabber_server_options.items()):
             self.options[option_name] = weechat.config_new_option(
                 jabber_config_file, jabber_config_section["server"],
                 self.name + "." + option_name, props["type"], props["desc"],
@@ -515,10 +528,12 @@ class Server:
                 self.client.RegisterHandler("iq", self.iq_handler)
                 self.client.RegisterHandler("message", self.message_handler)
                 self.client.sendInitPresence(requestRoster=1)
-                self.sock = self.client.Connection._sock.fileno()
+                self.sock = self.client.Connection._sslObj.fileno()
                 self.hook_fd = weechat.hook_fd(self.sock, 1, 0, 0, "jabber_fd_cb", "")
                 weechat.buffer_set(self.buffer, "highlight_words", self.buddy.username)
                 weechat.buffer_set(self.buffer, "localvar_set_nick", self.buddy.username);
+                # FIXME: following hook won't work if multiple spaces 
+                # before -all:
                 hook_away = weechat.hook_command_run("/away -all*", "jabber_away_command_run_cb", "")
 
 
@@ -572,7 +587,7 @@ class Server:
         """ Print debug message for a handler on server buffer. """
         self.print_debug_server("%s_handler, xml message:\n%s"
                                 % (handler_name,
-                                   node.__str__(fancy=True).encode("utf-8")))
+                                   node.__str__(fancy=True)))
 
     def print_error(self, message):
         """ Print error message on server buffer. """
@@ -581,7 +596,7 @@ class Server:
 
     def presence_handler(self, conn, node):
         self.print_debug_handler("presence", node)
-        buddy = self.search_buddy_list(node.getFrom().getStripped().encode("utf-8"), by='jid')
+        buddy = self.search_buddy_list(node.getFrom().getStripped(), by='jid')
         if not buddy:
             buddy = self.add_buddy(jid=node.getFrom())
         action='update'
@@ -592,11 +607,11 @@ class Server:
             away = node.getShow() in ["away", "xa"]
             status = ''
             if node.getStatus():
-                status = node.getStatus().encode("utf-8")
+                status = node.getStatus()
             if self.roster:
                 name = self.roster.getName(buddy.bare_jid)
                 if name:
-                    buddy.set_name(name.encode("utf-8"))
+                    buddy.set_name(name)
             buddy.set_status(status=status, away=away)
         self.update_nicklist(buddy=buddy, action=action)
         return
@@ -622,12 +637,13 @@ class Server:
         """ Receive message. """
         self.print_debug_handler("message", node)
         node_type = node.getType()
-        if node_type not in ["message", "chat", None]:
+        if node_type not in ["message", "chat", "headline", None]:
             self.print_error("unknown message type: '%s'" % node_type)
             return
         jid = node.getFrom()
         body = node.getBody()
-        if not jid or not body:
+        attention=node.getTags('attention')
+        if not jid or not (body or attention):
             return
         buddy = self.search_buddy_list(self.stringify_jid(jid), by='jid')
         if not buddy:
@@ -640,7 +656,11 @@ class Server:
             self.add_chat(buddy)
         if buddy.chat:
             recv_object = buddy.chat
-        recv_object.recv_message(buddy, body.encode("utf-8"))
+        if attention:
+            nick = buddy.alias
+            if not nick: nick = buddy.bare_jid
+            self.print_action(nick, "%s sent you a call attention" % nick)
+        if body: recv_object.recv_message(buddy, body)
 
     def recv(self):
         """ Receive something from Jabber server. """
@@ -677,21 +697,42 @@ class Server:
                 chat.print_status(status)
                 break
 
-    def send_message(self, buddy, message):
+    def print_action(self, nickname, action_string):
+        """ Print an action in server window or chat buffer. """
+        for chat in self.chats:
+            if nickname in chat.buddy.alias:
+                chat.print_action(action_string)
+                return
+
+        weechat.prnt_date_tags(self.buffer, 0, "no_highlight", "%s%s" %
+                               (weechat.prefix("action"),
+                                action_string))
+
+    def send_message(self, buddy, message, payload=[]):
         """ Send a message to buddy.
 
         The buddy argument can be either a jid string,
         eg username@domain.tld/resource or a Buddy object instance.
         """
         recipient = buddy
+        nick = buddy
         if isinstance(buddy, Buddy):
             recipient = buddy.jid
+            nick = buddy.alias
+            if not nick: nick = buddy.bare_jid
         if not self.ping_up:
             weechat.prnt(self.buffer, "%sjabber: unable to send message, connection is down"
                          % weechat.prefix("error"))
             return
         if self.client:
-            msg = xmpp.protocol.Message(to=recipient, body=message, typ='chat')
+            msgtype = 'chat'
+            if payload:
+              for p in payload:
+                if p.getTags('attention'):
+                  msgtype = 'headline'
+                  self.print_action(nick, "Sent call attention to %s" % nick)
+                  break
+            msg = xmpp.protocol.Message(to=recipient, body=message, typ=msgtype, payload=payload)
             self.client.send(msg)
 
     def send_message_from_input(self, input=''):
@@ -753,7 +794,7 @@ class Server:
 
     def add_buddy(self, jid=None):
         buddy = Buddy(jid=jid, server=self)
-        buddy.resource = buddy.resource.encode("utf-8")
+        buddy.resource = buddy.resource
         self.buddies.append(buddy)
         return buddy
 
@@ -764,11 +805,11 @@ class Server:
 
         len_max = { 'alias': 5, 'jid': 5 }
         lines = []
-        for buddy in sorted(self.buddies, key=lambda x: x.jid.getStripped().encode('utf-8')):
+        for buddy in sorted(self.buddies, key=lambda x: x.jid.getStripped()):
             alias = ''
             if buddy.alias != buddy.bare_jid:
                 alias = buddy.alias
-            buddy_jid_string = buddy.jid.getStripped().encode('utf-8')
+            buddy_jid_string = buddy.jid.getStripped()
             lines.append( {
                 'jid': buddy_jid_string,
                 'alias': alias,
@@ -802,11 +843,9 @@ class Server:
         else:
             jid_str = jid.domain
         if wresource and jid.resource:
-            # concatenate jid with resource delimiter first and encode them
-            # into utf-8, else it will raise UnicodeException becaouse of
-            # slash character :((
-            return (jid_str + '/').encode("utf-8") + jid.resource.encode("utf-8")
-        return jid_str.encode("utf-8")
+            # concatenate jid with resource delimiter first
+            return (jid_str + '/') + jid.resource
+        return jid_str
 
     def search_buddy_list(self, name, by='jid'):
         """ Search for a buddy by name.
@@ -966,7 +1005,7 @@ class Server:
         self.disconnect()
         self.close_buffer()
         if deleteOptions:
-            for name, option in self.options.items():
+            for name, option in list(self.options.items()):
                 weechat.config_option_free(option)
 
 def eval_expression(option_name):
@@ -1047,13 +1086,13 @@ class Chat:
                                              buddy.alias,
                                              message))
 
-    def send_message(self, message):
+    def send_message(self, message, payload=[]):
         """ Send message to buddy. """
         if not self.server.ping_up:
             weechat.prnt(self.buffer, "%sjabber: unable to send message, connection is down"
                          % weechat.prefix("error"))
             return
-        self.server.send_message(self.buddy, message)
+        self.server.send_message(self.buddy, message, payload)
         weechat.prnt_date_tags(self.buffer, 0,
                                "notify_none,no_highlight,nick_%s,prefix_nick_%s,log1" %
                                (self.server.buddy.alias,
@@ -1067,6 +1106,12 @@ class Chat:
                      (weechat.prefix("action"),
                       self.buddy.alias,
                       status))
+
+    def print_action(self, action_string):
+        """ Print an action string in chat. """
+        weechat.prnt(self.buffer, "%s%s" %
+                     (weechat.prefix("action"),
+                      action_string))
 
     def close_buffer(self):
         """ Close chat buffer. """
@@ -1114,6 +1159,9 @@ class Buddy:
         self.set_alias()
         return
 
+    def __str__(self):
+        return(self.bare_jid)
+
     def away_string(self):
         """ Return a string with away and status, with color codes. """
         if not self:
@@ -1144,7 +1192,7 @@ class Buddy:
         """
         if not self.jid:
             return
-        self.bare_jid = self.jid.getStripped().encode("utf-8")
+        self.bare_jid = self.jid.getStripped()
         self.username = self.jid.getNode()
         self.domain = self.jid.getDomain()
         self.resource = self.jid.getResource()
@@ -1162,7 +1210,7 @@ class Buddy:
         if self.name:
             self.alias = self.name
         global jabber_jid_aliases
-        for alias, jid in jabber_jid_aliases.items():
+        for alias, jid in list(jabber_jid_aliases.items()):
             if jid == self.bare_jid:
                 self.alias = alias
                 break
@@ -1228,10 +1276,11 @@ def jabber_hook_commands_and_completions():
                          "  Delete an alias: /jabber alias del alias_name\n"
                          "\n"
                          "Other jabber commands:\n"
-                         "  Chat with a buddy (pv buffer): /jchat\n"
+                         "  Chat with a buddy (pv buffer): /jchat or /query\n"
                          "  Add buddy to roster:           /invite\n"
                          "  Remove buddy from roster:      /kick\n"
-                         "  Send message to buddy:         /jmsg",
+                         "  Send message to buddy:         /jmsg or /msg\n"
+                         "  Send call attention to buddy:  /jattn",
                          "list %(jabber_servers)"
                          " || add %(jabber_servers)"
                          " || connect %(jabber_servers)"
@@ -1250,6 +1299,11 @@ def jabber_hook_commands_and_completions():
                          "buddy: buddy id",
                          "",
                          "jabber_cmd_jchat", "")
+    weechat.hook_command("query", "Chat with a Jabber buddy",
+                         "<buddy>",
+                         "buddy: buddy id",
+                         "",
+                         "jabber_cmd_jchat", "")
     weechat.hook_command("jmsg", "Send a messge to a buddy",
                          "[-server <server>] <buddy> <text>",
                          "server: name of jabber server buddy is on\n"
@@ -1257,6 +1311,18 @@ def jabber_hook_commands_and_completions():
                          "  text: text to send",
                          "",
                          "jabber_cmd_jmsg", "")
+    weechat.hook_command("msg", "Send a messge to a buddy",
+                         "[-server <server>] <buddy> <text>",
+                         "server: name of jabber server buddy is on\n"
+                         " buddy: buddy id\n"
+                         "  text: text to send",
+                         "",
+                         "jabber_cmd_jmsg", "")
+    weechat.hook_command("away", "Togfle away status",
+                         "[-all] <text>",
+                         "  text: away message",
+                         "",
+                         "jabber_cmd_away", "")
     weechat.hook_command("invite", "Add a buddy to your roster",
                          "<buddy>",
                          "buddy: buddy id",
@@ -1267,10 +1333,44 @@ def jabber_hook_commands_and_completions():
                          "buddy: buddy id",
                          "",
                          "jabber_cmd_kick", "")
+    weechat.hook_command("jattn", "Send call attention to a buddy",
+                         "[-server <server>] [-buddy <buddy>] [<text>]",
+                         "server: name of jabber server buddy is on\n"
+                         " buddy: buddy id\n"
+                         "  text: text to send",
+                         "-server %(jabber_servers)"
+                         " || -buddy %(jabber_jid_aliases)",
+                         "jabber_cmd_jattn", "")
+    weechat.hook_command("whois", "Query information about a Jabber buddy",
+                         "<buddy>",
+                         "buddy: buddy id",
+                         "",
+                         "jabber_cmd_whois", "")
     weechat.hook_completion("jabber_servers", "list of jabber servers",
                             "jabber_completion_servers", "")
     weechat.hook_completion("jabber_jid_aliases", "list of jabber jid aliases",
                             "jabber_completion_jid_aliases", "")
+
+def jabber_cmd_away(data, buffer, args):
+    """ Command '/away'. """
+    argv = args.split()
+    context = jabber_search_context(buffer)
+
+    if len(argv) < 1:
+        message=''
+    elif argv[0] == '-all':
+        global jabber_servers
+        message = " ".join(argv[1:])
+        for server in jabber_servers:
+            if server.sock and server.sock >= 0:
+                server.set_away(message)
+        return weechat.WEECHAT_RC_OK
+    else:
+        message = " ".join(argv[0:])
+
+    if context["server"]:
+        context["server"].set_away(message)
+    return weechat.WEECHAT_RC_OK
 
 def jabber_list_servers_chats(name):
     """ List servers and chats. """
@@ -1286,7 +1386,7 @@ def jabber_list_servers_chats(name):
                             (server.option_string("server"),
                             server.option_string("port")))
                 connected = ""
-                if server.sock >= 0:
+                if server.sock and server.sock >= 0:
                     connected = "(connected)"
 
                 weechat.prnt("", "  %s - %s %s %s" % (server.name,
@@ -1476,17 +1576,53 @@ def jabber_cmd_kick(data, buffer, args):
             context["server"].del_buddy(args)
     return weechat.WEECHAT_RC_OK
 
+def jabber_cmd_jattn(data, buffer, args):
+    """ Command '/jattn'. """
+    recipient = None
+    context = jabber_search_context(buffer)
+    message=''
+
+    if args:
+        argv = args.split()
+        if argv[0] == '-server':
+            context = jabber_search_context_by_name(argv[1])
+            argv=argv[2:]
+
+        if argv[0] == '-buddy':
+            recipient = argv[1]
+            argv=argv[2:]
+
+        message = " ".join(argv[0:])
+
+    payload=[xmpp.protocol.Node('attention', attrs={'xmlns':'urn:xmpp:attention:0'})]
+    if context["server"]:
+        if recipient:
+           buddy = context['server'].search_buddy_list(recipient, by='alias')
+           context["server"].send_message(buddy, message, payload=payload )
+        elif context["chat"]:
+           context["chat"].send_message(message, payload=payload )
+
+    return weechat.WEECHAT_RC_OK
+
+def jabber_cmd_whois(data, buffer, args):
+    """ Command '/whois'. """
+    if args:
+        context = jabber_search_context(buffer)
+        if context["server"]:
+            buddy = context["server"].search_buddy_list(args, by='alias')
+            if not buddy:
+                buddy = context["server"].add_buddy(jid=args)
+            weechat.prnt("", "%s" % (buddy.alias))
+            weechat.prnt("", "  Name: %s" % (buddy.name))
+            weechat.prnt("", "  Jabber ID/Resource: %s/%s" % (buddy.bare_jid, buddy.resource))
+            weechat.prnt("", "  Status: %s %s" % (buddy.status, buddy.away_string()))
+
+    return weechat.WEECHAT_RC_OK
+
 def jabber_away_command_run_cb(data, buffer, command):
     """ Callback called when /away -all command is run """
-    global jabber_servers
-    words = command.split(None, 2)
-    if len(words) < 2:
-        return
-    message = ''
-    if len(words) > 2:
-        message = words[2]
-    for server in jabber_servers:
-        server.set_away(message)
+    argv  = command.split(None, 1)
+    jabber_cmd_away(data, buffer, " ".join(argv[1:]))
     return weechat.WEECHAT_RC_OK
 
 class AliasCommand(object):
@@ -1522,7 +1658,7 @@ class AliasCommand(object):
         invalid_re = re.compile(r'[^a-zA-Z0-9\[\]\\\^_\-{|}@\.]')
         if invalid_re.search(self.alias):
             weechat.prnt("", "\njabber: invalid alias: %s" % self.alias)
-            weechat.prnt("", "jabber: use only characters: a-z A-Z 0-9 [ \ ] ^ _ - { | } @ .")
+            weechat.prnt("", "jabber: use only characters: a-z A-Z 0-9 [ \\ ] ^ _ - { | } @ .")
             return
         # Ensure alias and jid are reasonable length.
         max_len = 64
@@ -1534,15 +1670,15 @@ class AliasCommand(object):
             weechat.prnt("", "\njabber: invalid jid: %s" % self.jid)
             weechat.prnt("", "jabber: must be no more than %s characters long" % max_len)
             return
-        jid = self.jid.encode("utf-8")
-        alias = self.alias.encode("utf-8")
-        if alias in jabber_jid_aliases.keys():
+        jid = self.jid
+        alias = self.alias
+        if alias in list(jabber_jid_aliases.keys()):
             weechat.prnt("", "\njabber: unable to add alias: %s" % (alias))
             weechat.prnt("", "jabber: alias already exists, delete first")
             return
-        if jid in jabber_jid_aliases.values():
+        if jid in list(jabber_jid_aliases.values()):
             weechat.prnt("", "\njabber: unable to add alias: %s" % (alias))
-            for a, j in jabber_jid_aliases.items():
+            for a, j in list(jabber_jid_aliases.items()):
                 if j == jid:
                     weechat.prnt("", "jabber: jid '%s' is already aliased as '%s', delete first" %
                         (j, a))
@@ -1600,7 +1736,7 @@ class AliasCommand(object):
         weechat.prnt("", "jabber jid aliases:")
         len_alias = 5
         len_jid = 5
-        for alias, jid in jabber_jid_aliases.items():
+        for alias, jid in list(jabber_jid_aliases.items()):
             if len_alias < len(alias):
                 len_alias = len(alias)
             if len_jid < len(jid):
@@ -1636,7 +1772,7 @@ def jabber_completion_servers(data, completion_item, buffer, completion):
     """ Completion with jabber server names. """
     global jabber_servers
     for server in jabber_servers:
-        weechat.hook_completion_list_add(completion, server.name,
+        weechat.completion_list_add(completion, server.name,
                                          0, weechat.WEECHAT_LIST_POS_SORT)
     return weechat.WEECHAT_RC_OK
 
@@ -1644,7 +1780,7 @@ def jabber_completion_jid_aliases(data, completion_item, buffer, completion):
     """ Completion with jabber alias names. """
     global jabber_jid_aliases
     for alias, jid in sorted(jabber_jid_aliases.items()):
-        weechat.hook_completion_list_add(completion, alias,
+        weechat.completion_list_add(completion, alias,
                                          0, weechat.WEECHAT_LIST_POS_SORT)
     return weechat.WEECHAT_RC_OK
 
