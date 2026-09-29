@@ -1,120 +1,189 @@
-# -*- coding: utf-8 -*-
+# SPDX-FileCopyrightText: 2012-2026 Nils Görs <weechatter@arcor.de>
 #
-# Copyright (c) 2012-2013 by nils_2 <weechatter@arcor.de>
-#
-# cylce to currently used server if you are using merged server buffer
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-# 2013-01-25: nils_2, (freenode.#weechat)
-#       0.4 : make script compatible with Python 3.x
-#
-# 2012-01-28: nils_2,(freenode.#weechat)
-#       0.3 : adapted to bugfix #31158 and new signal hook_signal("window_switch")
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+# 2012-01-22: nils_2,(freenode.#weechat)
+#       0.1 : initial release
 #
 # 2012-01-27: nils_2,(freenode.#weechat)
 #       0.2 : fix: bug with split windows removed (reported by meingtsla)
 #
-# 2012-01-22: nils_2,(freenode.#weechat)
-#       0.1 : initial release
+# 2012-01-28: nils_2,(freenode.#weechat)
+#       0.3 : adapted to bugfix #31158 and new signal hook_signal("window_switch")
 #
-# Development is currently hosted at
-# https://github.com/weechatter/weechat-scripts
+# 2013-01-25: nils_2, (freenode.#weechat)
+#       0.4 : make script compatible with Python 3.x
+#
+# 2026-09-11: nils_2, (libera.#weechat)
+#       0.5 : improve script logic and overall stability, with better error handling
+#           : add: /help text
 
 try:
-    import weechat,re
-
-except Exception:
+    import weechat
+except ImportError:
     print("This script must be run under WeeChat.")
-    print("Get WeeChat now at: http://www.weechat.org/")
-    quit()
+    print("Get WeeChat now at: https://weechat.org/")
+    raise SystemExit(1)
 
-SCRIPT_NAME     = "server_autoswitch"
-SCRIPT_AUTHOR   = "nils_2 <weechatter@arcor.de>"
-SCRIPT_VERSION  = "0.4"
-SCRIPT_LICENSE  = "GPL"
-SCRIPT_DESC     = "cycle to currently used server if you are using merged server buffer"
+import traceback
 
-look_server = ""
+SCRIPT_NAME = "server_autoswitch"
+SCRIPT_AUTHOR = "nils_2 <weechatter@arcor.de>"
+SCRIPT_VERSION = "0.5"
+SCRIPT_LICENSE = "GPL3"
+SCRIPT_DESC = "cycle merged server buffers to match the server of the current channel"
 
-def window_switch_cb(data, signal, signal_data):
-    bufpointer = weechat.window_get_pointer(signal_data,"buffer")
-    buffer_switch_cb(data,signal,bufpointer)
-    return weechat.WEECHAT_RC_OK
-def buffer_switch_cb(data, signal, signal_data):
-    global look_server
-    look_server = ""
-    look_server = weechat.config_string(weechat.config_get("irc.look.server_buffer"))
-    if  look_server == "independent":                                                   # server buffer independent?
-        return weechat.WEECHAT_RC_OK                                                    # better remove script, you don't need it.
 
-    if weechat.buffer_get_string(signal_data,'name') != 'weechat':                      # not weechat core buffer
-        if (weechat.buffer_get_string(signal_data,'localvar_type') == '') or (weechat.buffer_get_string(signal_data,'localvar_type') == 'server'):
+# ================================[ safety wrapper ]==========================
+def safe_cb(func):
+    """Catch any exception in a hook callback and log it to the core buffer
+    instead of letting it break the script or leave a merge group mid-cycle."""
+
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as exc:  # noqa: BLE001 - intentionally broad
+            try:
+                weechat.prints(
+                    "",
+                    "%s%s: error in %s: %s"
+                    % (weechat.prefix("error"), SCRIPT_NAME, func.__name__, exc),
+                )
+                weechat.prints("", traceback.format_exc())
+            except Exception:
+                pass
             return weechat.WEECHAT_RC_OK
-    elif weechat.buffer_get_string(signal_data,'name') == 'weechat':
-        return weechat.WEECHAT_RC_OK
 
-    # buffer is channel or private?
-    if (weechat.buffer_get_string(signal_data,'localvar_type') == 'channel') or (weechat.buffer_get_string(signal_data,'localvar_type') == 'private'):
-        bufpointer = weechat.window_get_pointer(weechat.current_window(),"buffer")
-        servername_from_current_buffer = weechat.buffer_get_string(bufpointer, 'localvar_server')
-        name = weechat.buffer_get_string(bufpointer, 'name')
-        server_switch(signal_data,servername_from_current_buffer,name)
+    wrapper.__name__ = func.__name__
+    return wrapper
+
+
+# ================================[ helpers ]=================================
+def merging_enabled():
+    """Fast pre-check: is server-buffer merging switched on at all? Purely
+    an optimization to skip the infolist scan for the (very common) case
+    where it's off; the actual decision still happens via buffer numbers."""
+    option = weechat.config_get("irc.look.server_buffer")
+    if not option:
+        return True  # option not found (future WeeChat change?) - fail open
+    return weechat.config_string(option) != "independent"
+
+
+def buffers_sharing_number(number):
+    """Pointers of every buffer that currently shares this buffer number,
+    in the same order WeeChat itself cycles through them. A number held by
+    only one buffer means "not merged with anything right now"."""
+    members = []
+    infolist = weechat.infolist_get("buffer", "", "")
+    if not infolist:
+        return members
+    try:
+        while weechat.infolist_next(infolist):
+            if weechat.infolist_integer(infolist, "number") == number:
+                buf = weechat.infolist_pointer(infolist, "pointer")
+                if buf:
+                    members.append(buf)
+    finally:
+        weechat.infolist_free(infolist)
+    return members
+
+
+def cycle_to_server_buffer(target_buf):
+    """Cycle target_buf's merge group (if it is merged with anything) until
+    target_buf itself becomes the active/displayed member."""
+    if not target_buf:
+        return
+    if weechat.buffer_get_integer(target_buf, "active") == 1:
+        return  # already showing - nothing to do
+
+    number = weechat.buffer_get_integer(target_buf, "number")
+    group = buffers_sharing_number(number)
+    if len(group) < 2:
+        return  # not currently merged with anything
+
+    # Bounded: never take more steps than the group has members, so a
+    # buffer that unexpectedly never becomes active can't loop forever.
+    for _ in range(len(group)):
+        active_buf = next(
+            (buf for buf in group if weechat.buffer_get_integer(buf, "active") == 1),
+            None,
+        )
+        if active_buf is None:
+            return  # shouldn't happen, but don't spin on it
+        weechat.command(active_buf, "/input switch_active_buffer")
+        if weechat.buffer_get_integer(target_buf, "active") == 1:
+            return
+
+
+def handle_buffer(buf):
+    """If buf is an irc channel/private buffer, bring its server buffer to
+    the front of its merge group (if merged)."""
+    if not buf:
+        return
+    if not merging_enabled():
+        return
+    if weechat.buffer_get_string(buf, "localvar_plugin") != "irc":
+        return
+    if weechat.buffer_get_string(buf, "localvar_type") not in ("channel", "private"):
+        return
+
+    servername = weechat.buffer_get_string(buf, "localvar_server")
+    if not servername:
+        return
+
+    server_buf = weechat.info_get("irc_buffer", servername)
+    cycle_to_server_buffer(server_buf)
+
+
+# ================================[ signal callbacks ]=========================
+@safe_cb
+def buffer_switch_cb(data, signal, signal_data):
+    handle_buffer(signal_data)
     return weechat.WEECHAT_RC_OK
 
-def server_switch(signal_data,servername_from_current_buffer,name):
-    global look_server
-    SERVER = {}
 
-    bufpointer = weechat.window_get_pointer(weechat.current_window(),"buffer")
-    servername_current_buffer = servername_from_current_buffer
-    if look_server == "merge_with_core":                                                # merge_with_core
-        SERVER["weechat"] = "core.weechat"
+@safe_cb
+def window_switch_cb(data, signal, signal_data):
+    # signal_data is a window pointer here, not a buffer pointer - resolve
+    # the buffer that window is actually showing.
+    handle_buffer(weechat.window_get_pointer(signal_data, "buffer"))
+    return weechat.WEECHAT_RC_OK
 
-# get ALL server buffers and save them
-    infolist = weechat.infolist_get("buffer","","*server.*")                            # we are only interest in server-buffers
-    while weechat.infolist_next(infolist):
-        bufpointer = weechat.infolist_pointer(infolist,"pointer")
-        server = weechat.infolist_string(infolist, "name")                              # full servername (server.<servername>)
-        servername = weechat.infolist_string(infolist, "short_name")                    # get servername from server (without prefix "server")
-        active = weechat.infolist_integer(infolist,"active")
-        SERVER[servername] = server
-        if (active == 1) and (servername_current_buffer != servername):                 # buffer active but not correct server buffer?
-            weechat.command(bufpointer,"/input switch_active_buffer")                   # switch server buffer
-    weechat.infolist_free(infolist)                                                     # do not forget to free infolist!
 
-# switch though all server and stop at server from current buffer
-    i = 0
-    while i <= len(SERVER):
-        for servername,full_name in list(SERVER.items()):
-            bufpointer = weechat.buffer_search("irc","%s" % full_name)                  # search pointer from server buffer
-            if bufpointer == "":                                                        # core buffer
-                if weechat.buffer_get_integer(weechat.buffer_search_main(),'active') == 1:
-                    weechat.command(weechat.buffer_search_main(),"/input switch_active_buffer")
-            else:                                                                       # server buffer!
-                if (servername != servername_current_buffer) and (weechat.buffer_get_integer(bufpointer,'active') == 1):
-                    weechat.command(bufpointer,"/input switch_active_buffer")
-                elif (servername == servername_current_buffer) and (weechat.buffer_get_integer(bufpointer,'active') == 1):
-                    i = len(SERVER)
-                    break
-        i += 1
-# ================================[ main ]===============================
+# ================================[ command ]==================================
+@safe_cb
+def command_cb(data, buffer, args):
+    handle_buffer(weechat.current_buffer())
+    return weechat.WEECHAT_RC_OK
+
+
+# ================================[ main ]=====================================
 if __name__ == "__main__":
-    if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, '', ''):
-        version = weechat.info_get("version_number", "") or 0
-        if int(version) >= 0x00030600:
-            weechat.hook_signal("buffer_switch","buffer_switch_cb","")
-            weechat.hook_signal("window_switch","window_switch_cb","")
-        else:
-            weechat.prnt("","%s%s %s" % (weechat.prefix("error"),SCRIPT_NAME,": needs version 0.3.6 or higher"))
+    if weechat.register(
+        SCRIPT_NAME,
+        SCRIPT_AUTHOR,
+        SCRIPT_VERSION,
+        SCRIPT_LICENSE,
+        SCRIPT_DESC,
+        "",
+        "",
+    ):
+        weechat.hook_command(
+            SCRIPT_NAME,
+            SCRIPT_DESC,
+            "",
+            "The script only makes sense if you have merged the server buffers.\n\n"
+            "This script has no options. It runs automatically on every "
+            "buffer switch and window switch.\n\n"
+            "Running /%s manually re-syncs the merged server buffer to "
+            "the currently viewed channel right away." % SCRIPT_NAME,
+            "",
+            "command_cb",
+            "",
+        )
+        weechat.hook_signal("buffer_switch", "buffer_switch_cb", "")
+        weechat.hook_signal("window_switch", "window_switch_cb", "")
+
+        # Sync once immediately in case a channel is already open when the
+        # script gets (re)loaded.
+        handle_buffer(weechat.current_buffer())
