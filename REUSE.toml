@@ -1073,12 +1073,6 @@ SPDX-FileCopyrightText = "2019 pX <px@havok.org>"
 SPDX-License-Identifier = "GPL-3.0-or-later"
 
 [[annotations]]
-path = "python/histman.py"
-precedence = "override"
-SPDX-FileCopyrightText = "2012-2018 Nils Görs <weechatter@arcor.de>"
-SPDX-License-Identifier = "GPL-3.0-or-later"
-
-[[annotations]]
 path = "python/histsearch.py"
 precedence = "override"
 SPDX-FileCopyrightText = "2009 Tor Hveem <xt@bash.no>"
