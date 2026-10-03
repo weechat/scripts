@@ -704,12 +704,6 @@ SPDX-FileCopyrightText = "2009-2010 Elián Hanisch <lambdae2@gmail.com>"
 SPDX-License-Identifier = "GPL-3.0-or-later"
 
 [[annotations]]
-path = "python/autosavekey.py"
-precedence = "override"
-SPDX-FileCopyrightText = "2013-2019 Nils Görs <weechatter@arcor.de>"
-SPDX-License-Identifier = "GPL-3.0-or-later"
-
-[[annotations]]
 path = "python/autosort.py"
 precedence = "override"
 SPDX-FileCopyrightText = "2013-2023 Maarten de Vries <maarten@de-vri.es>"
