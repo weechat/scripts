@@ -1572,15 +1572,6 @@ SPDX-FileCopyrightText = "2011 delwin <delwin@skyehaven.net>"
 SPDX-License-Identifier = "GPL-3.0-or-later"
 
 [[annotations]]
-path = "python/stick_buffer.py"
-precedence = "override"
-SPDX-FileCopyrightText = [
-    "2013-2017 Nils Görs <weechatter@arcor.de>",
-    "2015 Damien Bargiacchi <icymidnight@gmail.com>",
-]
-SPDX-License-Identifier = "GPL-3.0-or-later"
-
-[[annotations]]
 path = "python/styurl.py"
 precedence = "override"
 SPDX-FileCopyrightText = "2019 Cole Helbling <cole.e.helbling@outlook.com>"
