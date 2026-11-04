@@ -1,17 +1,23 @@
+#
+# SPDX-FileCopyrightText: 2026 Nick Leytem <nmleytem@gmail.com>
+#
+# SPDX-License-Identifier: GPL-3.0-only
+#
+
 """Marquee-style auto-scrolling for long buffer titles."""
 
 SCRIPT_NAME = "title_scroll"
 SCRIPT_AUTHOR = "nleytem"
 SCRIPT_EMAIL = "nmleytem@gmail.com"
-SCRIPT_VERSION = "1.0.0"
+SCRIPT_VERSION = "1.0.1"
 SCRIPT_LICENSE = "GPL-3.0-only"
 SCRIPT_DESC = (
     "Auto-scrolls buffer titles that don't fit the window width, "
     "marquee-style, with a marker between the end and repeated start "
     "(note: embedded title colors are stripped while scrolling)"
 )
-COPYRIGHT = "SPDX-FileCopyrightText: 2026 Nick Leytem <nmleytem@gmail.com>"
-LICENSE = "SPDX-License-Identifier: GPL-3.0-only"
+
+BAR_ITEM_NAME = "title_scroll"
 
 try:
     import weechat  # type: ignore[import]
