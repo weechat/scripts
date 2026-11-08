@@ -25,6 +25,12 @@
 #   https://github.com/ryoskzypu/weechat_scripts
 #
 # History:
+# 2026-11-08: Sébastien Helleu <flashcode@flashtux.org>
+#   version 35: fix IndexError in preserve_colors() when the line contains
+#               WeeChat color codes not handled by the regex (multiple
+#               attributes, background only, pair, emphasis, bar codes),
+#               fix colorization of lines without tags when option
+#               ignore_tags is empty
 # 2026-07-06: xt <xt@bash.no>
 #   version 34: fix colorization of nicks containing regex-special characters
 #               (e.g., hyphens) — re.escape() was applied before dictionary lookup,
@@ -114,7 +120,7 @@ w = weechat
 
 SCRIPT_NAME    = 'colorize_nicks'
 SCRIPT_AUTHOR  = 'xt <xt@bash.no>'
-SCRIPT_VERSION = '34'
+SCRIPT_VERSION = '35'
 SCRIPT_LICENSE = 'GPL'
 SCRIPT_DESC    = 'Use the weechat nick colors in the chat area'
 
@@ -129,24 +135,39 @@ colored_nicks = {}
 
 # Regexes
 
+# Color codes, as decoded by WeeChat in function gui_color_decode() (used by
+# string_remove_color()): every code removed by WeeChat must be matched here,
+# otherwise its chars are taken as text in preserve_colors().
 colors_rgx = r'''
                  \031
                  (?:
                      \d{2}                      # Fixed 'weechat.color.chat.*' codes
                      |
-                     (?:                        # Foreground
-                         [F*]
-                         [*!\/_%.|]?            # IRC colors (00–15)
-                         \d{2}
+                     F                          # Foreground
+                     (?:
+                         [*!\/_%.|]* \d{2}      # Attributes + IRC colors (00–15)
                          |
-                         (?: F@ | \*@)          # IRC colors (16–99) and WeeChat colors (16–255)
-                         [*!\/_%.|]?
-                         \d{5}
+                         @ [*!\/_%.|]* \d{5}    # IRC colors (16–99) and WeeChat colors (16–255)
                      )
-                     (?:                        # Background
-                         ~
+                     |
+                     \*                         # Foreground + optional background
+                     (?:
+                         [*!\/_%.|]* \d{2}
+                         |
+                         @ [*!\/_%.|]* \d{5}
+                     )
+                     (?:
+                         [~,]                   # (',' is the old separator, before WeeChat 2.6)
                          (?: \d{2} | @\d{5})
                      )?
+                     |
+                     B (?: \d{2} | @\d{5})      # Background
+                     |
+                     @\d{5}                     # Pair of colors
+                     |
+                     E                          # Emphasis
+                     |
+                     b [FBD_\-\#ils]            # Bar colors/items
                  )
              '''
 attr_rgx   = r'''
@@ -379,6 +400,12 @@ def compile_regexes():
     for k,v in regex.items():
         regex[k] = re.compile(v, flags=re.VERBOSE)
 
+def split_option(value):
+    ''' Splits a comma separated option value into a list, ignoring empty items
+    (so an empty option gives an empty list). '''
+
+    return [item for item in value.split(',') if item]
+
 def debug_str(var, string):
     ''' Displays string information for debugging in core.weechat buffer. '''
 
@@ -578,6 +605,11 @@ def preserve_colors(line, colorized_nicks_line):
 
             color_codes = ''
             continue
+        # No more chars in uncolored's list (should not happen), so keep the
+        # remaining chars of the line as-is.
+        elif idx >= len(split_line_nc):
+            new_line += i
+            continue
         elif split_line_nc[idx]:
             # It is a char, so compare it against the uncolored's char.
             if i == split_line_nc[idx]:
@@ -591,7 +623,7 @@ def preserve_colors(line, colorized_nicks_line):
                 #w.prnt('', f"split_line_nc[{idx} + 1]: " + pp.pformat(f'{split_line_nc[idx + 1]}'))
 
                 # If the chars match, advance the index.
-                if split_line_nc[idx + 1] == i:
+                if idx + 1 < len(split_line_nc) and split_line_nc[idx + 1] == i:
                     new_line += f'{reset}{color_codes}{i}'
                     idx      += 2
                     match     = 0
@@ -599,7 +631,7 @@ def preserve_colors(line, colorized_nicks_line):
                     continue
             # It is a unique prefix escape code, so get its color code and char,
             # then advance uncolored's index to the start of colorized nick match.
-            elif split_line_nc[idx] == uniq_esc_pref:
+            elif split_line_nc[idx] == uniq_esc_pref and idx + 1 < len(split_line_nc):
                 prefix    = f'{split_line_nc[idx + 1]}{i}'
                 new_line += prefix
                 idx      += 3
@@ -609,6 +641,9 @@ def preserve_colors(line, colorized_nicks_line):
             # then advance uncolored's index to the current char.
             elif (split_match := regex['exact_color'].search(split_line_nc[idx])) is not None:
                 #w.prnt('', f"split_line_nc[{idx} + 1]: " + pp.pformat(f'{split_line_nc[idx + 1]}'))
+
+                if idx + 1 >= len(split_line_nc):
+                    continue
 
                 nick_color  = split_match.group(0)
                 idx        += 1
@@ -716,7 +751,7 @@ def colorize_cb(data, hashtable):
         return hashtable
 
     # Do not colorize if an ignored tag is present in message.
-    tag_ignores = w.config_string(config_option['ignore_tags']).split(',')
+    tag_ignores = split_option(w.config_string(config_option['ignore_tags']))
     for tag in tags:
         if tag in tag_ignores:
             return hashtable
@@ -907,8 +942,8 @@ def update_blacklist_cb(*args):
 
     global ignore_channels, ignore_nicks
 
-    ignore_channels = w.config_string(config_option['ignore_channels']).split(',')
-    ignore_nicks    = w.config_string(config_option['ignore_nicks']).split(',')
+    ignore_channels = split_option(w.config_string(config_option['ignore_channels']))
+    ignore_nicks    = split_option(w.config_string(config_option['ignore_nicks']))
 
     return w.WEECHAT_RC_OK
 
