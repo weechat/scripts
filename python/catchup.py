@@ -9,7 +9,16 @@
 #
 # 2026-11-11, Nils Görs <libera.#weechat.nils_2>:
 #     version 0.1.0: initial release
-
+#
+# 2026-11-12, Nils Görs <libera.#weechat.nils_2>:
+#     version 0.2.0: add option "-debug" in command /catchup, fix catchup
+#                    buffer never refreshed again after an error while
+#                    opening it
+#
+# 2026-11-13, Nils Görs <libera.#weechat.nils_2>:
+#     version 0.3.0: add option hotlist_counts (numbers of messages taken
+#                    from the hotlist), display number of events, fix time
+#                    of hotlist with WeeChat >= 4.3.0
 import re
 import time
 
@@ -23,7 +32,7 @@ except ImportError:
 
 SCRIPT_NAME = "catchup"
 SCRIPT_AUTHOR = "Nils Görs <libera.#weechat.nils_2>"
-SCRIPT_VERSION = "0.1.0"
+SCRIPT_VERSION = "0.3.0"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Overview of unread messages, highlights and active buffers"
 
@@ -34,6 +43,13 @@ MIN_WEECHAT_VERSION = 0x04000000
 
 # type of a buffer with formatted content (not a "free" buffer)
 BUFFER_TYPE_FORMATTED = 0
+
+# hotlist priorities (index in the hotlist counts)
+HOTLIST_LOW = 0
+HOTLIST_MESSAGE = 1
+HOTLIST_PRIVATE = 2
+HOTLIST_HIGHLIGHT = 3
+HOTLIST_NUM_PRIORITIES = 4
 
 # values allowed for "-since" and the options default_since / back_since
 SINCE_VALUES = (
@@ -92,6 +108,14 @@ SETTINGS = {
     "color_selected": (
         "white,blue",
         "color for the selected line (format: \"fg,bg\")",
+    ),
+    "hotlist_counts": (
+        "off",
+        "with \"-since read_marker\", take the number of messages, "
+        "highlights and events from the hotlist, so that they are the same "
+        "as the numbers displayed by WeeChat in the hotlist; the hotlist "
+        "counts lines by priority, so the option message_tags is then "
+        "ignored for these numbers",
     ),
     "ignore_buffers": (
         "",
@@ -177,7 +201,7 @@ STATE = {
 REFRESH_DELAY = 500
 
 # title of the catchup buffer: help on keys and input (like fset)
-BUFFER_TITLE = ("Keys: up/down: select entry, enter: jump to buffer | "
+BUFFER_TITLE = ("Keys: up/down: select, enter: jump to buffer | "
                 "Input: q: close, r: mark all buffers as read, $: refresh")
 
 # delay (in milliseconds) to wait for the answers of all servers when
@@ -359,18 +383,39 @@ def display_buffer(buffer):
 # collect data
 # ============================================================================
 
-def get_hotlist_times():
-    """Return a dict with buffer pointer => time of hotlist creation."""
+def get_hotlist():
+    """Return hotlist info: two dicts with buffer pointer as key.
+
+    The first dict has the time the buffer was added to hotlist, the second
+    one the number of lines by priority: [low, message, private,
+    highlight].
+    """
+    # variable renamed in WeeChat 4.3.0
+    version = int(weechat.info_get("version_number", "") or 0)
+    time_var = "time" if version >= 0x04030000 else "creation_time.tv_sec"
     times = {}
+    counts = {}
     hdata_hotlist = weechat.hdata_get("hotlist")
     ptr_hotlist = weechat.hdata_get_list(hdata_hotlist, "gui_hotlist")
     while ptr_hotlist:
         buffer = weechat.hdata_pointer(hdata_hotlist, ptr_hotlist, "buffer")
         times[buffer] = weechat.hdata_time(hdata_hotlist, ptr_hotlist,
-                                           "creation_time.tv_sec")
+                                           time_var)
+        counts[buffer] = [
+            weechat.hdata_integer(hdata_hotlist, ptr_hotlist,
+                                  f"{priority}|count")
+            for priority in range(HOTLIST_NUM_PRIORITIES)
+        ]
         ptr_hotlist = weechat.hdata_pointer(hdata_hotlist, ptr_hotlist,
                                             "next_hotlist")
-    return times
+    return times, counts
+
+
+def buffer_skipped_displayed(buffer):
+    """Check if a buffer is skipped because it is displayed in a window."""
+    return (get_option_bool("skip_displayed")
+            and weechat.hdata_integer(weechat.hdata_get("buffer"), buffer,
+                                      "num_displayed") > 0)
 
 
 def get_line_tags(hdata_line_data, line_data):
@@ -394,9 +439,7 @@ def get_scan_limits(buffer, since, hotlist_times):
     if not lines:
         return None
     # buffer displayed in a window: the user can already see it
-    if (get_option_bool("skip_displayed")
-            and weechat.hdata_integer(hdata_buffer, buffer,
-                                      "num_displayed") > 0):
+    if buffer_skipped_displayed(buffer):
         return None
     if since is not None:
         return lines, "", since
@@ -477,9 +520,45 @@ def scan_line(hdata_line_data, line_data, date, stats, tag_conditions):
         ))
 
 
+def buffer_stats(buffer, since, hotlist, tag_conditions):
+    """Return stats of a buffer (None if nothing new).
+
+    Argument hotlist is a tuple (times, counts) returned by get_hotlist;
+    counts is empty if the hotlist counts must not be used.
+    """
+    hotlist_times, hotlist_counts = hotlist
+    stats = scan_buffer(buffer, since, hotlist_times, tag_conditions)
+    count = hotlist_counts.get(buffer)
+    if count and not buffer_skipped_displayed(buffer):
+        # same numbers as the hotlist; nicks and highlights displayed
+        # come from the lines scanned
+        if stats is None:
+            stats = {
+                "messages": 0,
+                "highlights": 0,
+                "other": 0,
+                "nicks": set(),
+                "important": [],
+            }
+        stats["messages"] = (count[HOTLIST_MESSAGE]
+                             + count[HOTLIST_PRIVATE]
+                             + count[HOTLIST_HIGHLIGHT])
+        stats["highlights"] = count[HOTLIST_HIGHLIGHT]
+        stats["other"] = count[HOTLIST_LOW]
+    return stats
+
+
+def get_hotlist_for_stats(since):
+    """Return hotlist info for function buffer_stats."""
+    hotlist_times, hotlist_counts = get_hotlist()
+    if since is not None or not get_option_bool("hotlist_counts"):
+        hotlist_counts = {}
+    return hotlist_times, hotlist_counts
+
+
 def collect(since):
     """Collect stats of all buffers."""
-    hotlist_times = get_hotlist_times()
+    hotlist = get_hotlist_for_stats(since)
     ignore_buffers = get_option("ignore_buffers")
     tag_conditions = parse_tag_conditions(get_option("message_tags"))
     hdata_buffer = weechat.hdata_get("buffer")
@@ -505,8 +584,7 @@ def collect(since):
                 and not (ignore_buffers
                          and weechat.string_match_list(
                              full_name, ignore_buffers, 0))):
-            stats = scan_buffer(buffer, since, hotlist_times,
-                                tag_conditions)
+            stats = buffer_stats(buffer, since, hotlist, tag_conditions)
             if stats and stats["messages"]:
                 name = weechat.hdata_string(hdata_buffer, buffer, "name")
                 number = weechat.hdata_integer(hdata_buffer, buffer,
@@ -519,6 +597,7 @@ def collect(since):
                     "short_name": short_name or name,
                     "messages": stats["messages"],
                     "highlights": stats["highlights"],
+                    "events": stats["other"],
                     "important": len(stats["important"]),
                     "nicks": len(stats["nicks"]),
                 })
@@ -611,7 +690,10 @@ def build_lines(data, since):
         for item in active:
             text = (f"  {pad(item['label'], width)}  "
                     f"{color_count}{plural(item['messages'], 'message')}"
-                    f"{reset}, {plural(item['nicks'], 'nick')}")
+                    f"{reset}")
+            if item["events"]:
+                text += f", {plural(item['events'], 'event')}"
+            text += f", {plural(item['nicks'], 'nick')}"
             if item["highlights"]:
                 text += (f", {color_highlight}"
                          f"{plural(item['highlights'], 'highlight')}"
@@ -807,8 +889,12 @@ def open_buffer(spec, since):
     # displayed before in this window is updated; if the catchup buffer
     # is already displayed in another window (split), go to this window
     STATE["opening"] = True
-    display_buffer(buffer)
-    STATE["opening"] = False
+    try:
+        display_buffer(buffer)
+    finally:
+        # always reset the flag, otherwise the buffer would never be
+        # refreshed again by signals
+        STATE["opening"] = False
     refresh()
 
 
@@ -856,6 +942,73 @@ def mark_all_read():
         buffer = weechat.hdata_pointer(hdata_buffer, buffer, "next_buffer")
 
 
+def debug_dump():
+    """Display debug info in core buffer: period, away times, buffers."""
+
+    def fmt(timestamp):
+        if not timestamp:
+            return "-"
+        return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(timestamp))
+
+    def say(text):
+        weechat.prnt("", f"{SCRIPT_NAME}: {text}")
+
+    say("----- debug -----")
+    say(f"catchup buffer opened: {'yes' if STATE['buffer'] else 'no'}")
+    say(f"-since: {STATE['since_spec']}, start: {fmt(STATE['since'])}")
+    away = ", ".join(f"{server}={fmt(value)}"
+                     for server, value in sorted(STATE["away"].items()))
+    say(f"away now: {away or '-'}")
+    say(f"last away: {fmt(STATE['last_away'])}, "
+        f"back pending: {fmt(STATE['back_since'])}")
+    for option in ("default_since", "back_since", "open_on_back",
+                   "skip_displayed", "hotlist_counts", "message_tags",
+                   "ignore_buffers", "quiet_max_messages"):
+        say(f"option {option} = \"{get_option(option)}\"")
+
+    since = STATE["since"] if STATE["buffer"] else None
+    hotlist = get_hotlist_for_stats(since)
+    hotlist_times, all_hotlist_counts = get_hotlist()
+    ignore_buffers = get_option("ignore_buffers")
+    tag_conditions = parse_tag_conditions(get_option("message_tags"))
+    hdata_buffer = weechat.hdata_get("buffer")
+    hdata_lines = weechat.hdata_get("lines")
+    buffer = weechat.hdata_get_list(hdata_buffer, "gui_buffers")
+    while buffer:
+        name = weechat.hdata_string(hdata_buffer, buffer, "full_name")
+        lines = weechat.hdata_pointer(hdata_buffer, buffer, "own_lines")
+        read_marker = (weechat.hdata_pointer(hdata_lines, lines,
+                                             "last_read_line")
+                       if lines else "")
+        displayed = weechat.hdata_integer(hdata_buffer, buffer,
+                                          "num_displayed")
+        info = (f"read_marker={'yes' if read_marker else 'no'}, "
+                f"displayed={displayed}, "
+                f"hotlist={fmt(hotlist_times.get(buffer))}, "
+                f"hotlist_counts={all_hotlist_counts.get(buffer, '-')}")
+        if buffer == STATE["buffer"]:
+            result = "catchup buffer"
+        elif (weechat.hdata_integer(hdata_buffer, buffer, "type")
+              != BUFFER_TYPE_FORMATTED):
+            result = "skipped (free buffer)"
+        elif ignore_buffers and weechat.string_match_list(
+                name, ignore_buffers, 0):
+            result = "skipped (option ignore_buffers)"
+        elif buffer_skipped_displayed(buffer):
+            result = "skipped (displayed in a window)"
+        else:
+            stats = buffer_stats(buffer, since, hotlist, tag_conditions)
+            if stats:
+                result = (f"{stats['messages']} messages, "
+                          f"{stats['highlights']} highlights, "
+                          f"{stats['other']} other lines")
+            else:
+                result = "nothing new"
+        say(f"  {name}: {result} ({info})")
+        buffer = weechat.hdata_pointer(hdata_buffer, buffer, "next_buffer")
+    say("----- end of debug -----")
+
+
 def handle_input(text):
     """Handle text entered in the catchup buffer."""
     if text == "q":
@@ -880,6 +1033,8 @@ def catchup_cmd_cb(_data, _buffer, args):
         if len(argv) < 2:
             return weechat.WEECHAT_RC_ERROR
         open_since(argv[1])
+    elif argv[0] == "-debug":
+        debug_dump()
     elif argv[0] == "-read":
         mark_all_read()
         if STATE["buffer"]:
@@ -902,7 +1057,6 @@ def catchup_cmd_cb(_data, _buffer, args):
                 # callback: commands like /upgrade or /python reload unload
                 # the script, and this must not happen while the script is
                 # running (Python crashes in Py_EndInterpreter)
-                # https://github.com/weechat/weechat/issues/2380
                 weechat.command_options(STATE["buffer"], "/input return",
                                         {"delay": "1"})
             else:
@@ -1064,7 +1218,7 @@ def hooks_init():
     weechat.hook_command(
         SCRIPT_COMMAND,
         "Show what happened while you were away",
-        "[-since <duration>|away|read_marker] || -read",
+        "[-since <duration>|away|read_marker] || -read || -debug",
         "-since: show the messages since a given time:\n"
         "          <duration>: messages of the given duration in all "
         "buffers, regardless of read markers; format: 1d2h30m "
@@ -1074,6 +1228,9 @@ def hooks_init():
         "         read_marker: unread messages since the read marker of each "
         "buffer\n"
         " -read: mark all buffers as read and clear the hotlist\n"
+        "-debug: display in core buffer the period used, the away times and "
+        "for each buffer why it is counted or skipped (to report a "
+        "problem)\n"
         "\n"
         "Without argument, the value of option "
         f"plugins.var.python.{SCRIPT_NAME}.default_since is used "
@@ -1087,6 +1244,12 @@ def hooks_init():
         f"plugins.var.python.{SCRIPT_NAME}.open_on_back is on; the option "
         f"plugins.var.python.{SCRIPT_NAME}.back_since defines which "
         "messages are displayed.\n"
+        "\n"
+        "With -since read_marker, the numbers of messages, highlights and "
+        "events are taken from the hotlist (same numbers as WeeChat, the "
+        f"option plugins.var.python.{SCRIPT_NAME}.message_tags is then "
+        "ignored for these numbers) if the option "
+        f"plugins.var.python.{SCRIPT_NAME}.hotlist_counts is on.\n"
         "\n"
         "The lines counted as messages are defined by the option "
         f"plugins.var.python.{SCRIPT_NAME}.message_tags, buffers displayed "
@@ -1110,13 +1273,15 @@ def hooks_init():
         "The arguments -up, -down and -enter are used by the key bindings "
         "of the catchup buffer.\n"
         "\n"
+        f"Options: /fset plugins.var.python.{SCRIPT_NAME}.*\n"
+        "\n"
         "Examples:\n"
         f"  /{SCRIPT_COMMAND}\n"
         f"  /{SCRIPT_COMMAND} -since 8h\n"
         f"  /{SCRIPT_COMMAND} -since 1d12h\n"
         f"  /{SCRIPT_COMMAND} -since away\n"
         f"  /{SCRIPT_COMMAND} -since read_marker",
-        "-since away|read_marker|1h|8h|1d || -read",
+        "-since away|read_marker|1h|8h|1d || -read || -debug",
         "catchup_cmd_cb", "")
     # answers of IRC servers to the command AWAY, they are received
     # whatever sets the away status (/away, another script, ...)
