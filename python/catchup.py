@@ -19,6 +19,10 @@
 #     version 0.3.0: add option hotlist_counts (numbers of messages taken
 #                    from the hotlist), display number of events, fix time
 #                    of hotlist with WeeChat >= 4.3.0
+#
+# 2026-11-13, Nils Görs <libera.#weechat.nils_2>:
+#     version 0.3.1: refresh catchup buffer when the hotlist is cleared and
+#                    when read markers are changed
 import re
 import time
 
@@ -32,7 +36,7 @@ except ImportError:
 
 SCRIPT_NAME = "catchup"
 SCRIPT_AUTHOR = "Nils Görs <libera.#weechat.nils_2>"
-SCRIPT_VERSION = "0.3.0"
+SCRIPT_VERSION = "0.3.1"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Overview of unread messages, highlights and active buffers"
 
@@ -884,6 +888,14 @@ def open_buffer(spec, since):
             weechat.hook_print("", "", "", 0, "catchup_print_cb", ""),
             weechat.hook_signal("buffer_switch", "catchup_switch_cb", ""),
             weechat.hook_signal("window_switch", "catchup_switch_cb", ""),
+            # hotlist cleared or buffers removed from hotlist
+            weechat.hook_signal("hotlist_changed",
+                                "catchup_hotlist_changed_cb", ""),
+            # read markers changed (no signal is sent by WeeChat)
+            weechat.hook_command_run("/buffer set unread*",
+                                     "catchup_command_run_cb", ""),
+            weechat.hook_command_run("/input set_unread*",
+                                     "catchup_command_run_cb", ""),
         ]
     # display the buffer first, so that the read marker of the buffer
     # displayed before in this window is updated; if the catchup buffer
@@ -1109,12 +1121,43 @@ def catchup_print_cb(_data, buffer, _date, tags, _displayed, highlight,
     if ((important or visited_changed)
             and not STATE["refresh_timer"]
             and get_option_bool("refresh_on_highlight")):
-        # delay the refresh, to do it only once for many lines
-        STATE["refresh_timer"] = weechat.hook_timer(
-            REFRESH_DELAY, 0, 1, "catchup_timer_refresh_cb", "")
+        schedule_refresh()
     elif visited_changed and not STATE["refresh_timer"]:
         # no automatic refresh: just redraw lines without color "visited"
         render()
+    return weechat.WEECHAT_RC_OK
+
+
+def schedule_refresh():
+    """Refresh the catchup buffer after a short delay.
+
+    The refresh is delayed so that many changes at once (lines, commands
+    executed on all buffers, ...) cause only one refresh.
+    """
+    if STATE["buffer"] and not STATE["refresh_timer"]:
+        STATE["refresh_timer"] = weechat.hook_timer(
+            REFRESH_DELAY, 0, 1, "catchup_timer_refresh_cb", "")
+
+
+def catchup_hotlist_changed_cb(_data, _signal, signal_data):
+    """Callback for signal "hotlist_changed".
+
+    The signal is sent with a buffer when a buffer is added to hotlist (on
+    each new line, ignored here) and without buffer when buffers are
+    removed from hotlist (for example /hotlist clear).
+    """
+    if not signal_data:
+        schedule_refresh()
+    return weechat.WEECHAT_RC_OK
+
+
+def catchup_command_run_cb(_data, _buffer, _command):
+    """Callback for commands changing the read marker of buffers.
+
+    The callback is called before the command is executed, so the refresh
+    is delayed.
+    """
+    schedule_refresh()
     return weechat.WEECHAT_RC_OK
 
 
@@ -1259,6 +1302,9 @@ def hooks_init():
         "The catchup buffer is refreshed automatically on a new highlight "
         "or private message if the option "
         f"plugins.var.python.{SCRIPT_NAME}.refresh_on_highlight is on.\n"
+        "It is also refreshed when the hotlist is cleared and when read "
+        "markers are changed with /buffer set unread or /input "
+        "set_unread.\n"
         "It is also refreshed when you come back to it, and the buffers "
         "you already jumped to are displayed with the color "
         f"plugins.var.python.{SCRIPT_NAME}.color_visited.\n"
