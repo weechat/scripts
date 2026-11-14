@@ -1,6 +1,7 @@
-# coding: utf-8
+# SPDX-FileCopyrightText: 2012 nesthib <nesthib@gmail.com>
+# SPDX-FileCopyrightText: 2026 Jochen Sprickerhof <weechat@jochen.sprickerhof.de>
 #
-# Copyright (c) 2012 by nesthib <nesthib@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,11 +14,13 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program. If not, see <http://www.gnu.org/licenses/>.
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
 #
 # This script generates a file containing a formatted list of highlights to be
 # used by an external program like conky.
 #
+# 2026-11-14, Jochen Sprickerhof <weechat@jochen.sprickerhof.de>
+#        0.4: Port to Python 3
 # 2021-05-04, Sébastien Helleu <flashcode@flashtux.org>
 #        0.3: add compatibility with WeeChat >= 3.2 (XDG directories)
 # 2014-05-10, Sébastien Helleu <flashcode@flashtux.org>
@@ -26,96 +29,82 @@
 # 2012-03-07: nesthib <nesthib@gmail.com>
 #        0.1: initial release
 
-try:
-    import weechat as w
-except Exception:
-    print("This script must be run under WeeChat.")
-    print("Get WeeChat now at: http://www.weechat.org/")
-    quit()
-
-import re, os
+import os
+import re
 from collections import Counter
 
-name = "hl2file"
-author = "nesthib <nesthib@gmail.com>"
-version = "0.3"
-license = "GPL"
-description = "Generates a file with highlights for external programs like conky"
-shutdown_function = "shutdown"
-charset = ""
+IMPORT_OK = True
 
-w.register(name, author, version, license, description, shutdown_function, charset)
+try:
+    import weechat  # ty: ignore[unresolved-import]
+except ImportError:
+    print("This script must be run under WeeChat.")
+    print("Get WeeChat now at: https://weechat.org/")
+    IMPORT_OK = False
 
-settings = {
-        'output_file': '%h/highlights.txt',
-        'output_active_buffer': '%h/active_buffer.txt',
-        #'ignore_chans': 'server',
-        'output_format': '%{buffer}: %{nick} (%{message})',
-        'summarize_by_buffer': 'off',
-        'short_buffer_names': 'on',
-        'clear_visited_buffers': 'on',
-        }
+SCRIPT_NAME = "hl2file"
+SCRIPT_AUTHOR = "nesthib <nesthib@gmail.com>"
+SCRIPT_VERSION = "0.4"
+SCRIPT_LICENSE = "GPL3"
+SCRIPT_DESC = "Generates a file with highlights for external programs like conky"
 
-for opt, val in settings.iteritems():
-    if not w.config_is_set_plugin(opt):
-        w.config_set_plugin(opt, val)
+# script options
+SETTINGS = {
+    "output_file": "%h/highlights.txt",
+    "output_active_buffer": "%h/active_buffer.txt",
+    # "ignore_chans": "server",
+    "output_format": "%{buffer}: %{nick} (%{message})",
+    "summarize_by_buffer": "off",
+    "short_buffer_names": "on",
+    "clear_visited_buffers": "on",
+}
 
 highlights = []
-regex_tags = re.compile('%\{[^\{\}]+\}')
 
-def bufname(buffer):
-    buffer_name = w.buffer_get_string(buffer , 'name')
-    if w.config_get_plugin('short_buffer_names') == 'on':
-        buffer_name = buffer_name.partition('.')[2]
+
+def bufname(buffer: str) -> str:
+    buffer_name = weechat.buffer_get_string(buffer, "name")
+    if weechat.config_string_to_boolean(
+        weechat.config_get_plugin("short_buffer_names")
+    ):
+        buffer_name = buffer_name.partition(".")[2]
     return buffer_name
 
-def write(my_file, content):
+
+def write(my_file: str, content: str | list[str]) -> None:
     if my_file == "":
         return
     options = {
-        'directory': 'data',
+        "directory": "data",
     }
-    my_file = w.string_eval_path_home(my_file, {}, {}, options)
+    my_file = weechat.string_eval_path_home(my_file, {}, {}, options)
     try:
-        f = open(my_file, 'w')
-    except IOError:
-        w.prnt('', 'Error: %s is unable to open "%s", please select an appropriate location' % (name, my_file))
-    else:
-        f.writelines(content)
-        f.close()
+        with open(my_file, "w") as f:
+            f.writelines(content)
+    except OSError as err:
+        weechat.prnt(
+            "",
+            f'{weechat.prefix("error")}{SCRIPT_NAME}: unable to write "{my_file}": {err}',
+        )
 
-def my_print_cb(data, buffer, date, tags, displayed, highlight, prefix, message):
-    global highlights
-    if w.config_get_plugin('clear_visited_buffers') == 'on':
-        if buffer == w.window_get_pointer(w.current_window(), 'buffer'):
-            return w.WEECHAT_RC_OK
-    if int(highlight):
-        infos = {'buffer'   : buffer,
-                 'date'     : date,
-                 'tags'     : str.split(tags, ','),
-                 'nick'   : prefix,
-                 'message'  : message,
-                 }
-        highlights.append(infos)
-        write_file()
-    return w.WEECHAT_RC_OK
 
-def write_file():
-    global highlights
-    filename = w.config_get_plugin('output_file')
-    if w.config_get_plugin('summarize_by_buffer') == 'on':
-        items = Counter([ bufname(item['buffer']) for item in highlights ])
-        output_lines = [ '%s (%s)\n' % (item, items[item]) for item in items ]
+def write_file() -> None:
+    filename = weechat.config_get_plugin("output_file")
+    if weechat.config_string_to_boolean(
+        weechat.config_get_plugin("summarize_by_buffer")
+    ):
+        items = Counter([bufname(item["buffer"]) for item in highlights])
+        output_lines = [f"{item} ({items[item]})\n" for item in items]
     else:
-        output_regex = w.config_get_plugin('output_format')
-        tags = regex_tags.findall(output_regex)
+        output_regex = weechat.config_get_plugin("output_format")
+        tags = re.findall(r"%\{[^\{\}]+\}", output_regex)
         output_lines = []
         for infos in highlights:
-            output_string = output_regex+'\n'
+            output_string = output_regex + "\n"
             for tag in tags:
-                item = tag.lstrip('%{').rstrip('}')
-                if item in infos.keys():
-                    if item == 'buffer':
+                item = tag.lstrip("%{").rstrip("}")
+                if item in infos:
+                    if item == "buffer":
                         new_string = bufname(infos[item])
                     else:
                         new_string = infos[item]
@@ -123,63 +112,100 @@ def write_file():
             output_lines.append(output_string)
     write(filename, output_lines)
 
-def clear_file_cb(data, buffer, args):
+
+def my_print_cb(
+    _data: str,
+    buffer: str,
+    date: str,
+    tags: str,
+    _displayed: str | int,
+    highlight: str | int,
+    prefix: str,
+    message: str,
+) -> int:
+    if weechat.config_string_to_boolean(
+        weechat.config_get_plugin("clear_visited_buffers")
+    ) and buffer == weechat.window_get_pointer(weechat.current_window(), "buffer"):
+        return weechat.WEECHAT_RC_OK
+    if int(highlight) or "notify_private" in tags:
+        infos = {
+            "buffer": buffer,
+            "date": date,
+            "tags": tags,
+            "nick": prefix,
+            "message": message,
+        }
+        highlights.append(infos)
+        write_file()
+    return weechat.WEECHAT_RC_OK
+
+
+def clear_file_cb(_data: str, _buffer: str, _args: str) -> int:
     global highlights
     highlights = []
     write_file()
-    return w.WEECHAT_RC_OK
+    return weechat.WEECHAT_RC_OK
 
-def buffer_switch_cb(data, signal, signal_data):
+
+def buffer_switch_cb(_data: str, _signal: str, _signal_data: str) -> int:
     global highlights
-    if w.config_get_plugin('clear_visited_buffers') == 'on':
-        buffer = w.window_get_pointer(w.current_window(), 'buffer')
-        write(w.config_get_plugin('output_active_buffer'), bufname(buffer))
-        highlights = [ item for item in highlights if item['buffer'] != buffer ]
+    if weechat.config_string_to_boolean(
+        weechat.config_get_plugin("clear_visited_buffers")
+    ):
+        buffer = weechat.window_get_pointer(weechat.current_window(), "buffer")
+        write(weechat.config_get_plugin("output_active_buffer"), bufname(buffer) + "\n")
+        highlights = [item for item in highlights if item["buffer"] != buffer]
         write_file()
-    return w.WEECHAT_RC_OK
+    return weechat.WEECHAT_RC_OK
 
-def shutdown():
+
+def shutdown() -> int:
     options = {
-        'directory': 'data',
+        "directory": "data",
     }
-    for my_file in ['output_file', 'output_active_buffer']:
-        filename = w.string_eval_path_home(my_file, {}, {}, options)
+    for my_file in ["output_file", "output_active_buffer"]:
+        filename = weechat.string_eval_path_home(
+            weechat.config_get_plugin(my_file), {}, {}, options
+        )
         if os.path.exists(filename):
             os.remove(filename)
-    return w.WEECHAT_RC_OK
+    return weechat.WEECHAT_RC_OK
 
-### OPTIONS ###
 
-invertdict = lambda d: dict(zip(d.itervalues(), d.keys()))
-booleans = {'on': True, 'off': False}
-boolean_options = ['summarize_by_buffer', 'short_buffer_name', 'clear_visited_buffers']
-
-options = {}
-for option in settings.keys():
-    if option in boolean_options :
-        options[option] = booleans[w.config_get_plugin(option)]
-    else:
-        options[option] = w.config_get_plugin(option)
-
-def my_config_cb(data, option, value):
-    global options
-
-    for boolean_option in boolean_options :
-        if option.endswith(boolean_option):
-            if value in booleans.keys():
-                options[boolean_option] = booleans[w.config_get_plugin(boolean_option)]
-            else:
-                w.prnt('', 'Error: "%s" is not a boolean, please use "on" or "off"' % w.config_get_plugin(boolean_option))
-                w.config_set_plugin(boolean_option, invertdict(booleans)[options[boolean_option]])
+def my_config_cb(_data: str, _option: str, _value: str) -> int:
     write_file()
-    return w.WEECHAT_RC_OK
+    return weechat.WEECHAT_RC_OK
 
-for option in settings.keys():
-    w.hook_config("plugins.var.python.%s.%s" % (name, option), "my_config_cb", "")
 
-###  HOOKS  ###
+def main() -> None:
+    """Main function."""
 
-w.hook_command("hl2file_clear", "", "", "", "", "clear_file_cb", "")
-w.hook_signal("buffer_switch","buffer_switch_cb","")
-w.hook_signal("window_switch","buffer_switch_cb","")
-w.hook_print("", "", "", 1, "my_print_cb", "")
+    if not weechat.register(
+        SCRIPT_NAME,
+        SCRIPT_AUTHOR,
+        SCRIPT_VERSION,
+        SCRIPT_LICENSE,
+        SCRIPT_DESC,
+        "shutdown",
+        "",
+    ):
+        return
+
+    for name, option in SETTINGS.items():
+        if not weechat.config_is_set_plugin(name):
+            weechat.config_set_plugin(name, option)
+
+    for option in SETTINGS:
+        weechat.hook_config(
+            f"plugins.var.python.{SCRIPT_NAME}.{option}", "my_config_cb", ""
+        )
+
+    ###  HOOKS  ###
+    weechat.hook_command("hl2file_clear", "", "", "", "", "clear_file_cb", "")
+    weechat.hook_signal("buffer_switch", "buffer_switch_cb", "")
+    weechat.hook_signal("window_switch", "buffer_switch_cb", "")
+    weechat.hook_print("", "", "", 1, "my_print_cb", "")
+
+
+if __name__ == "__main__" and IMPORT_OK:
+    main()
