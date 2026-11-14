@@ -1073,12 +1073,6 @@ SPDX-FileCopyrightText = "2009 Tor Hveem <xt@bash.no>"
 SPDX-License-Identifier = "GPL-3.0-or-later"
 
 [[annotations]]
-path = "python/hl2file.py"
-precedence = "override"
-SPDX-FileCopyrightText = "2012 nesthib <nesthib@gmail.com>"
-SPDX-License-Identifier = "GPL-3.0-or-later"
-
-[[annotations]]
 path = "python/hl_nicks.py"
 precedence = "override"
 SPDX-FileCopyrightText = "2012 nesthib <nesthib@gmail.com>"
